@@ -17,7 +17,16 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import i18n from "@/lib/i18n/client";
+import { AVAILABLE_LANGUAGES } from "@/lib/i18n/constants";
 
 export default function Home() {
   const form = useForm({
@@ -27,8 +36,32 @@ export default function Home() {
   const { t } = useTranslation();
   return (
     <div className="flex w-full max-w-6xl flex-col items-center justify-center gap-4">
-      <ColorModeToggle />
+      <div className="flex items-center gap-2">
+        <ColorModeToggle />
+        <Separator orientation="vertical" className="w-2" />
+        <Label>{t("home.labels.language")}</Label>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="w-28">
+              {t(`languages.${i18n.language}`)}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-28">
+            {AVAILABLE_LANGUAGES.map(({ key }) => (
+              <DropdownMenuItem
+                className="cursor-pointer disabled:cursor-not-allowed disabled:text-muted-foreground"
+                disabled={key === i18n.language}
+                key={`lang-${key}`}
+                onClick={() => i18n.changeLanguage(key)} // TODO : Proper change handling once db is set up
+              >
+                {t(`languages.${key}`)}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
       <Separator />
+
       <h2 className="text-3xl font-bold">{t("home.hello")}</h2>
       <Formiz connect={form} autoForm>
         <div className="flex w-[20vw] flex-col items-center p-2">

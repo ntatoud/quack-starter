@@ -1,5 +1,12 @@
 {
   "home": {
-    "hello": "Hello"
+    "hello": "Hello",
+    "labels": {
+      "language": "Pick a language"
+    }
+  },
+  "languages": {
+    "en": "English",
+    "fr": "French"
   }
 }
