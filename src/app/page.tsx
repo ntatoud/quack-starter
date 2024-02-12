@@ -2,6 +2,7 @@
 
 import { Formiz, useForm } from "@formiz/core";
 import { ExternalLink, Heart } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { ColorModeToggle } from "@/components/ColorModeToggle";
@@ -23,11 +24,12 @@ export default function Home() {
     onSubmit: (values) => console.log(values),
   });
 
+  const { t } = useTranslation();
   return (
     <div className="flex w-full max-w-6xl flex-col items-center justify-center gap-4">
       <ColorModeToggle />
       <Separator />
-      <h2 className="text-3xl font-bold">Day picker</h2>
+      <h2 className="text-3xl font-bold">{t("home.hello")}</h2>
       <Formiz connect={form} autoForm>
         <div className="flex w-[20vw] flex-col items-center p-2">
           <FieldDatePicker

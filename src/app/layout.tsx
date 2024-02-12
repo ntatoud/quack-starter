@@ -1,13 +1,7 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 
-import { Toaster } from "@/components/ui/sonner";
-import { TrpcProvider } from "@/lib/trpc/TrpcProvider";
-
+import { Document } from "./Document";
 import "./styles/globals.css";
-import { ThemeProvider } from "./styles/theme-provider";
-
-const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -22,24 +16,5 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <TrpcProvider>
-            <main className="flex min-h-screen flex-col items-center justify-between p-24">
-              {children}
-            </main>
-
-            <Toaster position="top-center" />
-          </TrpcProvider>
-        </ThemeProvider>
-      </body>
-    </html>
-  );
+  return <Document>{children}</Document>;
 }
