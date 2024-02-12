@@ -12,7 +12,6 @@ import { trpc } from "./client";
 
 const getBaseUrl = () => {
   if (typeof window !== "undefined") return ""; // browser should use relative url SSR should use vercel url
-  console.log(env.NEXT_PUBLIC_BASE_URL);
   return env.NEXT_PUBLIC_BASE_URL;
 };
 export function TrpcProvider(props: { children: React.ReactNode }) {

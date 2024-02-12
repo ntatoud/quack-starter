@@ -1,4 +1,6 @@
 {
-    "editor.defaultFormatter": "esbenp.prettier-vscode",
-    "editor.formatOnSave": true
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true,
+  "i18n-ally.localesPaths": ["src/locales", "src/lib/i18n"],
+  "i18n-ally.keystyle": "nested"
 }
