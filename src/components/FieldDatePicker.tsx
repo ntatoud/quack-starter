@@ -3,7 +3,7 @@
 import { type FieldProps, useField } from "@formiz/core";
 import dayjs from "dayjs";
 import { CalendarIcon } from "lucide-react";
-import { InputProps } from "react-day-picker";
+import { type InputProps } from "react-day-picker";
 
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";

@@ -2,7 +2,6 @@
 
 import { Formiz, useForm } from "@formiz/core";
 import { ExternalLink, Heart } from "lucide-react";
-import { useFormState } from "react-dom";
 import { toast } from "sonner";
 
 import { ColorModeToggle } from "@/components/ColorModeToggle";

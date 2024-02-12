@@ -33,9 +33,11 @@ export type AppContext = Awaited<ReturnType<typeof createTRPCContext>>;
  *
  * @see https://trpc.io/docs/context
  */
-export const createTRPCContext = async ({
-  req,
-}: FetchCreateContextFnOptions) => {
+export const createTRPCContext = async (
+  {
+    // req,
+  }: FetchCreateContextFnOptions,
+) => {
   // TODO : auth
   const user = null;
 
