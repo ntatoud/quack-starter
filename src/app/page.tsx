@@ -67,16 +67,16 @@ export default function Home() {
         <div className="flex w-[20vw] flex-col items-center p-2">
           <FieldDatePicker
             name="date"
-            label="Select a date"
+            label="Pick a date"
             triggerClassName="w-[20vw]"
           />
-          <Button type="submit">Submit</Button>
+          <Button type="submit">{t("actions.submit")}</Button>
         </div>
       </Formiz>
       <Separator />
       <div className="flex w-full items-center justify-center gap-4">
         <Button>Sponsor</Button>
-        <Button variant="secondary">See more</Button>
+        <Button variant="secondary">{t("actions.seeMore")}</Button>
       </div>
       <Separator />
       <Alert className="max-w-md">
@@ -109,8 +109,8 @@ export default function Home() {
         <CardContent className="flex flex-col gap-2">
           <Button
             onClick={() =>
-              toast.success("Well done! ", {
-                description: "Hello",
+              toast.success(t("feedback.success.title"), {
+                description: t("feedback.success.description"),
                 action: {
                   label: <ExternalLink />,
                   onClick: () => console.log("yes"),
@@ -125,8 +125,8 @@ export default function Home() {
           <Button
             variant="destructiveSecondary"
             onClick={() =>
-              toast.error("Well done! ", {
-                description: "Hello",
+              toast.error(t("feedback.error.title"), {
+                description: t("feedback.error.description"),
               })
             }
           >

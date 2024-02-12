@@ -8,5 +8,23 @@
   "languages": {
     "en": "English",
     "fr": "French"
+  },
+  "actions": {
+    "submit": "Submit",
+    "seeMore": "See more",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "back": "Back"
+  },
+  "feedback": {
+    "success": {
+      "title": "Success",
+      "description": "Action done with success."
+    },
+    "error": {
+      "title": "Error",
+      "description": "An error occured."
+    }
   }
 }

@@ -8,5 +8,23 @@
   "languages": {
     "en": "Anglais",
     "fr": "Français"
+  },
+  "actions": {
+    "submit": "Envoyer",
+    "seeMore": "Voir plus",
+    "cancel": "Annuler",
+    "confirm": "Confirmer",
+    "delete": "Supprimer",
+    "back": "Retour"
+  },
+  "feedback": {
+    "success": {
+      "title": "Succès",
+      "description": "Action réalisée avec success"
+    },
+    "error": {
+      "title": "Erreur",
+      "description": "Une erreur est survenue"
+    }
   }
 }
