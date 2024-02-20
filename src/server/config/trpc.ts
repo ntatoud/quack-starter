@@ -38,7 +38,7 @@ export const createTRPCContext = async (
     // req,
   }: FetchCreateContextFnOptions,
 ) => {
-  // TODO : auth
+  // WARNING : Initialize the user depending on how you handle authentication
   const user = null;
 
   return {
@@ -96,7 +96,7 @@ const loggerMiddleware = t.middleware(async (opts) => {
     path: opts.path,
     type: opts.type,
     requestId: randomUUID(),
-    // userId: opts.ctx.user?.id, // TODO : Add this line when user implemented
+    // userId: opts.ctx.user?.id, // WARNING : Uncomment this line when user implemented
   };
 
   logger.debug(
@@ -166,7 +166,7 @@ export const protectedProcedure = () =>
     t.middleware(({ ctx, next }) => {
       const user = ctx.user;
 
-      // TODO : Private procedure logic
+      // WARNING : Your protection logic here.
 
       return next({
         ctx: {

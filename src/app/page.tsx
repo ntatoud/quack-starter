@@ -29,11 +29,17 @@ import i18n from "@/lib/i18n/client";
 import { AVAILABLE_LANGUAGES } from "@/lib/i18n/constants";
 
 export default function Home() {
+  const { t } = useTranslation();
+
   const form = useForm({
     onSubmit: (values) => console.log(values),
   });
 
-  const { t } = useTranslation();
+  const handleLanguageChange = async (key: string) => {
+    // WARNING : Implement your own logic.
+    await i18n.changeLanguage(key);
+  };
+
   return (
     <div className="flex w-full max-w-6xl flex-col items-center justify-center gap-4">
       <div className="flex items-center gap-2">
@@ -52,7 +58,7 @@ export default function Home() {
                 className="cursor-pointer disabled:cursor-not-allowed disabled:text-muted-foreground"
                 disabled={key === i18n.language}
                 key={`lang-${key}`}
-                onClick={() => i18n.changeLanguage(key)} // TODO : Proper change handling once db is set up
+                onClick={() => handleLanguageChange(key)}
               >
                 {t(`languages.${key}`)}
               </DropdownMenuItem>
