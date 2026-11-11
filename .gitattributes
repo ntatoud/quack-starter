@@ -1,0 +1,4 @@
+# autocrlf converts LF to CRLF on Windows, which the formatter then rewrites.
+* text=auto eol=lf
+pnpm-lock.yaml linguist-generated
+**/routeTree.gen.ts linguist-generated

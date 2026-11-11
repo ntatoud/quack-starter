@@ -1,0 +1,50 @@
+packages:
+  - apps/*
+  - packages/*
+
+# true = allowed to run install scripts. Everything else is refused.
+allowBuilds:
+  esbuild: true
+
+# One version per shared dependency. Packages reference these with "catalog:".
+catalog:
+  "@types/node": 26.6.6
+  effect: 4.1.4
+  tsrs: 0.23.0-ts7.1.0-beta
+  typescript: 7.0.2
+  vite: npm:@voidzero-dev/vite-plus-core@1.6.0
+  vite-plus: 1.6.0
+
+minimumReleaseAgeExclude:
+  - "@tsrs/darwin-arm64@0.24.0-ts7.1.0-beta"
+  - "@tsrs/darwin-x64@0.24.0-ts7.1.0-beta"
+  - "@tsrs/linux-arm64-gnu@0.24.0-ts7.1.0-beta"
+  - "@tsrs/linux-arm64-musl@0.24.0-ts7.1.0-beta"
+  - "@tsrs/linux-x64-gnu@0.24.0-ts7.1.0-beta"
+  - "@tsrs/linux-x64-musl@0.24.0-ts7.1.0-beta"
+  - "@tsrs/win32-x64@0.24.0-ts7.1.0-beta"
+  - "@voidzero-dev/vite-plus-core@1.6.0"
+  - "@voidzero-dev/vite-plus-darwin-arm64@1.6.0"
+  - "@voidzero-dev/vite-plus-darwin-x64@1.6.0"
+  - "@voidzero-dev/vite-plus-linux-arm64-gnu@1.6.0"
+  - "@voidzero-dev/vite-plus-linux-arm64-musl@1.6.0"
+  - "@voidzero-dev/vite-plus-linux-x64-gnu@1.6.0"
+  - "@voidzero-dev/vite-plus-linux-x64-musl@1.6.0"
+  - "@voidzero-dev/vite-plus-win32-arm64-msvc@1.6.0"
+  - "@voidzero-dev/vite-plus-win32-x64-msvc@1.6.0"
+  - knip@6.45.1
+  - tsrs@0.24.0-ts7.1.0-beta
+  - vite-plus@1.6.0
+  - effect@4.1.4
+
+overrides:
+  # Every package that asks for Vite or Vitest gets the Vite+ build, so there is one copy.
+  vite: "catalog:"
+  # Two Effect copies do not share services or schemas.
+  effect: "catalog:"
+  "@effect/vitest>vitest": "-"
+
+peerDependencyRules:
+  # Vite is the Vite+ build (see overrides), whose version number is not Vite's.
+  allowAny:
+    - vite

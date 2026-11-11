@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "plugins": [
+      {
+        "name": "@effect/language-service",
+        "namespaceImportPackages": [],
+        "diagnosticSeverity": {
+          // The http and http-api modules are still marked unstable; this template uses them on purpose.
+          "unstableApiUsage": "off"
+        }
+      }
+    ]
+  }
+}
