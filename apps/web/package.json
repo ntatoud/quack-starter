@@ -16,6 +16,7 @@
   "dependencies": {
     "@quack/contracts": "workspace:*",
     "@quack/effect-query": "workspace:*",
+    "@quack/form": "workspace:*",
     "@quack/ui": "workspace:*",
     "@tanstack/react-query": "catalog:",
     "@tanstack/react-router": "1.170.46",
@@ -27,9 +28,13 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "catalog:",
+    "@testing-library/dom": "catalog:",
+    "@testing-library/react": "catalog:",
+    "@testing-library/user-event": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "6.3.0",
+    "happy-dom": "catalog:",
     "vite-plus": "catalog:"
   }
 }
