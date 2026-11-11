@@ -28,13 +28,12 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "catalog:",
-    "@testing-library/dom": "catalog:",
-    "@testing-library/react": "catalog:",
-    "@testing-library/user-event": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "6.3.0",
-    "happy-dom": "catalog:",
-    "vite-plus": "catalog:"
+    "@vitest/browser-playwright": "catalog:",
+    "playwright": "catalog:",
+    "vite-plus": "catalog:",
+    "vitest-browser-react": "catalog:"
   }
 }

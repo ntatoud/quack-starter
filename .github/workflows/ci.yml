@@ -50,7 +50,7 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           task-cache-key: test
-      # The form components are also tested in a real browser.
+      # Component tests (*.test.tsx) run in a real browser.
       - name: Install Chromium
         run: pnpm --filter @quack/form exec playwright install --with-deps --only-shell chromium
       - name: Test

@@ -1,8 +1,7 @@
-// @vitest-environment happy-dom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
+import { page, userEvent } from "vite-plus/test/browser";
+import { render } from "vitest-browser-react";
 
 import { TodosForm } from "#/features/todos/todos-form.tsx";
 
@@ -17,126 +16,136 @@ const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) =>
 vi.stubGlobal("fetch", fetch);
 
 /** Renders the form against a stubbed network, the one edge the form does not own. */
-const setup = (response: typeof respond) => {
+const setup = async (response: typeof respond) => {
   respond = response;
-  render(
+  await render(
     <QueryClientProvider client={new QueryClient()}>
       <TodosForm />
     </QueryClientProvider>,
   );
   return {
-    user: userEvent.setup(),
-    input: screen.getByLabelText<HTMLInputElement>("New todo"),
-    add: screen.getByRole("button", { name: "Add" }),
+    input: page.getByRole("textbox", { name: "New todo" }),
+    add: page.getByRole("button", { name: "Add" }),
   };
 };
 
 const failure = "Could not add the todo. Try again.";
 
 /** The error as shown, apart from the live region that says it. */
-const shown = (text: string) => screen.queryByText(text, { ignore: '[role="status"]' });
+const shown = (text: string) =>
+  page
+    .getByText(text)
+    .elements()
+    .filter((element) => element.getAttribute("role") !== "status");
 
-const statusTexts = () => screen.getAllByRole("status").map((status) => status.textContent);
+/** What the live regions hold: the form's, for errors, and the todo form's own, for an added todo. */
+const said = () =>
+  page
+    .getByRole("status")
+    .elements()
+    .map((status) => status.textContent);
 
 afterEach(() => {
-  cleanup();
   fetch.mockClear();
 });
 
 describe("TodosForm", () => {
   it("reports a blank title on the field, focuses it, and sends nothing", async () => {
-    const { user, input, add } = setup(() => created(""));
+    const { input, add } = await setup(() => created(""));
 
-    await user.click(add);
+    await add.click();
 
-    const error = await screen.findByText("Title is required");
-    expect(input.getAttribute("aria-invalid")).toBe("true");
-    expect(input.getAttribute("aria-describedby")).toBe(error.id);
-    expect(document.activeElement).toBe(input);
-    // The focused input says its error; an alert would say it twice, and again on every edit.
-    expect(screen.queryByRole("alert")).toBeNull();
+    await expect.element(input).toHaveFocus();
+    await expect.element(input).toBeInvalid();
+    await expect.element(input).toHaveAccessibleDescription("Title is required");
     expect(fetch).not.toHaveBeenCalled();
 
-    await user.type(input, "Ship it");
-    expect(screen.queryByText("Title is required")).toBeNull();
-    expect(input.getAttribute("aria-invalid")).toBe("false");
+    await userEvent.keyboard("Ship it");
+    await expect.element(input).toBeValid();
+    await expect.element(input).toHaveAccessibleDescription("");
   });
 
   it("says the error when Enter is pressed in the field, which already has the focus", async () => {
-    const { user, input } = setup(() => created(""));
+    const { input } = await setup(() => created(""));
 
-    await user.type(input, "{Enter}");
+    await input.click();
+    await userEvent.keyboard("{Enter}");
 
-    await vi.waitFor(() => expect(statusTexts()).toContain("Title is required"));
+    await expect.poll(said).toContain("Title is required");
   });
 
   it("sends the trimmed title, clears the input, and announces the todo", async () => {
     const requests: Array<unknown> = [];
-    const { user, input } = setup(async (request) => {
+    const { input } = await setup(async (request) => {
       requests.push(await request.json());
       return created("Ship it");
     });
 
-    await user.type(input, "  Ship it  {Enter}");
+    await input.fill("  Ship it  ");
+    await userEvent.keyboard("{Enter}");
 
-    await vi.waitFor(() => expect(input.value).toBe(""));
+    await expect.element(input).toHaveValue("");
     expect(requests).toEqual([{ title: "Ship it" }]);
-    expect(await screen.findByText("Added Ship it")).toBeDefined();
+    await expect.poll(said).toContain("Added Ship it");
   });
 
   it("keeps the title when the request fails, and drops the error on the next edit", async () => {
-    const { user, input } = setup(() => new Response(null, { status: 500 }));
+    const { input } = await setup(() => new Response(null, { status: 500 }));
 
-    await user.type(input, "Ship it{Enter}");
+    await input.fill("Ship it");
+    await userEvent.keyboard("{Enter}");
 
-    await vi.waitFor(() => expect(statusTexts()).toContain(failure));
-    expect(shown(failure)).not.toBeNull();
-    expect(input.value).toBe("Ship it");
+    await expect.poll(said).toContain(failure);
+    expect(shown(failure)).toHaveLength(1);
+    await expect.element(input).toHaveValue("Ship it");
 
-    await user.type(input, "!");
-    expect(screen.queryByText(failure)).toBeNull();
+    await userEvent.keyboard("!");
+    await expect.poll(() => page.getByText(failure).elements()).toEqual([]);
   });
 
   it("adds the todo on a retry after a failure", async () => {
-    const { user, input } = setup(() => new Response(null, { status: 500 }));
-    await user.type(input, "Ship it{Enter}");
-    await vi.waitFor(() => expect(shown(failure)).not.toBeNull());
+    const { input } = await setup(() => new Response(null, { status: 500 }));
+    await input.fill("Ship it");
+    await userEvent.keyboard("{Enter}");
+    await expect.poll(() => shown(failure)).toHaveLength(1);
 
     respond = () => created("Ship it");
-    await user.keyboard("{Enter}");
+    await userEvent.keyboard("{Enter}");
 
-    await vi.waitFor(() => expect(input.value).toBe(""));
-    expect(screen.queryByText(failure)).toBeNull();
+    await expect.element(input).toHaveValue("");
+    expect(page.getByText(failure).elements()).toEqual([]);
   });
 
   it("submits once while a request is running, and keeps what was typed meanwhile", async () => {
     const response = Promise.withResolvers<Response>();
-    const { user, input, add } = setup(() => response.promise);
+    const { input, add } = await setup(() => response.promise);
 
-    await user.type(input, "First{Enter}");
-    await vi.waitFor(() => expect(add.getAttribute("aria-disabled")).toBe("true"));
-    await user.type(input, " and more{Enter}");
+    await input.fill("First");
+    await userEvent.keyboard("{Enter}");
+    await expect.element(add).toHaveAttribute("aria-disabled", "true");
+    await userEvent.keyboard(" and more{Enter}");
     // While submitting, the button ignores Enter and clicks; a script or another control may still submit.
-    fireEvent.submit(input.form!);
+    (input.element() as HTMLInputElement).form?.requestSubmit();
     response.resolve(created("First"));
 
-    await vi.waitFor(() => expect(add.getAttribute("aria-disabled")).toBe("false"));
-    expect(input.value).toBe("First and more");
+    await expect.element(add).toHaveAttribute("aria-disabled", "false");
+    await expect.element(input).toHaveValue("First and more");
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
   it("does not report a draft emptied during the request, and leaves the focus alone", async () => {
     const response = Promise.withResolvers<Response>();
-    const { user, input, add } = setup(() => response.promise);
+    const { input, add } = await setup(() => response.promise);
 
-    await user.type(input, "First{Enter}");
-    await user.clear(input);
-    await user.tab();
+    await input.fill("First");
+    await userEvent.keyboard("{Enter}");
+    await input.clear();
+    await userEvent.tab();
     response.resolve(created("First"));
 
-    await vi.waitFor(() => expect(add.getAttribute("aria-disabled")).toBe("false"));
+    await expect.element(add).toHaveAttribute("aria-disabled", "false");
     // The emptied draft was never submitted: it is not reported, and the focus stays where the user put it.
-    expect(screen.queryByText("Title is required")).toBeNull();
-    expect(document.activeElement).toBe(add);
+    expect(page.getByText("Title is required").elements()).toEqual([]);
+    await expect.element(add).toHaveFocus();
   });
 });
