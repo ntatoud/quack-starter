@@ -1,0 +1,110 @@
+name: PR Size
+
+# pull_request_target gives a write token to PRs from forks. This workflow never checks
+# out or runs PR code: it reads the diff stats from the API. Keep it that way.
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  label:
+    name: Label PR size
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    concurrency:
+      group: pr-size-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    steps:
+      - name: Sync PR size label
+        uses: actions/github-script@v8
+        with:
+          script: |
+            // Upper bound of each size, in effective changed lines. The last one has none.
+            const sizes = [
+              { name: "size:XS", color: "0e8a16", below: 10 },
+              { name: "size:S", color: "5ebd3e", below: 30 },
+              { name: "size:M", color: "fbca04", below: 100 },
+              { name: "size:L", color: "fe7d37", below: 500 },
+              { name: "size:XL", color: "d93f0b", below: 1000 },
+              { name: "size:XXL", color: "b60205", below: Infinity },
+            ];
+            const description = (size, index) => {
+              const from = index === 0 ? 0 : sizes[index - 1].below;
+              const range = size.below === Infinity ? `${from}+` : `${from}-${size.below - 1}`;
+              return `${range} effective changed lines (tests excluded in mixed PRs).`;
+            };
+
+            // Generated files say nothing about the size of a review.
+            const isGenerated = (path) =>
+              path === "pnpm-lock.yaml" || path.endsWith("routeTree.gen.ts");
+            const isTest = (path) =>
+              /\.(test|spec)\.[^/]+$/.test(path) || /(^|\/)(__tests__|tests?)\//.test(path);
+
+            const { owner, repo } = context.repo;
+            const issue_number = context.payload.pull_request.number;
+
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner,
+              repo,
+              pull_number: issue_number,
+              per_page: 100,
+            });
+
+            let testLines = 0;
+            let otherLines = 0;
+            for (const file of files) {
+              if (isGenerated(file.filename)) continue;
+              if (isTest(file.filename)) testLines += file.changes;
+              else otherLines += file.changes;
+            }
+
+            // Tests do not count against a PR that also changes code. A test-only PR is sized by its tests.
+            const effectiveLines = otherLines === 0 ? testLines : otherLines;
+            const next = sizes.find((size) => effectiveLines < size.below);
+
+            // addLabels creates a missing label without color or description, so create it first.
+            try {
+              await github.rest.issues.createLabel({
+                owner,
+                repo,
+                name: next.name,
+                color: next.color,
+                description: description(next, sizes.indexOf(next)),
+              });
+            } catch (error) {
+              // 422: the label already exists.
+              if (error.status !== 422) throw error;
+            }
+
+            const { data: current } = await github.rest.issues.listLabelsOnIssue({
+              owner,
+              repo,
+              issue_number,
+              per_page: 100,
+            });
+
+            for (const label of current) {
+              const isStaleSize =
+                label.name !== next.name && sizes.some((size) => size.name === label.name);
+              if (!isStaleSize) continue;
+              try {
+                await github.rest.issues.removeLabel({ owner, repo, issue_number, name: label.name });
+              } catch (error) {
+                if (error.status !== 404) throw error;
+              }
+            }
+
+            if (!current.some((label) => label.name === next.name)) {
+              await github.rest.issues.addLabels({ owner, repo, issue_number, labels: [next.name] });
+            }
+
+            core.info(
+              `PR #${issue_number}: ${otherLines} non-test lines, ${testLines} test lines -> ${next.name}`,
+            );
