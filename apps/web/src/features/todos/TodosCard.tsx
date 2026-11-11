@@ -8,7 +8,7 @@ import {
 } from "@quack/ui/components/card";
 import { Checkbox } from "@quack/ui/components/checkbox";
 import { Input } from "@quack/ui/components/input";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { type MutationFunctionContext, useMutation, useQuery } from "@tanstack/react-query";
 import { Option } from "effect";
 import { Trash2Icon } from "lucide-react";
 import { type FormEvent, useState } from "react";
@@ -16,13 +16,19 @@ import { type FormEvent, useState } from "react";
 import { parseDraftTitle } from "#/features/todos/draft.ts";
 import { api } from "#/lib/api.ts";
 
+// Every mutation changes the list, so each one refetches the todos queries, even after a failure.
+const refresh = {
+  onSettled: (
+    _data: unknown,
+    _error: unknown,
+    _input: unknown,
+    _onMutateResult: unknown,
+    { client }: MutationFunctionContext,
+  ) => client.invalidateQueries({ queryKey: api.todos.key() }),
+};
+
 export function TodosCard() {
-  const queryClient = useQueryClient();
   const todos = useQuery(api.todos.list.queryOptions());
-  // Every mutation changes the list, so each one refetches the todos queries.
-  const refresh = {
-    onSettled: () => queryClient.invalidateQueries({ queryKey: api.todos.key() }),
-  };
   const createTodo = useMutation(api.todos.create.mutationOptions(refresh));
   const completeTodo = useMutation(api.todos.complete.mutationOptions(refresh));
   const removeTodo = useMutation(api.todos.remove.mutationOptions(refresh));
