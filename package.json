@@ -21,6 +21,7 @@
   "devDependencies": {
     "@effect/tsgo": "catalog:",
     "@quack/oxlint-plugin": "workspace:*",
+    "@shadcn/lint": "0.2.5",
     "@types/node": "catalog:",
     "knip": "6.45.1",
     "tsrs": "catalog:",
