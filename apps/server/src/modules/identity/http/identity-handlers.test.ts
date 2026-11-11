@@ -1,4 +1,4 @@
-import { assert, layer } from "@effect/vitest";
+import { assert, describe, effect, layer } from "@effect/vitest";
 import { Api } from "@quack/contracts/api";
 import { Authentication } from "@quack/contracts/identity/authentication";
 import type { Email, Password } from "@quack/contracts/identity/user";
@@ -102,7 +102,8 @@ const withConfig = (env: Record<string, string>) =>
     Layer.provide(ConfigProvider.layer(ConfigProvider.fromUnknown(env))),
   );
 
-layer(withConfig({}))("IdentityApi", (it) => {
+// Every browser of these tests has the same address, none, and they sign up more than 10 times in the hour.
+layer(withConfig({ SIGN_UPS_PER_IP: "1000" }))("IdentityApi", (it) => {
   it.effect("signs a visitor up, and answers with their public User", () =>
     Effect.gen(function* () {
       const browser = yield* makeBrowser;
@@ -498,5 +499,223 @@ layer(withConfig({ COOKIE_SECURE: "false" }))("IdentityApi, with COOKIE_SECURE=f
           assert.notInclude((setCookie[0] ?? "").split("; "), "Secure");
         }
       }),
+  );
+});
+
+/** A wrong password for every User of these tests. */
+const wrongPassword = Redacted.make("not the password of anyone");
+
+/**
+ * The module with the limits a test sets, or the ones of an unset config. It is built for one test, so its counters
+ * start empty: every browser has the same address, none, since this client sends no `X-Forwarded-For`.
+ * The limits by address are told apart by address on the routes, in `server.test.ts`.
+ */
+const withLimits = (env: Record<string, string> = {}) => Effect.provide(withConfig(env));
+
+/** What a refusal says, and nothing else of the error: its tag, and how long to wait when it is `TooManyAttempts`. */
+const refusal = (error: { readonly _tag: string; readonly retryAfter?: number } | undefined) => ({
+  _tag: error?._tag,
+  retryAfter: error?.retryAfter,
+});
+
+/** Signs in with a wrong password, `times` in a row, and answers with the errors. */
+const failSignIn = (browser: Effect.Success<typeof makeBrowser>, email: string, times: number) =>
+  Effect.forEach(Array.from({ length: times }), () =>
+    Effect.flip(browser.signIn(asTyped(email), wrongPassword)),
+  );
+
+describe("IdentityApi, attempt limits", () => {
+  effect("refuses a sign-in after 5 failures on the email in 15 minutes: TooManyAttempts", () =>
+    Effect.gen(function* () {
+      const browser = yield* makeBrowser;
+      yield* browser.signUp(asTyped("ada@example.com"));
+      yield* browser.signUp(asTyped("grace@example.com"));
+
+      const failures = yield* failSignIn(browser, "ada@example.com", 5);
+      // The password is the right one: the answer does not depend on it.
+      const error = yield* browser.signIn(asTyped(" Ada@Example.com ")).pipe(Effect.flip);
+
+      assert.deepStrictEqual(
+        failures.map((failure) => failure._tag),
+        Array.from({ length: 5 }, () => "InvalidCredentials"),
+      );
+      assert.strictEqual(error._tag, "TooManyAttempts");
+      // The counter is the one of the email: another User signs in from the same address.
+      assert.strictEqual(
+        (yield* browser.signIn(asTyped("grace@example.com"))).user.email,
+        "grace@example.com",
+      );
+    }).pipe(withLimits()),
+  );
+
+  effect("says how long to wait in retryAfter: the seconds left in the window", () =>
+    Effect.gen(function* () {
+      const browser = yield* makeBrowser;
+      // The window opens at the first failure, and the ones after do not move its end.
+      yield* failSignIn(browser, "ada@example.com", 1);
+      yield* TestClock.adjust("4 minutes");
+      yield* failSignIn(browser, "ada@example.com", 4);
+
+      const atOnce = yield* browser.signIn(asTyped("ada@example.com")).pipe(Effect.flip);
+      yield* TestClock.adjust("10 minutes");
+      yield* TestClock.adjust("59500 millis");
+      const atTheEnd = yield* browser.signIn(asTyped("ada@example.com")).pipe(Effect.flip);
+
+      // 11 minutes are left, then half a second, rounded up.
+      assert.deepStrictEqual(refusal(atOnce), { _tag: "TooManyAttempts", retryAfter: 660 });
+      assert.deepStrictEqual(refusal(atTheEnd), { _tag: "TooManyAttempts", retryAfter: 1 });
+    }).pipe(withLimits()),
+  );
+
+  effect("counts the failures on an email no User has, and refuses it the same way", () =>
+    Effect.gen(function* () {
+      const browser = yield* makeBrowser;
+      yield* browser.signUp(asTyped("ada@example.com"));
+
+      yield* failSignIn(browser, "ada@example.com", 5);
+      const known = yield* browser.signIn(asTyped("ada@example.com")).pipe(Effect.flip);
+      const failures = yield* failSignIn(browser, "nobody@example.com", 5);
+      const unknown = yield* browser.signIn(asTyped("nobody@example.com")).pipe(Effect.flip);
+
+      assert.strictEqual(failures[4]?._tag, "InvalidCredentials");
+      assert.strictEqual(unknown._tag, "TooManyAttempts");
+      assert.deepStrictEqual(refusal(unknown), refusal(known));
+    }).pipe(withLimits()),
+  );
+
+  effect("sets the counter of the email back to zero when a sign-in succeeds", () =>
+    Effect.gen(function* () {
+      const browser = yield* makeBrowser;
+      yield* browser.signUp(asTyped("ada@example.com"));
+      yield* failSignIn(browser, "ada@example.com", 4);
+
+      yield* browser.signIn(asTyped("ada@example.com"));
+
+      // 5 more failures are needed, not one.
+      const failures = yield* failSignIn(browser, "ada@example.com", 5);
+      assert.deepStrictEqual(
+        failures.map((failure) => failure._tag),
+        Array.from({ length: 5 }, () => "InvalidCredentials"),
+      );
+      const error = yield* browser.signIn(asTyped("ada@example.com")).pipe(Effect.flip);
+      assert.strictEqual(error._tag, "TooManyAttempts");
+    }).pipe(withLimits()),
+  );
+
+  effect("opens the next window when the 15 minutes end: the refusal is temporary", () =>
+    Effect.gen(function* () {
+      const browser = yield* makeBrowser;
+      const { user } = yield* browser.signUp(asTyped("ada@example.com"));
+      yield* failSignIn(browser, "ada@example.com", 5);
+
+      yield* TestClock.adjust(Duration.subtract(Duration.minutes(15), Duration.seconds(1)));
+      // An attempt that is refused is not counted, and does not move the end of the window.
+      const refused = yield* failSignIn(browser, "ada@example.com", 3);
+      yield* TestClock.adjust("1 second");
+
+      assert.deepStrictEqual(refusal(refused[2]), { _tag: "TooManyAttempts", retryAfter: 1 });
+      assert.deepStrictEqual((yield* browser.signIn(asTyped("ada@example.com"))).user, user);
+      // The counter starts again from zero: 5 failures, then the refusal for 15 minutes.
+      const failures = yield* failSignIn(browser, "ada@example.com", 6);
+      assert.strictEqual(failures[4]?._tag, "InvalidCredentials");
+      assert.deepStrictEqual(refusal(failures[5]), { _tag: "TooManyAttempts", retryAfter: 900 });
+    }).pipe(withLimits()),
+  );
+
+  effect(
+    "refuses every sign-in from an address after 20 failures in 15 minutes, whatever the email",
+    () =>
+      Effect.gen(function* () {
+        const browser = yield* makeBrowser;
+        const { user } = yield* browser.signUp(asTyped("ada@example.com"));
+        // 4 failures on each of 5 emails: no email reaches its own limit.
+        for (let guessed = 0; guessed < 4; guessed++) {
+          yield* failSignIn(browser, `guessed-${guessed}@example.com`, 4);
+        }
+        yield* failSignIn(browser, "guessed-4@example.com", 3);
+        // A sign-in that succeeds leaves the counter of the address as it is: 19 failures.
+        assert.deepStrictEqual((yield* browser.signIn(asTyped("ada@example.com"))).user, user);
+        const twentieth = yield* failSignIn(browser, "guessed-4@example.com", 1);
+
+        const onAnotherEmail = yield* failSignIn(browser, "guessed-5@example.com", 1);
+        const withTheRightPassword = yield* browser
+          .signIn(asTyped("ada@example.com"))
+          .pipe(Effect.flip);
+
+        assert.strictEqual(twentieth[0]?._tag, "InvalidCredentials");
+        assert.deepStrictEqual(refusal(onAnotherEmail[0]), {
+          _tag: "TooManyAttempts",
+          retryAfter: 900,
+        });
+        assert.deepStrictEqual(refusal(withTheRightPassword), {
+          _tag: "TooManyAttempts",
+          retryAfter: 900,
+        });
+
+        yield* TestClock.adjust("15 minutes");
+        assert.deepStrictEqual((yield* browser.signIn(asTyped("ada@example.com"))).user, user);
+      }).pipe(withLimits()),
+  );
+
+  effect("refuses a sign-up after 10 from the address in one hour, the failed ones included", () =>
+    Effect.gen(function* () {
+      const browser = yield* makeBrowser;
+      for (let visitor = 0; visitor < 8; visitor++) {
+        yield* browser.signUp(asTyped(`visitor-${visitor}@example.com`));
+      }
+      const taken = yield* Effect.forEach(Array.from({ length: 2 }), () =>
+        Effect.flip(browser.signUp(asTyped("visitor-0@example.com"))),
+      );
+
+      yield* TestClock.adjust("20 minutes");
+      const eleventh = yield* browser.signUp(asTyped("visitor-8@example.com")).pipe(Effect.flip);
+      // The same answer for an email a User has: it does not say so.
+      const onTakenEmail = yield* browser
+        .signUp(asTyped("visitor-0@example.com"))
+        .pipe(Effect.flip);
+
+      assert.deepStrictEqual(
+        taken.map((error) => error._tag),
+        ["EmailAlreadyTaken", "EmailAlreadyTaken"],
+      );
+      assert.deepStrictEqual(refusal(eleventh), { _tag: "TooManyAttempts", retryAfter: 2400 });
+      assert.deepStrictEqual(refusal(onTakenEmail), refusal(eleventh));
+      // The sign-ins of the address have their own counters.
+      yield* browser.signIn(asTyped("visitor-1@example.com"));
+
+      yield* TestClock.adjust("40 minutes");
+      const { user } = yield* browser.signUp(asTyped("visitor-8@example.com"));
+      assert.strictEqual(user.email, "visitor-8@example.com");
+    }).pipe(withLimits()),
+  );
+
+  effect("takes its limits and its windows from the config", () =>
+    Effect.gen(function* () {
+      const browser = yield* makeBrowser;
+      yield* browser.signUp(asTyped("ada@example.com"));
+      yield* browser.signUp(asTyped("grace@example.com"));
+
+      const thirdSignUp = yield* browser.signUp(asTyped("linus@example.com")).pipe(Effect.flip);
+      const signIns = yield* failSignIn(browser, "ada@example.com", 3);
+      yield* failSignIn(browser, "grace@example.com", 1);
+      const fromTheAddress = yield* failSignIn(browser, "linus@example.com", 1);
+
+      assert.deepStrictEqual(refusal(thirdSignUp), { _tag: "TooManyAttempts", retryAfter: 7200 });
+      assert.strictEqual(signIns[1]?._tag, "InvalidCredentials");
+      assert.deepStrictEqual(refusal(signIns[2]), { _tag: "TooManyAttempts", retryAfter: 60 });
+      assert.deepStrictEqual(refusal(fromTheAddress[0]), {
+        _tag: "TooManyAttempts",
+        retryAfter: 30,
+      });
+    }).pipe(
+      withLimits({
+        SIGN_IN_FAILURES_PER_EMAIL: "2",
+        SIGN_IN_FAILURES_PER_EMAIL_WINDOW: "1 minute",
+        SIGN_IN_FAILURES_PER_IP: "3",
+        SIGN_IN_FAILURES_PER_IP_WINDOW: "30 seconds",
+        SIGN_UPS_PER_IP: "2",
+        SIGN_UPS_PER_IP_WINDOW: "2 hours",
+      }),
+    ),
   );
 });

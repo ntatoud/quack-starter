@@ -1,4 +1,4 @@
-import { InvalidCredentials } from "@quack/contracts/identity/identity-errors";
+import { InvalidCredentials, TooManyAttempts } from "@quack/contracts/identity/identity-errors";
 import { SignInPayload } from "@quack/contracts/identity/identity-api";
 import type { User } from "@quack/contracts/identity/user";
 import { schemaFormOptions } from "@quack/form/schema-form-options";
@@ -7,10 +7,17 @@ import { useAppForm } from "@quack/form/use-app-form";
 import { useMutation } from "@tanstack/react-query";
 import { Schema } from "effect";
 
+import { tooManyAttemptsMessage } from "#/features/identity/retry-delay.ts";
 import { api } from "#/lib/api.ts";
 
 const decodeSignInPayload = Schema.decodeSync(SignInPayload);
 const emptySignInPayload: typeof SignInPayload.Encoded = { email: "", password: "" };
+
+const submitFailure = (cause: unknown) => {
+  if (cause instanceof InvalidCredentials) return "Wrong email or password.";
+  if (cause instanceof TooManyAttempts) return tooManyAttemptsMessage(cause.retryAfter);
+  return "Could not sign in. Try again.";
+};
 
 /**
  * Signs a User in. The API sets the session cookie, so the User is signed in when `onSignedIn` runs:
@@ -25,12 +32,7 @@ export function SignInForm({ onSignedIn }: { onSignedIn: (user: User) => void | 
       const user = await signIn
         .mutateAsync({ payload: decodeSignInPayload(value) })
         .catch((cause: unknown) => {
-          throw new SubmitFailed(
-            cause instanceof InvalidCredentials
-              ? "Wrong email or password."
-              : "Could not sign in. Try again.",
-            { cause },
-          );
+          throw new SubmitFailed(submitFailure(cause), { cause });
         });
       await onSignedIn(user);
     },

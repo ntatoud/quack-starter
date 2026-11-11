@@ -1,6 +1,7 @@
 import {
   type EmailAlreadyTaken,
   InvalidCredentials,
+  type TooManyAttempts,
   Unauthenticated,
 } from "@quack/contracts/identity/identity-errors";
 import { type Email, type Password, User } from "@quack/contracts/identity/user";
@@ -8,6 +9,11 @@ import { Context, DateTime, Effect, Layer, Option, Redacted } from "effect";
 import { Digest, SecureRandom } from "effect/crypto";
 import { Base64Url } from "effect/encoding";
 
+import {
+  type AttemptCounter,
+  AttemptLimiter,
+  type ClientIp,
+} from "#/modules/identity/domain/attempt-limiter.ts";
 import { PasswordHasher } from "#/modules/identity/domain/password-hasher.ts";
 import {
   expiryFrom,
@@ -29,19 +35,35 @@ export interface OpenedSession {
 export class Identity extends Context.Service<
   Identity,
   {
-    /** Creates the User and opens their first Session: a visitor is signed in as soon as they sign up. */
+    /**
+     * Creates the User and opens their first Session: a visitor is signed in as soon as they sign up.
+     * Every sign-up from `ip` counts, the ones that fail too. Past the limit it fails with `TooManyAttempts`,
+     * before the password is hashed.
+     */
     signUp(
       email: Email,
       password: Password,
-    ): Effect.Effect<{ readonly user: User; readonly session: OpenedSession }, EmailAlreadyTaken>;
+      ip: ClientIp,
+    ): Effect.Effect<
+      { readonly user: User; readonly session: OpenedSession },
+      EmailAlreadyTaken | TooManyAttempts
+    >;
     /**
      * Opens a new Session for the User of this email, when the password is theirs.
      * An unknown email and a wrong password fail alike, and take as long: the answer does not say who has signed up.
+     *
+     * A sign-in that fails counts on the email and on `ip`. Past a limit it fails with `TooManyAttempts`,
+     * before the password is hashed, and whether a User has the email or not.
+     * A sign-in that succeeds sets the counter of the email back to zero.
      */
     signIn(
       email: Email,
       password: Password,
-    ): Effect.Effect<{ readonly user: User; readonly session: OpenedSession }, InvalidCredentials>;
+      ip: ClientIp,
+    ): Effect.Effect<
+      { readonly user: User; readonly session: OpenedSession },
+      InvalidCredentials | TooManyAttempts
+    >;
     /** Revokes the Session this token opens. Succeeds when it opens none. */
     signOut(token: Redacted.Redacted<string>): Effect.Effect<void>;
     /**
@@ -63,6 +85,7 @@ export class Identity extends Context.Service<
       const users = yield* UserRepository;
       const sessions = yield* SessionStore;
       const hasher = yield* PasswordHasher;
+      const limiter = yield* AttemptLimiter;
       const random = yield* SecureRandom.SecureRandom;
       const digest = yield* Digest.Digest;
 
@@ -81,22 +104,38 @@ export class Identity extends Context.Service<
       });
 
       return Identity.of({
-        signUp: Effect.fn("Identity.signUp")(function* (email, password) {
+        signUp: Effect.fn("Identity.signUp")(function* (email, password, ip) {
+          const signUps: ReadonlyArray<AttemptCounter> = [{ _tag: "SignUpsOfIp", ip }];
+          yield* limiter.check(signUps);
+          // Counted before it is known to succeed: one that fails costs a hash, and tells whether a User has the email.
+          yield* limiter.record(signUps);
           const user = new User({ id: yield* users.nextId, email });
           yield* users.create(user, yield* hasher.hash(password));
           return { user, session: yield* openSession(user) };
         }),
-        signIn: Effect.fn("Identity.signIn")(function* (email, password) {
+        signIn: Effect.fn("Identity.signIn")(function* (email, password, ip) {
+          const failuresOfEmail: AttemptCounter = { _tag: "SignInFailuresOfEmail", email };
+          const failures: ReadonlyArray<AttemptCounter> = [
+            failuresOfEmail,
+            { _tag: "SignInFailuresOfIp", ip },
+          ];
+          // Before the User is looked up and the password hashed: a refusal costs nothing, and says nothing of the email.
+          yield* limiter.check(failures);
+
           const found = yield* users.findByEmail(email);
           if (Option.isNone(found)) {
             // The slow step of a sign-in, done for nothing: without it, a fast answer would say that no User has this email.
             yield* hasher.hash(password);
+            yield* limiter.record(failures);
             return yield* new InvalidCredentials();
           }
           const { user, passwordHash } = found.value;
           if (!(yield* hasher.verify(password, passwordHash))) {
+            yield* limiter.record(failures);
             return yield* new InvalidCredentials();
           }
+          // The counter of the address stays: one User of their own does not clear the failures on the emails of others.
+          yield* limiter.reset(failuresOfEmail);
           return { user, session: yield* openSession(user) };
         }),
         signOut: Effect.fn("Identity.signOut")(function* (token) {

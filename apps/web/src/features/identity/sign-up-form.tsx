@@ -1,4 +1,4 @@
-import { EmailAlreadyTaken } from "@quack/contracts/identity/identity-errors";
+import { EmailAlreadyTaken, TooManyAttempts } from "@quack/contracts/identity/identity-errors";
 import { SignUpPayload } from "@quack/contracts/identity/identity-api";
 import type { User } from "@quack/contracts/identity/user";
 import { schemaFormOptions } from "@quack/form/schema-form-options";
@@ -7,10 +7,17 @@ import { useAppForm } from "@quack/form/use-app-form";
 import { useMutation } from "@tanstack/react-query";
 import { Schema } from "effect";
 
+import { tooManyAttemptsMessage } from "#/features/identity/retry-delay.ts";
 import { api } from "#/lib/api.ts";
 
 const decodeSignUpPayload = Schema.decodeSync(SignUpPayload);
 const emptySignUpPayload: typeof SignUpPayload.Encoded = { email: "", password: "" };
+
+const submitFailure = (cause: unknown) => {
+  if (cause instanceof EmailAlreadyTaken) return "A user already signed up with this email.";
+  if (cause instanceof TooManyAttempts) return tooManyAttemptsMessage(cause.retryAfter);
+  return "Could not sign up. Try again.";
+};
 
 /**
  * Signs a visitor up. The API sets the session cookie, so the visitor is signed in when `onSignedUp` runs:
@@ -25,12 +32,7 @@ export function SignUpForm({ onSignedUp }: { onSignedUp: (user: User) => void | 
       const user = await signUp
         .mutateAsync({ payload: decodeSignUpPayload(value) })
         .catch((cause: unknown) => {
-          throw new SubmitFailed(
-            cause instanceof EmailAlreadyTaken
-              ? "A user already signed up with this email."
-              : "Could not sign up. Try again.",
-            { cause },
-          );
+          throw new SubmitFailed(submitFailure(cause), { cause });
         });
       await onSignedUp(user);
     },
