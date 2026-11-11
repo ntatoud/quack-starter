@@ -10,7 +10,7 @@ type FieldLayout = { id: string; size: Size };
 
 const FieldLayoutContext = createContext<FieldLayout | null>(null);
 
-/** The layout of the enclosing `field.FormField`, or `null` for a control used on its own. */
+/** The layout of the enclosing `field.Root`, or `null` for a control used on its own. */
 export const useFormFieldLayout = () => use(FieldLayoutContext);
 
 /**

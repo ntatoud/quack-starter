@@ -26,28 +26,28 @@ function PasswordsForm({ onSubmit, password }: { onSubmit: OnSubmit; password: s
   });
   return (
     <form.AppForm>
-      <form.Form>
+      <form.Root>
         <form.AppField name="password">
           {(field) => (
-            <field.FormField>
-              <field.FormLabel>Password</field.FormLabel>
-              <field.FormTextField />
-            </field.FormField>
+            <field.Root>
+              <field.Label>Password</field.Label>
+              <field.Text />
+            </field.Root>
           )}
         </form.AppField>
         <form.AppField name="confirmation">
           {(field) => (
-            <field.FormField>
-              <field.FormLabel>Confirmation</field.FormLabel>
-              <field.FormTextField />
-            </field.FormField>
+            <field.Root>
+              <field.Label>Confirmation</field.Label>
+              <field.Text />
+            </field.Root>
           )}
         </form.AppField>
-        <form.FormSubmitButton>Save</form.FormSubmitButton>
+        <form.SubmitButton>Save</form.SubmitButton>
         <button type="button" onClick={() => form.reset()}>
           Clear
         </button>
-      </form.Form>
+      </form.Root>
     </form.AppForm>
   );
 }

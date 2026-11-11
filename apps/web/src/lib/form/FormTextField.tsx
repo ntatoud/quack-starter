@@ -12,7 +12,7 @@ import { textSize } from "#/lib/form/Size.ts";
  * A text input bound to the field of its `form.AppField`, followed by its errors.
  * Errors show once the field is touched; a submit touches every field.
  *
- * In a `field.FormField` it takes the size of the field and the id its `field.FormLabel` points to.
+ * In a `field.Root` it takes the size of the field and the id its `field.Label` points to.
  * On its own, give it an `aria-label`.
  */
 export function FormTextField(

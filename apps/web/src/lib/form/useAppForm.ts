@@ -9,12 +9,12 @@ import { FormTextField } from "#/lib/form/FormTextField.tsx";
 
 /**
  * The app's form hook: `useAppForm` is `useForm` with the app's components on `form.AppField`
- * (`field.FormField`, `field.FormLabel`, `field.FormTextField`) and `form.AppForm` (`form.Form`, `form.FormSubmitButton`).
- * Register a new field or form component here.
+ * (`field.Root`, `field.Label`, `field.Text`) and `form.AppForm` (`form.Root`, `form.SubmitButton`).
+ * Register a new field or form component here, under its name without the `Form` that `field.` or `form.` already says.
  */
 export const { useAppForm } = createFormHook({
   fieldContext,
   formContext,
-  fieldComponents: { FormField, FormLabel, FormTextField },
-  formComponents: { Form, FormSubmitButton },
+  fieldComponents: { Root: FormField, Label: FormLabel, Text: FormTextField },
+  formComponents: { Root: Form, SubmitButton: FormSubmitButton },
 });
