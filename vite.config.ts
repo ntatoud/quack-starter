@@ -59,7 +59,7 @@ export default defineConfig({
         rules: { "quack/no-relative-imports": "error" },
       },
       {
-        // Layers of a bounded context: domain, application, infrastructure, http.
+        // Layers of a bounded context: see "Dependency rules" in AGENTS.md.
         files: ["apps/server/src/modules/**"],
         rules: { "quack/module-boundaries": "error" },
       },
