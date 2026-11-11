@@ -1,0 +1,25 @@
+name: Setup
+description: Install Vite+, Node.js, pnpm, and the workspace dependencies, and restore the task cache.
+inputs:
+  task-cache-key:
+    description: Name of the job's task cache. Jobs that run different tasks use different keys.
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Setup Vite+
+      uses: voidzero-dev/setup-vp@v1
+      with:
+        node-version-file: .node-version
+        cache: true
+
+    # `vp run --cache` replays a task whose inputs did not change. The cache lives in
+    # node_modules, so it has to be carried between runs. A cache entry never updates,
+    # so each commit saves its own and restores the most recent one.
+    - name: Restore task cache
+      uses: actions/cache@v6
+      with:
+        path: node_modules/.vite/task-cache
+        key: task-cache-${{ runner.os }}-${{ inputs.task-cache-key }}-${{ github.sha }}
+        restore-keys: |
+          task-cache-${{ runner.os }}-${{ inputs.task-cache-key }}-

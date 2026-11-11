@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
+        with:
+          task-cache-key: lint
+      - name: Format and lint
+        run: vp check
+      - name: Unused files, exports, and dependencies
+        run: vp run -w knip
+
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
+        with:
+          task-cache-key: typecheck
+      # tsrs here, tsc locally. Both run through effect-tsgo, so both report the Effect diagnostics.
+      - name: Typecheck
+        run: vp run -r --cache typecheck:ci
+
+  test:
+    name: Test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
+        with:
+          task-cache-key: test
+      - name: Test
+        run: vp run -r --cache test
+
+  # The one required status check. It passes only when every job above passed, so
+  # branch protection needs no update when a job is added.
+  check:
+    name: Check
+    if: always()
+    needs: [lint, typecheck, test]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Require every job to pass
+        run: |
+          results='${{ join(needs.*.result, ' ') }}'
+          echo "Job results: $results"
+          for result in $results; do
+            if [ "$result" != "success" ]; then
+              exit 1
+            fi
+          done
