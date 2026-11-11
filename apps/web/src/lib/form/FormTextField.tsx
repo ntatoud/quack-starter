@@ -4,7 +4,7 @@ import { useStore } from "@tanstack/react-form";
 import { type ComponentProps, useId } from "react";
 
 import { useFieldContext } from "#/lib/form/context.ts";
-import { useFieldLayout } from "#/lib/form/Field.tsx";
+import { useFormFieldLayout } from "#/lib/form/FormField.tsx";
 import { toMessage } from "#/lib/form/messages.ts";
 import { textSize } from "#/lib/form/Size.ts";
 
@@ -12,10 +12,10 @@ import { textSize } from "#/lib/form/Size.ts";
  * A text input bound to the field of its `form.AppField`, followed by its errors.
  * Errors show once the field is touched; a submit touches every field.
  *
- * In a `field.Field` it takes the size of the field and the id its `field.Label` points to.
+ * In a `field.FormField` it takes the size of the field and the id its `field.FormLabel` points to.
  * On its own, give it an `aria-label`.
  */
-export function TextField(
+export function FormTextField(
   props: Omit<
     ComponentProps<typeof Input>,
     | "id"
@@ -32,7 +32,7 @@ export function TextField(
   const field = useFieldContext<string>();
   const meta = useStore(field.store, (state) => state.meta);
   const ownId = useId();
-  const { id, size } = useFieldLayout() ?? { id: ownId, size: "md" };
+  const { id, size } = useFormFieldLayout() ?? { id: ownId, size: "md" };
   const errorId = `${id}-error`;
   const invalid = meta.isTouched && !meta.isValid;
 

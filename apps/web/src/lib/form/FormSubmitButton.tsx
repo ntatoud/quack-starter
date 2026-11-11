@@ -13,7 +13,7 @@ const buttonSize = { sm: "sm", md: "default", lg: "lg" } as const satisfies Reco
  * It keeps the focus then, and it stays enabled while the form is invalid: a disabled button is skipped by the
  * keyboard and explains nothing, a submit shows the errors.
  */
-export function SubmitButton({
+export function FormSubmitButton({
   size = "md",
   className,
   ...props

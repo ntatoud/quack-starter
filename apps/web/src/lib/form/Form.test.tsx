@@ -29,21 +29,21 @@ function PasswordsForm({ onSubmit, password }: { onSubmit: OnSubmit; password: s
       <form.Form>
         <form.AppField name="password">
           {(field) => (
-            <field.Field>
-              <field.Label>Password</field.Label>
-              <field.TextField />
-            </field.Field>
+            <field.FormField>
+              <field.FormLabel>Password</field.FormLabel>
+              <field.FormTextField />
+            </field.FormField>
           )}
         </form.AppField>
         <form.AppField name="confirmation">
           {(field) => (
-            <field.Field>
-              <field.Label>Confirmation</field.Label>
-              <field.TextField />
-            </field.Field>
+            <field.FormField>
+              <field.FormLabel>Confirmation</field.FormLabel>
+              <field.FormTextField />
+            </field.FormField>
           )}
         </form.AppField>
-        <form.SubmitButton>Save</form.SubmitButton>
+        <form.FormSubmitButton>Save</form.FormSubmitButton>
         <button type="button" onClick={() => form.reset()}>
           Clear
         </button>
