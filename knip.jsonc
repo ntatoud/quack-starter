@@ -6,4 +6,10 @@
     // Named by the tsconfig plugin entry that @effect/tsgo reads. The package itself is not needed.
     "@effect/language-service",
   ],
+  "workspaces": {
+    "packages/ui": {
+      // shadcn components are a library: every export is available to the apps.
+      "entry": ["src/components/*.tsx", "src/lib/*.ts"],
+    },
+  },
 }

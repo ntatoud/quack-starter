@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.react.json",
+  "compilerOptions": {
+    // The shadcn CLI resolves the aliases of components.json through these paths.
+    "paths": {
+      "@quack/ui/*": ["./src/*"]
+    }
+  },
+  "include": ["src"]
+}
