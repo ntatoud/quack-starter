@@ -50,9 +50,10 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           task-cache-key: test
-      # Component tests (*.test.tsx) run in a real browser.
+      # Component tests (*.test.tsx) run in a real browser. No `--with-deps`: the runner image already
+      # has the system libraries Chromium needs, and apt mirrors are one more thing that can be down.
       - name: Install Chromium
-        run: pnpm --filter @quack/form exec playwright install --with-deps --only-shell chromium
+        run: pnpm --filter @quack/form exec playwright install --only-shell chromium
       - name: Test
         run: vp run -r --cache test
 
