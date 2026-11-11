@@ -51,6 +51,19 @@ describe("server routes", () => {
     expect(await response.json()).toEqual({ _tag: "Unauthenticated" });
   });
 
+  it("clears the session cookie of a request to /api/todos whose cookie opens no Session", async () => {
+    const response = await handler(
+      new Request("http://api.test/api/todos", {
+        headers: { cookie: "session=not-a-session-the-server-opened" },
+      }),
+    );
+
+    expect(response.status).toBe(401);
+    expect(response.headers.getSetCookie()).toEqual([
+      expect.stringMatching(/^session=; .*Max-Age=0/),
+    ]);
+  });
+
   it("serves the health check under /api", async () => {
     expect((await get("/api/health")).status).toBe(204);
   });
