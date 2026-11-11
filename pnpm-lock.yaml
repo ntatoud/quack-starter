@@ -186,6 +186,9 @@ importers:
 
   .:
     devDependencies:
+      '@quack/oxlint-plugin':
+        specifier: workspace:*
+        version: link:packages/oxlint-plugin
       '@types/node':
         specifier: 'catalog:'
         version: 26.6.6
@@ -198,6 +201,15 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
+      vite-plus:
+        specifier: 'catalog:'
+        version: 1.6.0(@types/node@26.6.6)(@vitest/ui@5.1.0)(jiti@2.7.0)(typescript@7.0.2)(yaml@2.9.1)
+
+  packages/oxlint-plugin:
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.6.6
       vite-plus:
         specifier: 'catalog:'
         version: 1.6.0(@types/node@26.6.6)(@vitest/ui@5.1.0)(jiti@2.7.0)(typescript@7.0.2)(yaml@2.9.1)
