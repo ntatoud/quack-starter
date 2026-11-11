@@ -1,0 +1,35 @@
+{
+  "name": "@quack/web",
+  "private": true,
+  "type": "module",
+  "imports": {
+    "#/*": "./src/*"
+  },
+  "scripts": {
+    "dev": "vp dev --port 3000",
+    "build": "vp build",
+    "preview": "vp preview",
+    "typecheck": "effect-tsgo tsc --noEmit",
+    "typecheck:ci": "effect-tsgo tsrs --noEmit",
+    "test": "vp test run"
+  },
+  "dependencies": {
+    "@quack/contracts": "workspace:*",
+    "@quack/effect-query": "workspace:*",
+    "@quack/ui": "workspace:*",
+    "@tanstack/react-query": "catalog:",
+    "@tanstack/react-router": "1.170.46",
+    "@tanstack/react-start": "1.169.5",
+    "effect": "catalog:",
+    "lucide-react": "1.71.0",
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitejs/plugin-react": "6.3.0",
+    "vite-plus": "catalog:"
+  }
+}
