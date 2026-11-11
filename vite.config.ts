@@ -14,6 +14,7 @@ export default defineConfig({
   lint: {
     ignorePatterns: GENERATED,
     plugins: ["eslint", "oxc", "react", "unicorn", "typescript"],
+    jsPlugins: ["@quack/oxlint-plugin"],
     categories: {
       correctness: "error",
       suspicious: "warn",
@@ -31,5 +32,17 @@ export default defineConfig({
       // Effect discriminates on `_tag`.
       "eslint/no-underscore-dangle": "off",
     },
+    overrides: [
+      {
+        // Sources import through the package alias: "#/..." is the package's src folder.
+        files: ["apps/*/src/**", "packages/*/src/**"],
+        rules: { "quack/no-relative-imports": "error" },
+      },
+      {
+        // Layers of a bounded context: domain, application, infrastructure, http.
+        files: ["apps/server/src/modules/**"],
+        rules: { "quack/module-boundaries": "error" },
+      },
+    ],
   },
 });
