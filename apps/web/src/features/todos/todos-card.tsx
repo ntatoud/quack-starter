@@ -7,40 +7,17 @@ import {
   CardTitle,
 } from "@quack/ui/components/card";
 import { Checkbox } from "@quack/ui/components/checkbox";
-import { Input } from "@quack/ui/components/input";
-import { type MutationFunctionContext, useMutation, useQuery } from "@tanstack/react-query";
-import { Option } from "effect";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Trash2Icon } from "lucide-react";
-import { type FormEvent, useState } from "react";
 
-import { parseDraftTitle } from "#/features/todos/draft.ts";
+import { invalidateTodos } from "#/features/todos/invalidate-todos.ts";
+import { TodosForm } from "#/features/todos/todos-form.tsx";
 import { api } from "#/lib/api.ts";
-
-// Every mutation changes the list, so each one refetches the todos queries, even after a failure.
-const refresh = {
-  onSettled: (
-    _data: unknown,
-    _error: unknown,
-    _input: unknown,
-    _onMutateResult: unknown,
-    { client }: MutationFunctionContext,
-  ) => client.invalidateQueries({ queryKey: api.todos.key() }),
-};
 
 export function TodosCard() {
   const todos = useQuery(api.todos.list.queryOptions());
-  const createTodo = useMutation(api.todos.create.mutationOptions(refresh));
-  const completeTodo = useMutation(api.todos.complete.mutationOptions(refresh));
-  const removeTodo = useMutation(api.todos.remove.mutationOptions(refresh));
-  const [draft, setDraft] = useState("");
-
-  const title = parseDraftTitle(draft);
-
-  const submit = (event: FormEvent) => {
-    event.preventDefault();
-    if (Option.isNone(title)) return;
-    createTodo.mutate({ payload: { title: title.value } }, { onSuccess: () => setDraft("") });
-  };
+  const completeTodo = useMutation(api.todos.complete.mutationOptions(invalidateTodos));
+  const removeTodo = useMutation(api.todos.remove.mutationOptions(invalidateTodos));
 
   return (
     <Card>
@@ -49,17 +26,7 @@ export function TodosCard() {
         <CardDescription>Served by the Effect API, typed end to end.</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        <form onSubmit={submit} className="flex gap-2">
-          <Input
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            placeholder="What needs doing?"
-            aria-label="New todo"
-          />
-          <Button type="submit" disabled={Option.isNone(title) || createTodo.isPending}>
-            Add
-          </Button>
-        </form>
+        <TodosForm />
 
         {todos.isPending && <p className="text-sm text-muted-foreground">Loading…</p>}
         {todos.isError && (
