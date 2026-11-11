@@ -1,11 +1,11 @@
 import type { UserId } from "@quack/contracts/identity/user";
 import { DateTime, Duration, Option } from "effect";
 
-/** How long a Session lasts from the moment it is created. */
+/** How long a Session lasts from the moment it is opened, or from its last extension. */
 export const sessionLifetime = Duration.days(30);
 
 /** A request extends a Session that has less than this left: one that has more is left as it is, so most requests write nothing. */
-export const sessionRenewalThreshold = Duration.days(15);
+export const sessionExtensionThreshold = Duration.days(15);
 
 /** The number of random bytes in a Session token. */
 export const sessionTokenBytes = 32;
@@ -24,11 +24,15 @@ export interface Session {
 export const isExpired = (session: Session, now: DateTime.Utc): boolean =>
   DateTime.isGreaterThanOrEqualTo(now, session.expiresAt);
 
+/** When a Session opened or extended at `now` expires. */
+export const expiryFrom = (now: DateTime.Utc): DateTime.Utc =>
+  DateTime.addDuration(now, sessionLifetime);
+
 /**
- * The Session a request made at `now` extends: it lasts a whole lifetime again, from `now`.
+ * The new expiry of a Session that a request made at `now` extends: a whole lifetime again, from `now`.
  * None when the Session has enough time left. A Session has no other limit: its User keeps it as long as they come back.
  */
-export const renew = (session: Session, now: DateTime.Utc): Option.Option<Session> =>
-  Duration.isLessThan(DateTime.distance(now, session.expiresAt), sessionRenewalThreshold)
-    ? Option.some({ ...session, expiresAt: DateTime.addDuration(now, sessionLifetime) })
+export const extension = (session: Session, now: DateTime.Utc): Option.Option<DateTime.Utc> =>
+  Duration.isLessThan(DateTime.distance(now, session.expiresAt), sessionExtensionThreshold)
+    ? Option.some(expiryFrom(now))
     : Option.none();

@@ -10,10 +10,10 @@ import { Base64Url } from "effect/encoding";
 
 import { PasswordHasher } from "#/modules/identity/domain/password-hasher.ts";
 import {
+  expiryFrom,
+  extension,
   isExpired,
-  renew,
   type Session,
-  sessionLifetime,
   sessionTokenBytes,
 } from "#/modules/identity/domain/session.ts";
 import { SessionStore } from "#/modules/identity/domain/session-store.ts";
@@ -46,13 +46,13 @@ export class Identity extends Context.Service<
     signOut(token: Redacted.Redacted<string>): Effect.Effect<void>;
     /**
      * The User of the Session this token opens.
-     * It extends a Session that is close to its expiry, and answers with it as `renewed`: its User holds it for longer.
+     * It extends a Session that is close to its expiry, and answers with its new expiry as `extendedUntil`.
      * It removes a Session that has expired.
      */
     authenticate(
       token: Redacted.Redacted<string>,
     ): Effect.Effect<
-      { readonly user: User; readonly renewed: Option.Option<OpenedSession> },
+      { readonly user: User; readonly extendedUntil: Option.Option<DateTime.Utc> },
       Unauthenticated
     >;
   }
@@ -74,7 +74,7 @@ export class Identity extends Context.Service<
         const session: Session = {
           tokenHash: yield* hashToken(token),
           userId: user.id,
-          expiresAt: DateTime.addDuration(yield* DateTime.now, sessionLifetime),
+          expiresAt: expiryFrom(yield* DateTime.now),
         };
         yield* sessions.save(session);
         return { token, expiresAt: session.expiresAt } satisfies OpenedSession;
@@ -118,17 +118,11 @@ export class Identity extends Context.Service<
           if (Option.isNone(user)) {
             return yield* new Unauthenticated();
           }
-          const renewed = renew(session.value, now);
-          if (Option.isSome(renewed)) {
-            yield* sessions.save(renewed.value);
+          const extendedUntil = extension(session.value, now);
+          if (Option.isSome(extendedUntil)) {
+            yield* sessions.extend(tokenHash, extendedUntil.value);
           }
-          return {
-            user: user.value,
-            renewed: Option.map(
-              renewed,
-              ({ expiresAt }) => ({ token, expiresAt }) satisfies OpenedSession,
-            ),
-          };
+          return { user: user.value, extendedUntil };
         }),
       });
     }),

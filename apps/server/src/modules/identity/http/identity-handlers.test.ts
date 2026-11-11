@@ -89,6 +89,12 @@ const makeBrowser = Effect.gen(function* () {
   };
 });
 
+/** The session cookie is cleared: an empty value and `Max-Age=0`, in the one `Set-Cookie` of the response. */
+const assertCookieCleared = (setCookie: ReadonlyArray<string>) => {
+  assert.lengthOf(setCookie, 1);
+  assert.match(setCookie[0] ?? "", /^session=; .*Max-Age=0/);
+};
+
 /** The config of a test, whatever the environment of the machine that runs it. */
 const withConfig = (env: Record<string, string>) =>
   IdentityModule.pipe(
@@ -269,7 +275,7 @@ layer(withConfig({}))("IdentityApi", (it) => {
       const { status, setCookie } = yield* browser.signOut;
 
       assert.strictEqual(status, 204);
-      assert.match(setCookie[0] ?? "", /^session=; .*Max-Age=0/);
+      assertCookieCleared(setCookie);
     }),
   );
 
@@ -306,6 +312,17 @@ layer(withConfig({}))("IdentityApi", (it) => {
         const error = yield* browser.me.pipe(Effect.flip);
         assert.strictEqual(error._tag, "Unauthenticated");
       }),
+  );
+
+  it.effect("keeps a Session open until it expires: one second before the 30 days", () =>
+    Effect.gen(function* () {
+      const browser = yield* makeBrowser;
+      const { user } = yield* browser.signUp(asTyped("ida@example.com"));
+
+      yield* TestClock.adjust(Duration.subtract(Duration.days(30), Duration.seconds(1)));
+
+      assert.deepStrictEqual(yield* browser.me, user);
+    }),
   );
 
   it.effect(
@@ -401,8 +418,7 @@ layer(withConfig({}))("IdentityApi", (it) => {
       const { status, setCookie } = yield* browser.meResponse;
 
       assert.strictEqual(status, 401);
-      assert.lengthOf(setCookie, 1);
-      assert.match(setCookie[0] ?? "", /^session=; .*Max-Age=0/);
+      assertCookieCleared(setCookie);
       assert.isTrue(Option.isNone(yield* browser.session));
     }),
   );
@@ -419,8 +435,7 @@ layer(withConfig({}))("IdentityApi", (it) => {
       const { status, setCookie } = yield* browser.meResponse;
 
       assert.strictEqual(status, 401);
-      assert.lengthOf(setCookie, 1);
-      assert.match(setCookie[0] ?? "", /^session=; .*Max-Age=0/);
+      assertCookieCleared(setCookie);
       assert.isTrue(Option.isNone(yield* browser.session));
     }),
   );

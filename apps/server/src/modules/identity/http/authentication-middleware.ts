@@ -17,13 +17,13 @@ export const AuthenticationMiddleware = Layer.effect(
 
     return Authentication.of({
       session: Effect.fn(function* (httpEffect, { credential }) {
-        const { user, renewed } = yield* identity.authenticate(credential).pipe(
+        const { user, extendedUntil } = yield* identity.authenticate(credential).pipe(
           // A cookie that opens no Session is of no use to the browser: it drops it.
           Effect.tapError(() => cookie.clear),
         );
         // The Session lasts longer: so does its cookie.
-        if (Option.isSome(renewed)) {
-          yield* cookie.set(renewed.value);
+        if (Option.isSome(extendedUntil)) {
+          yield* cookie.set({ token: credential, expiresAt: extendedUntil.value });
         }
         return yield* Effect.provideService(httpEffect, CurrentUser, user);
       }),
