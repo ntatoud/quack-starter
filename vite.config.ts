@@ -34,6 +34,23 @@ export default defineConfig({
     },
     overrides: [
       {
+        // Contracts run on the server and in the browser: no platform code, no other workspace package.
+        files: ["packages/contracts/src/**"],
+        rules: {
+          "eslint/no-restricted-imports": [
+            "error",
+            {
+              patterns: [
+                {
+                  group: ["node:*", "@effect/platform-*", "@effect/platform-*/**", "@quack/**"],
+                  message: "Contracts hold schemas and API definitions only.",
+                },
+              ],
+            },
+          ],
+        },
+      },
+      {
         // Sources import through the package alias: "#/..." is the package's src folder.
         files: ["apps/*/src/**", "packages/*/src/**"],
         rules: { "quack/no-relative-imports": "error" },
