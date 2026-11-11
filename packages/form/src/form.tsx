@@ -15,10 +15,6 @@ const toFormMessages = (error: unknown): Array<Message | undefined> =>
     ? ((error as Record<string, Array<Message>>)[""] ?? [])
     : [toMessage(error)];
 
-/** Node, where the tests run, has no `reportError`. */
-const report = (error: unknown) =>
-  typeof reportError === "function" ? reportError(error) : console.error(error);
-
 /**
  * The `<form>` of its `form.AppForm`. It renders the errors of the form itself after its children:
  * the issues of the schema that belong to no field, and the message of a `SubmitFailed`.
@@ -69,7 +65,7 @@ export function Form({
         }
       },
       (error: unknown) => {
-        if (!(error instanceof SubmitFailed)) return report(error);
+        if (!(error instanceof SubmitFailed)) return reportError(error);
         form.setErrorMap({ onServer: error.message });
         announce([error]);
       },

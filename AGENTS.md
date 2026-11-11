@@ -96,7 +96,7 @@ Add a component from `packages/ui`: `pnpm dlx shadcn@latest add <name>`. Import 
 - Validate a form with an Effect schema: spread `schemaFormOptions(Schema, defaultValues)` into `useAppForm`. Validation does not transform the values, so decode them with the same schema in `onSubmit`.
 - When the request of `onSubmit` fails, throw `new SubmitFailed(message)`: `form.Root` shows the message until the next edit, and the form does not report a success. Any other error thrown by `onSubmit` is reported as a bug.
 - Add a control as a field component in its own file of `packages/form/src`, and register it in `use-app-form.ts`. Name the component `FormXxx`, so it is not taken for the `@quack/ui` component it wraps, and register it under the short name, which `field.` or `form.` already prefixes: `FormTextField` is `field.Text`. Like `FormTextField`, it renders the control and its errors, not the label. It takes its id and size from `useFormFieldLayout()`, wires the error and the invalid state to the control (`aria-describedby`, `aria-invalid`), and sets the control's `name` to the field's: after a submit that fails validation, `form.Root` focuses the first element with `aria-invalid` and reads the errors of the field of that `name`.
-- Test a form through the DOM with Testing Library, with `fetch` stubbed (`apps/web/src/features/todos/todos-form.test.tsx`). The file starts with `// @vitest-environment happy-dom`.
+- Test a form or a form component in a real browser (Vitest browser mode, Chromium through Playwright), with `vitest-browser-react` and the locators of `vite-plus/test/browser`: `packages/form/src/form-submit-button.test.tsx` for a component, `apps/web/src/features/todos/todos-form.test.tsx` for a form, with `fetch` stubbed. Assert what a user or assistive tech gets: the focus, the accessible name and description, what the live region says.
 
 ## Conventions
 
@@ -105,6 +105,6 @@ Add a component from `packages/ui`: `pnpm dlx shadcn@latest add <name>`. Import 
 - Effect v4. Its docs for agents ship in `apps/server/node_modules/effect/ai-docs`. Read them before writing Effect code: the v4 API differs from v3 (`Context.Service`, `effect/http`, `effect/http-api`).
 - Services are `Context.Service` classes with a static `layer`. Service methods use `Effect.fn("Service.method")`.
 - Errors are `Schema.TaggedError` classes. Fail with typed errors; do not throw.
-- Tests sit next to the code as `*.test.ts`. Effect code uses `@effect/vitest` (`it.effect`, `layer`). Test handlers through `HttpApiTest`, with no server.
+- Tests sit next to the code as `*.test.ts`, which run in Node, or `*.test.tsx` for components, which run in a real browser: a simulated DOM has no focus rules, no keyboard, no accessibility tree, and no stylesheet. Install the browser once: `pnpm --filter @quack/form exec playwright install chromium`. Effect code uses `@effect/vitest` (`it.effect`, `layer`). Test handlers through `HttpApiTest`, with no server.
 - Shared dependency versions live in the `catalog:` of `pnpm-workspace.yaml`.
 - A flaky test is fixed, not retried.

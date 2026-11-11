@@ -1,68 +1,14 @@
-// @vitest-environment happy-dom
-import { cleanup, render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { Schema } from "effect";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
+import { page, userEvent } from "vite-plus/test/browser";
+import { render } from "vitest-browser-react";
 
-import { schemaFormOptions } from "#/schema-form-options.ts";
 import { SubmitFailed } from "#/submit-failed.ts";
-import { useAppForm } from "#/use-app-form.ts";
-
-const Passwords = Schema.Struct({
-  password: Schema.String,
-  confirmation: Schema.String,
-}).check(
-  Schema.makeFilter(({ password, confirmation }) => password === confirmation, {
-    message: "Passwords must match",
-  }),
-);
-
-type OnSubmit = () => void | Promise<void>;
-
-function PasswordsForm({ onSubmit, password }: { onSubmit: OnSubmit; password: string }) {
-  const form = useAppForm({
-    ...schemaFormOptions(Passwords, { password, confirmation: "" }),
-    onSubmit,
-  });
-  return (
-    <form.AppForm>
-      <form.Root>
-        <form.AppField name="password">
-          {(field) => (
-            <field.Root>
-              <field.Label>Password</field.Label>
-              <field.Text />
-            </field.Root>
-          )}
-        </form.AppField>
-        <form.AppField name="confirmation">
-          {(field) => (
-            <field.Root>
-              <field.Label>Confirmation</field.Label>
-              <field.Text />
-            </field.Root>
-          )}
-        </form.AppField>
-        <form.SubmitButton>Save</form.SubmitButton>
-        <button type="button" onClick={() => form.reset()}>
-          Clear
-        </button>
-      </form.Root>
-    </form.AppForm>
-  );
-}
-
-const setup = (onSubmit: OnSubmit, { password = "" } = {}) => {
-  render(<PasswordsForm onSubmit={onSubmit} password={password} />);
-  return { user: userEvent.setup(), save: screen.getByRole("button", { name: "Save" }) };
-};
-
-/** The error as shown, apart from the live region that says it. */
-const shown = (text: string) => screen.queryByText(text, { ignore: '[role="status"]' });
+import { NameForm } from "#/testing/name-form.tsx";
+import { PasswordsForm } from "#/testing/passwords-form.tsx";
 
 /** Every text the live region held, in order. */
 const announcements = () => {
-  const region = screen.getByRole("status");
+  const region = page.getByRole("status").element();
   const texts: Array<string> = [];
   new MutationObserver(() => texts.push(region.textContent)).observe(region, {
     childList: true,
@@ -72,81 +18,125 @@ const announcements = () => {
   return texts;
 };
 
+/** The error as shown, apart from the live region that says it. */
+const shown = (text: string) =>
+  page
+    .getByText(text)
+    .elements()
+    .filter((element) => element.getAttribute("role") !== "status");
+
 afterEach(() => {
-  cleanup();
   vi.unstubAllGlobals();
 });
 
-describe("Form", () => {
+describe("form.Root", () => {
+  it("says the error of the focused field when Enter is pressed in it", async () => {
+    await render(<NameForm />);
+    const input = page.getByRole("textbox", { name: "Name" });
+
+    await input.click();
+    await userEvent.keyboard("{Enter}");
+
+    // The focus has nowhere to move, so the live region says what the field's description would.
+    await expect.element(page.getByRole("status")).toHaveTextContent("Name is required");
+    await expect.element(input).toHaveFocus();
+
+    await userEvent.keyboard("A");
+    await expect.element(page.getByRole("status")).toHaveTextContent("");
+  });
+
+  it("moves the focus to the invalid field when the submit comes from elsewhere", async () => {
+    await render(<NameForm />);
+
+    await page.getByRole("button", { name: "Save" }).click();
+
+    await expect.element(page.getByRole("textbox", { name: "Name" })).toHaveFocus();
+    // The field describes itself on focus: saying it again would repeat it.
+    await expect.element(page.getByRole("status")).toHaveTextContent("");
+  });
+
+  it("shows and says why a submit failed, and leaves the focus where it is", async () => {
+    const onSubmit = vi.fn().mockRejectedValue(new SubmitFailed("Could not save. Try again."));
+    await render(<NameForm onSubmit={onSubmit} />);
+    const save = page.getByRole("button", { name: "Save" });
+
+    await page.getByRole("textbox", { name: "Name" }).fill("Ada");
+    await save.click();
+
+    await expect.element(page.getByRole("status")).toHaveTextContent("Could not save. Try again.");
+    await expect.element(page.getByText("Could not save. Try again.").first()).toBeVisible();
+    await expect.element(save).toHaveFocus();
+  });
+
   it("shows an issue of the form itself, and says it at each submit", async () => {
     const onSubmit = vi.fn();
-    const { user, save } = setup(onSubmit);
+    await render(<PasswordsForm onSubmit={onSubmit} />);
+    const save = page.getByRole("button", { name: "Save" });
     const said = announcements();
 
-    await user.type(screen.getByLabelText("Password"), "secret");
-    await user.click(save);
-    await vi.waitFor(() => expect(said).toEqual(["Passwords must match"]));
-    await user.click(save);
-    await vi.waitFor(() =>
-      expect(said).toEqual(["Passwords must match", "", "Passwords must match"]),
-    );
+    await page.getByRole("textbox", { name: "Password" }).fill("secret");
+    await save.click();
+    await expect.poll(() => said).toEqual(["Passwords must match"]);
+    await save.click();
+    await expect.poll(() => said).toEqual(["Passwords must match", "", "Passwords must match"]);
 
-    expect(shown("Passwords must match")).not.toBeNull();
+    expect(shown("Passwords must match")).toHaveLength(1);
     // Not an alert: it comes and goes while the user types the confirmation.
-    expect(screen.queryByRole("alert")).toBeNull();
+    expect(page.getByRole("alert").elements()).toEqual([]);
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
   it("does not say an error again when the form is reset to the values it was about", async () => {
     // The default values are invalid, and a reset brings back those very values.
-    const { user } = setup(vi.fn(), { password: "secret" });
-    const password = screen.getByLabelText("Password");
+    await render(<PasswordsForm password="secret" />);
+    const password = page.getByRole("textbox", { name: "Password" });
     const said = announcements();
 
-    await user.type(password, "{Enter}");
-    await vi.waitFor(() => expect(said).toEqual(["Passwords must match"]));
-    await user.type(password, "!");
-    await user.click(screen.getByRole("button", { name: "Clear" }));
+    await password.click();
+    await userEvent.keyboard("{Enter}");
+    await expect.poll(() => said).toEqual(["Passwords must match"]);
+    await userEvent.keyboard("!");
+    await page.getByRole("button", { name: "Clear" }).click();
 
-    expect(password).toHaveProperty("value", "secret");
+    await expect.element(password).toHaveValue("secret");
     expect(said).toEqual(["Passwords must match", ""]);
   });
 
   it("says nothing after a success, even when the form became invalid during the request", async () => {
     const response = Promise.withResolvers<void>();
-    const { user, save } = setup(() => response.promise);
+    await render(<PasswordsForm onSubmit={() => response.promise} />);
+    const save = page.getByRole("button", { name: "Save" });
     const said = announcements();
 
-    await user.click(save);
-    await user.type(screen.getByLabelText("Password"), "a");
+    await save.click();
+    await page.getByRole("textbox", { name: "Password" }).fill("a");
     response.resolve();
 
-    await vi.waitFor(() => expect(save.getAttribute("aria-disabled")).toBe("false"));
+    await expect.element(save).toHaveAttribute("aria-disabled", "false");
     expect(said).toEqual([]);
-    expect(document.activeElement).not.toBe(screen.getByLabelText("Confirmation"));
+    await expect.element(page.getByRole("textbox", { name: "Password" })).toHaveFocus();
   });
 
-  it("shows and says the message of a SubmitFailed, until the next edit", async () => {
-    const { user, save } = setup(vi.fn().mockRejectedValue(new SubmitFailed("Could not save")));
-    const said = announcements();
+  it("drops the message of a SubmitFailed on the next edit", async () => {
+    const onSubmit = vi.fn().mockRejectedValue(new SubmitFailed("Could not save"));
+    await render(<PasswordsForm onSubmit={onSubmit} />);
 
-    await user.click(save);
-    await vi.waitFor(() => expect(said).toEqual(["Could not save"]));
-    expect(shown("Could not save")).not.toBeNull();
+    await page.getByRole("button", { name: "Save" }).click();
+    await expect.poll(() => shown("Could not save")).toHaveLength(1);
 
-    await user.type(screen.getByLabelText("Password"), "s");
-    expect(screen.queryByText("Could not save")).toBeNull();
+    await page.getByRole("textbox", { name: "Password" }).fill("s");
+    await expect.poll(() => page.getByText("Could not save").elements()).toEqual([]);
   });
 
   it("reports any other error thrown by onSubmit", async () => {
     const reportError = vi.fn();
     vi.stubGlobal("reportError", reportError);
     const bug = new TypeError("bug");
-    const { user, save } = setup(vi.fn().mockRejectedValue(bug));
+    await render(<PasswordsForm onSubmit={vi.fn().mockRejectedValue(bug)} />);
 
-    await user.click(save);
+    await page.getByRole("button", { name: "Save" }).click();
 
-    await vi.waitFor(() => expect(reportError).toHaveBeenCalledWith(bug));
-    expect(screen.queryByText("bug")).toBeNull();
+    await expect.poll(() => reportError).toHaveBeenCalledWith(bug);
+    expect(page.getByText("bug").elements()).toEqual([]);
   });
 });

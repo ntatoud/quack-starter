@@ -21,13 +21,13 @@
     "effect": "catalog:"
   },
   "devDependencies": {
-    "@testing-library/dom": "catalog:",
-    "@testing-library/react": "catalog:",
-    "@testing-library/user-event": "catalog:",
+    "@tailwindcss/vite": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
-    "happy-dom": "catalog:",
-    "vite-plus": "catalog:"
+    "@vitest/browser-playwright": "catalog:",
+    "playwright": "catalog:",
+    "vite-plus": "catalog:",
+    "vitest-browser-react": "catalog:"
   },
   "peerDependencies": {
     "react": "catalog:",
