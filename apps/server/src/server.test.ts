@@ -70,6 +70,24 @@ describe("server routes", () => {
     expect(await me.json()).toEqual(user);
   });
 
+  it("signs out the Session of the cookie: revokes it, and clears the cookie", async () => {
+    const [setCookie] = (await signUp("mary@example.com")).headers.getSetCookie();
+    const cookie = setCookie?.split(";")[0] ?? "";
+    const me = () => handler(new Request("http://api.test/api/me", { headers: { cookie } }));
+    expect((await me()).status).toBe(200);
+
+    const response = await handler(
+      new Request("http://api.test/api/sign-out", { method: "POST", headers: { cookie } }),
+    );
+
+    expect(response.status).toBe(204);
+    expect(response.headers.getSetCookie()).toEqual([
+      expect.stringMatching(/^session=; .*Max-Age=0/),
+    ]);
+    // The cookie a browser would have dropped opens nothing anymore.
+    expect((await me()).status).toBe(401);
+  });
+
   it("answers /api/me with 401 Unauthenticated when the request has no session cookie", async () => {
     const response = await get("/api/me");
 

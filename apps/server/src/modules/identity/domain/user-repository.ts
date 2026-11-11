@@ -1,5 +1,5 @@
 import type { EmailAlreadyTaken } from "@quack/contracts/identity/identity-errors";
-import type { User, UserId } from "@quack/contracts/identity/user";
+import type { Email, User, UserId } from "@quack/contracts/identity/user";
 import { Context, type Effect, type Option } from "effect";
 
 /** Port. The domain owns the interface; infrastructure provides the Layer. */
@@ -13,5 +13,9 @@ export class UserRepository extends Context.Service<
      */
     create(user: User, passwordHash: string): Effect.Effect<void, EmailAlreadyTaken>;
     findById(id: UserId): Effect.Effect<Option.Option<User>>;
+    /** The User of this email, with the password hash that `create` stored: what a sign-in checks. */
+    findByEmail(
+      email: Email,
+    ): Effect.Effect<Option.Option<{ readonly user: User; readonly passwordHash: string }>>;
   }
 >()("@quack/server/identity/UserRepository") {}

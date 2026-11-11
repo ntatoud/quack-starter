@@ -6,6 +6,7 @@ import { Email } from "@quack/contracts/identity/user";
 import { DateTime, Effect, Layer, Option, Redacted } from "effect";
 
 import { Identity } from "#/modules/identity/application/identity.ts";
+import { PasswordHasher } from "#/modules/identity/domain/password-hasher.ts";
 import { SessionStore } from "#/modules/identity/domain/session-store.ts";
 import { PasswordHasherArgon2 } from "#/modules/identity/infrastructure/password-hasher-argon2.ts";
 import { SessionStoreMemory } from "#/modules/identity/infrastructure/session-store-memory.ts";
@@ -15,8 +16,27 @@ const password = Redacted.make("correct horse battery staple");
 
 const sha256Hex = (text: string) => createHash("sha256").update(text).digest("hex");
 
+/** How many passwords the hasher hashed or verified: the slow step, which decides how long a sign-in takes. */
+const hasherWork = { count: 0 };
+const counted = <A>(effect: Effect.Effect<A>) =>
+  Effect.suspend(() => {
+    hasherWork.count += 1;
+    return effect;
+  });
+
+/** The real hasher, counted. */
+const PasswordHasherCounted = Layer.effect(
+  PasswordHasher,
+  Effect.map(Effect.service(PasswordHasher), (hasher) =>
+    PasswordHasher.of({
+      hash: (plain) => counted(hasher.hash(plain)),
+      verify: (plain, hash) => counted(hasher.verify(plain, hash)),
+    }),
+  ),
+).pipe(Layer.provide(PasswordHasherArgon2));
+
 const IdentityLayer = Identity.layer.pipe(
-  Layer.provide([UserRepositoryMemory, PasswordHasherArgon2]),
+  Layer.provide([UserRepositoryMemory, PasswordHasherCounted]),
   // The store stays visible, to see what a sign-up leaves in it.
   Layer.provideMerge(SessionStoreMemory),
   Layer.provide([NodeCrypto.layerSecureRandom, NodeCrypto.layerDigest, NodeCrypto.layerKdf]),
@@ -65,6 +85,50 @@ layer(IdentityLayer)("Identity", (it) => {
       assert.deepStrictEqual(session.expiresAt, thirtyDays);
       const stored = yield* store.findByTokenHash(sha256Hex(Redacted.value(session.token)));
       assert.deepStrictEqual(Option.getOrThrow(stored).expiresAt, thirtyDays);
+    }),
+  );
+
+  it.effect(
+    "does the work of a password check for an email no User has, so the answer takes as long",
+    () =>
+      Effect.gen(function* () {
+        const identity = yield* Identity;
+        yield* identity.signUp(Email.make("grace.h@example.com"), password);
+
+        const before = hasherWork.count;
+        yield* identity
+          .signIn(Email.make("grace.h@example.com"), Redacted.make("not the password of grace"))
+          .pipe(Effect.flip);
+        const forWrongPassword = hasherWork.count - before;
+        yield* identity.signIn(Email.make("nobody@example.com"), password).pipe(Effect.flip);
+        const forUnknownEmail = hasherWork.count - before - forWrongPassword;
+
+        assert.strictEqual(forWrongPassword, 1);
+        assert.strictEqual(forUnknownEmail, 1);
+      }),
+  );
+
+  it.effect("signs out: removes the Session from the store, so its token opens nothing", () =>
+    Effect.gen(function* () {
+      const identity = yield* Identity;
+      const store = yield* SessionStore;
+      const { session } = yield* identity.signUp(Email.make("radia@example.com"), password);
+
+      yield* identity.signOut(session.token);
+
+      const stored = yield* store.findByTokenHash(sha256Hex(Redacted.value(session.token)));
+      assert.isTrue(Option.isNone(stored));
+      const error = yield* identity.authenticate(session.token).pipe(Effect.flip);
+      assert.strictEqual(error._tag, "Unauthenticated");
+    }),
+  );
+
+  it.effect("signs out a token that opens no Session, and succeeds", () =>
+    Effect.gen(function* () {
+      const identity = yield* Identity;
+
+      yield* identity.signOut(Redacted.make("not-a-session-the-server-opened"));
+      yield* identity.signOut(Redacted.make(""));
     }),
   );
 });
