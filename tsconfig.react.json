@@ -1,0 +1,11 @@
+{
+  // For packages bundled by Vite: bundler resolution, JSX, and the DOM.
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "rewriteRelativeImportExtensions": false
+  }
+}

@@ -1,0 +1,12 @@
+node_modules/
+.DS_Store
+*.log
+*.tsbuildinfo
+dist/
+.output/
+.nitro/
+.tanstack/
+.vite-plus/
+.env*
+!.env.example
+.idea/
