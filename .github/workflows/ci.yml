@@ -52,22 +52,3 @@ jobs:
           task-cache-key: test
       - name: Test
         run: vp run -r --cache test
-
-  # The one required status check. It passes only when every job above passed, so
-  # branch protection needs no update when a job is added.
-  check:
-    name: Check
-    if: always()
-    needs: [lint, typecheck, test]
-    runs-on: ubuntu-24.04
-    timeout-minutes: 2
-    steps:
-      - name: Require every job to pass
-        run: |
-          results='${{ join(needs.*.result, ' ') }}'
-          echo "Job results: $results"
-          for result in $results; do
-            if [ "$result" != "success" ]; then
-              exit 1
-            fi
-          done
