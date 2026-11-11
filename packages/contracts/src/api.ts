@@ -1,7 +1,7 @@
 import { HttpApi, OpenApi } from "effect/http-api";
 
-import { SystemApi } from "#/system/SystemApi.ts";
-import { TodosApi } from "#/todos/TodosApi.ts";
+import { SystemApi } from "#/system/system-api.ts";
+import { TodosApi } from "#/todos/todos-api.ts";
 
 /** The HTTP contract. The server implements it; the web app derives its client from it. */
 export class Api extends HttpApi.make("quack")

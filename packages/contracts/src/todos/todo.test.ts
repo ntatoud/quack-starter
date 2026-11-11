@@ -1,7 +1,7 @@
 import { DateTime, Schema } from "effect";
 import { describe, expect, it } from "vite-plus/test";
 
-import { Todo, TodoId, TodoTitle } from "#/todos/Todo.ts";
+import { Todo, TodoId, TodoTitle } from "#/todos/todo.ts";
 
 describe("TodoTitle", () => {
   it("rejects empty, untrimmed, and overlong titles", () => {

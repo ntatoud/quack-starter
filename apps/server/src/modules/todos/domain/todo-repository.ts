@@ -1,6 +1,6 @@
 import { Context, type Effect, type Option } from "effect";
 
-import type { Todo, TodoId } from "@quack/contracts/todos/Todo";
+import type { Todo, TodoId } from "@quack/contracts/todos/todo";
 
 /** Port. The domain owns the interface; infrastructure provides the Layer. */
 export class TodoRepository extends Context.Service<

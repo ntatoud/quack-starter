@@ -1,8 +1,8 @@
-import { Api } from "@quack/contracts/Api";
+import { Api } from "@quack/contracts/api";
 import { Effect } from "effect";
 import { HttpApiBuilder } from "effect/http-api";
 
-import { Todos } from "#/modules/todos/application/Todos.ts";
+import { Todos } from "#/modules/todos/application/todos.ts";
 
 export const TodosHandlers = HttpApiBuilder.group(
   Api,

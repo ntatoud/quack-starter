@@ -1,4 +1,4 @@
-import { Todo } from "@quack/contracts/todos/Todo";
+import { Todo } from "@quack/contracts/todos/todo";
 
 /** Completing is idempotent: a completed todo is returned as is. */
 export const completeTodo = (todo: Todo): Todo =>

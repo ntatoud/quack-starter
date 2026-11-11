@@ -1,13 +1,13 @@
 import * as NodeHttp from "node:http";
 
 import { NodeHttpServer } from "@effect/platform-node";
-import { Api } from "@quack/contracts/Api";
+import { Api } from "@quack/contracts/api";
 import { Effect, Layer } from "effect";
 import { HttpRouter } from "effect/http";
 import { HttpApiBuilder, HttpApiScalar } from "effect/http-api";
 
 import { ServerConfig } from "#/config.ts";
-import { SystemHandlers } from "#/modules/system/http/SystemHandlers.ts";
+import { SystemHandlers } from "#/modules/system/http/system-handlers.ts";
 import { TodosModule } from "#/modules/todos/index.ts";
 
 const ApiRoutes = HttpApiBuilder.layer(Api, { openapiPath: "/openapi.json" }).pipe(

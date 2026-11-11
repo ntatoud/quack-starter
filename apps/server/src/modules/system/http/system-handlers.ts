@@ -1,4 +1,4 @@
-import { Api } from "@quack/contracts/Api";
+import { Api } from "@quack/contracts/api";
 import { Effect } from "effect";
 import { HttpApiBuilder } from "effect/http-api";
 

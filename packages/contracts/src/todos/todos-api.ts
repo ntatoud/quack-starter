@@ -1,8 +1,8 @@
 import { Schema } from "effect";
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from "effect/http-api";
 
-import { Todo, TodoId, TodoTitle } from "#/todos/Todo.ts";
-import { TodoNotFound } from "#/todos/TodoErrors.ts";
+import { Todo, TodoId, TodoTitle } from "#/todos/todo.ts";
+import { TodoNotFound } from "#/todos/todo-errors.ts";
 
 const NotFound = TodoNotFound.pipe(HttpApiSchema.status(404));
 

@@ -1,9 +1,9 @@
-import { Todo, type TodoId, type TodoTitle } from "@quack/contracts/todos/Todo";
-import { TodoNotFound } from "@quack/contracts/todos/TodoErrors";
+import { Todo, type TodoId, type TodoTitle } from "@quack/contracts/todos/todo";
+import { TodoNotFound } from "@quack/contracts/todos/todo-errors";
 import { Context, DateTime, Effect, Layer, Option } from "effect";
 
-import { completeTodo } from "#/modules/todos/domain/Todo.ts";
-import { TodoRepository } from "#/modules/todos/domain/TodoRepository.ts";
+import { completeTodo } from "#/modules/todos/domain/todo.ts";
+import { TodoRepository } from "#/modules/todos/domain/todo-repository.ts";
 
 /** Use cases of the todos context. Depends on the domain only. */
 export class Todos extends Context.Service<

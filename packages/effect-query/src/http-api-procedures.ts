@@ -1,7 +1,7 @@
 import { Effect, type ManagedRuntime } from "effect";
 import type { HttpApi, HttpApiClient, HttpApiEndpoint, HttpApiGroup } from "effect/http-api";
 
-import { makeProcedure, type Procedure, type ProcedureKey } from "#/Procedure.ts";
+import { makeProcedure, type Procedure, type ProcedureKey } from "#/procedure.ts";
 
 type EndpointProcedure<Endpoint extends HttpApiEndpoint.ConstraintRequest, ER> =
   HttpApiClient.Client.MethodReturn<

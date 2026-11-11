@@ -12,7 +12,7 @@ import {
 } from "effect/http-api";
 import { afterAll, describe, expect, it } from "vite-plus/test";
 
-import { makeHttpApiProcedures } from "#/HttpApiProcedures.ts";
+import { makeHttpApiProcedures } from "#/http-api-procedures.ts";
 
 class ItemNotFound extends Schema.TaggedError<ItemNotFound, { readonly brand: unique symbol }>()(
   "ItemNotFound",
