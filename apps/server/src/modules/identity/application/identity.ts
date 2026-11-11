@@ -105,37 +105,34 @@ export class Identity extends Context.Service<
 
       return Identity.of({
         signUp: Effect.fn("Identity.signUp")(function* (email, password, ip) {
-          const signUps: ReadonlyArray<AttemptCounter> = [{ _tag: "SignUpsOfIp", ip }];
-          yield* limiter.check(signUps);
           // Counted before it is known to succeed: one that fails costs a hash, and tells whether a User has the email.
-          yield* limiter.record(signUps);
+          yield* limiter.take([{ _tag: "SignUpsOfIp", ip }]);
           const user = new User({ id: yield* users.nextId, email });
           yield* users.create(user, yield* hasher.hash(password));
           return { user, session: yield* openSession(user) };
         }),
         signIn: Effect.fn("Identity.signIn")(function* (email, password, ip) {
           const failuresOfEmail: AttemptCounter = { _tag: "SignInFailuresOfEmail", email };
-          const failures: ReadonlyArray<AttemptCounter> = [
-            failuresOfEmail,
-            { _tag: "SignInFailuresOfIp", ip },
-          ];
+          const failuresOfIp: AttemptCounter = { _tag: "SignInFailuresOfIp", ip };
           // Before the User is looked up and the password hashed: a refusal costs nothing, and says nothing of the email.
-          yield* limiter.check(failures);
+          // The attempt is counted as a failure here, not once it has failed: the sign-ins that arrive at once
+          // would all be let through before the first of them is counted.
+          yield* limiter.take([failuresOfEmail, failuresOfIp]);
 
           const found = yield* users.findByEmail(email);
           if (Option.isNone(found)) {
             // The slow step of a sign-in, done for nothing: without it, a fast answer would say that no User has this email.
             yield* hasher.hash(password);
-            yield* limiter.record(failures);
             return yield* new InvalidCredentials();
           }
           const { user, passwordHash } = found.value;
           if (!(yield* hasher.verify(password, passwordHash))) {
-            yield* limiter.record(failures);
             return yield* new InvalidCredentials();
           }
-          // The counter of the address stays: one User of their own does not clear the failures on the emails of others.
+          // It did not fail. The counter of the email starts again from zero. The one of the address loses this
+          // attempt only: one User of their own does not clear the failures on the emails of others.
           yield* limiter.reset(failuresOfEmail);
+          yield* limiter.giveBack(failuresOfIp);
           return { user, session: yield* openSession(user) };
         }),
         signOut: Effect.fn("Identity.signOut")(function* (token) {

@@ -2,7 +2,17 @@ import { assert, describe, effect, layer } from "@effect/vitest";
 import { Api } from "@quack/contracts/api";
 import { Authentication } from "@quack/contracts/identity/authentication";
 import type { Email, Password } from "@quack/contracts/identity/user";
-import { Clock, ConfigProvider, Duration, Effect, Layer, Option, Redacted, Ref } from "effect";
+import {
+  Clock,
+  ConfigProvider,
+  Duration,
+  Effect,
+  Exit,
+  Layer,
+  Option,
+  Redacted,
+  Ref,
+} from "effect";
 import { Cookies, HttpClientRequest, type HttpClientResponse, HttpServer } from "effect/http";
 import { HttpApiMiddleware, HttpApiTest } from "effect/http-api";
 import { TestClock } from "effect/testing";
@@ -687,6 +697,14 @@ describe("IdentityApi, attempt limits", () => {
       const { user } = yield* browser.signUp(asTyped("visitor-8@example.com"));
       assert.strictEqual(user.email, "visitor-8@example.com");
     }).pipe(withLimits()),
+  );
+
+  effect("does not start with a limit under 1, which would refuse nothing", () =>
+    Effect.gen(function* () {
+      const started = yield* makeBrowser.pipe(withLimits({ SIGN_UPS_PER_IP: "0" }), Effect.exit);
+
+      assert.isTrue(Exit.isFailure(started));
+    }),
   );
 
   effect("takes its limits and its windows from the config", () =>

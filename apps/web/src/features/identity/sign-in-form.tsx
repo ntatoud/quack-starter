@@ -7,7 +7,7 @@ import { useAppForm } from "@quack/form/use-app-form";
 import { useMutation } from "@tanstack/react-query";
 import { Schema } from "effect";
 
-import { tooManyAttemptsMessage } from "#/features/identity/retry-delay.ts";
+import { tooManyAttemptsMessage } from "#/features/identity/too-many-attempts-message.ts";
 import { api } from "#/lib/api.ts";
 
 const decodeSignInPayload = Schema.decodeSync(SignInPayload);

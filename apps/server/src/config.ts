@@ -1,9 +1,14 @@
-import { Config, Duration } from "effect";
+import { Config, Duration, Schema } from "effect";
 
-/** How many attempts a counter of the `AttemptLimiter` takes in one window. The names are the variables to set. */
+/**
+ * How many attempts a counter of the `AttemptLimiter` takes in one window. The names are the variables to set.
+ * A limit is 1 or more: the server does not start with one that would refuse nothing.
+ */
 const attemptLimit = (name: string, limit: number, window: Duration.Duration) =>
   Config.all({
-    limit: Config.Int(name).pipe(Config.withDefault(limit)),
+    limit: Config.schema(Schema.Int.check(Schema.isGreaterThan(0)), name).pipe(
+      Config.withDefault(limit),
+    ),
     window: Config.Duration(`${name}_WINDOW`).pipe(Config.withDefault(window)),
   });
 

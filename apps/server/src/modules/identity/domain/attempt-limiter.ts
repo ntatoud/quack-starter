@@ -28,12 +28,13 @@ export class AttemptLimiter extends Context.Service<
   AttemptLimiter,
   {
     /**
-     * Fails when one of the counters has reached its limit in its current window.
-     * `retryAfter` is when the last of the windows that refuse ends. It counts nothing.
+     * Counts one attempt on each of the counters, unless one of them has reached its limit in its current window:
+     * then it fails and counts nothing. `retryAfter` is when the last of the windows that refuse ends.
+     * It is one step: of the attempts that arrive at once, no more than the limit get through.
      */
-    check(counters: ReadonlyArray<AttemptCounter>): Effect.Effect<void, TooManyAttempts>;
-    /** Counts one attempt on each of the counters. */
-    record(counters: ReadonlyArray<AttemptCounter>): Effect.Effect<void>;
+    take(counters: ReadonlyArray<AttemptCounter>): Effect.Effect<void, TooManyAttempts>;
+    /** Takes one attempt off the counter: one that `take` counted, and that is not to count after all. */
+    giveBack(counter: AttemptCounter): Effect.Effect<void>;
     /** Sets the counter back to zero, as if nothing had been counted on it. */
     reset(counter: AttemptCounter): Effect.Effect<void>;
   }

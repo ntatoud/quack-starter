@@ -12,7 +12,7 @@ const { handler, dispose } = HttpRouter.toWebHandler(
 const get = (path: string) => handler(new Request(new URL(path, "http://api.test")));
 
 /** A sign-up or a sign-in. `from` is the address of the client, as the web app's relay names it in `X-Forwarded-For`. */
-const post =
+const attempt =
   (path: "/api/sign-up" | "/api/sign-in") =>
   (email: string, { from, password = "correct horse battery staple" }: Attempt = {}) =>
     handler(
@@ -31,8 +31,8 @@ interface Attempt {
   readonly password?: string;
 }
 
-const signUp = post("/api/sign-up");
-const signIn = post("/api/sign-in");
+const signUp = attempt("/api/sign-up");
+const signIn = attempt("/api/sign-in");
 
 afterAll(dispose);
 
@@ -228,6 +228,26 @@ describe("server routes", () => {
     // 15 minutes, less the time the 5 failures took.
     expect(body.retryAfter).toBeGreaterThan(800);
     expect(body.retryAfter).toBeLessThanOrEqual(900);
+  });
+
+  it("lets 5 of the sign-ins that fail at once on an email through, and refuses the others", async () => {
+    await signUp("joan@example.com", { from: "203.0.113.40" });
+
+    // At once: none of them has failed yet when the others arrive.
+    const responses = await Promise.all(
+      Array.from({ length: 12 }, () =>
+        signIn("joan@example.com", {
+          from: "203.0.113.41",
+          password: "not the password of joan",
+        }),
+      ),
+    );
+
+    const statuses = responses.map((response) => response.status).toSorted();
+    expect(statuses).toEqual([
+      ...Array.from({ length: 5 }, () => 401),
+      ...Array.from({ length: 7 }, () => 429),
+    ]);
   });
 
   it("serves the docs under /api", async () => {
