@@ -50,6 +50,7 @@ apps/
 packages/
   contracts/      Schemas and the API definition shared by both apps
   ui/             shadcn components and the Tailwind theme
+  form/           Form hook and its components: TanStack Form, validated by Effect schemas
   oxlint-plugin/  Lint rules: no relative imports, module boundaries
 ```
 

@@ -1,0 +1,36 @@
+{
+  "name": "@quack/form",
+  "private": true,
+  "type": "module",
+  "imports": {
+    "#/*": "./src/*"
+  },
+  "exports": {
+    "./use-app-form": "./src/use-app-form.ts",
+    "./schema-form-options": "./src/schema-form-options.ts",
+    "./submit-failed": "./src/submit-failed.ts"
+  },
+  "scripts": {
+    "typecheck": "effect-tsgo tsc --noEmit",
+    "typecheck:ci": "effect-tsgo tsrs --noEmit",
+    "test": "vp test run"
+  },
+  "dependencies": {
+    "@quack/ui": "workspace:*",
+    "@tanstack/react-form": "1.33.5",
+    "effect": "catalog:"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "catalog:",
+    "@testing-library/react": "catalog:",
+    "@testing-library/user-event": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "happy-dom": "catalog:",
+    "vite-plus": "catalog:"
+  },
+  "peerDependencies": {
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  }
+}
