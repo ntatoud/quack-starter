@@ -6,9 +6,9 @@
     "#/*": "./src/*"
   },
   "exports": {
-    "./useAppForm": "./src/useAppForm.ts",
-    "./schemaFormOptions": "./src/schemaFormOptions.ts",
-    "./SubmitFailed": "./src/SubmitFailed.ts"
+    "./use-app-form": "./src/use-app-form.ts",
+    "./schema-form-options": "./src/schema-form-options.ts",
+    "./submit-failed": "./src/submit-failed.ts"
   },
   "scripts": {
     "typecheck": "effect-tsgo tsc --noEmit",

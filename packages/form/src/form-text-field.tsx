@@ -4,9 +4,9 @@ import { useStore } from "@tanstack/react-form";
 import { type ComponentProps, useId } from "react";
 
 import { useFieldContext } from "#/context.ts";
-import { useFormFieldLayout } from "#/FormField.tsx";
+import { useFormFieldLayout } from "#/form-field.tsx";
 import { toMessage } from "#/messages.ts";
-import { textSize } from "#/Size.ts";
+import { textSize } from "#/size.ts";
 
 /**
  * A text input bound to the field of its `form.AppField`, followed by its errors.

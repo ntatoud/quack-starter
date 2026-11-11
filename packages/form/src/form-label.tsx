@@ -2,8 +2,8 @@ import { FieldLabel } from "@quack/ui/components/field";
 import { cn } from "@quack/ui/lib/utils";
 import type { ComponentProps } from "react";
 
-import { useFormFieldLayout } from "#/FormField.tsx";
-import { textSize } from "#/Size.ts";
+import { useFormFieldLayout } from "#/form-field.tsx";
+import { textSize } from "#/size.ts";
 
 /**
  * The label of the control of its `field.Root`. Place it where the layout wants it: above the control, beside it,

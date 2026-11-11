@@ -3,7 +3,7 @@ import { useStore } from "@tanstack/react-form";
 import { type ComponentProps, createContext, use, useId, useMemo } from "react";
 
 import { useFieldContext } from "#/context.ts";
-import type { Size } from "#/Size.ts";
+import type { Size } from "#/size.ts";
 
 /** What the parts of one field share: the id that ties the label to the control, and their size. */
 type FieldLayout = { id: string; size: Size };

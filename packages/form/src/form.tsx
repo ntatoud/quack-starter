@@ -4,7 +4,7 @@ import { type ComponentProps, type FormEvent, useState } from "react";
 
 import { useFormContext } from "#/context.ts";
 import { type Message, toMessage } from "#/messages.ts";
-import { SubmitFailed } from "#/SubmitFailed.ts";
+import { SubmitFailed } from "#/submit-failed.ts";
 
 /**
  * The errors of the form itself. A schema reports every issue of the form by path, and those of the form itself
