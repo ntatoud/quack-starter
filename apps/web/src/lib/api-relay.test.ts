@@ -32,11 +32,11 @@ const upstream = createServer((request, response) => {
   });
 });
 
-let apiUrl: string;
+let apiUrl: URL;
 
 beforeAll(async () => {
   await new Promise<void>((resolve) => upstream.listen(0, "127.0.0.1", resolve));
-  apiUrl = `http://127.0.0.1:${(upstream.address() as AddressInfo).port}`;
+  apiUrl = new URL(`http://127.0.0.1:${(upstream.address() as AddressInfo).port}`);
 });
 
 afterAll(() => {
@@ -71,6 +71,19 @@ describe("relayToApi", () => {
     expect(received[0]?.method).toBe("POST");
     expect(received[0]?.headers["content-type"]).toBe("application/json");
     expect(received[0]?.body).toBe('{"title":"Ship it"}');
+  });
+
+  it("sends a body whose client asked for 100 Continue first", async () => {
+    // `curl` sends `Expect: 100-continue` with a large body, and `fetch` refuses to send that header.
+    const response = await relay("/api/todos", {
+      method: "POST",
+      headers: { "content-type": "application/json", expect: "100-continue" },
+      body: '{"title":"Ship it"}',
+    });
+
+    expect(response.status).toBe(200);
+    expect(received[0]?.body).toBe('{"title":"Ship it"}');
+    expect(received[0]?.headers.expect).toBeUndefined();
   });
 
   it("sends the Cookie header", async () => {
@@ -149,6 +162,17 @@ describe("relayToApi", () => {
     expect(await response.text()).toBe("");
   });
 
+  it("returns the length of a body it did not decode", async () => {
+    answer = (response) => {
+      response.writeHead(200, { "content-type": "application/json", "content-length": 19 });
+      response.end();
+    };
+
+    const response = await relay("/api/todos", { method: "HEAD" });
+
+    expect(response.headers.get("content-length")).toBe("19");
+  });
+
   it("returns a redirect to the client and does not follow it", async () => {
     answer = (response) => {
       response.writeHead(302, { location: "/api/elsewhere" });
@@ -183,7 +207,7 @@ describe("relayToApi", () => {
   it("answers 502 when the upstream cannot be reached", async () => {
     const response = await relayToApi(new Request("http://web.test/api/todos"), {
       // Port 1 is reserved: nothing listens there.
-      apiUrl: "http://127.0.0.1:1",
+      apiUrl: new URL("http://127.0.0.1:1"),
       clientIp: "203.0.113.7",
     });
 
