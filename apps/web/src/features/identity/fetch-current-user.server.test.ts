@@ -45,6 +45,7 @@ describe("fetchCurrentUser", () => {
     const { user, setCookie } = await fetchCurrentUser({
       apiUrl,
       cookie: "session=abc; theme=dark",
+      clientIp: "203.0.113.7",
     });
 
     expect(user).toEqual(ada);
@@ -52,20 +53,26 @@ describe("fetchCurrentUser", () => {
     expect(received).toHaveLength(1);
     expect(received[0]?.url).toBe("/api/me");
     expect(received[0]?.headers.cookie).toBe("session=abc; theme=dark");
+    expect(received[0]?.headers["x-forwarded-for"]).toBe("203.0.113.7");
   });
 
-  it("sends no cookie when the request has none", async () => {
+  it("sends no cookie and names no client when the request has none", async () => {
     answer = json(401, { _tag: "Unauthenticated" });
 
-    await fetchCurrentUser({ apiUrl, cookie: undefined });
+    await fetchCurrentUser({ apiUrl, cookie: undefined, clientIp: undefined });
 
     expect(received[0]?.headers.cookie).toBeUndefined();
+    expect(received[0]?.headers["x-forwarded-for"]).toBeUndefined();
   });
 
   it("answers null when the API says Unauthenticated", async () => {
     answer = json(401, { _tag: "Unauthenticated" });
 
-    const { user } = await fetchCurrentUser({ apiUrl, cookie: "session=unknown" });
+    const { user } = await fetchCurrentUser({
+      apiUrl,
+      cookie: "session=unknown",
+      clientIp: undefined,
+    });
 
     expect(user).toBeNull();
   });
@@ -75,7 +82,11 @@ describe("fetchCurrentUser", () => {
       "set-cookie": "session=abc; Max-Age=2592000; Path=/; HttpOnly; Secure; SameSite=Lax",
     });
 
-    const { setCookie } = await fetchCurrentUser({ apiUrl, cookie: "session=abc" });
+    const { setCookie } = await fetchCurrentUser({
+      apiUrl,
+      cookie: "session=abc",
+      clientIp: undefined,
+    });
 
     expect(setCookie).toEqual([
       "session=abc; Max-Age=2592000; Path=/; HttpOnly; Secure; SameSite=Lax",
@@ -89,7 +100,11 @@ describe("fetchCurrentUser", () => {
       { "set-cookie": "session=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax" },
     );
 
-    const { user, setCookie } = await fetchCurrentUser({ apiUrl, cookie: "session=expired" });
+    const { user, setCookie } = await fetchCurrentUser({
+      apiUrl,
+      cookie: "session=expired",
+      clientIp: undefined,
+    });
 
     expect(user).toBeNull();
     expect(setCookie).toEqual(["session=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax"]);
@@ -98,6 +113,8 @@ describe("fetchCurrentUser", () => {
   it("rejects when the API fails, so a failure is not taken for a visitor without a Session", async () => {
     answer = json(500, {});
 
-    await expect(fetchCurrentUser({ apiUrl, cookie: "session=abc" })).rejects.toThrow();
+    await expect(
+      fetchCurrentUser({ apiUrl, cookie: "session=abc", clientIp: undefined }),
+    ).rejects.toThrow();
   });
 });

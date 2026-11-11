@@ -2,7 +2,7 @@ import { User } from "@quack/contracts/identity/user";
 import { queryOptions, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
-import { appendResponseHeader, getRequestHeader } from "@tanstack/react-start/server";
+import { appendResponseHeader, getRequestHeader, getRequestIP } from "@tanstack/react-start/server";
 import { Schema } from "effect";
 
 import { fetchCurrentUser } from "#/features/identity/fetch-current-user.server.ts";
@@ -20,10 +20,12 @@ const getCurrentUser = createServerFn({ method: "GET" }).handler(async () => {
   const { user, setCookie } = await fetchCurrentUser({
     apiUrl: serverEnv.API_URL,
     cookie: getRequestHeader("cookie"),
+    clientIp: getRequestIP(),
   });
   // Appended, not set: setting the header would replace the cookies already on the response.
   if (setCookie.length > 0) appendResponseHeader("set-cookie", setCookie);
-  return user;
+  // Encoded, since it crosses from the web server to the browser.
+  return user === null ? null : encodeUser(user);
 });
 
 /**
@@ -43,11 +45,8 @@ export const useSetCurrentUser = () => {
   const queryClient = useQueryClient();
   const router = useRouter();
 
-  return async (user: User | null) => {
-    queryClient.setQueryData(
-      currentUserQueryOptions.queryKey,
-      user === null ? null : encodeUser(user),
-    );
+  return async (user: User) => {
+    queryClient.setQueryData(currentUserQueryOptions.queryKey, encodeUser(user));
     await router.invalidate();
   };
 };

@@ -17,21 +17,19 @@ function SignUp() {
   const navigate = Route.useNavigate();
 
   return (
-    <main className="mx-auto max-w-xl p-6 pt-16">
-      <Card>
-        <CardHeader>
-          <CardTitle>Sign up</CardTitle>
-          <CardDescription>Your todos are yours alone.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <SignUpForm
-            onSignedUp={async (user) => {
-              await setCurrentUser(user);
-              await navigate({ to: "/" });
-            }}
-          />
-        </CardContent>
-      </Card>
-    </main>
+    <Card>
+      <CardHeader>
+        <CardTitle>Sign up</CardTitle>
+        <CardDescription>Your todos are yours alone.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <SignUpForm
+          onSignedUp={async (user) => {
+            await setCurrentUser(user);
+            await navigate({ to: "/" });
+          }}
+        />
+      </CardContent>
+    </Card>
   );
 }

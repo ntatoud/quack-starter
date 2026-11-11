@@ -21,10 +21,10 @@ export const Route = createRootRouteWithContext<RouterContext>()({
     links: [{ rel: "stylesheet", href: appCss }],
   }),
   notFoundComponent: () => (
-    <main className="mx-auto max-w-xl p-6 pt-16">
+    <>
       <h1 className="text-2xl font-semibold">404</h1>
       <p className="text-muted-foreground">This page does not exist.</p>
-    </main>
+    </>
   ),
   shellComponent: RootDocument,
   component: RootLayout,
@@ -36,7 +36,9 @@ function RootLayout() {
   return (
     <>
       <AppHeader currentUser={currentUser} />
-      <Outlet />
+      <main className="mx-auto max-w-xl p-6 pt-16">
+        <Outlet />
+      </main>
     </>
   );
 }

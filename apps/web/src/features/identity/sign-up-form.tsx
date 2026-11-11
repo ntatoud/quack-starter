@@ -1,5 +1,6 @@
 import { EmailAlreadyTaken } from "@quack/contracts/identity/identity-errors";
-import { Email, Password, type User } from "@quack/contracts/identity/user";
+import { SignUpPayload } from "@quack/contracts/identity/identity-api";
+import type { User } from "@quack/contracts/identity/user";
 import { schemaFormOptions } from "@quack/form/schema-form-options";
 import { SubmitFailed } from "@quack/form/submit-failed";
 import { useAppForm } from "@quack/form/use-app-form";
@@ -8,11 +9,8 @@ import { Schema } from "effect";
 
 import { api } from "#/lib/api.ts";
 
-/** What the sign-up form holds, decoded with the contract's own rules so the form and the API agree. */
-const SignUpDraft = Schema.Struct({ email: Email, password: Password });
-
-const decodeSignUpDraft = Schema.decodeSync(SignUpDraft);
-const emptySignUpDraft: typeof SignUpDraft.Encoded = { email: "", password: "" };
+const decodeSignUpPayload = Schema.decodeSync(SignUpPayload);
+const emptySignUpPayload: typeof SignUpPayload.Encoded = { email: "", password: "" };
 
 /**
  * Signs a visitor up. The API sets the session cookie, so the visitor is signed in when `onSignedUp` runs:
@@ -22,10 +20,10 @@ export function SignUpForm({ onSignedUp }: { onSignedUp: (user: User) => void | 
   const signUp = useMutation(api.identity.signUp.mutationOptions());
 
   const form = useAppForm({
-    ...schemaFormOptions(SignUpDraft, emptySignUpDraft),
+    ...schemaFormOptions(SignUpPayload, emptySignUpPayload),
     onSubmit: async ({ value }) => {
       const user = await signUp
-        .mutateAsync({ payload: decodeSignUpDraft(value) })
+        .mutateAsync({ payload: decodeSignUpPayload(value) })
         .catch((cause: unknown) => {
           throw new SubmitFailed(
             cause instanceof EmailAlreadyTaken
