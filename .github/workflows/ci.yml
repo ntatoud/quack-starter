@@ -52,3 +52,15 @@ jobs:
           task-cache-key: test
       - name: Test
         run: vp run -r --cache test
+
+  build:
+    name: Build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
+        with:
+          task-cache-key: build
+      - name: Build
+        run: vp run --filter './apps/*' --cache build
