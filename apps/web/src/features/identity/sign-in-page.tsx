@@ -30,7 +30,7 @@ export function SignInPage() {
           }}
         />
         <p className="mt-4 text-sm text-muted-foreground">
-          No account yet?{" "}
+          Not signed up yet?{" "}
           <Link to="/sign-up" className="text-foreground underline underline-offset-4">
             Sign up
           </Link>

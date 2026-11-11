@@ -190,7 +190,8 @@ layer(Layer.mergeAll(IdentityModule, HttpServer.layerServices))("IdentityApi", (
       const { user } = yield* browser.signUp(asTyped("frances@example.com"));
       const atSignUp = Option.getOrThrow(yield* browser.session);
 
-      // The browser sends the cookie of the sign-up: the Session it holds is valid.
+      // A sign-in with a valid session cookie on the request is tested on the routes, in `server.test.ts`:
+      // this client sends the cookie to the endpoints that declare `Authentication` only.
       yield* browser.signIn(asTyped("frances@example.com"));
       const atFirstSignIn = Option.getOrThrow(yield* browser.session);
       yield* browser.signIn(asTyped("frances@example.com"));
