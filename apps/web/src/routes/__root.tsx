@@ -1,8 +1,17 @@
 import appCss from "@quack/ui/globals.css?url";
-import { createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+import { createRootRouteWithContext, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
-export const Route = createRootRoute({
+import { AppHeader } from "#/features/identity/app-header.tsx";
+import { currentUserQueryOptions } from "#/features/identity/current-user.ts";
+import type { RouterContext } from "#/router.tsx";
+
+export const Route = createRootRouteWithContext<RouterContext>()({
+  // Runs before every navigation, in the server render and in the browser, so every route knows the Current User.
+  // The cache answers once it is filled: only the first navigation of a page asks the server.
+  beforeLoad: async ({ context }) => ({
+    currentUser: await context.queryClient.ensureQueryData(currentUserQueryOptions),
+  }),
   head: () => ({
     meta: [
       { charSet: "utf-8" },
@@ -18,7 +27,19 @@ export const Route = createRootRoute({
     </main>
   ),
   shellComponent: RootDocument,
+  component: RootLayout,
 });
+
+function RootLayout() {
+  const { currentUser } = Route.useRouteContext();
+
+  return (
+    <>
+      <AppHeader currentUser={currentUser} />
+      <Outlet />
+    </>
+  );
+}
 
 function RootDocument({ children }: { children: ReactNode }) {
   return (
