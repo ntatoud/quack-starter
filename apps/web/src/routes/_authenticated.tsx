@@ -1,5 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
+import { signInLocation } from "#/features/identity/redirect-target.ts";
+
 /**
  * The pages of a Current User: a route under `routes/_authenticated/` is protected, and its URL does not change,
  * since the layout has no path.
@@ -11,7 +13,7 @@ export const Route = createFileRoute("/_authenticated")({
   beforeLoad: ({ context, location }) => {
     if (context.currentUser === null) {
       // `location.href` is the path with its search and hash, not a full URL.
-      throw redirect({ to: "/sign-in", search: { redirect: location.href } });
+      throw redirect(signInLocation(location.href));
     }
   },
 });

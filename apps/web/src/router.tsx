@@ -3,6 +3,7 @@ import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from "@ta
 import { createRouter } from "@tanstack/react-router";
 
 import { setCurrentUserData } from "#/features/identity/current-user.ts";
+import { signInLocation } from "#/features/identity/redirect-target.ts";
 import { routeTree } from "#/routeTree.gen.ts";
 
 /** What every route finds in its `context`, before a `beforeLoad` adds to it. */
@@ -10,7 +11,9 @@ export interface RouterContext {
   readonly queryClient: QueryClient;
 }
 
-const signInPath = "/sign-in";
+// A call the API refused for want of a Session is refused again: retrying it only delays the sign-in page.
+const retry = (failureCount: number, error: unknown): boolean =>
+  !(error instanceof Unauthenticated) && failureCount < 3;
 
 export function getRouter() {
   // Every query and every mutation of the app ends here when it fails.
@@ -21,14 +24,16 @@ export function getRouter() {
     setCurrentUserData(queryClient, null);
     const { pathname, href } = router.state.location;
     // Several calls can fail at once: the first one already led to the sign-in page.
-    if (pathname === signInPath) return;
-    void router.navigate({ to: signInPath, search: { redirect: href } });
+    const signIn = signInLocation(href);
+    if (pathname === signIn.to) return;
+    void router.navigate(signIn);
   };
 
   // One client per router: on the server that is one per request, so no cache is shared between users.
   const queryClient = new QueryClient({
     queryCache: new QueryCache({ onError }),
     mutationCache: new MutationCache({ onError }),
+    defaultOptions: { queries: { retry } },
   });
 
   const router = createRouter({
