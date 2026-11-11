@@ -1,9 +1,11 @@
 import { Api } from "@quack/contracts/api";
+import { CurrentUser } from "@quack/contracts/identity/authentication";
 import { Effect } from "effect";
 import { HttpApiBuilder } from "effect/http-api";
 
 import { Todos } from "#/modules/todos/application/todos.ts";
 
+// The Current User is the Owner: each handler reads it and passes its id to the use case.
 export const TodosHandlers = HttpApiBuilder.group(
   Api,
   "todos",
@@ -11,10 +13,22 @@ export const TodosHandlers = HttpApiBuilder.group(
     const todos = yield* Todos;
 
     return handlers.handleAll({
-      list: () => todos.list,
-      create: ({ payload }) => todos.create(payload.title),
-      complete: ({ params }) => todos.complete(params.id),
-      remove: ({ params }) => todos.remove(params.id),
+      list: Effect.fn(function* () {
+        const owner = yield* CurrentUser;
+        return yield* todos.list(owner.id);
+      }),
+      create: Effect.fn(function* ({ payload }) {
+        const owner = yield* CurrentUser;
+        return yield* todos.create(owner.id, payload.title);
+      }),
+      complete: Effect.fn(function* ({ params }) {
+        const owner = yield* CurrentUser;
+        return yield* todos.complete(owner.id, params.id);
+      }),
+      remove: Effect.fn(function* ({ params }) {
+        const owner = yield* CurrentUser;
+        return yield* todos.remove(owner.id, params.id);
+      }),
     });
   }),
 );

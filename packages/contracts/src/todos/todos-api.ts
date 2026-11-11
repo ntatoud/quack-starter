@@ -1,11 +1,13 @@
 import { Schema } from "effect";
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from "effect/http-api";
 
+import { Authentication } from "#/identity/authentication.ts";
 import { Todo, TodoId, TodoTitle } from "#/todos/todo.ts";
 import { TodoNotFound } from "#/todos/todo-errors.ts";
 
 const NotFound = TodoNotFound.pipe(HttpApiSchema.status(404));
 
+/** Every endpoint is protected, and answers for the todos of the Current User only: they are the Owner's alone. */
 export class TodosApi extends HttpApiGroup.make("todos")
   .add(
     HttpApiEndpoint.get("list", "/", {
@@ -18,6 +20,7 @@ export class TodosApi extends HttpApiGroup.make("todos")
     HttpApiEndpoint.post("complete", "/:id/complete", {
       params: { id: TodoId },
       success: Todo,
+      // Also answered for the Todo of another Owner: the API does not tell that it exists.
       error: NotFound,
     }),
     HttpApiEndpoint.delete("remove", "/:id", {
@@ -26,4 +29,6 @@ export class TodosApi extends HttpApiGroup.make("todos")
       error: NotFound,
     }),
   )
+  // After the endpoints: `.middleware` only covers what was added before it.
+  .middleware(Authentication)
   .prefix("/todos") {}

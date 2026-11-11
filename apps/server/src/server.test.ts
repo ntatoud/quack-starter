@@ -23,11 +23,32 @@ const signUp = (email: string) =>
 afterAll(dispose);
 
 describe("server routes", () => {
-  it("serves the todos under /api", async () => {
+  it("serves the todos of the Current User under /api: the Session of a sign-up opens them", async () => {
+    const signedUp = await signUp("barbara@example.com");
+    const user = (await signedUp.json()) as { id: string };
+    const cookie = signedUp.headers.getSetCookie()[0]?.split(";")[0] ?? "";
+
+    const created = await handler(
+      new Request("http://api.test/api/todos", {
+        method: "POST",
+        headers: { "content-type": "application/json", cookie },
+        body: JSON.stringify({ title: "Ship it" }),
+      }),
+    );
+    expect(created.status).toBe(200);
+    const todo = await created.json();
+    expect(todo).toMatchObject({ title: "Ship it", ownerId: user.id });
+
+    const listed = await handler(new Request("http://api.test/api/todos", { headers: { cookie } }));
+    expect(listed.status).toBe(200);
+    expect(await listed.json()).toEqual([todo]);
+  });
+
+  it("answers /api/todos with 401 Unauthenticated when the request has no session cookie", async () => {
     const response = await get("/api/todos");
 
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual([]);
+    expect(response.status).toBe(401);
+    expect(await response.json()).toEqual({ _tag: "Unauthenticated" });
   });
 
   it("serves the health check under /api", async () => {
@@ -42,7 +63,7 @@ describe("server routes", () => {
     expect(Object.keys(paths)).toContain("/api/todos");
   });
 
-  it("describes the session cookie as the security scheme of /api/me, and of no public endpoint", async () => {
+  it("describes the session cookie as the security scheme of /api/me and of the todos, and of no public endpoint", async () => {
     const openapi = (await (await get("/api/openapi.json")).json()) as {
       components: { securitySchemes: Record<string, unknown> };
       paths: Record<string, Record<string, { security?: ReadonlyArray<Record<string, unknown>> }>>;
@@ -53,7 +74,13 @@ describe("server routes", () => {
     });
     expect(openapi.paths["/api/me"]?.["get"]?.security).toEqual([{ session: [] }]);
     expect(openapi.paths["/api/sign-up"]?.["post"]?.security ?? []).toEqual([]);
-    expect(openapi.paths["/api/todos"]?.["get"]?.security ?? []).toEqual([]);
+    expect(openapi.paths["/api/sign-out"]?.["post"]?.security ?? []).toEqual([]);
+    expect(openapi.paths["/api/todos"]?.["get"]?.security).toEqual([{ session: [] }]);
+    expect(openapi.paths["/api/todos"]?.["post"]?.security).toEqual([{ session: [] }]);
+    expect(openapi.paths["/api/todos/{id}/complete"]?.["post"]?.security).toEqual([
+      { session: [] },
+    ]);
+    expect(openapi.paths["/api/todos/{id}"]?.["delete"]?.security).toEqual([{ session: [] }]);
   });
 
   it("signs a visitor up, then answers /api/me to the session cookie it set", async () => {
