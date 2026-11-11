@@ -1,4 +1,4 @@
-import { TodoTitle } from "@quack/contracts/todos/Todo";
+import { TodoTitle } from "@quack/contracts/todos/todo";
 import { type Option, Schema } from "effect";
 
 const decodeTitle = Schema.decodeOption(TodoTitle);

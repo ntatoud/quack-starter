@@ -32,6 +32,7 @@ export default defineConfig({
       "react/no-array-index-key": "error",
       "react/react-in-jsx-scope": "off",
       "unicorn/no-array-sort": "off",
+      "unicorn/filename-case": ["error", { case: "kebabCase" }],
       // Effect discriminates on `_tag`.
       "eslint/no-underscore-dangle": "off",
     },

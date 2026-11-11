@@ -1,8 +1,8 @@
 import { assert, describe, it } from "@effect/vitest";
-import { Todo, TodoId, TodoTitle } from "@quack/contracts/todos/Todo";
+import { Todo, TodoId, TodoTitle } from "@quack/contracts/todos/todo";
 import { DateTime } from "effect";
 
-import { completeTodo } from "#/modules/todos/domain/Todo.ts";
+import { completeTodo } from "#/modules/todos/domain/todo.ts";
 
 const todo = new Todo({
   id: TodoId.make("todo-1"),

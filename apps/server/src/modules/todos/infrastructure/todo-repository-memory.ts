@@ -1,7 +1,7 @@
 import { Effect, Layer, Option } from "effect";
 
-import { type Todo, TodoId } from "@quack/contracts/todos/Todo";
-import { TodoRepository } from "#/modules/todos/domain/TodoRepository.ts";
+import { type Todo, TodoId } from "@quack/contracts/todos/todo";
+import { TodoRepository } from "#/modules/todos/domain/todo-repository.ts";
 
 export const TodoRepositoryMemory = Layer.sync(TodoRepository, () => {
   const todos = new Map<TodoId, Todo>();

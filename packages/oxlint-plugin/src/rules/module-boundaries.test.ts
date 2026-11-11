@@ -25,25 +25,25 @@ const throughIndex = (module: string) => ({
 new RuleTester().run("module-boundaries", rule, {
   valid: [
     // Domain: itself and pure packages.
-    { filename: domain, code: `import { TodoId } from "#/modules/todos/domain/TodoErrors.ts";` },
+    { filename: domain, code: `import { TodoId } from "#/modules/todos/domain/todo-errors.ts";` },
     { filename: domain, code: `import { Schema } from "effect";` },
     { filename: domain, code: `import { Schema } from "effect/Schema";` },
     // Application: the domain and itself.
-    { filename: application, code: `import { Todo } from "#/modules/todos/domain/Todo.ts";` },
+    { filename: application, code: `import { Todo } from "#/modules/todos/domain/todo.ts";` },
     {
       filename: application,
-      code: `import { Other } from "#/modules/todos/application/Other.ts";`,
+      code: `import { Other } from "#/modules/todos/application/other.ts";`,
     },
     { filename: application, code: `import * as Crypto from "node:crypto";` },
     // Infrastructure and http: every layer of their own module.
-    { filename: infrastructure, code: `import { Todo } from "#/modules/todos/domain/Todo.ts";` },
+    { filename: infrastructure, code: `import { Todo } from "#/modules/todos/domain/todo.ts";` },
     { filename: infrastructure, code: `import * as Fs from "node:fs";` },
-    { filename: http, code: `import { Todos } from "#/modules/todos/application/Todos.ts";` },
+    { filename: http, code: `import { Todos } from "#/modules/todos/application/todos.ts";` },
     { filename: http, code: `import { HttpApiBuilder } from "effect/http-api";` },
     { filename: http, code: `import { Api } from "#/api.ts";` },
     // The module's index.ts assembles its own layers.
-    { filename: index, code: `import { Todos } from "#/modules/todos/application/Todos.ts";` },
-    { filename: index, code: `import { Repo } from "#/modules/todos/infrastructure/Repo.ts";` },
+    { filename: index, code: `import { Todos } from "#/modules/todos/application/todos.ts";` },
+    { filename: index, code: `import { Repo } from "#/modules/todos/infrastructure/repo.ts";` },
     // Another module, through its index.ts.
     { filename: application, code: `import { UsersModule } from "#/modules/users/index.ts";` },
     { filename: http, code: `export { UsersModule } from "#/modules/users/index.ts";` },
@@ -51,7 +51,7 @@ new RuleTester().run("module-boundaries", rule, {
     // Files outside a module compose the modules freely.
     {
       filename: `${src}/api.ts`,
-      code: `import { TodosApi } from "#/modules/todos/http/TodosApi.ts";`,
+      code: `import { TodosApi } from "#/modules/todos/http/todos-api.ts";`,
     },
     { filename: `${src}/server.ts`, code: `import * as Http from "node:http";` },
     // Other packages have no modules folder to guard.
@@ -64,28 +64,28 @@ new RuleTester().run("module-boundaries", rule, {
     // Domain: no other layer of its module.
     {
       filename: domain,
-      code: `import { Todos } from "#/modules/todos/application/Todos.ts";`,
+      code: `import { Todos } from "#/modules/todos/application/todos.ts";`,
       errors: [NO_OTHER_LAYER],
     },
     {
       filename: domain,
-      code: `import { Repo } from "#/modules/todos/infrastructure/Repo.ts";`,
+      code: `import { Repo } from "#/modules/todos/infrastructure/repo.ts";`,
       errors: [NO_OTHER_LAYER],
     },
     {
       filename: domain,
-      code: `export { TodosApi } from "#/modules/todos/http/TodosApi.ts";`,
+      code: `export { TodosApi } from "#/modules/todos/http/todos-api.ts";`,
       errors: [NO_OTHER_LAYER],
     },
     {
       filename: domain,
-      code: `export const load = () => import("#/modules/todos/http/TodosApi.ts");`,
+      code: `export const load = () => import("#/modules/todos/http/todos-api.ts");`,
       errors: [NO_OTHER_LAYER],
     },
     // Relative paths are resolved too, so the boundary holds on its own.
     {
       filename: domain,
-      code: `import { Todos } from "../application/Todos.ts";`,
+      code: `import { Todos } from "../application/todos.ts";`,
       errors: [NO_OTHER_LAYER],
     },
     // Domain: no platform, no transport.
@@ -110,43 +110,43 @@ new RuleTester().run("module-boundaries", rule, {
     // Application: the domain only.
     {
       filename: application,
-      code: `import { Repo } from "#/modules/todos/infrastructure/Repo.ts";`,
+      code: `import { Repo } from "#/modules/todos/infrastructure/repo.ts";`,
       errors: [DOMAIN_ONLY],
     },
     {
       filename: application,
-      code: `import { TodosApi } from "#/modules/todos/http/TodosApi.ts";`,
+      code: `import { TodosApi } from "#/modules/todos/http/todos-api.ts";`,
       errors: [DOMAIN_ONLY],
     },
     {
       filename: application,
-      code: `export * from "#/modules/todos/infrastructure/Repo.ts";`,
+      code: `export * from "#/modules/todos/infrastructure/repo.ts";`,
       errors: [DOMAIN_ONLY],
     },
     {
       filename: application,
-      code: `export const load = () => import("#/modules/todos/http/TodosApi.ts");`,
+      code: `export const load = () => import("#/modules/todos/http/todos-api.ts");`,
       errors: [DOMAIN_ONLY],
     },
     // Another module's layers, from every layer and from index.ts.
     ...[domain, application, infrastructure, http, index].map((filename) => ({
       filename,
-      code: `import { User } from "#/modules/users/domain/User.ts";`,
+      code: `import { User } from "#/modules/users/domain/user.ts";`,
       errors: [throughIndex("users")],
     })),
     {
       filename: http,
-      code: `export { Users } from "#/modules/users/application/Users.ts";`,
+      code: `export { Users } from "#/modules/users/application/users.ts";`,
       errors: [throughIndex("users")],
     },
     {
       filename: infrastructure,
-      code: `export const load = () => import("#/modules/users/infrastructure/Repo.ts");`,
+      code: `export const load = () => import("#/modules/users/infrastructure/repo.ts");`,
       errors: [throughIndex("users")],
     },
     {
       filename: application,
-      code: `import { User } from "../../users/domain/User.ts";`,
+      code: `import { User } from "../../users/domain/user.ts";`,
       errors: [throughIndex("users")],
     },
   ],

@@ -36,15 +36,15 @@ Packages import each other's TypeScript sources through `exports`. There is no b
 
 ```
 packages/contracts/src/
-  <context>/         Schemas of the context (entities, value objects, tagged errors) and its HttpApiGroup (*Api.ts)
-  Api.ts             The HttpApi: every group, assembled
+  <context>/         Schemas of the context (entities, value objects, tagged errors) and its HttpApiGroup (*-api.ts)
+  api.ts             The HttpApi: every group, assembled
 ```
 
 - The server implements `Api`; the web app derives its client from it. Neither imports the other.
-- Import a file by its path: `@quack/contracts/Api`, `@quack/contracts/todos/Todo`. There is no barrel.
+- Import a file by its path: `@quack/contracts/api`, `@quack/contracts/todos/todo`. There is no barrel.
 - Contracts run on the server and in the browser. They import `effect` only: no `node:*`, no platform package, no other workspace package. Lint enforces it.
-- Contracts hold data and its validation. Behavior stays in the server's domain (`completeTodo` in `modules/todos/domain/Todo.ts`).
-- HTTP status codes are set on the endpoint (`HttpApiSchema.status(404)` on the error in `*Api.ts`), not on the error class.
+- Contracts hold data and its validation. Behavior stays in the server's domain (`completeTodo` in `modules/todos/domain/todo.ts`).
+- HTTP status codes are set on the endpoint (`HttpApiSchema.status(404)` on the error in `*-api.ts`), not on the error class.
 
 ## Server: one folder per bounded context
 
@@ -54,7 +54,7 @@ apps/server/src/
     domain/          Behavior over the contract's schemas, ports (Context.Service)
     application/     Use cases. Depend on the domain only
     infrastructure/  Layers that implement the domain's ports
-    http/            Handlers of the context's HttpApiGroup (*Handlers.ts)
+    http/            Handlers of the context's HttpApiGroup (*-handlers.ts)
     index.ts         The module's Layer: handlers + use cases + chosen adapters
   server.ts          Routes, CORS, HTTP server
   main.ts            Entrypoint
@@ -66,7 +66,7 @@ Dependency rules, enforced by lint (`quack/module-boundaries` in `packages/oxlin
 - `application` imports `domain` only. It receives adapters as Layers.
 - A module never imports another module's layers. Go through its `index.ts`: `#/modules/<context>/index.ts`.
 
-To add a context: add its schemas and `*Api.ts` to `packages/contracts` and its group to `Api.ts`, then copy the shape of `modules/todos` and add the module Layer to `server.ts`.
+To add a context: add its schemas and `*-api.ts` to `packages/contracts` and its group to `api.ts`, then copy the shape of `modules/todos` and add the module Layer to `server.ts`.
 
 ## Web: one folder per feature
 
@@ -87,7 +87,8 @@ Add a component from `packages/ui`: `pnpm dlx shadcn@latest add <name>`. Import 
 
 ## Conventions
 
-- No relative imports (`./x`, `../x`); lint rejects them. Import through the package alias: `#/` is the package's `src` folder, with the file extension (`import { Todo } from "#/modules/todos/domain/Todo.ts"`). It is the `imports` field of each `package.json`, which Node, TypeScript, and Vite all resolve.
+- File names are kebab-case (`todo-repository.ts`, `todos-card.tsx`); lint rejects anything else (`unicorn/filename-case`). The exported class or component keeps its PascalCase name.
+- No relative imports (`./x`, `../x`); lint rejects them. Import through the package alias: `#/` is the package's `src` folder, with the file extension (`import { Todo } from "#/modules/todos/domain/todo.ts"`). It is the `imports` field of each `package.json`, which Node, TypeScript, and Vite all resolve.
 - Effect v4. Its docs for agents ship in `apps/server/node_modules/effect/ai-docs`. Read them before writing Effect code: the v4 API differs from v3 (`Context.Service`, `effect/http`, `effect/http-api`).
 - Services are `Context.Service` classes with a static `layer`. Service methods use `Effect.fn("Service.method")`.
 - Errors are `Schema.TaggedError` classes. Fail with typed errors; do not throw.

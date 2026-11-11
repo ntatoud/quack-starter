@@ -1,6 +1,6 @@
 import { assert, layer } from "@effect/vitest";
-import { Api } from "@quack/contracts/Api";
-import { TodoId, TodoTitle } from "@quack/contracts/todos/Todo";
+import { Api } from "@quack/contracts/api";
+import { TodoId, TodoTitle } from "@quack/contracts/todos/todo";
 import { Effect, Layer } from "effect";
 import { HttpServer } from "effect/http";
 import { HttpApiTest } from "effect/http-api";

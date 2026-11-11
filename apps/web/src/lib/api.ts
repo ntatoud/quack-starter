@@ -1,5 +1,5 @@
-import { Api } from "@quack/contracts/Api";
-import { makeHttpApiProcedures } from "@quack/effect-query/HttpApiProcedures";
+import { Api } from "@quack/contracts/api";
+import { makeHttpApiProcedures } from "@quack/effect-query/http-api-procedures";
 import { Context, Effect, Layer, ManagedRuntime } from "effect";
 import { FetchHttpClient } from "effect/http";
 import { HttpApiClient } from "effect/http-api";

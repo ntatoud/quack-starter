@@ -1,7 +1,7 @@
 import { Effect, Layer, ManagedRuntime } from "effect";
 import { describe, expect, it } from "vite-plus/test";
 
-import { makeProcedure, type Run } from "#/Procedure.ts";
+import { makeProcedure, type Run } from "#/procedure.ts";
 
 const runtime = ManagedRuntime.make(Layer.empty);
 const run: Run<never, never> = (effect, options) => runtime.runPromiseExit(effect, options);
