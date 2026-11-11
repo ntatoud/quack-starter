@@ -1,51 +1,43 @@
-import { Field, FieldError, FieldLabel } from "@quack/ui/components/field";
+import { FieldError } from "@quack/ui/components/field";
 import { Input } from "@quack/ui/components/input";
 import { useStore } from "@tanstack/react-form";
 import { type ComponentProps, useId } from "react";
 
 import { useFieldContext } from "#/lib/form/context.ts";
+import { useFieldLayout } from "#/lib/form/Field.tsx";
 import { toMessage } from "#/lib/form/messages.ts";
-import type { Size } from "#/lib/form/Size.ts";
-
-const textSize = { sm: "text-[0.8rem]", md: "text-sm", lg: "text-sm" } satisfies Record<
-  Size,
-  string
->;
+import { textSize } from "#/lib/form/Size.ts";
 
 /**
- * A text input bound to the field of its `form.AppField`, with its label and errors.
+ * A text input bound to the field of its `form.AppField`, followed by its errors.
  * Errors show once the field is touched; a submit touches every field.
+ *
+ * In a `field.Field` it takes the size of the field and the id its `field.Label` points to.
+ * On its own, give it an `aria-label`.
  */
-export function TextField({
-  label,
-  hideLabel = false,
-  size = "md",
-  ...props
-}: { label: string; hideLabel?: boolean; size?: Size } & Omit<
-  ComponentProps<typeof Input>,
-  | "id"
-  | "name"
-  | "size"
-  | "value"
-  | "defaultValue"
-  | "onChange"
-  | "onBlur"
-  | "aria-invalid"
-  | "aria-describedby"
->) {
+export function TextField(
+  props: Omit<
+    ComponentProps<typeof Input>,
+    | "id"
+    | "name"
+    | "size"
+    | "value"
+    | "defaultValue"
+    | "onChange"
+    | "onBlur"
+    | "aria-invalid"
+    | "aria-describedby"
+  >,
+) {
   const field = useFieldContext<string>();
   const meta = useStore(field.store, (state) => state.meta);
-  // Not the field name: two forms on one page may both have a `title`.
-  const id = useId();
+  const ownId = useId();
+  const { id, size } = useFieldLayout() ?? { id: ownId, size: "md" };
   const errorId = `${id}-error`;
   const invalid = meta.isTouched && !meta.isValid;
 
   return (
-    // One labelled input is not a group.
-    <Field role={undefined} data-invalid={invalid}>
-      <FieldLabel htmlFor={id} className={hideLabel ? "sr-only" : textSize[size]}>
-        {label}
-      </FieldLabel>
+    <>
       <Input
         {...props}
         id={id}
@@ -67,6 +59,6 @@ export function TextField({
           errors={meta.errors.map(toMessage)}
         />
       )}
-    </Field>
+    </>
   );
 }
