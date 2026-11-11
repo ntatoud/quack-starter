@@ -8,6 +8,7 @@ allowBuilds:
 
 # One version per shared dependency. Packages reference these with "catalog:".
 catalog:
+  "@effect/tsgo": 0.67.7
   "@types/node": 26.6.6
   effect: 4.1.4
   tsrs: 0.23.0-ts7.1.0-beta

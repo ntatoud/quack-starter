@@ -19,6 +19,7 @@
     "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules apps/*/dist apps/*/.output apps/*/.tanstack"
   },
   "devDependencies": {
+    "@effect/tsgo": "catalog:",
     "@quack/oxlint-plugin": "workspace:*",
     "@types/node": "catalog:",
     "knip": "6.45.1",

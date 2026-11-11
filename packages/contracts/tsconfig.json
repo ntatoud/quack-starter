@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // No Node or DOM types: contracts run on the server and in the browser.
+    "types": [],
+    "lib": ["ESNext"]
+  },
+  "include": ["src"]
+}
