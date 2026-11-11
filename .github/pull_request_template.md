@@ -1,13 +1,20 @@
 <!-- Use a conventional commit title, such as "fix(web): the todo form keeps its draft on error". -->
 
-## Problem
+## Summary
 
-<!-- What is wrong or missing, in a sentence or two. -->
+<!-- The smallest view that makes the key point clear: a diff sketch, a file or call tree, pseudocode, or a Mermaid diagram. Keep prose brief. -->
 
-## Change
+## Evidence
 
-<!-- How this fixes it. Split independent changes into separate PRs. -->
+- **Before:** <!-- Screenshot, output, or failing test run. -->
+  **After:** <!-- Screenshot, output, or passing test run. -->
 
-## Verification
+## Merge Danger
 
-<!-- The tests or manual checks you ran and what you observed. Add screenshots for UI changes. -->
+**Door:** <!-- one-way or two-way -->
+
+<!-- Optional: why it is cheap or hard to roll back. -->
+
+**Blast Radius:** <!-- one word -->
+
+<!-- Optional: what could break after the merge. -->
