@@ -23,7 +23,7 @@ export function TodosCard() {
     <Card>
       <CardHeader>
         <CardTitle>Todos</CardTitle>
-        <CardDescription>Served by the Effect API, typed end to end.</CardDescription>
+        <CardDescription>Yours alone. Served by the Effect API, typed end to end.</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <TodosForm />
