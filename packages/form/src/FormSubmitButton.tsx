@@ -3,8 +3,8 @@ import { cn } from "@quack/ui/lib/utils";
 import { useStore } from "@tanstack/react-form";
 import type { ComponentProps } from "react";
 
-import { useFormContext } from "#/lib/form/context.ts";
-import type { Size } from "#/lib/form/Size.ts";
+import { useFormContext } from "#/context.ts";
+import type { Size } from "#/Size.ts";
 
 const buttonSize = { sm: "sm", md: "default", lg: "lg" } as const satisfies Record<Size, string>;
 

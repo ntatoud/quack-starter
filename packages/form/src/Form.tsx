@@ -2,9 +2,9 @@ import { FieldError } from "@quack/ui/components/field";
 import { useStore } from "@tanstack/react-form";
 import { type ComponentProps, type FormEvent, useState } from "react";
 
-import { useFormContext } from "#/lib/form/context.ts";
-import { type Message, toMessage } from "#/lib/form/messages.ts";
-import { SubmitFailed } from "#/lib/form/SubmitFailed.ts";
+import { useFormContext } from "#/context.ts";
+import { type Message, toMessage } from "#/messages.ts";
+import { SubmitFailed } from "#/SubmitFailed.ts";
 
 /**
  * The errors of the form itself. A schema reports every issue of the form by path, and those of the form itself

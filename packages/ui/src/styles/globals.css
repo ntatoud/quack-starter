@@ -6,7 +6,8 @@
 @custom-variant dark (&:is(.dark *));
 @source "../../../apps/**/*.{ts,tsx}";
 
-@source "../**/*.{ts,tsx}";
+/* Every package that renders with this theme, this one included. */
+@source "../../../*/src/**/*.{ts,tsx}";
 
 @theme inline {
   --font-heading: var(--font-sans);

@@ -1,11 +1,11 @@
 import { createFormHook } from "@tanstack/react-form";
 
-import { fieldContext, formContext } from "#/lib/form/context.ts";
-import { FormField } from "#/lib/form/FormField.tsx";
-import { Form } from "#/lib/form/Form.tsx";
-import { FormLabel } from "#/lib/form/FormLabel.tsx";
-import { FormSubmitButton } from "#/lib/form/FormSubmitButton.tsx";
-import { FormTextField } from "#/lib/form/FormTextField.tsx";
+import { fieldContext, formContext } from "#/context.ts";
+import { FormField } from "#/FormField.tsx";
+import { Form } from "#/Form.tsx";
+import { FormLabel } from "#/FormLabel.tsx";
+import { FormSubmitButton } from "#/FormSubmitButton.tsx";
+import { FormTextField } from "#/FormTextField.tsx";
 
 /**
  * The app's form hook: `useAppForm` is `useForm` with the app's components on `form.AppField`

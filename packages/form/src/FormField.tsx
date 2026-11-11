@@ -2,8 +2,8 @@ import { Field } from "@quack/ui/components/field";
 import { useStore } from "@tanstack/react-form";
 import { type ComponentProps, createContext, use, useId, useMemo } from "react";
 
-import { useFieldContext } from "#/lib/form/context.ts";
-import type { Size } from "#/lib/form/Size.ts";
+import { useFieldContext } from "#/context.ts";
+import type { Size } from "#/Size.ts";
 
 /** What the parts of one field share: the id that ties the label to the control, and their size. */
 type FieldLayout = { id: string; size: Size };

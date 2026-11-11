@@ -3,10 +3,10 @@ import { Input } from "@quack/ui/components/input";
 import { useStore } from "@tanstack/react-form";
 import { type ComponentProps, useId } from "react";
 
-import { useFieldContext } from "#/lib/form/context.ts";
-import { useFormFieldLayout } from "#/lib/form/FormField.tsx";
-import { toMessage } from "#/lib/form/messages.ts";
-import { textSize } from "#/lib/form/Size.ts";
+import { useFieldContext } from "#/context.ts";
+import { useFormFieldLayout } from "#/FormField.tsx";
+import { toMessage } from "#/messages.ts";
+import { textSize } from "#/Size.ts";
 
 /**
  * A text input bound to the field of its `form.AppField`, followed by its errors.

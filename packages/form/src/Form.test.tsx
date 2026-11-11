@@ -4,9 +4,9 @@ import userEvent from "@testing-library/user-event";
 import { Schema } from "effect";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { schemaFormOptions } from "#/lib/form/schemaFormOptions.ts";
-import { SubmitFailed } from "#/lib/form/SubmitFailed.ts";
-import { useAppForm } from "#/lib/form/useAppForm.ts";
+import { schemaFormOptions } from "#/schemaFormOptions.ts";
+import { SubmitFailed } from "#/SubmitFailed.ts";
+import { useAppForm } from "#/useAppForm.ts";
 
 const Passwords = Schema.Struct({
   password: Schema.String,
