@@ -1,15 +1,24 @@
+import { API_PREFIX } from "@quack/contracts/api";
 import { createFileRoute } from "@tanstack/react-router";
 import { getRequestIP } from "@tanstack/react-start/server";
 
-import { relayToApi } from "#/lib/api-relay.ts";
+import { ApiRelayHandler } from "#/lib/api-relay.ts";
 import { serverEnv } from "#/lib/env.server.ts";
 
-/** Every request under /api goes to the API, in dev and in production: see `relayToApi`. */
+const handler = new ApiRelayHandler({ url: serverEnv.API_URL });
+
+/** Every request under /api goes to the API, in dev and in production: see `ApiRelayHandler`. */
 export const Route = createFileRoute("/api/$")({
   server: {
     handlers: {
-      ANY: ({ request }) =>
-        relayToApi(request, { apiUrl: serverEnv.API_URL, clientIp: getRequestIP() }),
+      ANY: async ({ request }) => {
+        const { response } = await handler.handle(request, {
+          prefix: API_PREFIX,
+          context: { clientIp: getRequestIP() },
+        });
+
+        return response ?? new Response("Not Found", { status: 404 });
+      },
     },
   },
 });

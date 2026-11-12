@@ -45,7 +45,7 @@ packages/contracts/src/
 - Import a file by its path: `@quack/contracts/api`, `@quack/contracts/todos/todo`. There is no barrel.
 - Contracts run on the server and in the browser. They import `effect` only: no `node:*`, no platform package, no other workspace package. Lint enforces it.
 - Contracts hold data and its validation. Behavior stays in the server's domain (`completeTodo` in `modules/todos/domain/todo.ts`).
-- Every endpoint is under `/api`: `Api` takes the prefix `apiPrefix` (`api.ts`), so a group's paths do not repeat it (`/todos` is served at `/api/todos`).
+- Every endpoint is under `/api`: `Api` takes the prefix `API_PREFIX` (`api.ts`), so a group's paths do not repeat it (`/todos` is served at `/api/todos`).
 - HTTP status codes are set on the endpoint (`HttpApiSchema.status(404)` on the error in `*-api.ts`), not on the error class.
 
 ## Server: one folder per bounded context
@@ -82,7 +82,7 @@ apps/web/src/
 ```
 
 - The web app does not depend on the server. What they share lives in `@quack/contracts`.
-- The browser calls the web app's origin only. The server route `routes/api/$.ts` relays `/api/*` to the server at `API_URL`, in dev and in production, with the path unchanged. It replaces `X-Forwarded-For` with the address it sees and checks no authentication.
+- The browser calls the web app's origin only. The server route `routes/api/$.ts` relays `/api/*` to the server at `API_URL`, in dev and in production, with the path unchanged: it calls `handler.handle(request, { prefix, context })` on an `ApiRelayHandler` (`lib/api-relay.ts`), the shape of an oRPC handler. The relay replaces `X-Forwarded-For` with the address it sees and checks no authentication.
 - A variable of the web server goes in `lib/env.server.ts` and has no `VITE_` prefix, so it never reaches the browser. Vite does not load such a variable from `.env`: `vite.config.ts` passes `API_URL` to `vp dev` and `vp preview` by name, so do the same for a new one.
 - Call the API with `callApi((api) => api.todos.list())`. The client is derived from the contract's `Api`, so there is no client to keep in sync by hand.
 - Build forms with `@quack/form`: see "Form package" below.

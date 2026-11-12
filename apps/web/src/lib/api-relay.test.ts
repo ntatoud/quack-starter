@@ -5,7 +5,7 @@ import { gzipSync } from "node:zlib";
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vite-plus/test";
 
-import { relayToApi } from "#/lib/api-relay.ts";
+import { ApiRelayHandler } from "#/lib/api-relay.ts";
 
 interface Received {
   readonly method: string | undefined;
@@ -48,11 +48,29 @@ beforeEach(() => {
   answer = (response) => response.end("ok");
 });
 
-/** Relays a request as the web app receives it, on its own origin. */
-const relay = (path: string, init?: RequestInit, clientIp: string | undefined = "203.0.113.7") =>
-  relayToApi(new Request(new URL(path, "http://web.test"), init), { apiUrl, clientIp });
+const handle = (
+  url: URL,
+  path: string,
+  init: RequestInit | undefined,
+  clientIp: string | undefined,
+) =>
+  new ApiRelayHandler({ url }).handle(new Request(new URL(path, "http://web.test"), init), {
+    prefix: "/api",
+    context: { clientIp },
+  });
 
-describe("relayToApi", () => {
+/** Relays a request as the web app receives it, on its own origin. */
+const relay = async (
+  path: string,
+  init?: RequestInit,
+  clientIp: string | undefined = "203.0.113.7",
+) => {
+  const { response } = await handle(apiUrl, path, init, clientIp);
+  if (response === undefined) throw new Error(`${path} was not relayed`);
+  return response;
+};
+
+describe("ApiRelayHandler", () => {
   it("sends the path and the query to the upstream as they came", async () => {
     await relay("/api/todos/42?filter=open&sort=a%20b");
 
@@ -122,10 +140,7 @@ describe("relayToApi", () => {
   });
 
   it("drops the client's X-Forwarded-For when it sees no address", async () => {
-    await relayToApi(
-      new Request("http://web.test/api/todos", { headers: { "x-forwarded-for": "1.2.3.4" } }),
-      { apiUrl, clientIp: undefined },
-    );
+    await handle(apiUrl, "/api/todos", { headers: { "x-forwarded-for": "1.2.3.4" } }, undefined);
 
     expect(received[0]?.headers["x-forwarded-for"]).toBeUndefined();
   });
@@ -205,12 +220,21 @@ describe("relayToApi", () => {
   });
 
   it("answers 502 when the upstream cannot be reached", async () => {
-    const response = await relayToApi(new Request("http://web.test/api/todos"), {
-      // Port 1 is reserved: nothing listens there.
-      apiUrl: new URL("http://127.0.0.1:1"),
-      clientIp: "203.0.113.7",
-    });
+    // Port 1 is reserved: nothing listens there.
+    const { response } = await handle(
+      new URL("http://127.0.0.1:1"),
+      "/api/todos",
+      undefined,
+      "203.0.113.7",
+    );
 
-    expect(response.status).toBe(502);
+    expect(response?.status).toBe(502);
+  });
+
+  it.each(["/", "/todos", "/apionly"])("does not relay %s, outside its prefix", async (path) => {
+    const result = await handle(apiUrl, path, undefined, "203.0.113.7");
+
+    expect(result).toEqual({ matched: false, response: undefined });
+    expect(received).toHaveLength(0);
   });
 });
