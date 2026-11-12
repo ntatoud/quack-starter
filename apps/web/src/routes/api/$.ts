@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { getRequestIP } from "@tanstack/react-start/server";
 
 import { ApiRelayHandler } from "#/lib/api-relay.ts";
-import { serverEnv } from "#/lib/env.server.ts";
+import { serverEnv } from "#/env/server.ts";
 
 const handler = new ApiRelayHandler({ url: serverEnv.API_URL });
 

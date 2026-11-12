@@ -11,7 +11,7 @@ const envDir = fileURLToPath(new URL("../..", import.meta.url));
 
 export default defineConfig(({ mode }) => {
   // Vite gives .env to the browser bundle only, and only its VITE_ variables.
-  // The web server reads API_URL from its process (src/lib/env.server.ts), so `vp dev` and `vp preview`
+  // The web server reads API_URL from its process (src/env/server.ts), so `vp dev` and `vp preview`
   // take it from .env here. A value already set in the process wins, as it does in production:
   // restart `pnpm dev` after changing it.
   const { API_URL } = loadEnv(mode, envDir, "");
