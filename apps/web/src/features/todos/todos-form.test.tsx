@@ -89,6 +89,20 @@ describe("TodosForm", () => {
     await expect.poll(said).toContain("Added Ship it");
   });
 
+  it("calls the API on the page's own origin, under /api", async () => {
+    const urls: Array<string> = [];
+    const { input } = await setup((request) => {
+      urls.push(request.url);
+      return created("Ship it");
+    });
+
+    await input.fill("Ship it");
+    await userEvent.keyboard("{Enter}");
+
+    await expect.element(input).toHaveValue("");
+    expect(urls).toEqual([`${location.origin}/api/todos`]);
+  });
+
   it("keeps the title when the request fails, and drops the error on the next edit", async () => {
     const { input } = await setup(() => new Response(null, { status: 500 }));
 

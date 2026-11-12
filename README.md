@@ -24,7 +24,7 @@ cp .env.example .env
 pnpm dev
 ```
 
-The web app runs on http://localhost:3000 and the API on http://localhost:3001. API docs are served at http://localhost:3001/docs.
+The web app runs on http://localhost:3000 and the API on http://localhost:3001. The browser only calls the web app: it relays `/api` to the API (`API_URL`), so both share one origin. API docs are served at http://localhost:3000/api/docs.
 
 ## Commands
 

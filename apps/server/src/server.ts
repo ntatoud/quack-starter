@@ -1,7 +1,7 @@
 import * as NodeHttp from "node:http";
 
 import { NodeHttpServer } from "@effect/platform-node";
-import { Api } from "@quack/contracts/api";
+import { Api, API_PREFIX } from "@quack/contracts/api";
 import { Effect, Layer } from "effect";
 import { HttpRouter } from "effect/http";
 import { HttpApiBuilder, HttpApiScalar } from "effect/http-api";
@@ -10,18 +10,18 @@ import { ServerConfig } from "#/config.ts";
 import { SystemHandlers } from "#/modules/system/http/system-handlers.ts";
 import { TodosModule } from "#/modules/todos/index.ts";
 
-const ApiRoutes = HttpApiBuilder.layer(Api, { openapiPath: "/openapi.json" }).pipe(
+// The contract puts every endpoint under /api; the OpenAPI document and the docs sit there too.
+const ApiRoutes = HttpApiBuilder.layer(Api, { openapiPath: `${API_PREFIX}/openapi.json` }).pipe(
   Layer.provide([SystemHandlers, TodosModule]),
 );
 
-const DocsRoute = HttpApiScalar.layer(Api, { path: "/docs" });
+const DocsRoute = HttpApiScalar.layer(Api, { path: `${API_PREFIX}/docs` });
 
-const Cors = Layer.unwrap(
-  Effect.gen(function* () {
-    const { webOrigin } = yield* ServerConfig;
-    return HttpRouter.cors({ allowedOrigins: [webOrigin] });
-  }),
-);
+/**
+ * Every route of the server, all under /api.
+ * There is no CORS policy: the browser reaches the server through the web app's relay, on the web app's origin.
+ */
+export const Routes = Layer.mergeAll(ApiRoutes, DocsRoute);
 
 const Server = Layer.unwrap(
   Effect.gen(function* () {
@@ -30,6 +30,4 @@ const Server = Layer.unwrap(
   }),
 );
 
-export const ServerLayer = HttpRouter.serve(
-  Layer.mergeAll(ApiRoutes, DocsRoute).pipe(Layer.provide(Cors)),
-).pipe(Layer.provide(Server));
+export const ServerLayer = HttpRouter.serve(Routes).pipe(Layer.provide(Server));
