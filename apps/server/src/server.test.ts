@@ -42,11 +42,39 @@ describe("server routes", () => {
     expect(Object.keys(paths)).toContain("/api/todos");
   });
 
-  it("signs a visitor up, and answers with their public User", async () => {
-    const response = await signUp("Ada@Example.com");
+  it("describes the session cookie as the security scheme of /api/me, and of no public endpoint", async () => {
+    const openapi = (await (await get("/api/openapi.json")).json()) as {
+      components: { securitySchemes: Record<string, unknown> };
+      paths: Record<string, Record<string, { security?: ReadonlyArray<Record<string, unknown>> }>>;
+    };
 
+    expect(openapi.components.securitySchemes).toEqual({
+      session: { type: "apiKey", name: "session", in: "cookie" },
+    });
+    expect(openapi.paths["/api/me"]?.["get"]?.security).toEqual([{ session: [] }]);
+    expect(openapi.paths["/api/sign-up"]?.["post"]?.security ?? []).toEqual([]);
+    expect(openapi.paths["/api/todos"]?.["get"]?.security ?? []).toEqual([]);
+  });
+
+  it("signs a visitor up, then answers /api/me to the session cookie it set", async () => {
+    const response = await signUp("Ada@Example.com");
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ id: expect.any(String), email: "ada@example.com" });
+    const user = await response.json();
+    expect(user).toEqual({ id: expect.any(String), email: "ada@example.com" });
+
+    const [cookie] = response.headers.getSetCookie();
+    const me = await handler(
+      new Request("http://api.test/api/me", { headers: { cookie: cookie?.split(";")[0] ?? "" } }),
+    );
+    expect(me.status).toBe(200);
+    expect(await me.json()).toEqual(user);
+  });
+
+  it("answers /api/me with 401 Unauthenticated when the request has no session cookie", async () => {
+    const response = await get("/api/me");
+
+    expect(response.status).toBe(401);
+    expect(await response.json()).toEqual({ _tag: "Unauthenticated" });
   });
 
   it("answers a sign-up with 409 EmailAlreadyTaken when a User has this email", async () => {

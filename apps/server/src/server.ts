@@ -12,6 +12,7 @@ import { SystemHandlers } from "#/modules/system/http/system-handlers.ts";
 import { TodosModule } from "#/modules/todos/index.ts";
 
 // The contract puts every endpoint under /api; the OpenAPI document and the docs sit there too.
+// IdentityModule also provides the `Authentication` middleware, to every group that declares it.
 const ApiRoutes = HttpApiBuilder.layer(Api, { openapiPath: `${API_PREFIX}/openapi.json` }).pipe(
   Layer.provide([SystemHandlers, IdentityModule, TodosModule]),
 );
