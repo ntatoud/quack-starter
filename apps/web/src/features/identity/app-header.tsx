@@ -1,6 +1,7 @@
 import type { User } from "@quack/contracts/identity/user";
 import { Link } from "@tanstack/react-router";
 
+import { ButtonLink } from "#/components/button-link.tsx";
 import { SignOutButton } from "#/features/identity/sign-out-button.tsx";
 
 export function AppHeader({ currentUser }: { currentUser: typeof User.Encoded | null }) {
@@ -11,13 +12,13 @@ export function AppHeader({ currentUser }: { currentUser: typeof User.Encoded | 
           Quack
         </Link>
         {currentUser === null ? (
-          <nav className="flex items-center gap-4">
-            <Link to="/sign-in" className="underline-offset-4 hover:underline">
+          <nav className="flex items-center gap-2">
+            <ButtonLink to="/sign-in" variant="ghost" size="sm">
               Sign in
-            </Link>
-            <Link to="/sign-up" className="underline-offset-4 hover:underline">
+            </ButtonLink>
+            <ButtonLink to="/sign-up" size="sm">
               Sign up
-            </Link>
+            </ButtonLink>
           </nav>
         ) : (
           <div className="flex min-w-0 items-center gap-2">
