@@ -240,6 +240,9 @@ importers:
       knip:
         specifier: 6.45.1
         version: 6.45.1
+      portless:
+        specifier: 0.17.0
+        version: 0.17.0
       tsrs:
         specifier: 'catalog:'
         version: 0.23.0-ts7.1.0-beta
@@ -2983,6 +2986,12 @@ packages:
     resolution: {integrity: sha512-LKWqWJRhstyYo9pGvgor/ivk2w94eSjE3RGVuzLGlr3NmD8bf7RcYGze1mNdEHRP6TRP6rMuDHk5t44hnTRyow==}
     engines: {node: '>=14.19.0'}
 
+  portless@0.17.0:
+    resolution: {integrity: sha512-UJdy5sGmNSwi8ETvVniUTqULJht16qvBR9rvsFqsVekEyabMH2xJ5mwIEYBmSSHVCUmQvAmaYAhBcCs8PA7IBA==}
+    engines: {node: '>=24'}
+    os: [darwin, linux, win32]
+    hasBin: true
+
   postcss-selector-parser@7.2.0:
     resolution: {integrity: sha512-Khh/tERVBn0I1499dvBSHY0pWJloMJWUxDsOBM0CCDPAcVZ10Jl2L1qy1f19uEX22spa8Mv7DCdEQJc0cGwBhQ==}
     engines: {node: '>=4'}
@@ -5653,6 +5662,8 @@ snapshots:
       playwright-core: 1.65.0
 
   pngjs@7.0.0: {}
+
+  portless@0.17.0: {}
 
   postcss-selector-parser@7.2.0:
     dependencies:

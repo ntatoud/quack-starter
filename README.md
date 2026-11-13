@@ -24,13 +24,25 @@ cp .env.example .env
 pnpm dev
 ```
 
-The web app runs on http://localhost:3000 and the API on http://localhost:3001. The browser only calls the web app: it relays `/api` to the API (`API_URL`), so both share one origin. API docs are served at http://localhost:3000/api/docs.
+`pnpm dev` runs both apps under [portless](https://portless.sh), so they take a free port each and several checkouts run side by side. The web app is at https://quack.localhost and the API at https://api.quack.localhost. In a git worktree, the branch prefixes both: https://my-branch.quack.localhost. The browser only calls the web app: it relays `/api` to the API, so both share one origin. API docs are served at https://quack.localhost/api/docs.
+
+The portless proxy listens on port 443, which needs `sudo`, and `pnpm dev` has no terminal to ask for it. Start the proxy once, before `pnpm dev`:
+
+```sh
+pnpm exec portless proxy start            # https://quack.localhost, asks for sudo
+pnpm exec portless service install        # or start it with the system instead
+pnpm exec portless proxy start --port 1355 # or no sudo: https://quack.localhost:1355
+```
+
+The first start adds a local certificate authority to the system trust store. `pnpm exec portless doctor` says why a URL does not load.
+
+`PORTLESS=0 pnpm dev` runs the apps without portless: the web app on http://localhost:3000, the API on http://localhost:3001, reached through `API_URL`.
 
 ## Commands
 
 | Command             | What it does                                    |
 | ------------------- | ----------------------------------------------- |
-| `pnpm dev`          | Run the web app and the server                  |
+| `pnpm dev`          | Run the web app and the server, under portless  |
 | `pnpm check`        | Format check and lint                           |
 | `pnpm fmt`          | Format                                          |
 | `pnpm typecheck`    | Typecheck every package with `tsc`              |

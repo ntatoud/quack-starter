@@ -6,7 +6,7 @@
     "#/*": "./src/*"
   },
   "scripts": {
-    "dev": "node --watch --env-file-if-exists=../../.env src/main.ts",
+    "dev": "portless run --name api.quack node --watch --env-file-if-exists=../../.env src/main.ts",
     "start": "node --env-file-if-exists=../../.env src/main.ts",
     "typecheck": "effect-tsgo tsc --noEmit",
     "typecheck:ci": "effect-tsgo tsrs --noEmit",
