@@ -33,12 +33,12 @@ export default defineConfig({
       "react/react-in-jsx-scope": "off",
       "unicorn/no-array-sort": "off",
       "unicorn/filename-case": ["error", { case: "kebabCase" }],
+      "quack/no-useless-comments": "error",
       // Effect discriminates on `_tag`.
       "eslint/no-underscore-dangle": "off",
     },
     overrides: [
       {
-        // Contracts run on the server and in the browser: no platform code, no other workspace package.
         files: ["packages/contracts/src/**"],
         rules: {
           "eslint/no-restricted-imports": [
@@ -55,12 +55,10 @@ export default defineConfig({
         },
       },
       {
-        // Sources import through the package alias: "#/..." is the package's src folder.
         files: ["apps/*/src/**", "packages/*/src/**"],
         rules: { "quack/no-relative-imports": "error" },
       },
       {
-        // Layers of a bounded context: see "Dependency rules" in AGENTS.md.
         files: ["apps/server/src/modules/**"],
         rules: { "quack/module-boundaries": "error" },
       },

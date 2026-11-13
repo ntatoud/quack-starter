@@ -92,7 +92,6 @@ const inputGroupButtonVariants = cva(
         sm: "",
         "icon-xs":
           "size-6 rounded-[calc(var(--radius)-3px)] p-0 group-data-[size=lg]/input-group:size-7 has-[>svg]:p-0",
-        // As tall as the group.
         "icon-sm":
           "size-8 p-0 group-data-[size=lg]/input-group:size-9 group-data-[size=sm]/input-group:size-7 has-[>svg]:p-0",
       },
@@ -136,7 +135,6 @@ function InputGroupText({ className, ...props }: React.ComponentProps<"span">) {
   );
 }
 
-// Its size is the group's: it fills the group's height and takes the text size of that Input size.
 function InputGroupInput({
   className,
   ...props

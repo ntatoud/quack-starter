@@ -6,7 +6,6 @@ import { Context, DateTime, Effect, Layer, Option } from "effect";
 import { completeTodo } from "#/modules/todos/domain/todo.ts";
 import { TodoRepository } from "#/modules/todos/domain/todo-repository.ts";
 
-/** Use cases of the todos context. Depends on the domain only. */
 export class Todos extends Context.Service<
   Todos,
   {

@@ -20,8 +20,7 @@ export function TodosForm() {
       await createTodo.mutateAsync({ payload: decodeTodoDraft(value) }).catch((cause: unknown) => {
         throw new SubmitFailed("Could not add the todo. Try again.", { cause });
       });
-      // Start a new draft: empty, or what was typed while the request was running.
-      // The default stays empty: what was typed meanwhile is a value, not the new default.
+      // What was typed meanwhile becomes the value, not the new default.
       const typedMeanwhile = !Equal.equals(formApi.state.values, value);
       formApi.reset(typedMeanwhile ? formApi.state.values : emptyTodoDraft, {
         keepDefaultValues: true,

@@ -17,7 +17,7 @@ import { UserRepositoryMemory } from "#/modules/identity/infrastructure/user-rep
 
 const password = Redacted.make("correct horse battery staple");
 
-/** The address these attempts come from. Each test that reaches a limit takes one of its own. */
+/** Each test that reaches a limit takes an address of its own. */
 const ip = "203.0.113.1";
 
 const sha256Hex = (text: string) => createHash("sha256").update(text).digest("hex");
@@ -30,7 +30,6 @@ const counted = <A>(effect: Effect.Effect<A>) =>
     return effect;
   });
 
-/** The real hasher, counted. */
 const PasswordHasherCounted = Layer.effect(
   PasswordHasher,
   Effect.map(Effect.service(PasswordHasher), (hasher) =>

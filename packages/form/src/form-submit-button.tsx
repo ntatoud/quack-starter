@@ -8,11 +8,7 @@ import type { Size } from "#/size.ts";
 
 const buttonSize = { sm: "sm", md: "default", lg: "lg" } as const satisfies Record<Size, string>;
 
-/**
- * The submit button of its `form.AppForm`, unavailable while the form is submitting.
- * It keeps the focus then, and it stays enabled while the form is invalid: a disabled button is skipped by the
- * keyboard and explains nothing, a submit shows the errors.
- */
+/** Stays enabled while the form is invalid: a disabled button is skipped by the keyboard and explains nothing. */
 export function FormSubmitButton({
   size = "md",
   className,

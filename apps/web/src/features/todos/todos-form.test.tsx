@@ -21,7 +21,6 @@ const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) =>
 );
 vi.stubGlobal("fetch", fetch);
 
-/** Renders the form against a stubbed network, the one edge the form does not own. */
 const setup = async (response: typeof respond) => {
   respond = response;
   await render(
@@ -37,14 +36,12 @@ const setup = async (response: typeof respond) => {
 
 const failure = "Could not add the todo. Try again.";
 
-/** The error as shown, apart from the live region that says it. */
 const shown = (text: string) =>
   page
     .getByText(text)
     .elements()
     .filter((element) => element.getAttribute("role") !== "status");
 
-/** What the live regions hold: the form's, for errors, and the todo form's own, for an added todo. */
 const said = () =>
   page
     .getByRole("status")
@@ -144,7 +141,7 @@ describe("TodosForm", () => {
     await userEvent.keyboard("{Enter}");
     await expect.element(add).toHaveAttribute("aria-disabled", "true");
     await userEvent.keyboard(" and more{Enter}");
-    // While submitting, the button ignores Enter and clicks; a script or another control may still submit.
+    // The button ignores Enter and clicks while submitting; a script or another control may still submit.
     (input.element() as HTMLInputElement).form?.requestSubmit();
     response.resolve(created("First"));
 
@@ -164,7 +161,6 @@ describe("TodosForm", () => {
     response.resolve(created("First"));
 
     await expect.element(add).toHaveAttribute("aria-disabled", "false");
-    // The emptied draft was never submitted: it is not reported, and the focus stays where the user put it.
     expect(page.getByText("Title is required").elements()).toEqual([]);
     await expect.element(add).toHaveFocus();
   });

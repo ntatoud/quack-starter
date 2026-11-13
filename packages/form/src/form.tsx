@@ -6,23 +6,12 @@ import { useFormContext } from "#/context.ts";
 import { type Message, toMessage } from "#/messages.ts";
 import { SubmitFailed } from "#/submit-failed.ts";
 
-/**
- * The errors of the form itself. A schema reports every issue of the form by path, and those of the form itself
- * have the empty path. A `SubmitFailed` is stored as its message, a string.
- */
+/** The issues of the form itself have the empty path; a `SubmitFailed` is stored as its message. */
 const toFormMessages = (error: unknown): Array<Message | undefined> =>
   typeof error === "object" && error !== null
     ? ((error as Record<string, Array<Message>>)[""] ?? [])
     : [toMessage(error)];
 
-/**
- * The `<form>` of its `form.AppForm`. It renders the errors of the form itself after its children:
- * the issues of the schema that belong to no field, and the message of a `SubmitFailed`.
- *
- * A failed submit tells a screen reader why, once: it moves the focus to the first element with `aria-invalid`,
- * which describes itself with its error, or it says the errors in a live region when there is nothing to focus.
- * Errors that come and go while the user types are not announced.
- */
 export function Form({
   children,
   ...props
@@ -30,7 +19,6 @@ export function Form({
   const form = useFormContext();
   const errors = useStore(form.store, (state) => state.errors).flatMap(toFormMessages);
   const values = useStore(form.store, (state) => state.values);
-  // What the live region says, and the values it is about.
   const [announcement, setAnnouncement] = useState({ text: "", values });
   // An edit makes it out of date for good: a reset can bring back the very values it was about.
   if (announcement.text !== "" && announcement.values !== values) {

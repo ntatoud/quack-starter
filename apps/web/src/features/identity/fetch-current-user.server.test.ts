@@ -6,7 +6,6 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vite-plus
 
 import { fetchCurrentUser } from "#/features/identity/fetch-current-user.server.ts";
 
-// A fake API: a real HTTP server that records what it receives and answers as each test says.
 let received: Array<{ readonly url: string | undefined; readonly headers: IncomingHttpHeaders }>;
 let answer: (response: ServerResponse) => void;
 

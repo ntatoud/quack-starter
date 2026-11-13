@@ -2,10 +2,7 @@ import type { ESTree, Visitor } from "vite-plus/lint/plugins";
 
 type Node = ESTree.Node;
 
-/**
- * The specifier of a module source node: a string literal, or a template literal,
- * of which only the text before the first `${}` is known.
- */
+/** Of a template literal, only the text before the first `${}` is known. */
 const specifierOf = (source: Node | null): string | undefined => {
   if (source === null) return undefined;
   if (source.type === "Literal") {
@@ -15,10 +12,6 @@ const specifierOf = (source: Node | null): string | undefined => {
   return undefined;
 };
 
-/**
- * Visits every place a file names another module: `import`, `export ... from`,
- * dynamic `import()`, and the type-level `import("...")`.
- */
 export const forEachImport = (visit: (specifier: string, node: Node) => void): Visitor => {
   const check = (node: Node, source: Node | null) => {
     const specifier = specifierOf(source);

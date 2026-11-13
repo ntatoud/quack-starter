@@ -14,7 +14,7 @@ const Passwords = Schema.Struct({
 
 const ignore = () => {};
 
-/** A form whose schema has an issue of the form itself, not of one field: the two passwords differ. */
+/** Its schema has an issue of the form itself, not of one field: the two passwords differ. */
 export function PasswordsForm({
   onSubmit = ignore,
   password = "",
