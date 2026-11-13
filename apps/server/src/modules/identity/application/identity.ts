@@ -19,13 +19,13 @@ export class Identity extends Context.Service<
       const users = yield* UserRepository;
       const hasher = yield* PasswordHasher;
 
-      const signUp = Effect.fn("Identity.signUp")(function* (email: Email, password: Password) {
-        const user = new User({ id: yield* users.nextId, email });
-        yield* users.create(user, yield* hasher.hash(password));
-        return user;
+      return Identity.of({
+        signUp: Effect.fn("Identity.signUp")(function* (email, password) {
+          const user = new User({ id: yield* users.nextId, email });
+          yield* users.create(user, yield* hasher.hash(password));
+          return user;
+        }),
       });
-
-      return Identity.of({ signUp });
     }),
   );
 }
