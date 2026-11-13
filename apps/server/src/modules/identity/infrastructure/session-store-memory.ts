@@ -10,5 +10,6 @@ export const SessionStoreMemory = Layer.sync(SessionStore, () => {
     save: (session) => Effect.sync(() => void sessions.set(session.tokenHash, session)),
     findByTokenHash: (tokenHash) =>
       Effect.sync(() => Option.fromNullishOr(sessions.get(tokenHash))),
+    remove: (tokenHash) => Effect.sync(() => void sessions.delete(tokenHash)),
   });
 });

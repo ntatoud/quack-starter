@@ -1,4 +1,8 @@
-import { type EmailAlreadyTaken, Unauthenticated } from "@quack/contracts/identity/identity-errors";
+import {
+  type EmailAlreadyTaken,
+  InvalidCredentials,
+  Unauthenticated,
+} from "@quack/contracts/identity/identity-errors";
 import { type Email, type Password, User } from "@quack/contracts/identity/user";
 import { Context, DateTime, Effect, Layer, Option, Redacted } from "effect";
 import { Digest, SecureRandom } from "effect/crypto";
@@ -29,6 +33,16 @@ export class Identity extends Context.Service<
       email: Email,
       password: Password,
     ): Effect.Effect<{ readonly user: User; readonly session: OpenedSession }, EmailAlreadyTaken>;
+    /**
+     * Opens a new Session for the User of this email, when the password is theirs.
+     * An unknown email and a wrong password fail alike, and take as long: the answer does not say who has signed up.
+     */
+    signIn(
+      email: Email,
+      password: Password,
+    ): Effect.Effect<{ readonly user: User; readonly session: OpenedSession }, InvalidCredentials>;
+    /** Revokes the Session this token opens. Succeeds when it opens none. */
+    signOut(token: Redacted.Redacted<string>): Effect.Effect<void>;
     /** The User of the Session this token opens. */
     authenticate(token: Redacted.Redacted<string>): Effect.Effect<User, Unauthenticated>;
   }
@@ -61,6 +75,22 @@ export class Identity extends Context.Service<
           const user = new User({ id: yield* users.nextId, email });
           yield* users.create(user, yield* hasher.hash(password));
           return { user, session: yield* openSession(user) };
+        }),
+        signIn: Effect.fn("Identity.signIn")(function* (email, password) {
+          const found = yield* users.findByEmail(email);
+          if (Option.isNone(found)) {
+            // The slow step of a sign-in, done for nothing: without it, a fast answer would say that no User has this email.
+            yield* hasher.hash(password);
+            return yield* new InvalidCredentials();
+          }
+          const { user, passwordHash } = found.value;
+          if (!(yield* hasher.verify(password, passwordHash))) {
+            return yield* new InvalidCredentials();
+          }
+          return { user, session: yield* openSession(user) };
+        }),
+        signOut: Effect.fn("Identity.signOut")(function* (token) {
+          yield* sessions.remove(yield* hashToken(token));
         }),
         authenticate: Effect.fn("Identity.authenticate")(function* (token) {
           const session = yield* sessions.findByTokenHash(yield* hashToken(token));

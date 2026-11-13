@@ -70,6 +70,51 @@ describe("server routes", () => {
     expect(await me.json()).toEqual(user);
   });
 
+  it("signs in a request that carries a valid session cookie: opens a new Session, and leaves the other open", async () => {
+    const [setAtSignUp] = (await signUp("frances@example.com")).headers.getSetCookie();
+    const atSignUp = setAtSignUp?.split(";")[0] ?? "";
+
+    const response = await handler(
+      new Request("http://api.test/api/sign-in", {
+        method: "POST",
+        headers: { "content-type": "application/json", cookie: atSignUp },
+        body: JSON.stringify({
+          email: "frances@example.com",
+          password: "correct horse battery staple",
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    const atSignIn = response.headers.getSetCookie()[0]?.split(";")[0] ?? "";
+    expect(atSignIn).toMatch(/^session=[A-Za-z0-9_-]{43}$/);
+    expect(atSignIn).not.toBe(atSignUp);
+    const answers = await Promise.all(
+      [atSignUp, atSignIn].map((cookie) =>
+        handler(new Request("http://api.test/api/me", { headers: { cookie } })),
+      ),
+    );
+    expect(answers.map((me) => me.status)).toEqual([200, 200]);
+  });
+
+  it("signs out the Session of the cookie: revokes it, and clears the cookie", async () => {
+    const [setCookie] = (await signUp("mary@example.com")).headers.getSetCookie();
+    const cookie = setCookie?.split(";")[0] ?? "";
+    const me = () => handler(new Request("http://api.test/api/me", { headers: { cookie } }));
+    expect((await me()).status).toBe(200);
+
+    const response = await handler(
+      new Request("http://api.test/api/sign-out", { method: "POST", headers: { cookie } }),
+    );
+
+    expect(response.status).toBe(204);
+    expect(response.headers.getSetCookie()).toEqual([
+      expect.stringMatching(/^session=; .*Max-Age=0/),
+    ]);
+    // The cookie a browser would have dropped opens nothing anymore.
+    expect((await me()).status).toBe(401);
+  });
+
   it("answers /api/me with 401 Unauthenticated when the request has no session cookie", async () => {
     const response = await get("/api/me");
 

@@ -38,15 +38,19 @@ export const currentUserQueryOptions = queryOptions({
 });
 
 /**
- * Tells the app who the Current User is now: after a sign-up, with the User the API answered.
+ * Tells the app who the Current User is now: after a sign-up or a sign-in, the User the API answered,
+ * and after a sign-out, `null`.
  * It updates the cache, then invalidates the router, so every route's `context.currentUser` follows.
  */
 export const useSetCurrentUser = () => {
   const queryClient = useQueryClient();
   const router = useRouter();
 
-  return async (user: User) => {
-    queryClient.setQueryData(currentUserQueryOptions.queryKey, encodeUser(user));
+  return async (user: User | null) => {
+    queryClient.setQueryData(
+      currentUserQueryOptions.queryKey,
+      user === null ? null : encodeUser(user),
+    );
     await router.invalidate();
   };
 };

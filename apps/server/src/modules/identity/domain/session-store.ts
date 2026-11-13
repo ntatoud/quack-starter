@@ -8,5 +8,7 @@ export class SessionStore extends Context.Service<
   {
     save(session: Session): Effect.Effect<void>;
     findByTokenHash(tokenHash: string): Effect.Effect<Option.Option<Session>>;
+    /** Succeeds when no Session has this token hash. */
+    remove(tokenHash: string): Effect.Effect<void>;
   }
 >()("@quack/server/identity/SessionStore") {}

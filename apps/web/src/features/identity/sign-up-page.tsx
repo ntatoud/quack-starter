@@ -5,7 +5,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@quack/ui/components/card";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 
 import { useSetCurrentUser } from "#/features/identity/current-user.ts";
 import { SignUpForm } from "#/features/identity/sign-up-form.tsx";
@@ -27,6 +27,12 @@ export function SignUpPage() {
             await navigate({ to: "/" });
           }}
         />
+        <p className="mt-4 text-sm text-muted-foreground">
+          Already signed up?{" "}
+          <Link to="/sign-in" className="text-foreground underline underline-offset-4">
+            Sign in
+          </Link>
+        </p>
       </CardContent>
     </Card>
   );
