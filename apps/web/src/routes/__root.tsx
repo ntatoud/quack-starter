@@ -1,9 +1,10 @@
 import appCss from "@quack/ui/globals.css?url";
-import { createRootRouteWithContext, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { createRootRouteWithContext } from "@tanstack/react-router";
 
-import { AppHeader } from "#/features/identity/app-header.tsx";
 import { currentUserQueryOptions } from "#/features/identity/current-user.ts";
+import { NotFound } from "#/features/layout/not-found.tsx";
+import { RootDocument } from "#/features/layout/root-document.tsx";
+import { RootLayout } from "#/features/layout/root-layout.tsx";
 import type { RouterContext } from "#/router.tsx";
 
 export const Route = createRootRouteWithContext<RouterContext>()({
@@ -20,39 +21,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
     ],
     links: [{ rel: "stylesheet", href: appCss }],
   }),
-  notFoundComponent: () => (
-    <>
-      <h1 className="text-2xl font-semibold">404</h1>
-      <p className="text-muted-foreground">This page does not exist.</p>
-    </>
-  ),
+  notFoundComponent: NotFound,
   shellComponent: RootDocument,
   component: RootLayout,
 });
-
-function RootLayout() {
-  const { currentUser } = Route.useRouteContext();
-
-  return (
-    <>
-      <AppHeader currentUser={currentUser} />
-      <main className="mx-auto max-w-xl p-6 pt-16">
-        <Outlet />
-      </main>
-    </>
-  );
-}
-
-function RootDocument({ children }: { children: ReactNode }) {
-  return (
-    <html lang="en">
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        {children}
-        <Scripts />
-      </body>
-    </html>
-  );
-}
