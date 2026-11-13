@@ -1,8 +1,18 @@
 import appCss from "@quack/ui/globals.css?url";
-import { createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { createRootRouteWithContext } from "@tanstack/react-router";
 
-export const Route = createRootRoute({
+import { currentUserQueryOptions } from "#/features/identity/current-user.ts";
+import { NotFound } from "#/features/layout/not-found.tsx";
+import { RootDocument } from "#/features/layout/root-document.tsx";
+import { RootLayout } from "#/features/layout/root-layout.tsx";
+import type { RouterContext } from "#/router.tsx";
+
+export const Route = createRootRouteWithContext<RouterContext>()({
+  // Runs before every navigation, in the server render and in the browser, so every route knows the Current User.
+  // The cache answers once it is filled: only the first navigation of a page asks the server.
+  beforeLoad: async ({ context }) => ({
+    currentUser: await context.queryClient.ensureQueryData(currentUserQueryOptions),
+  }),
   head: () => ({
     meta: [
       { charSet: "utf-8" },
@@ -11,25 +21,7 @@ export const Route = createRootRoute({
     ],
     links: [{ rel: "stylesheet", href: appCss }],
   }),
-  notFoundComponent: () => (
-    <main className="mx-auto max-w-xl p-6 pt-16">
-      <h1 className="text-2xl font-semibold">404</h1>
-      <p className="text-muted-foreground">This page does not exist.</p>
-    </main>
-  ),
+  notFoundComponent: NotFound,
   shellComponent: RootDocument,
+  component: RootLayout,
 });
-
-function RootDocument({ children }: { children: ReactNode }) {
-  return (
-    <html lang="en">
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        {children}
-        <Scripts />
-      </body>
-    </html>
-  );
-}
