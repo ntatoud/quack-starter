@@ -87,7 +87,7 @@ apps/web/src/
   env/                 Environment, validated at startup: server.ts for the web server's variables
 ```
 
-- A route file declares its route (`createFileRoute`, `beforeLoad`, `head`) and names its components; it defines none. A component lives in `features/`, the page of a route included (`features/identity/sign-up-card.tsx`), and the document and layout of the root route in `features/layout`. There it reads the router with `useNavigate()` and `useRouteContext({ from })`, since it has no `Route`.
+- A route file declares its route (`createFileRoute`, `beforeLoad`, `head`) and names its components; it defines none. A component lives in `features/`, the page of a route included (`features/identity/sign-up-page.tsx`), and the document and layout of the root route in `features/layout`. There it reads the router with `useNavigate()` and `useRouteContext({ from })`, since it has no `Route`.
 - The web app does not depend on the server. What they share lives in `@quack/contracts`.
 - The browser calls the web app's origin only. The server route `routes/api/$.ts` relays `/api/*` to the server at `API_URL`, in dev and in production, with the path unchanged: it calls `handler.handle(request, { prefix, context })` on an `ApiRelayHandler` (`lib/api-relay.ts`), the shape of an oRPC handler. The relay replaces `X-Forwarded-For` with the address it sees and checks no authentication.
 - A variable of the web server goes in `env/server.ts` and has no `VITE_` prefix, so it never reaches the browser. Vite does not load such a variable from `.env`: `vite.config.ts` passes `API_URL` to `vp dev` and `vp preview` by name, so do the same for a new one.

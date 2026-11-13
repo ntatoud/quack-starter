@@ -2,7 +2,6 @@ import { Outlet, useRouteContext } from "@tanstack/react-router";
 
 import { AppHeader } from "#/features/identity/app-header.tsx";
 
-/** What every page shares: the header, and the frame the page renders in. */
 export function RootLayout() {
   const { currentUser } = useRouteContext({ from: "__root__" });
 

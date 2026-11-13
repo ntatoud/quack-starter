@@ -1,4 +1,3 @@
-/** What a path with no route renders, inside the layout. */
 export function NotFound() {
   return (
     <>

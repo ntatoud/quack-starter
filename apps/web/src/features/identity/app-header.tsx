@@ -1,7 +1,6 @@
 import type { User } from "@quack/contracts/identity/user";
 import { Link } from "@tanstack/react-router";
 
-/** The header of every page: it shows the email of the Current User, so they know which User they act as. */
 export function AppHeader({ currentUser }: { currentUser: typeof User.Encoded | null }) {
   return (
     <header className="border-b">
