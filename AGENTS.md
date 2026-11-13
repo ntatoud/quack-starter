@@ -10,13 +10,15 @@ Run from the repo root. `vp` is Vite+, the task runner, linter, formatter, and t
 
 | Command             | What it does                                      |
 | ------------------- | ------------------------------------------------- |
-| `pnpm dev`          | Web on :3000 and server on :3001                  |
+| `pnpm dev`          | Web and server under portless (see below)         |
 | `pnpm check`        | Format check + lint (`pnpm fmt` fixes formatting) |
 | `pnpm typecheck`    | `tsc` in every package, cached                    |
 | `pnpm typecheck:ci` | Same with `tsrs`, as CI runs it                   |
 | `pnpm test`         | Tests in every package, cached                    |
 | `pnpm knip`         | Unused files, exports, and dependencies           |
 | `pnpm build`        | Build the apps                                    |
+
+`pnpm dev` runs each app through `portless run --name <name>`: it listens on a free port, behind https://quack.localhost (web) and https://api.quack.localhost (server), prefixed by the branch in a git worktree (`https://<branch>.quack.localhost`). The proxy must already run (`portless proxy start`, see the README): `pnpm dev` has no terminal to ask for `sudo`. Find a URL with `pnpm exec portless get quack`. `PORTLESS=0 pnpm dev` skips portless: web on :3000, server on :3001.
 
 One package: `vp run --filter @quack/server test`. One file: `vp test run src/path/file.test.ts` from the package.
 
@@ -99,7 +101,7 @@ apps/web/src/
 - A route file declares its route (`createFileRoute`, `beforeLoad`, `head`) and names its components; it defines none. A component lives in `features/`, the page of a route included (`features/identity/sign-up-page.tsx`), and the document and layout of the root route in `features/layout`. There it reads the router with `useNavigate()` and `useRouteContext({ from })`, since it has no `Route`.
 - The web app does not depend on the server. What they share lives in `@quack/contracts`.
 - The browser calls the web app's origin only. The server route `routes/api/$.ts` relays `/api/*` to the server at `API_URL`, in dev and in production, with the path unchanged: it calls `handler.handle(request, { prefix, context })` on an `ApiRelayHandler` (`lib/api-relay.ts`), the shape of an oRPC handler. The relay replaces `X-Forwarded-For` with the address it sees and checks no authentication.
-- A variable of the web server goes in `env/server.ts` and has no `VITE_` prefix, so it never reaches the browser. Vite does not load such a variable from `.env`: `vite.config.ts` passes `API_URL` to `vp dev` and `vp preview` by name, so do the same for a new one.
+- A variable of the web server goes in `env/server.ts` and has no `VITE_` prefix, so it never reaches the browser. Vite does not load such a variable from `.env`: `vite.config.ts` passes `API_URL` to `vp dev` and `vp preview` by name, so do the same for a new one. Under portless, `vite.config.ts` takes `API_URL` from `portless get api.quack` instead of `.env`.
 - Call the API with the query options of `api` (`lib/api.ts`): `useQuery(api.todos.list.queryOptions())`, `useMutation(api.todos.create.mutationOptions())`. The client is derived from the contract's `Api`, so there is no client to keep in sync by hand.
 - The root route loads the Current User before every navigation, in the server render and in the browser, and every route gets it as `context.currentUser` (`null` for a visitor): read it in a `beforeLoad` or with `Route.useRouteContext()`. It is the encoded User, since it crosses from the web server to the browser.
 - The Current User lives in the query cache under `["me"]` (`features/identity/current-user.ts`), filled by the server function `getCurrentUser`: the session cookie is `HttpOnly` and a server render has no browser, so the web server sends the request's cookie to the API's `me`, names the client in `X-Forwarded-For` as the relay does, and sends the API's `Set-Cookie` back. After a call that changes who the Current User is, call `useSetCurrentUser()` with the User, or `null` after a sign-out: it updates `["me"]`, drops every other query of the cache, since they hold the data of the User before, then invalidates the router.

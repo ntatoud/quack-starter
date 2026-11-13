@@ -6,7 +6,7 @@
     "#/*": "./src/*"
   },
   "scripts": {
-    "dev": "vp dev --port 3000",
+    "dev": "portless run --name quack vp dev",
     "build": "vp build",
     "preview": "vp preview",
     "typecheck": "effect-tsgo tsc --noEmit",

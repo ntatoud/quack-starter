@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 import tailwindcss from "@tailwindcss/vite";
@@ -14,12 +15,18 @@ export default defineConfig(({ mode }) => {
   // The web server reads API_URL from its process (src/env/server.ts), so `vp dev` and `vp preview`
   // take it from .env here. A value already set in the process wins, as it does in production:
   // restart `pnpm dev` after changing it.
-  const { API_URL } = loadEnv(mode, envDir, "");
+  // Under portless (`pnpm dev`), the API has a named URL that the worktree prefixes and no fixed port: ask portless.
+  const API_URL =
+    process.env.PORTLESS_URL === undefined
+      ? loadEnv(mode, envDir, "").API_URL
+      : execFileSync("portless", ["get", "api.quack"], { encoding: "utf8" }).trim();
   if (API_URL !== undefined) process.env.API_URL = API_URL;
 
   return {
     envDir,
     plugins: [tailwindcss(), tanstackStart(), viteReact()],
+    // Without portless (`PORTLESS=0 pnpm dev`). Portless passes a port of its own on the command line, which wins.
+    server: { port: 3000 },
     test: {
       allowOnly: !process.env.CI,
       // Flaky tests are fixed, not retried.
