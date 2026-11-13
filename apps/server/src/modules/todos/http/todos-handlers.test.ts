@@ -15,10 +15,7 @@ const ada = new User({ id: UserId.make("ada"), email: Email.make("ada@example.co
 const grace = new User({ id: UserId.make("grace"), email: Email.make("grace@example.com") });
 const users: ReadonlyArray<User> = [ada, grace];
 
-/**
- * The `Authentication` of these tests: the session cookie names the Current User by its id.
- * The todos need a Current User, not the way a Session proves one, so no Session is opened here.
- */
+// The session cookie is the id of the Current User: these tests need a Current User, not a Session.
 const AuthenticationByUserId = Layer.succeed(
   Authentication,
   Authentication.of({
@@ -31,7 +28,6 @@ const AuthenticationByUserId = Layer.succeed(
   }),
 );
 
-/** A client of the todos whose requests are made by `user`. */
 const clientOf = (user: User) =>
   HttpApiTest.groups(Api, ["todos"]).pipe(
     Effect.provide(
@@ -105,7 +101,6 @@ layer(Layer.mergeAll(TodosLayer, HttpServer.layerServices))("TodosApi", (it) => 
       assert.strictEqual(completeResponse.status, 404);
       assert.deepStrictEqual(removeError, new TodoNotFound({ id: ofAda.id }));
       assert.strictEqual(removeResponse.status, 404);
-      // Ada still has it, as she left it.
       assert.deepStrictEqual(
         (yield* asAda.todos.list()).filter((todo) => todo.id === ofAda.id),
         [ofAda],

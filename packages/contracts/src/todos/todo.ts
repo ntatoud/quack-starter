@@ -13,7 +13,6 @@ export type TodoTitle = typeof TodoTitle.Type;
 
 export class Todo extends Schema.Class<Todo, { readonly brand: unique symbol }>("Todo")({
   id: TodoId,
-  /** The Owner: the User who created the Todo, and the only one who sees it. */
   ownerId: UserId,
   title: TodoTitle,
   completed: Schema.Boolean,

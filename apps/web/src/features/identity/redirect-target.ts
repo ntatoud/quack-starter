@@ -18,9 +18,5 @@ export const redirectTarget = (redirect: string | undefined): string => {
   return url.pathname + url.search + url.hash;
 };
 
-/**
- * The sign-in page, which leads back to `href` once the User is signed in: where a visitor of a protected page goes,
- * and a User whose Session ended. `href` is a path of the app with its search and hash (`location.href` of the router).
- */
 export const signInLocation = (href: string) =>
   ({ to: "/sign-in", search: { redirect: href } }) as const;

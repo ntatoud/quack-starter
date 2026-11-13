@@ -7,7 +7,6 @@ import { TodoNotFound } from "#/todos/todo-errors.ts";
 
 const NotFound = TodoNotFound.pipe(HttpApiSchema.status(404));
 
-/** Every endpoint is protected, and answers for the todos of the Current User only: they are the Owner's alone. */
 export class TodosApi extends HttpApiGroup.make("todos")
   .add(
     HttpApiEndpoint.get("list", "/", {

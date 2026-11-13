@@ -5,7 +5,6 @@ import { HttpApiBuilder } from "effect/http-api";
 
 import { Todos } from "#/modules/todos/application/todos.ts";
 
-// The Current User is the Owner: each handler reads it and passes its id to the use case.
 export const TodosHandlers = HttpApiBuilder.group(
   Api,
   "todos",

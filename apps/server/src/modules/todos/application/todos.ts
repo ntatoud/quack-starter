@@ -6,12 +6,7 @@ import { Context, DateTime, Effect, Layer, Option } from "effect";
 import { completeTodo } from "#/modules/todos/domain/todo.ts";
 import { TodoRepository } from "#/modules/todos/domain/todo-repository.ts";
 
-/**
- * Use cases of the todos context. Depends on the domain only.
- *
- * Each one takes the Owner as `ownerId`, and reads no `CurrentUser`: the handler passes it.
- * The Todo of another Owner fails with `TodoNotFound`, as an unknown id does.
- */
+/** Use cases of the todos context. Depends on the domain only. */
 export class Todos extends Context.Service<
   Todos,
   {

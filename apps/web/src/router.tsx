@@ -11,20 +11,18 @@ export interface RouterContext {
   readonly queryClient: QueryClient;
 }
 
-// A call the API refused for want of a Session is refused again: retrying it only delays the sign-in page.
+// TanStack Query retries a failed query 3 times by default; a call without a Session would fail again,
+// and only delay the sign-in page.
 const retry = (failureCount: number, error: unknown): boolean =>
   !(error instanceof Unauthenticated) && failureCount < 3;
 
 export function getRouter() {
-  // Every query and every mutation of the app ends here when it fails.
-  // `Unauthenticated` means the Session ended while the app was in use: there is no Current User anymore,
-  // so the User signs in again, and comes back to the page they were on.
   const onError = (error: unknown): void => {
     if (!(error instanceof Unauthenticated)) return;
     setCurrentUserData(queryClient, null);
     const { pathname, href } = router.state.location;
-    // Several calls can fail at once: the first one already led to the sign-in page.
     const signIn = signInLocation(href);
+    // Several calls can fail at once: the first one already led to the sign-in page.
     if (pathname === signIn.to) return;
     void router.navigate(signIn);
   };

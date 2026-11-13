@@ -37,12 +37,7 @@ export const currentUserQueryOptions = queryOptions({
   queryFn: () => getCurrentUser(),
 });
 
-/**
- * Writes who the Current User is now in the cache, and drops every other query it holds:
- * they are the data of the Current User before, which the next one must not see.
- *
- * A component calls `useSetCurrentUser`, which also tells the router.
- */
+/** Drops every other query too: they hold the data of the User before, which the next one must not see. */
 export const setCurrentUserData = (queryClient: QueryClient, user: typeof User.Encoded | null) => {
   const [currentUserKey] = currentUserQueryOptions.queryKey;
   queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== currentUserKey });
