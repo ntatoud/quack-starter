@@ -19,6 +19,7 @@ catalog:
   # The version of the Vitest that Vite+ bundles.
   "@vitest/browser-playwright": 5.1.0
   effect: 4.1.4
+  lucide-react: 1.71.0
   playwright: 1.65.0
   react: 19.3.1
   react-dom: 19.3.1

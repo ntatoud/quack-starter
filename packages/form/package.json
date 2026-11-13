@@ -18,7 +18,8 @@
   "dependencies": {
     "@quack/ui": "workspace:*",
     "@tanstack/react-form": "1.33.5",
-    "effect": "catalog:"
+    "effect": "catalog:",
+    "lucide-react": "catalog:"
   },
   "devDependencies": {
     "@tailwindcss/vite": "catalog:",

@@ -1,12 +1,9 @@
 import { FieldError } from "@quack/ui/components/field";
 import { Input } from "@quack/ui/components/input";
-import { useStore } from "@tanstack/react-form";
-import { type ComponentProps, useId } from "react";
+import type { ComponentProps } from "react";
 
-import { useFieldContext } from "#/context.ts";
-import { useFormFieldLayout } from "#/form-field.tsx";
-import { toMessage } from "#/messages.ts";
 import { textSize } from "#/size.ts";
+import { useFieldControl } from "#/use-field-control.ts";
 
 export function FormTextField(
   props: Omit<
@@ -22,12 +19,7 @@ export function FormTextField(
     | "aria-describedby"
   >,
 ) {
-  const field = useFieldContext<string>();
-  const meta = useStore(field.store, (state) => state.meta);
-  const ownId = useId();
-  const { id, size } = useFormFieldLayout() ?? { id: ownId, size: "md" };
-  const errorId = `${id}-error`;
-  const invalid = meta.isTouched && !meta.isValid;
+  const { field, id, size, errorId, invalid, errors } = useFieldControl();
 
   return (
     <>
@@ -44,12 +36,7 @@ export function FormTextField(
       />
       {invalid && (
         // Not an alert: the input describes itself with the error, and an alert would interrupt typing.
-        <FieldError
-          id={errorId}
-          role={undefined}
-          className={textSize[size]}
-          errors={meta.errors.map(toMessage)}
-        />
+        <FieldError id={errorId} role={undefined} className={textSize[size]} errors={errors} />
       )}
     </>
   );

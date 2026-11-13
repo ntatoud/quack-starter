@@ -49,7 +49,7 @@ export function SignInForm({ onSignedIn }: { onSignedIn: (user: User) => void | 
           {(field) => (
             <field.Root>
               <field.Label>Password</field.Label>
-              <field.Text type="password" autoComplete="current-password" />
+              <field.Password autoComplete="current-password" />
             </field.Root>
           )}
         </form.AppField>
