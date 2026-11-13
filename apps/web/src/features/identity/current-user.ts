@@ -1,5 +1,5 @@
 import { User } from "@quack/contracts/identity/user";
-import { queryOptions, useQueryClient } from "@tanstack/react-query";
+import { type QueryClient, queryOptions, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { appendResponseHeader, getRequestHeader, getRequestIP } from "@tanstack/react-start/server";
@@ -37,6 +37,13 @@ export const currentUserQueryOptions = queryOptions({
   queryFn: () => getCurrentUser(),
 });
 
+/** Drops every other query too: they hold the data of the User before, which the next one must not see. */
+export const setCurrentUserData = (queryClient: QueryClient, user: typeof User.Encoded | null) => {
+  const [currentUserKey] = currentUserQueryOptions.queryKey;
+  queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== currentUserKey });
+  queryClient.setQueryData(currentUserQueryOptions.queryKey, user);
+};
+
 /**
  * Tells the app who the Current User is now: after a sign-up or a sign-in, the User the API answered,
  * and after a sign-out, `null`.
@@ -47,10 +54,7 @@ export const useSetCurrentUser = () => {
   const router = useRouter();
 
   return async (user: User | null) => {
-    queryClient.setQueryData(
-      currentUserQueryOptions.queryKey,
-      user === null ? null : encodeUser(user),
-    );
+    setCurrentUserData(queryClient, user === null ? null : encodeUser(user));
     await router.invalidate();
   };
 };

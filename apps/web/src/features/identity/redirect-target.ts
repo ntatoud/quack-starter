@@ -17,3 +17,6 @@ export const redirectTarget = (redirect: string | undefined): string => {
   if (url.origin !== appOrigin || url.pathname.startsWith("//")) return "/";
   return url.pathname + url.search + url.hash;
 };
+
+export const signInLocation = (href: string) =>
+  ({ to: "/sign-in", search: { redirect: href } }) as const;

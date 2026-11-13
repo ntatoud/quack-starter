@@ -6,7 +6,13 @@ import { render } from "vitest-browser-react";
 import { TodosForm } from "#/features/todos/todos-form.tsx";
 
 const created = (title: string) =>
-  Response.json({ id: "1", title, completed: false, createdAt: "2026-01-01T00:00:00.000Z" });
+  Response.json({
+    id: "1",
+    ownerId: "user-1",
+    title,
+    completed: false,
+    createdAt: "2026-01-01T00:00:00.000Z",
+  });
 
 // The API client keeps the `fetch` it first saw, so one stub serves every test and each test sets its response.
 let respond: (request: Request) => Response | Promise<Response>;

@@ -1,4 +1,5 @@
 import { assert, describe, it } from "@effect/vitest";
+import { UserId } from "@quack/contracts/identity/user";
 import { Todo, TodoId, TodoTitle } from "@quack/contracts/todos/todo";
 import { DateTime } from "effect";
 
@@ -6,6 +7,7 @@ import { completeTodo } from "#/modules/todos/domain/todo.ts";
 
 const todo = new Todo({
   id: TodoId.make("todo-1"),
+  ownerId: UserId.make("user-1"),
   title: TodoTitle.make("Write the docs"),
   completed: false,
   createdAt: DateTime.makeUnsafe("2026-01-01T00:00:00Z"),

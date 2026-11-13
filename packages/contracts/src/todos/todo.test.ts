@@ -1,6 +1,7 @@
 import { DateTime, Schema } from "effect";
 import { describe, expect, it } from "vite-plus/test";
 
+import { UserId } from "#/identity/user.ts";
 import { Todo, TodoId, TodoTitle } from "#/todos/todo.ts";
 
 describe("TodoTitle", () => {
@@ -18,6 +19,7 @@ describe("Todo", () => {
   it("round-trips through its wire format", () => {
     const todo = new Todo({
       id: TodoId.make("todo-1"),
+      ownerId: UserId.make("user-1"),
       title: TodoTitle.make("Write the docs"),
       completed: false,
       createdAt: DateTime.makeUnsafe("2026-01-01T00:00:00Z"),
