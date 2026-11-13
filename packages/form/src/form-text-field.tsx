@@ -8,13 +8,6 @@ import { useFormFieldLayout } from "#/form-field.tsx";
 import { toMessage } from "#/messages.ts";
 import { textSize } from "#/size.ts";
 
-/**
- * A text input bound to the field of its `form.AppField`, followed by its errors.
- * Errors show once the field is touched; a submit touches every field.
- *
- * In a `field.Root` it takes the size of the field and the id its `field.Label` points to.
- * On its own, give it an `aria-label`.
- */
 export function FormTextField(
   props: Omit<
     ComponentProps<typeof Input>,
@@ -46,7 +39,6 @@ export function FormTextField(
         value={field.state.value}
         onChange={(event) => field.handleChange(event.target.value)}
         onBlur={field.handleBlur}
-        // `Form` finds the invalid field by `aria-invalid`, and its errors by `name`.
         aria-invalid={invalid}
         aria-describedby={invalid ? errorId : undefined}
       />

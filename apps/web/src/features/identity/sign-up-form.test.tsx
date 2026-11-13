@@ -15,7 +15,6 @@ const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) =>
 );
 vi.stubGlobal("fetch", fetch);
 
-/** Renders the form against a stubbed network, the one edge the form does not own. */
 const setup = async (response: typeof respond) => {
   respond = response;
   const signedUp: Array<User> = [];
@@ -32,7 +31,6 @@ const setup = async (response: typeof respond) => {
   };
 };
 
-/** What the live region of the form says. */
 const said = () =>
   page
     .getByRole("status")

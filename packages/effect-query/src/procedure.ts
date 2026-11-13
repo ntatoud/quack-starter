@@ -8,16 +8,13 @@ import { Cause, type Effect, Exit, Option } from "effect";
 
 type OperationType = "query" | "mutation";
 
-/**
- * `[path, { type, input }]`. TanStack Query matches keys partially, so a shorter path or a
- * missing `type` or `input` matches every cache entry below it.
- */
+/** TanStack Query matches keys partially: a shorter path, or no `type` or `input`, matches every entry below it. */
 export type ProcedureKey = readonly [
   path: ReadonlyArray<string>,
   options?: { readonly type?: OperationType; readonly input?: unknown },
 ];
 
-/** Runs an Effect to an Exit. `ManagedRuntime.runPromiseExit` has this shape. */
+/** The shape of `ManagedRuntime.runPromiseExit`. */
 export type Run<R, ER> = <A, E>(
   effect: Effect.Effect<A, E, R>,
   options?: { readonly signal?: AbortSignal },
@@ -33,15 +30,12 @@ type QueryOverrides<A, E> = Omit<
 type QueryArgs<Input, A, E> = QueryOverrides<A, E> &
   (void extends Input ? { readonly input?: Input } : { readonly input: Input });
 
-/** One remote call, ready for `useQuery` or `useMutation`. */
 export interface Procedure<Input, A, E> {
-  /** `key()` matches every operation of this procedure, `key({ type, input })` narrows it. */
   readonly key: (options?: {
     readonly type?: OperationType;
     readonly input?: Input;
   }) => ProcedureKey;
 
-  /** Options for `useQuery` and `useSuspenseQuery`. `input` is the request. */
   readonly queryOptions: (
     ...args: void extends Input
       ? [options?: QueryArgs<Input, A, E>]
@@ -51,7 +45,6 @@ export interface Procedure<Input, A, E> {
     readonly queryFn: QueryFunction<A, QueryKeyOf<A, E>>;
   };
 
-  /** Options for `useMutation`. The mutation variables are the request. */
   readonly mutationOptions: <TOnMutateResult = unknown>(
     overrides?: Omit<
       UseMutationOptions<A, E, Input, TOnMutateResult>,
@@ -60,7 +53,7 @@ export interface Procedure<Input, A, E> {
   ) => UseMutationOptions<A, E, Input, TOnMutateResult>;
 }
 
-/** Resolves with the success, rejects with the typed failure so TanStack Query exposes it as `error`. */
+/** Rejects with the typed failure, so TanStack Query exposes it as `error`. */
 const unwrap = <A, E>(exit: Exit.Exit<A, E>): A => {
   if (Exit.isSuccess(exit)) return exit.value;
   const error = Cause.findErrorOption(exit.cause);
@@ -76,11 +69,6 @@ const makeKey = (
   return [path, { ...(type && { type }), ...(input !== undefined && { input }) }];
 };
 
-/**
- * Wraps an Effect-returning function for TanStack Query.
- *
- * @param path Where the procedure lives, such as `["todos", "list"]`. It prefixes every key.
- */
 export const makeProcedure = <Input, A, E, R, ER>(
   path: ReadonlyArray<string>,
   effect: (input: Input) => Effect.Effect<A, E, R>,

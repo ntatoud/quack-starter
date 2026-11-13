@@ -5,10 +5,6 @@ import type { ComponentProps } from "react";
 import { useFormFieldLayout } from "#/form-field.tsx";
 import { textSize } from "#/size.ts";
 
-/**
- * The label of the control of its `field.Root`. Place it where the layout wants it: above the control, beside it,
- * or hidden with `className="sr-only"` when the screen already says what the control is for.
- */
 export function FormLabel({
   className,
   ...props

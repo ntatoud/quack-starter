@@ -4,23 +4,12 @@ import { Cookies, FetchHttpClient, HttpClient, HttpClientRequest } from "effect/
 import { HttpApiClient } from "effect/http-api";
 
 interface FetchCurrentUserOptions {
-  /** Origin of the API, such as `http://localhost:3001`. */
   readonly apiUrl: URL;
-  /** The `Cookie` header of the request being handled, when it has one. */
   readonly cookie: string | undefined;
-  /** Address of the client as the web server sees it, when it sees one. */
   readonly clientIp: string | undefined;
 }
 
-/**
- * Asks the API who the Current User is, on behalf of the request being handled: the web server has no cookie
- * of its own, so it sends the visitor's. Answers `null` when the API says `Unauthenticated`.
- *
- * `setCookie` is what the API wants the browser to store: a Session it extended, or one it cleared.
- * The caller sends it on, or the browser never sees it.
- *
- * Like the relay, it names the client in `X-Forwarded-For`, which the API trusts.
- */
+/** `setCookie` is what the API wants the browser to store: the caller sends it on, or the browser never sees it. */
 export const fetchCurrentUser = async ({ apiUrl, cookie, clientIp }: FetchCurrentUserOptions) => {
   const setCookie: Array<string> = [];
 

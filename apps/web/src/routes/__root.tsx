@@ -8,8 +8,6 @@ import { RootLayout } from "#/features/layout/root-layout.tsx";
 import type { RouterContext } from "#/router.tsx";
 
 export const Route = createRootRouteWithContext<RouterContext>()({
-  // Runs before every navigation, in the server render and in the browser, so every route knows the Current User.
-  // The cache answers once it is filled: only the first navigation of a page asks the server.
   beforeLoad: async ({ context }) => ({
     currentUser: await context.queryClient.ensureQueryData(currentUserQueryOptions),
   }),

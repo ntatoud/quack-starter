@@ -7,18 +7,12 @@ import { HttpApiClient } from "effect/http-api";
 class ApiClient extends Context.Service<ApiClient, HttpApiClient.ForApi<typeof Api>>()(
   "@quack/web/ApiClient",
 ) {
-  // No base URL: the contract's paths start with /api, which the browser resolves on the page's origin.
-  // The route `routes/api/$.ts` relays them to the server.
+  // No base URL: the browser resolves the contract's /api paths on the page's origin, and the web app relays them.
   static readonly layer = Layer.effect(ApiClient, HttpApiClient.make(Api)).pipe(
     Layer.provide(FetchHttpClient.layer),
   );
 }
 
-/**
- * The server's `Api` as TanStack Query options: `api.todos.list.queryOptions()`,
- * `api.todos.create.mutationOptions()`, `api.todos.key()`.
- * A failed call rejects with the endpoint's typed error, so `useQuery` exposes it as `error`.
- */
 export const api = makeHttpApiProcedures(Api, {
   client: Effect.service(ApiClient),
   runtime: ManagedRuntime.make(ApiClient.layer),

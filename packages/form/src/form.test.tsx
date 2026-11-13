@@ -6,7 +6,6 @@ import { SubmitFailed } from "#/submit-failed.ts";
 import { NameForm } from "#/testing/name-form.tsx";
 import { PasswordsForm } from "#/testing/passwords-form.tsx";
 
-/** Every text the live region held, in order. */
 const announcements = () => {
   const region = page.getByRole("status").element();
   const texts: Array<string> = [];
@@ -18,7 +17,6 @@ const announcements = () => {
   return texts;
 };
 
-/** The error as shown, apart from the live region that says it. */
 const shown = (text: string) =>
   page
     .getByText(text)

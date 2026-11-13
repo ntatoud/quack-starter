@@ -37,7 +37,6 @@ const clientOf = (user: User) =>
     ),
   );
 
-// `provideMerge`: the handlers of the todos take the middleware when they are built, and so do the routes.
 const TodosLayer = TodosModule.pipe(Layer.provideMerge(AuthenticationByUserId));
 
 layer(Layer.mergeAll(TodosLayer, HttpServer.layerServices))("TodosApi", (it) => {
@@ -96,7 +95,6 @@ layer(Layer.mergeAll(TodosLayer, HttpServer.layerServices))("TodosApi", (it) => 
       });
 
       assert.notInclude(seenByGrace, ofAda.id);
-      // Not found, as an unknown id is: a 403 would tell Grace that the todo exists.
       assert.deepStrictEqual(completeError, new TodoNotFound({ id: ofAda.id }));
       assert.strictEqual(completeResponse.status, 404);
       assert.deepStrictEqual(removeError, new TodoNotFound({ id: ofAda.id }));

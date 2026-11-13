@@ -7,15 +7,11 @@ import viteReact from "@vitejs/plugin-react";
 import { defineConfig, loadEnv } from "vite-plus";
 import { playwright } from "vite-plus/test/browser-playwright";
 
-// .env lives at the repo root, next to .env.example.
 const envDir = fileURLToPath(new URL("../..", import.meta.url));
 
 export default defineConfig(({ mode }) => {
-  // Vite gives .env to the browser bundle only, and only its VITE_ variables.
-  // The web server reads API_URL from its process (src/env/server.ts), so `vp dev` and `vp preview`
-  // take it from .env here. A value already set in the process wins, as it does in production:
-  // restart `pnpm dev` after changing it.
-  // Under portless (`pnpm dev`), the API has a named URL that the worktree prefixes and no fixed port: ask portless.
+  // Vite gives .env to the browser bundle only, and only its VITE_ variables: the web server reads API_URL
+  // from its process. A value already set in the process wins, as in production.
   const API_URL =
     process.env.PORTLESS_URL === undefined
       ? loadEnv(mode, envDir, "").API_URL
@@ -29,7 +25,6 @@ export default defineConfig(({ mode }) => {
     server: { port: 3000 },
     test: {
       allowOnly: !process.env.CI,
-      // Flaky tests are fixed, not retried.
       retry: 0,
       projects: [
         {
@@ -37,7 +32,6 @@ export default defineConfig(({ mode }) => {
           test: { name: "node", environment: "node", include: ["src/**/*.test.ts"] },
         },
         {
-          // Components are tested in a real browser, with the theme: see packages/form/vite.config.ts.
           extends: true,
           test: {
             name: "browser",

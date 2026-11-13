@@ -4,11 +4,6 @@ import { Effect, Layer, Option } from "effect";
 import { Identity } from "#/modules/identity/application/identity.ts";
 import { SessionCookie } from "#/modules/identity/http/session-cookie.ts";
 
-/**
- * The server side of the contract's `Authentication`: the session cookie becomes the `CurrentUser`.
- * A request with no cookie arrives here with an empty credential, which opens no Session.
- * A request it refuses, with no Session, one the server does not know, or one that has expired, has its cookie cleared.
- */
 export const AuthenticationMiddleware = Layer.effect(
   Authentication,
   Effect.gen(function* () {
@@ -17,11 +12,9 @@ export const AuthenticationMiddleware = Layer.effect(
 
     return Authentication.of({
       session: Effect.fn(function* (httpEffect, { credential }) {
-        const { user, extendedUntil } = yield* identity.authenticate(credential).pipe(
-          // A cookie that opens no Session is of no use to the browser: it drops it.
-          Effect.tapError(() => cookie.clear),
-        );
-        // The Session lasts longer: so does its cookie.
+        const { user, extendedUntil } = yield* identity
+          .authenticate(credential)
+          .pipe(Effect.tapError(() => cookie.clear));
         if (Option.isSome(extendedUntil)) {
           yield* cookie.set({ token: credential, expiresAt: extendedUntil.value });
         }

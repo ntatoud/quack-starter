@@ -1,13 +1,10 @@
 interface ApiRelayHandlerOptions {
-  /** Origin of the API, such as `http://localhost:3001`. */
   readonly url: URL;
 }
 
 interface ApiRelayHandleOptions {
-  /** The path the handler is mounted at. A request outside it is not relayed. The path is sent whole. */
   readonly prefix: `/${string}`;
   readonly context: {
-    /** Address of the client as this server sees it, when it sees one. */
     readonly clientIp: string | undefined;
   };
 }
@@ -40,18 +37,6 @@ const without = (source: Headers, names: ReadonlyArray<string>) => {
   return headers;
 };
 
-/**
- * Relays requests to the API and returns its responses: same path, query, method, headers, and body.
- * The browser calls the web app's origin only, so a cookie set by the API belongs to that origin.
- *
- * `X-Forwarded-For` is the one header it rewrites. The API trusts it to name the client,
- * so the value sent by the client is never kept: it is replaced by the address seen here.
- *
- * It checks no authentication: the API does.
- *
- * Create one per API and call `handle` from a server route, as with a handler of oRPC:
- * `routes/api/$.ts`.
- */
 export class ApiRelayHandler {
   readonly #url: URL;
 
@@ -87,7 +72,6 @@ export class ApiRelayHandler {
     try {
       upstream = await fetch(new URL(pathname + search, this.#url), init);
     } catch {
-      // No answer from the API: it is down, or the client went away before it answered.
       return { matched: true, response: new Response("The API did not answer.", { status: 502 }) };
     }
 

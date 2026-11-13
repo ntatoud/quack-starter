@@ -19,7 +19,6 @@ export class TodosApi extends HttpApiGroup.make("todos")
     HttpApiEndpoint.post("complete", "/:id/complete", {
       params: { id: TodoId },
       success: Todo,
-      // Also answered for the Todo of another Owner: the API does not tell that it exists.
       error: NotFound,
     }),
     HttpApiEndpoint.delete("remove", "/:id", {
@@ -28,6 +27,5 @@ export class TodosApi extends HttpApiGroup.make("todos")
       error: NotFound,
     }),
   )
-  // After the endpoints: `.middleware` only covers what was added before it.
   .middleware(Authentication)
   .prefix("/todos") {}

@@ -25,7 +25,6 @@ type EndpointProcedure<Endpoint extends HttpApiEndpoint.ConstraintRequest, ER> =
     : never;
 
 type GroupProcedures<Group extends HttpApiGroup.Constraint, ER> = {
-  /** Matches every query of the group: `invalidateQueries({ queryKey: api.todos.key() })`. */
   readonly key: () => ProcedureKey;
 } & (Group["endpoints"] extends infer Endpoints extends Readonly<
   Record<string, HttpApiEndpoint.ConstraintRequest>
@@ -33,7 +32,6 @@ type GroupProcedures<Group extends HttpApiGroup.Constraint, ER> = {
   ? { readonly [Name in keyof Endpoints]: EndpointProcedure<Endpoints[Name], ER> }
   : {});
 
-/** Mirrors the shape of `HttpApiClient.Client`: one `Procedure` per endpoint. */
 export type HttpApiProcedures<Groups extends HttpApiGroup.Constraint, ER = never> = {
   readonly [
     Group in Extract<Groups, { readonly topLevel: false }> as HttpApiGroup.Identifier<Group>
@@ -47,20 +45,13 @@ export type HttpApiProcedures<Groups extends HttpApiGroup.Constraint, ER = never
   ]: EndpointProcedure<Endpoint, ER>;
 };
 
-/** `Groups` is only a constraint; at runtime every group carries its top-level flag. */
+/** `Groups` is only a type constraint; at runtime every group carries its top-level flag. */
 interface RuntimeGroup extends HttpApiGroup.Constraint {
   readonly topLevel: boolean;
 }
 
 type AnyCall = (input: unknown) => Effect.Effect<unknown, unknown>;
 
-/**
- * Derives TanStack Query options from an `HttpApi`: `api.todos.list.queryOptions()`,
- * `api.todos.create.mutationOptions()`, `api.todos.key()`.
- *
- * @param options.client The typed client, read from the runtime on every call.
- * @param options.runtime Runs the calls. Dispose it to release the client.
- */
 export const makeHttpApiProcedures = <
   ApiId extends string,
   Groups extends HttpApiGroup.Constraint,

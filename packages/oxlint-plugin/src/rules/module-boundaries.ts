@@ -7,7 +7,6 @@ import { forEachImport, isRelative } from "#/imports.ts";
 const LAYERS = ["domain", "application", "infrastructure", "http"] as const;
 type Layer = (typeof LAYERS)[number];
 
-/** What a layer may import from the other layers of its own module. */
 const ALLOWED: Record<Layer, { readonly layers: ReadonlyArray<Layer>; readonly message: string }> =
   {
     domain: { layers: ["domain"], message: "The domain depends on no other layer." },
@@ -19,14 +18,12 @@ const ALLOWED: Record<Layer, { readonly layers: ReadonlyArray<Layer>; readonly m
     http: { layers: LAYERS, message: "" },
   };
 
-/** Packages the domain may not import: platform and transport code. */
 const isPlatformOrTransport = (specifier: string) =>
   specifier.startsWith("node:") ||
   specifier.startsWith("@effect/platform-") ||
   /^effect\/http(-api)?(\/|$)/.test(specifier);
 
 interface Location {
-  /** The package's `src` folder. */
   readonly src: string;
   readonly module: string;
   /** Undefined for a file at the module's root, such as its `index.ts`. */
@@ -35,7 +32,6 @@ interface Location {
 
 const isLayer = (name: string | undefined): name is Layer => LAYERS.includes(name as Layer);
 
-/** Where a path sits under `src/modules/<module>/<layer>/`, if it does. */
 const locate = (path: string): Location | undefined => {
   const match = /^(.*\/src)\/modules\/([^/]+)\/(?:([^/]+)\/)?/.exec(path);
   if (match === null) return undefined;
@@ -44,7 +40,7 @@ const locate = (path: string): Location | undefined => {
   return { src, module, layer: isLayer(folder) ? folder : undefined };
 };
 
-/** The path a specifier points at, for the specifiers that stay inside the package. */
+/** Undefined for a specifier that leaves the package. */
 const resolve = (specifier: string, filename: string, src: string): string | undefined => {
   if (specifier.startsWith("#/")) return Path.join(src, specifier.slice(2));
   if (isRelative(specifier)) return Path.join(Path.dirname(filename), specifier);

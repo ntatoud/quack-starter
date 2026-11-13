@@ -14,7 +14,6 @@ interface Received {
   readonly body: string;
 }
 
-// A fake upstream: a real HTTP server that records what it receives and answers as each test says.
 let received: Array<Received>;
 let answer: (response: ServerResponse) => void;
 
@@ -59,7 +58,6 @@ const handle = (
     context: { clientIp },
   });
 
-/** Relays a request as the web app receives it, on its own origin. */
 const relay = async (
   path: string,
   init?: RequestInit,

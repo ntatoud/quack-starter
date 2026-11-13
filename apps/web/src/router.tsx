@@ -6,13 +6,11 @@ import { setCurrentUserData } from "#/features/identity/current-user.ts";
 import { signInLocation } from "#/features/identity/redirect-target.ts";
 import { routeTree } from "#/routeTree.gen.ts";
 
-/** What every route finds in its `context`, before a `beforeLoad` adds to it. */
 export interface RouterContext {
   readonly queryClient: QueryClient;
 }
 
-// TanStack Query retries a failed query 3 times by default; a call without a Session would fail again,
-// and only delay the sign-in page.
+// A call without a Session would fail again: retrying only delays the sign-in page.
 const retry = (failureCount: number, error: unknown): boolean =>
   !(error instanceof Unauthenticated) && failureCount < 3;
 
@@ -36,7 +34,6 @@ export function getRouter() {
 
   const router = createRouter({
     routeTree,
-    // The same client as the components': a `beforeLoad` reads and fills the cache they use.
     context: { queryClient },
     scrollRestoration: true,
     defaultPreload: "intent",

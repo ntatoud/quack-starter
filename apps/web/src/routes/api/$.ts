@@ -7,7 +7,6 @@ import { serverEnv } from "#/env/server.ts";
 
 const handler = new ApiRelayHandler({ url: serverEnv.API_URL });
 
-/** Every request under /api goes to the API, in dev and in production: see `ApiRelayHandler`. */
 export const Route = createFileRoute("/api/$")({
   server: {
     handlers: {

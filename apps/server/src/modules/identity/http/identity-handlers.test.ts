@@ -17,17 +17,16 @@ import { Cookies, HttpClientRequest, type HttpClientResponse, HttpServer } from 
 import { HttpApiMiddleware, HttpApiTest } from "effect/http-api";
 import { TestClock } from "effect/testing";
 
+import { sessionExtensionThreshold, sessionLifetime } from "#/modules/identity/domain/session.ts";
 import { IdentityModule } from "#/modules/identity/index.ts";
+
+const maxAge = Duration.toSeconds(sessionLifetime);
 
 const password = Redacted.make("correct horse battery staple");
 
-/** What a client that does not normalize the email sends: the text as the visitor typed it. */
+/** The email as typed, not normalized: the server must normalize it. */
 const asTyped = (email: string) => email as Email;
 
-/**
- * A client with a cookie jar, as a browser has one: it keeps the cookies of a sign-up,
- * and sends them to the endpoints that `Authentication` protects.
- */
 const makeBrowser = Effect.gen(function* () {
   const jar = yield* Ref.make(Cookies.empty);
 
@@ -47,7 +46,6 @@ const makeBrowser = Effect.gen(function* () {
     ),
   );
 
-  /** Keeps the cookies of a response, as a browser does: one that comes with `Max-Age=0` is dropped. */
   const keepCookies = Effect.fn(function* (response: HttpClientResponse.HttpClientResponse) {
     yield* Ref.update(jar, (cookies) =>
       Cookies.fromIterable(
@@ -86,26 +84,21 @@ const makeBrowser = Effect.gen(function* () {
     signUp,
     signIn,
     signOut,
-    /** The value of the session cookie in the jar. */
     session: Effect.map(Ref.get(jar), (cookies) => Cookies.getValue(cookies, "session")),
     me: client.identity.me(),
-    /** `me`, with what the response does to the cookies: its status and its `Set-Cookie` headers. */
     meResponse: Effect.gen(function* () {
       const response = yield* client.identity.me({ responseMode: "response-only" });
       return { status: response.status, setCookie: yield* keepCookies(response) };
     }),
-    /** Puts a cookie in the jar, as a visitor who edits their cookies would. */
     setCookie: (name: string, value: string) => Ref.update(jar, Cookies.setUnsafe(name, value)),
   };
 });
 
-/** The session cookie is cleared: an empty value and `Max-Age=0`, in the one `Set-Cookie` of the response. */
 const assertCookieCleared = (setCookie: ReadonlyArray<string>) => {
   assert.lengthOf(setCookie, 1);
   assert.match(setCookie[0] ?? "", /^session=; .*Max-Age=0/);
 };
 
-/** The config of a test, whatever the environment of the machine that runs it. */
 const withConfig = (env: Record<string, string>) =>
   IdentityModule.pipe(
     Layer.provideMerge(HttpServer.layerServices),
@@ -247,7 +240,7 @@ layer(withConfig({ SIGN_UPS_PER_IP: "1000" }))("IdentityApi", (it) => {
       assert.match(nameAndValue ?? "", /^session=[A-Za-z0-9_-]{43}$/);
       assert.deepStrictEqual(attributes.toSorted(), [
         "HttpOnly",
-        "Max-Age=2592000",
+        `Max-Age=${maxAge}`,
         "Path=/",
         "SameSite=Lax",
         "Secure",
@@ -343,15 +336,13 @@ layer(withConfig({ SIGN_UPS_PER_IP: "1000" }))("IdentityApi", (it) => {
         const browser = yield* makeBrowser;
         yield* browser.signUp(asTyped("evelyn@example.com"));
 
-        // 15 days are left, to the second.
-        yield* TestClock.adjust("15 days");
+        yield* TestClock.adjust(sessionExtensionThreshold);
         const { status, setCookie } = yield* browser.meResponse;
 
         assert.strictEqual(status, 200);
         assert.deepStrictEqual(setCookie, []);
 
-        // 30 days after the sign-up: the request of the 15th day did not move the expiry.
-        yield* TestClock.adjust("15 days");
+        yield* TestClock.adjust(Duration.subtract(sessionLifetime, sessionExtensionThreshold));
         assert.strictEqual((yield* browser.me.pipe(Effect.flip))._tag, "Unauthenticated");
       }),
   );
@@ -364,25 +355,22 @@ layer(withConfig({ SIGN_UPS_PER_IP: "1000" }))("IdentityApi", (it) => {
         const { user } = yield* browser.signUp(asTyped("dorothy@example.com"));
         const token = Option.getOrThrow(yield* browser.session);
 
-        // 14 days and 23 hours are left.
-        yield* TestClock.adjust("361 hours");
+        yield* TestClock.adjust(Duration.sum(sessionExtensionThreshold, Duration.hours(1)));
         const { status, setCookie } = yield* browser.meResponse;
 
         assert.strictEqual(status, 200);
         assert.lengthOf(setCookie, 1);
         const [nameAndValue, ...attributes] = (setCookie[0] ?? "").split("; ");
-        // The same Session, for 30 more days: 2 592 000 seconds.
         assert.strictEqual(nameAndValue, `session=${token}`);
         assert.deepStrictEqual(attributes.toSorted(), [
           "HttpOnly",
-          "Max-Age=2592000",
+          `Max-Age=${maxAge}`,
           "Path=/",
           "SameSite=Lax",
           "Secure",
         ]);
 
-        // 44 days after the sign-up: one day before the new expiry, long after the first one.
-        yield* TestClock.adjust("29 days");
+        yield* TestClock.adjust(Duration.subtract(sessionLifetime, Duration.days(1)));
         assert.deepStrictEqual(yield* browser.me, user);
       }),
   );
@@ -392,7 +380,6 @@ layer(withConfig({ SIGN_UPS_PER_IP: "1000" }))("IdentityApi", (it) => {
       const browser = yield* makeBrowser;
       const { user } = yield* browser.signUp(asTyped("jean@example.com"));
 
-      // A request every 20 days, for 200 days.
       for (let visit = 0; visit < 10; visit++) {
         yield* TestClock.adjust("20 days");
         assert.deepStrictEqual(yield* browser.me, user);
@@ -479,10 +466,9 @@ layer(withConfig({ SIGN_UPS_PER_IP: "1000" }))("IdentityApi", (it) => {
         assert.lengthOf(setCookie, 1);
         const [nameAndValue, ...attributes] = (setCookie[0] ?? "").split("; ");
         assert.match(nameAndValue ?? "", /^session=[A-Za-z0-9_-]{43}$/);
-        // 30 days are 2 592 000 seconds.
         assert.deepStrictEqual(attributes.toSorted(), [
           "HttpOnly",
-          "Max-Age=2592000",
+          `Max-Age=${maxAge}`,
           "Path=/",
           "SameSite=Lax",
           "Secure",
@@ -512,23 +498,15 @@ layer(withConfig({ COOKIE_SECURE: "false" }))("IdentityApi, with COOKIE_SECURE=f
   );
 });
 
-/** A wrong password for every User of these tests. */
 const wrongPassword = Redacted.make("not the password of anyone");
 
-/**
- * The module with the limits a test sets, or the ones of an unset config. It is built for one test, so its counters
- * start empty: every browser has the same address, none, since this client sends no `X-Forwarded-For`.
- * The limits by address are told apart by address on the routes, in `server.test.ts`.
- */
 const withLimits = (env: Record<string, string> = {}) => Effect.provide(withConfig(env));
 
-/** What a refusal says, and nothing else of the error: its tag, and how long to wait when it is `TooManyAttempts`. */
 const refusal = (error: { readonly _tag: string; readonly retryAfter?: number } | undefined) => ({
   _tag: error?._tag,
   retryAfter: error?.retryAfter,
 });
 
-/** Signs in with a wrong password, `times` in a row, and answers with the errors. */
 const failSignIn = (browser: Effect.Success<typeof makeBrowser>, email: string, times: number) =>
   Effect.forEach(Array.from({ length: times }), () =>
     Effect.flip(browser.signIn(asTyped(email), wrongPassword)),
@@ -550,7 +528,6 @@ describe("IdentityApi, attempt limits", () => {
         Array.from({ length: 5 }, () => "InvalidCredentials"),
       );
       assert.strictEqual(error._tag, "TooManyAttempts");
-      // The counter is the one of the email: another User signs in from the same address.
       assert.strictEqual(
         (yield* browser.signIn(asTyped("grace@example.com"))).user.email,
         "grace@example.com",
@@ -561,7 +538,6 @@ describe("IdentityApi, attempt limits", () => {
   effect("says how long to wait in retryAfter: the seconds left in the window", () =>
     Effect.gen(function* () {
       const browser = yield* makeBrowser;
-      // The window opens at the first failure, and the ones after do not move its end.
       yield* failSignIn(browser, "ada@example.com", 1);
       yield* TestClock.adjust("4 minutes");
       yield* failSignIn(browser, "ada@example.com", 4);
@@ -571,7 +547,6 @@ describe("IdentityApi, attempt limits", () => {
       yield* TestClock.adjust("59500 millis");
       const atTheEnd = yield* browser.signIn(asTyped("ada@example.com")).pipe(Effect.flip);
 
-      // 11 minutes are left, then half a second, rounded up.
       assert.deepStrictEqual(refusal(atOnce), { _tag: "TooManyAttempts", retryAfter: 660 });
       assert.deepStrictEqual(refusal(atTheEnd), { _tag: "TooManyAttempts", retryAfter: 1 });
     }).pipe(withLimits()),
@@ -601,7 +576,6 @@ describe("IdentityApi, attempt limits", () => {
 
       yield* browser.signIn(asTyped("ada@example.com"));
 
-      // 5 more failures are needed, not one.
       const failures = yield* failSignIn(browser, "ada@example.com", 5);
       assert.deepStrictEqual(
         failures.map((failure) => failure._tag),
@@ -619,13 +593,11 @@ describe("IdentityApi, attempt limits", () => {
       yield* failSignIn(browser, "ada@example.com", 5);
 
       yield* TestClock.adjust(Duration.subtract(Duration.minutes(15), Duration.seconds(1)));
-      // An attempt that is refused is not counted, and does not move the end of the window.
       const refused = yield* failSignIn(browser, "ada@example.com", 3);
       yield* TestClock.adjust("1 second");
 
       assert.deepStrictEqual(refusal(refused[2]), { _tag: "TooManyAttempts", retryAfter: 1 });
       assert.deepStrictEqual((yield* browser.signIn(asTyped("ada@example.com"))).user, user);
-      // The counter starts again from zero: 5 failures, then the refusal for 15 minutes.
       const failures = yield* failSignIn(browser, "ada@example.com", 6);
       assert.strictEqual(failures[4]?._tag, "InvalidCredentials");
       assert.deepStrictEqual(refusal(failures[5]), { _tag: "TooManyAttempts", retryAfter: 900 });
@@ -638,7 +610,6 @@ describe("IdentityApi, attempt limits", () => {
       Effect.gen(function* () {
         const browser = yield* makeBrowser;
         const { user } = yield* browser.signUp(asTyped("ada@example.com"));
-        // 4 failures on each of 5 emails: no email reaches its own limit.
         for (let guessed = 0; guessed < 4; guessed++) {
           yield* failSignIn(browser, `guessed-${guessed}@example.com`, 4);
         }
@@ -690,7 +661,6 @@ describe("IdentityApi, attempt limits", () => {
       );
       assert.deepStrictEqual(refusal(eleventh), { _tag: "TooManyAttempts", retryAfter: 2400 });
       assert.deepStrictEqual(refusal(onTakenEmail), refusal(eleventh));
-      // The sign-ins of the address have their own counters.
       yield* browser.signIn(asTyped("visitor-1@example.com"));
 
       yield* TestClock.adjust("40 minutes");

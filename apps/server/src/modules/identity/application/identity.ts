@@ -25,21 +25,14 @@ import {
 import { SessionStore } from "#/modules/identity/domain/session-store.ts";
 import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
 
-/** A Session as its User holds it: the token, which the server does not keep, and when it stops working. */
 export interface OpenedSession {
   readonly token: Redacted.Redacted<string>;
   readonly expiresAt: DateTime.Utc;
 }
 
-/** Use cases of the identity context. Depends on the domain only. */
 export class Identity extends Context.Service<
   Identity,
   {
-    /**
-     * Creates the User and opens their first Session: a visitor is signed in as soon as they sign up.
-     * Every sign-up from `ip` counts, the ones that fail too. Past the limit it fails with `TooManyAttempts`,
-     * before the password is hashed.
-     */
     signUp(
       email: Email,
       password: Password,
@@ -48,14 +41,6 @@ export class Identity extends Context.Service<
       { readonly user: User; readonly session: OpenedSession },
       EmailAlreadyTaken | TooManyAttempts
     >;
-    /**
-     * Opens a new Session for the User of this email, when the password is theirs.
-     * An unknown email and a wrong password fail alike, and take as long: the answer does not say who has signed up.
-     *
-     * A sign-in that fails counts on the email and on `ip`. Past a limit it fails with `TooManyAttempts`,
-     * before the password is hashed, and whether a User has the email or not.
-     * A sign-in that succeeds sets the counter of the email back to zero.
-     */
     signIn(
       email: Email,
       password: Password,
@@ -64,13 +49,7 @@ export class Identity extends Context.Service<
       { readonly user: User; readonly session: OpenedSession },
       InvalidCredentials | TooManyAttempts
     >;
-    /** Revokes the Session this token opens. Succeeds when it opens none. */
     signOut(token: Redacted.Redacted<string>): Effect.Effect<void>;
-    /**
-     * The User of the Session this token opens.
-     * It extends a Session that is close to its expiry, and answers with its new expiry as `extendedUntil`.
-     * It removes a Session that has expired.
-     */
     authenticate(
       token: Redacted.Redacted<string>,
     ): Effect.Effect<
@@ -114,9 +93,8 @@ export class Identity extends Context.Service<
         signIn: Effect.fn("Identity.signIn")(function* (email, password, ip) {
           const failuresOfEmail = AttemptCounter.signInFailuresOfEmail(email);
           const failuresOfIp = AttemptCounter.signInFailuresOfIp(ip);
-          // Before the User is looked up and the password hashed: a refusal costs nothing, and says nothing of the email.
-          // The attempt is counted as a failure here, not once it has failed: the sign-ins that arrive at once
-          // would all be let through before the first of them is counted.
+          // Before the lookup and the hash, so a refusal costs nothing and says nothing of the email.
+          // Counted as a failure up front: sign-ins arriving at once would all pass before the first one is counted.
           yield* limiter.take([failuresOfEmail, failuresOfIp]);
 
           const found = yield* users.findByEmail(email);
@@ -129,8 +107,8 @@ export class Identity extends Context.Service<
           if (!(yield* hasher.verify(password, passwordHash))) {
             return yield* new InvalidCredentials();
           }
-          // It did not fail. The counter of the email starts again from zero. The one of the address loses this
-          // attempt only: one User of their own does not clear the failures on the emails of others.
+          // The address only gives this attempt back: signing into one's own account must not clear
+          // the failures on the emails of others.
           yield* limiter.reset(failuresOfEmail);
           yield* limiter.giveBack(failuresOfIp);
           return { user, session: yield* openSession(user) };

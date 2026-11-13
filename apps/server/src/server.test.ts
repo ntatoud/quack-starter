@@ -4,14 +4,12 @@ import { afterAll, describe, expect, it } from "vite-plus/test";
 
 import { Routes } from "#/server.ts";
 
-// The routes as the HTTP server serves them, called without a port.
 const { handler, dispose } = HttpRouter.toWebHandler(
   Routes.pipe(Layer.provide(HttpServer.layerServices)),
 );
 
 const get = (path: string) => handler(new Request(new URL(path, "http://api.test")));
 
-/** A sign-up or a sign-in. `from` is the address of the client, as the web app's relay names it in `X-Forwarded-For`. */
 const attempt =
   (path: "/api/sign-up" | "/api/sign-in") =>
   (email: string, { from, password = "correct horse battery staple" }: Attempt = {}) =>
@@ -165,7 +163,6 @@ describe("server routes", () => {
     expect(response.headers.getSetCookie()).toEqual([
       expect.stringMatching(/^session=; .*Max-Age=0/),
     ]);
-    // The cookie a browser would have dropped opens nothing anymore.
     expect((await me()).status).toBe(401);
   });
 
@@ -201,7 +198,6 @@ describe("server routes", () => {
     expect(refused.status).toBe(429);
     const body = (await refused.json()) as { readonly retryAfter: number };
     expect(body).toEqual({ _tag: "TooManyAttempts", retryAfter: expect.any(Number) });
-    // One hour, less the time the 10 sign-ups took.
     expect(body.retryAfter).toBeGreaterThan(3500);
     expect(body.retryAfter).toBeLessThanOrEqual(3600);
     expect(refused.headers.getSetCookie()).toEqual([]);
@@ -225,7 +221,6 @@ describe("server routes", () => {
     expect(response.status).toBe(429);
     const body = (await response.json()) as { readonly retryAfter: number };
     expect(body).toEqual({ _tag: "TooManyAttempts", retryAfter: expect.any(Number) });
-    // 15 minutes, less the time the 5 failures took.
     expect(body.retryAfter).toBeGreaterThan(800);
     expect(body.retryAfter).toBeLessThanOrEqual(900);
   });
@@ -233,7 +228,6 @@ describe("server routes", () => {
   it("lets 5 of the sign-ins that fail at once on an email through, and refuses the others", async () => {
     await signUp("joan@example.com", { from: "203.0.113.40" });
 
-    // At once: none of them has failed yet when the others arrive.
     const responses = await Promise.all(
       Array.from({ length: 12 }, () =>
         signIn("joan@example.com", {

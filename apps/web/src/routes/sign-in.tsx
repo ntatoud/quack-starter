@@ -7,7 +7,7 @@ import { SignInPage } from "#/features/identity/sign-in-page.tsx";
 
 export const Route = createFileRoute("/sign-in")({
   validateSearch: Schema.toStandardSchemaV1(SignInSearch),
-  // A User who is signed in has nothing to do here. It also runs when the sign-in sets the Current User.
+  // Also what leads away once the sign-in sets the Current User.
   beforeLoad: ({ context, search }) => {
     if (context.currentUser !== null) throw redirect({ href: redirectTarget(search.redirect) });
   },

@@ -5,18 +5,12 @@ import { type ComponentProps, createContext, use, useId, useMemo } from "react";
 import { useFieldContext } from "#/context.ts";
 import type { Size } from "#/size.ts";
 
-/** What the parts of one field share: the id that ties the label to the control, and their size. */
 type FieldLayout = { id: string; size: Size };
 
 const FieldLayoutContext = createContext<FieldLayout | null>(null);
 
-/** The layout of the enclosing `field.Root`, or `null` for a control used on its own. */
 export const useFormFieldLayout = () => use(FieldLayoutContext);
 
-/**
- * The frame of the field of its `form.AppField`: compose in it the label, the control, and what else the field shows.
- * It sets their `size`, and marks itself invalid once the field is touched and invalid.
- */
 export function FormField({
   size = "md",
   ...props

@@ -10,7 +10,6 @@ const Name = Schema.Struct({
 
 const ignore = () => {};
 
-/** The smallest form with every component: one labelled text field and a submit button. */
 export function NameForm({
   onSubmit = ignore,
   size = "md",

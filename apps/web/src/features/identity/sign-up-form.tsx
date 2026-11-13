@@ -19,10 +19,6 @@ const submitFailure = (cause: unknown) => {
   return "Could not sign up. Try again.";
 };
 
-/**
- * Signs a visitor up. The API sets the session cookie, so the visitor is signed in when `onSignedUp` runs:
- * it receives the new User, and the form stays busy until it settles.
- */
 export function SignUpForm({ onSignedUp }: { onSignedUp: (user: User) => void | Promise<void> }) {
   const signUp = useMutation(api.identity.signUp.mutationOptions());
 

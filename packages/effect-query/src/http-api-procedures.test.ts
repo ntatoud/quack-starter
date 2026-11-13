@@ -61,7 +61,6 @@ const Handlers = [
 class TestClient extends Context.Service<TestClient, HttpApiClient.ForApi<typeof TestApi>>()(
   "TestClient",
 ) {
-  // The handlers answer in memory: no socket, no port.
   static readonly layer = Layer.effect(
     TestClient,
     HttpApiTest.groups(TestApi, ["items", "system"]),
