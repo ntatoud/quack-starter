@@ -71,24 +71,20 @@ export const PasswordHasherArgon2 = Layer.effect(
         })
         .pipe(Effect.orDie);
 
-    const hash = Effect.fn("PasswordHasher.hash")(function* (password: Password) {
-      const salt = yield* random.randomBytes(saltLength);
-      const tag = yield* derive(password, currentCosts, salt, tagLength);
-      return formatPhc({ costs: currentCosts, salt, tag });
+    return PasswordHasher.of({
+      hash: Effect.fn("PasswordHasher.hash")(function* (password) {
+        const salt = yield* random.randomBytes(saltLength);
+        const tag = yield* derive(password, currentCosts, salt, tagLength);
+        return formatPhc({ costs: currentCosts, salt, tag });
+      }),
+      verify: Effect.fn("PasswordHasher.verify")(function* (password, storedHash) {
+        const stored = parsePhc(storedHash);
+        if (Option.isNone(stored)) return false;
+        const { costs, salt, tag } = stored.value;
+        const derived = yield* derive(password, costs, salt, tag.length);
+        // Constant time: how long the comparison takes says nothing about the stored tag.
+        return Mac.timingSafeEqual(derived, tag);
+      }),
     });
-
-    const verify = Effect.fn("PasswordHasher.verify")(function* (
-      password: Password,
-      storedHash: string,
-    ) {
-      const stored = parsePhc(storedHash);
-      if (Option.isNone(stored)) return false;
-      const { costs, salt, tag } = stored.value;
-      const derived = yield* derive(password, costs, salt, tag.length);
-      // Constant time: how long the comparison takes says nothing about the stored tag.
-      return Mac.timingSafeEqual(derived, tag);
-    });
-
-    return PasswordHasher.of({ hash, verify });
   }),
 );
