@@ -11,6 +11,15 @@ const { handler, dispose } = HttpRouter.toWebHandler(
 
 const get = (path: string) => handler(new Request(new URL(path, "http://api.test")));
 
+const signUp = (email: string) =>
+  handler(
+    new Request("http://api.test/api/sign-up", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email, password: "correct horse battery staple" }),
+    }),
+  );
+
 afterAll(dispose);
 
 describe("server routes", () => {
@@ -31,6 +40,22 @@ describe("server routes", () => {
     expect(response.status).toBe(200);
     const { paths } = (await response.json()) as { paths: Record<string, unknown> };
     expect(Object.keys(paths)).toContain("/api/todos");
+  });
+
+  it("signs a visitor up, and answers with their public User", async () => {
+    const response = await signUp("Ada@Example.com");
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ id: expect.any(String), email: "ada@example.com" });
+  });
+
+  it("answers a sign-up with 409 EmailAlreadyTaken when a User has this email", async () => {
+    await signUp("grace@example.com");
+
+    const response = await signUp("grace@example.com");
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ _tag: "EmailAlreadyTaken" });
   });
 
   it("serves the docs under /api", async () => {

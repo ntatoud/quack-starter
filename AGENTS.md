@@ -2,6 +2,8 @@
 
 A starter for TypeScript web apps: TanStack Start + shadcn on the front, Effect v4 on the back, in a pnpm + Vite+ monorepo.
 
+The words of the domain (User, Session, Current User, Todo, Owner) are defined in `GLOSSARY.md`. Use them as defined.
+
 ## Commands
 
 Run from the repo root. `vp` is Vite+, the task runner, linter, formatter, and test runner.
@@ -109,7 +111,7 @@ Add a component from `packages/ui`: `pnpm dlx shadcn@latest add <name>`. Import 
 - File names are kebab-case (`todo-repository.ts`, `todos-card.tsx`); lint rejects anything else (`unicorn/filename-case`). The exported class or component keeps its PascalCase name.
 - No relative imports (`./x`, `../x`); lint rejects them. Import through the package alias: `#/` is the package's `src` folder, with the file extension (`import { Todo } from "#/modules/todos/domain/todo.ts"`). It is the `imports` field of each `package.json`, which Node, TypeScript, and Vite all resolve.
 - Effect v4. Its docs for agents ship in `apps/server/node_modules/effect/ai-docs`. Read them before writing Effect code: the v4 API differs from v3 (`Context.Service`, `effect/http`, `effect/http-api`).
-- Services are `Context.Service` classes with a static `layer`. Service methods use `Effect.fn("Service.method")`.
+- Services are `Context.Service` classes with a static `layer`. Service methods use `Effect.fn("Service.method")`, written inline in `Service.of({ ... })`, which types their parameters: no `const method = Effect.fn(...)` passed by name. A helper that several methods share stays a local function.
 - Errors are `Schema.TaggedError` classes. Fail with typed errors; do not throw.
 - Tests sit next to the code as `*.test.ts`, which run in Node, or `*.test.tsx` for components, which run in a real browser: a simulated DOM has no focus rules, no keyboard, no accessibility tree, and no stylesheet. Install the browser once: `pnpm --filter @quack/form exec playwright install chromium`. Effect code uses `@effect/vitest` (`it.effect`, `layer`). Test handlers through `HttpApiTest`, with no server. What the routes add to the handlers (the docs, the OpenAPI document, no CORS) is tested on the assembled `Routes`, through `HttpRouter.toWebHandler`: `apps/server/src/server.test.ts`.
 - Shared dependency versions live in the `catalog:` of `pnpm-workspace.yaml`.
