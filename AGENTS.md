@@ -49,6 +49,7 @@ packages/contracts/src/
 - Contracts hold data and its validation. Behavior stays in the server's domain (`completeTodo` in `modules/todos/domain/todo.ts`).
 - Every endpoint is under `/api`: `Api` takes the prefix `API_PREFIX` (`api.ts`), so a group's paths do not repeat it (`/todos` is served at `/api/todos`).
 - HTTP status codes are set on the endpoint (`HttpApiSchema.status(404)` on the error in `*-api.ts`), not on the error class.
+- Protect an endpoint or a group by declaring it in the contract: `.middleware(Authentication)` (`identity/authentication.ts`), after the endpoints it covers, since it skips the ones added later. Its handlers read `CurrentUser`, and its client gets `Unauthenticated` (401). The Session travels in the `session` cookie.
 
 ## Server: one folder per bounded context
 
@@ -69,6 +70,8 @@ Dependency rules, enforced by lint (`quack/module-boundaries` in `packages/oxlin
 - `domain` imports no other layer, no `node:*`, no HTTP or platform package.
 - `application` imports `domain` only. It receives adapters as Layers.
 - A module never imports another module's layers. Go through its `index.ts`: `#/modules/<context>/index.ts`.
+
+`IdentityModule` implements the contract's `Authentication` middleware for every group that declares it. Another module depends on the contract (`CurrentUser`, `UserId`), never on `modules/identity`.
 
 The server serves everything under `/api`, the docs (`/api/docs`) and the OpenAPI document (`/api/openapi.json`) included. It has no CORS policy: the browser reaches it through the web app's relay only.
 
@@ -113,6 +116,6 @@ Add a component from `packages/ui`: `pnpm dlx shadcn@latest add <name>`. Import 
 - Effect v4. Its docs for agents ship in `apps/server/node_modules/effect/ai-docs`. Read them before writing Effect code: the v4 API differs from v3 (`Context.Service`, `effect/http`, `effect/http-api`).
 - Services are `Context.Service` classes with a static `layer`. Service methods use `Effect.fn("Service.method")`, written inline in `Service.of({ ... })`, which types their parameters: no `const method = Effect.fn(...)` passed by name. A helper that several methods share stays a local function.
 - Errors are `Schema.TaggedError` classes. Fail with typed errors; do not throw.
-- Tests sit next to the code as `*.test.ts`, which run in Node, or `*.test.tsx` for components, which run in a real browser: a simulated DOM has no focus rules, no keyboard, no accessibility tree, and no stylesheet. Install the browser once: `pnpm --filter @quack/form exec playwright install chromium`. Effect code uses `@effect/vitest` (`it.effect`, `layer`). Test handlers through `HttpApiTest`, with no server. What the routes add to the handlers (the docs, the OpenAPI document, no CORS) is tested on the assembled `Routes`, through `HttpRouter.toWebHandler`: `apps/server/src/server.test.ts`.
+- Tests sit next to the code as `*.test.ts`, which run in Node, or `*.test.tsx` for components, which run in a real browser: a simulated DOM has no focus rules, no keyboard, no accessibility tree, and no stylesheet. Install the browser once: `pnpm --filter @quack/form exec playwright install chromium`. Effect code uses `@effect/vitest` (`it.effect`, `layer`). Test handlers through `HttpApiTest`, with no server. It builds the routes of the whole `Api`, so the test Layer provides an `Authentication` (`IdentityModule`, or an implementation of the test's own), and a client keeps its cookies as `makeBrowser` does in `apps/server/src/modules/identity/http/identity-handlers.test.ts`. What the routes add to the handlers (the docs, the OpenAPI document, no CORS) is tested on the assembled `Routes`, through `HttpRouter.toWebHandler`: `apps/server/src/server.test.ts`.
 - Shared dependency versions live in the `catalog:` of `pnpm-workspace.yaml`.
 - A flaky test is fixed, not retried.
