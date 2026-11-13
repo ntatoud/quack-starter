@@ -2,7 +2,11 @@ import { Schema } from "effect";
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from "effect/http-api";
 
 import { Authentication } from "#/identity/authentication.ts";
-import { EmailAlreadyTaken, InvalidCredentials } from "#/identity/identity-errors.ts";
+import {
+  EmailAlreadyTaken,
+  InvalidCredentials,
+  TooManyAttempts,
+} from "#/identity/identity-errors.ts";
 import { Email, Password, User } from "#/identity/user.ts";
 
 /** What a visitor sends to sign up. The sign-up form validates with it, so the form and the API agree. */
@@ -19,13 +23,19 @@ export class IdentityApi extends HttpApiGroup.make("identity").add(
   HttpApiEndpoint.post("signUp", "/sign-up", {
     payload: SignUpPayload,
     success: User,
-    error: EmailAlreadyTaken.pipe(HttpApiSchema.status(409)),
+    error: [
+      EmailAlreadyTaken.pipe(HttpApiSchema.status(409)),
+      TooManyAttempts.pipe(HttpApiSchema.status(429)),
+    ],
   }),
   // Answers with the User and sets the session cookie. The Session is a new one, whatever cookie the request carries.
   HttpApiEndpoint.post("signIn", "/sign-in", {
     payload: SignInPayload,
     success: User,
-    error: InvalidCredentials.pipe(HttpApiSchema.status(401)),
+    error: [
+      InvalidCredentials.pipe(HttpApiSchema.status(401)),
+      TooManyAttempts.pipe(HttpApiSchema.status(429)),
+    ],
   }),
   // Not protected, and always succeeds: it revokes the Session of the request if there is one, and clears the cookie.
   HttpApiEndpoint.post("signOut", "/sign-out"),

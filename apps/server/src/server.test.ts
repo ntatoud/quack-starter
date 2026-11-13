@@ -11,14 +11,28 @@ const { handler, dispose } = HttpRouter.toWebHandler(
 
 const get = (path: string) => handler(new Request(new URL(path, "http://api.test")));
 
-const signUp = (email: string) =>
-  handler(
-    new Request("http://api.test/api/sign-up", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email, password: "correct horse battery staple" }),
-    }),
-  );
+/** A sign-up or a sign-in. `from` is the address of the client, as the web app's relay names it in `X-Forwarded-For`. */
+const attempt =
+  (path: "/api/sign-up" | "/api/sign-in") =>
+  (email: string, { from, password = "correct horse battery staple" }: Attempt = {}) =>
+    handler(
+      new Request(new URL(path, "http://api.test"), {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          ...(from === undefined ? {} : { "x-forwarded-for": from }),
+        },
+        body: JSON.stringify({ email, password }),
+      }),
+    );
+
+interface Attempt {
+  readonly from?: string;
+  readonly password?: string;
+}
+
+const signUp = attempt("/api/sign-up");
+const signIn = attempt("/api/sign-in");
 
 afterAll(dispose);
 
@@ -169,6 +183,71 @@ describe("server routes", () => {
 
     expect(response.status).toBe(409);
     expect(await response.json()).toEqual({ _tag: "EmailAlreadyTaken" });
+  });
+
+  it("answers the 11th sign-up of an address with 429 TooManyAttempts, and tells the addresses apart by X-Forwarded-For", async () => {
+    const signedUp = await Promise.all(
+      Array.from({ length: 10 }, (_, visitor) =>
+        signUp(`visitor-${visitor}@example.com`, { from: "203.0.113.7" }),
+      ),
+    );
+    expect(signedUp.map((response) => response.status)).toEqual(
+      Array.from({ length: 10 }, () => 200),
+    );
+
+    const refused = await signUp("visitor-10@example.com", { from: "203.0.113.7" });
+    const fromAnotherAddress = await signUp("visitor-10@example.com", { from: "203.0.113.8" });
+
+    expect(refused.status).toBe(429);
+    const body = (await refused.json()) as { readonly retryAfter: number };
+    expect(body).toEqual({ _tag: "TooManyAttempts", retryAfter: expect.any(Number) });
+    // One hour, less the time the 10 sign-ups took.
+    expect(body.retryAfter).toBeGreaterThan(3500);
+    expect(body.retryAfter).toBeLessThanOrEqual(3600);
+    expect(refused.headers.getSetCookie()).toEqual([]);
+    expect(fromAnotherAddress.status).toBe(200);
+  });
+
+  it("answers a sign-in with 429 TooManyAttempts after 5 failures on the email, from any address", async () => {
+    await signUp("hedy@example.com", { from: "203.0.113.20" });
+    const failed = await Promise.all(
+      Array.from({ length: 5 }, (_, failure) =>
+        signIn("hedy@example.com", {
+          from: `203.0.113.${21 + failure}`,
+          password: "not the password of hedy",
+        }),
+      ),
+    );
+    expect(failed.map((response) => response.status)).toEqual([401, 401, 401, 401, 401]);
+
+    const response = await signIn("hedy@example.com", { from: "203.0.113.30" });
+
+    expect(response.status).toBe(429);
+    const body = (await response.json()) as { readonly retryAfter: number };
+    expect(body).toEqual({ _tag: "TooManyAttempts", retryAfter: expect.any(Number) });
+    // 15 minutes, less the time the 5 failures took.
+    expect(body.retryAfter).toBeGreaterThan(800);
+    expect(body.retryAfter).toBeLessThanOrEqual(900);
+  });
+
+  it("lets 5 of the sign-ins that fail at once on an email through, and refuses the others", async () => {
+    await signUp("joan@example.com", { from: "203.0.113.40" });
+
+    // At once: none of them has failed yet when the others arrive.
+    const responses = await Promise.all(
+      Array.from({ length: 12 }, () =>
+        signIn("joan@example.com", {
+          from: "203.0.113.41",
+          password: "not the password of joan",
+        }),
+      ),
+    );
+
+    const statuses = responses.map((response) => response.status).toSorted();
+    expect(statuses).toEqual([
+      ...Array.from({ length: 5 }, () => 401),
+      ...Array.from({ length: 7 }, () => 429),
+    ]);
   });
 
   it("serves the docs under /api", async () => {

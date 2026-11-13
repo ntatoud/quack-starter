@@ -3,18 +3,22 @@ import { createHash } from "node:crypto";
 import { NodeCrypto } from "@effect/platform-node";
 import { assert, layer } from "@effect/vitest";
 import { Email } from "@quack/contracts/identity/user";
-import { DateTime, Effect, Layer, Option, Redacted } from "effect";
+import { ConfigProvider, DateTime, Effect, Layer, Option, Redacted } from "effect";
 
 import { TestClock } from "effect/testing";
 
 import { Identity } from "#/modules/identity/application/identity.ts";
 import { PasswordHasher } from "#/modules/identity/domain/password-hasher.ts";
 import { SessionStore } from "#/modules/identity/domain/session-store.ts";
+import { AttemptLimiterMemory } from "#/modules/identity/infrastructure/attempt-limiter-memory.ts";
 import { PasswordHasherArgon2 } from "#/modules/identity/infrastructure/password-hasher-argon2.ts";
 import { SessionStoreMemory } from "#/modules/identity/infrastructure/session-store-memory.ts";
 import { UserRepositoryMemory } from "#/modules/identity/infrastructure/user-repository-memory.ts";
 
 const password = Redacted.make("correct horse battery staple");
+
+/** The address these attempts come from. Each test that reaches a limit takes one of its own. */
+const ip = "203.0.113.1";
 
 const sha256Hex = (text: string) => createHash("sha256").update(text).digest("hex");
 
@@ -38,7 +42,12 @@ const PasswordHasherCounted = Layer.effect(
 ).pipe(Layer.provide(PasswordHasherArgon2));
 
 const IdentityLayer = Identity.layer.pipe(
-  Layer.provide([UserRepositoryMemory, PasswordHasherCounted]),
+  Layer.provide([
+    UserRepositoryMemory,
+    PasswordHasherCounted,
+    // The limits of an unset config, whatever the environment of the machine that runs the tests.
+    AttemptLimiterMemory.pipe(Layer.provide(ConfigProvider.layer(ConfigProvider.fromUnknown({})))),
+  ]),
   // The store stays visible, to see what a sign-up leaves in it.
   Layer.provideMerge(SessionStoreMemory),
   Layer.provide([NodeCrypto.layerSecureRandom, NodeCrypto.layerDigest, NodeCrypto.layerKdf]),
@@ -49,8 +58,8 @@ layer(IdentityLayer)("Identity", (it) => {
     Effect.gen(function* () {
       const identity = yield* Identity;
 
-      const first = yield* identity.signUp(Email.make("ada@example.com"), password);
-      const second = yield* identity.signUp(Email.make("grace@example.com"), password);
+      const first = yield* identity.signUp(Email.make("ada@example.com"), password, ip);
+      const second = yield* identity.signUp(Email.make("grace@example.com"), password, ip);
 
       // 32 bytes are 43 characters of base64url, which has no padding.
       assert.match(Redacted.value(first.session.token), /^[A-Za-z0-9_-]{43}$/);
@@ -66,7 +75,11 @@ layer(IdentityLayer)("Identity", (it) => {
       const identity = yield* Identity;
       const store = yield* SessionStore;
 
-      const { user, session } = yield* identity.signUp(Email.make("linus@example.com"), password);
+      const { user, session } = yield* identity.signUp(
+        Email.make("linus@example.com"),
+        password,
+        ip,
+      );
       const token = Redacted.value(session.token);
 
       const stored = yield* store.findByTokenHash(sha256Hex(token));
@@ -81,7 +94,7 @@ layer(IdentityLayer)("Identity", (it) => {
       const store = yield* SessionStore;
 
       // The test clock starts at the epoch.
-      const { session } = yield* identity.signUp(Email.make("margaret@example.com"), password);
+      const { session } = yield* identity.signUp(Email.make("margaret@example.com"), password, ip);
 
       const thirtyDays = DateTime.makeUnsafe("1970-01-31T00:00:00Z");
       assert.deepStrictEqual(session.expiresAt, thirtyDays);
@@ -95,14 +108,14 @@ layer(IdentityLayer)("Identity", (it) => {
     () =>
       Effect.gen(function* () {
         const identity = yield* Identity;
-        yield* identity.signUp(Email.make("grace.h@example.com"), password);
+        yield* identity.signUp(Email.make("grace.h@example.com"), password, ip);
 
         const before = hasherWork.count;
         yield* identity
-          .signIn(Email.make("grace.h@example.com"), Redacted.make("not the password of grace"))
+          .signIn(Email.make("grace.h@example.com"), Redacted.make("not the password of grace"), ip)
           .pipe(Effect.flip);
         const forWrongPassword = hasherWork.count - before;
-        yield* identity.signIn(Email.make("nobody@example.com"), password).pipe(Effect.flip);
+        yield* identity.signIn(Email.make("nobody@example.com"), password, ip).pipe(Effect.flip);
         const forUnknownEmail = hasherWork.count - before - forWrongPassword;
 
         assert.strictEqual(forWrongPassword, 1);
@@ -110,11 +123,49 @@ layer(IdentityLayer)("Identity", (it) => {
       }),
   );
 
+  it.effect("refuses a sign-in past the limit before any work on the password", () =>
+    Effect.gen(function* () {
+      const identity = yield* Identity;
+      const email = Email.make("hedy@example.com");
+      const from = "203.0.113.2";
+      yield* identity.signUp(email, password, from);
+      for (let failure = 0; failure < 5; failure++) {
+        yield* identity
+          .signIn(email, Redacted.make("not the password of hedy"), from)
+          .pipe(Effect.flip);
+      }
+
+      const before = hasherWork.count;
+      const error = yield* identity.signIn(email, password, from).pipe(Effect.flip);
+
+      assert.strictEqual(error._tag, "TooManyAttempts");
+      assert.strictEqual(hasherWork.count - before, 0);
+    }),
+  );
+
+  it.effect("refuses a sign-up past the limit before the password is hashed", () =>
+    Effect.gen(function* () {
+      const identity = yield* Identity;
+      const from = "203.0.113.3";
+      for (let signUp = 0; signUp < 10; signUp++) {
+        yield* identity.signUp(Email.make(`visitor-${signUp}@example.com`), password, from);
+      }
+
+      const before = hasherWork.count;
+      const error = yield* identity
+        .signUp(Email.make("visitor-10@example.com"), password, from)
+        .pipe(Effect.flip);
+
+      assert.strictEqual(error._tag, "TooManyAttempts");
+      assert.strictEqual(hasherWork.count - before, 0);
+    }),
+  );
+
   it.effect("signs out: removes the Session from the store, so its token opens nothing", () =>
     Effect.gen(function* () {
       const identity = yield* Identity;
       const store = yield* SessionStore;
-      const { session } = yield* identity.signUp(Email.make("radia@example.com"), password);
+      const { session } = yield* identity.signUp(Email.make("radia@example.com"), password, ip);
 
       yield* identity.signOut(session.token);
 
@@ -129,7 +180,7 @@ layer(IdentityLayer)("Identity", (it) => {
     Effect.gen(function* () {
       const identity = yield* Identity;
       const store = yield* SessionStore;
-      const { session } = yield* identity.signUp(Email.make("lynn@example.com"), password);
+      const { session } = yield* identity.signUp(Email.make("lynn@example.com"), password, ip);
       const tokenHash = sha256Hex(Redacted.value(session.token));
       yield* TestClock.adjust("30 days");
       assert.isTrue(Option.isSome(yield* store.findByTokenHash(tokenHash)));
@@ -145,7 +196,7 @@ layer(IdentityLayer)("Identity", (it) => {
     Effect.gen(function* () {
       const identity = yield* Identity;
       const store = yield* SessionStore;
-      const { session } = yield* identity.signUp(Email.make("adele@example.com"), password);
+      const { session } = yield* identity.signUp(Email.make("adele@example.com"), password, ip);
       const tokenHash = sha256Hex(Redacted.value(session.token));
       yield* identity.signOut(session.token);
 

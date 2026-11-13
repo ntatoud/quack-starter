@@ -17,3 +17,15 @@ export class InvalidCredentials extends Schema.TaggedError<
   InvalidCredentials,
   { readonly brand: unique symbol }
 >()("InvalidCredentials", {}) {}
+
+/**
+ * Too many sign-ins failed on this email or from this address, or too many sign-ups came from this address.
+ * The refusal is temporary, and the same whether a User has the email or not.
+ */
+export class TooManyAttempts extends Schema.TaggedError<
+  TooManyAttempts,
+  { readonly brand: unique symbol }
+>()("TooManyAttempts", {
+  /** How many seconds to wait before the next attempt. */
+  retryAfter: Schema.Int,
+}) {}
