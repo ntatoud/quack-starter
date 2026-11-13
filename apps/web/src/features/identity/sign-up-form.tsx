@@ -49,7 +49,7 @@ export function SignUpForm({ onSignedUp }: { onSignedUp: (user: User) => void | 
           {(field) => (
             <field.Root>
               <field.Label>Password</field.Label>
-              <field.Text type="password" autoComplete="new-password" />
+              <field.Password autoComplete="new-password" />
             </field.Root>
           )}
         </form.AppField>

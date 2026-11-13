@@ -191,6 +191,9 @@ catalogs:
     '@vitest/browser-playwright':
       specifier: 5.1.0
       version: 5.1.0
+    lucide-react:
+      specifier: 1.71.0
+      version: 1.71.0
     playwright:
       specifier: 1.65.0
       version: 1.65.0
@@ -302,7 +305,7 @@ importers:
         specifier: 4.1.4
         version: 4.1.4
       lucide-react:
-        specifier: 1.71.0
+        specifier: 'catalog:'
         version: 1.71.0(@types/react@19.3.0)(react@19.3.1)
       react:
         specifier: 'catalog:'
@@ -370,6 +373,9 @@ importers:
       effect:
         specifier: 4.1.4
         version: 4.1.4
+      lucide-react:
+        specifier: 'catalog:'
+        version: 1.71.0(@types/react@19.3.0)(react@19.3.1)
       react:
         specifier: 'catalog:'
         version: 19.3.1
@@ -423,7 +429,7 @@ importers:
         specifier: 0.5.2
         version: 0.5.2
       lucide-react:
-        specifier: 1.71.0
+        specifier: 'catalog:'
         version: 1.71.0(@types/react@19.3.0)(react@19.3.1)
       react:
         specifier: 'catalog:'
