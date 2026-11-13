@@ -2,6 +2,8 @@
 
 A starter for TypeScript web apps: TanStack Start + shadcn on the front, Effect v4 on the back, in a pnpm + Vite+ monorepo.
 
+The words of the domain (User, Session, Current User, Todo, Owner) are defined in `GLOSSARY.md`. Use them as defined.
+
 ## Commands
 
 Run from the repo root. `vp` is Vite+, the task runner, linter, formatter, and test runner.
