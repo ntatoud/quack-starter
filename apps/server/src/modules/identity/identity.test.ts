@@ -5,6 +5,8 @@ import { assert, layer } from "@effect/vitest";
 import { Email } from "@quack/contracts/identity/user";
 import { DateTime, Effect, Layer, Option, Redacted } from "effect";
 
+import { TestClock } from "effect/testing";
+
 import { Identity } from "#/modules/identity/application/identity.ts";
 import { PasswordHasher } from "#/modules/identity/domain/password-hasher.ts";
 import { SessionStore } from "#/modules/identity/domain/session-store.ts";
@@ -120,6 +122,36 @@ layer(IdentityLayer)("Identity", (it) => {
       assert.isTrue(Option.isNone(stored));
       const error = yield* identity.authenticate(session.token).pipe(Effect.flip);
       assert.strictEqual(error._tag, "Unauthenticated");
+    }),
+  );
+
+  it.effect("removes a Session that has expired from the store when it is read", () =>
+    Effect.gen(function* () {
+      const identity = yield* Identity;
+      const store = yield* SessionStore;
+      const { session } = yield* identity.signUp(Email.make("lynn@example.com"), password);
+      const tokenHash = sha256Hex(Redacted.value(session.token));
+      yield* TestClock.adjust("30 days");
+      assert.isTrue(Option.isSome(yield* store.findByTokenHash(tokenHash)));
+
+      const error = yield* identity.authenticate(session.token).pipe(Effect.flip);
+
+      assert.strictEqual(error._tag, "Unauthenticated");
+      assert.isTrue(Option.isNone(yield* store.findByTokenHash(tokenHash)));
+    }),
+  );
+
+  it.effect("extends no Session that left the store: a sign-out is not undone", () =>
+    Effect.gen(function* () {
+      const identity = yield* Identity;
+      const store = yield* SessionStore;
+      const { session } = yield* identity.signUp(Email.make("adele@example.com"), password);
+      const tokenHash = sha256Hex(Redacted.value(session.token));
+      yield* identity.signOut(session.token);
+
+      yield* store.extend(tokenHash, DateTime.addDuration(yield* DateTime.now, "30 days"));
+
+      assert.isTrue(Option.isNone(yield* store.findByTokenHash(tokenHash)));
     }),
   );
 

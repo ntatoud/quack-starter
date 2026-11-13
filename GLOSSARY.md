@@ -9,7 +9,7 @@ A person who has signed up, identified by their email and proving it with a pass
 _Avoid_: Account, member, customer
 
 **Session**:
-The proof that a User has signed in, valid until they sign out or it expires.
+The proof that a User has signed in, valid until they sign out or it expires. A request extends a Session that is close to its expiry.
 _Avoid_: Token, login
 
 **Current User**:

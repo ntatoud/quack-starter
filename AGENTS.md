@@ -73,6 +73,10 @@ Dependency rules, enforced by lint (`quack/module-boundaries` in `packages/oxlin
 
 `IdentityModule` implements the contract's `Authentication` middleware for every group that declares it. Another module depends on the contract (`CurrentUser`, `UserId`), never on `modules/identity`. The handlers of a protected group need the middleware when they are built, so `server.ts` provides `IdentityModule` after the other modules.
 
+A Session expires 30 days after its last extension, with no other limit. The middleware extends it to 30 days when a request finds it with less than 15 days left, and sets the cookie again (`extension` in `modules/identity/domain/session.ts`). When it refuses a request, it clears the cookie. Every write of the cookie goes through `SessionCookie` (`modules/identity/http/session-cookie.ts`), so it is set and cleared with the same attributes.
+
+A variable of the server goes in `ServerConfig` (`config.ts`) and in `.env.example`: in dev, `node --env-file-if-exists` loads the `.env` of the repo root. `COOKIE_SECURE` says whether the session cookie is `Secure`: true when unset, false in the `.env` of dev.
+
 Only a handler reads `CurrentUser`. It passes the Owner to the use case as an explicit `ownerId`, and the repository filters by it (`modules/todos`): what belongs to another Owner is not found (404), never forbidden (403), so the API does not tell that it exists.
 
 The server serves everything under `/api`, the docs (`/api/docs`) and the OpenAPI document (`/api/openapi.json`) included. It has no CORS policy: the browser reaches it through the web app's relay only.

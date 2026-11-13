@@ -10,9 +10,10 @@ import { Base64Url } from "effect/encoding";
 
 import { PasswordHasher } from "#/modules/identity/domain/password-hasher.ts";
 import {
+  expiryFrom,
+  extension,
   isExpired,
   type Session,
-  sessionLifetime,
   sessionTokenBytes,
 } from "#/modules/identity/domain/session.ts";
 import { SessionStore } from "#/modules/identity/domain/session-store.ts";
@@ -43,8 +44,17 @@ export class Identity extends Context.Service<
     ): Effect.Effect<{ readonly user: User; readonly session: OpenedSession }, InvalidCredentials>;
     /** Revokes the Session this token opens. Succeeds when it opens none. */
     signOut(token: Redacted.Redacted<string>): Effect.Effect<void>;
-    /** The User of the Session this token opens. */
-    authenticate(token: Redacted.Redacted<string>): Effect.Effect<User, Unauthenticated>;
+    /**
+     * The User of the Session this token opens.
+     * It extends a Session that is close to its expiry, and answers with its new expiry as `extendedUntil`.
+     * It removes a Session that has expired.
+     */
+    authenticate(
+      token: Redacted.Redacted<string>,
+    ): Effect.Effect<
+      { readonly user: User; readonly extendedUntil: Option.Option<DateTime.Utc> },
+      Unauthenticated
+    >;
   }
 >()("@quack/server/identity/Identity") {
   static readonly layer = Layer.effect(
@@ -64,7 +74,7 @@ export class Identity extends Context.Service<
         const session: Session = {
           tokenHash: yield* hashToken(token),
           userId: user.id,
-          expiresAt: DateTime.addDuration(yield* DateTime.now, sessionLifetime),
+          expiresAt: expiryFrom(yield* DateTime.now),
         };
         yield* sessions.save(session);
         return { token, expiresAt: session.expiresAt } satisfies OpenedSession;
@@ -93,15 +103,26 @@ export class Identity extends Context.Service<
           yield* sessions.remove(yield* hashToken(token));
         }),
         authenticate: Effect.fn("Identity.authenticate")(function* (token) {
-          const session = yield* sessions.findByTokenHash(yield* hashToken(token));
-          if (Option.isNone(session) || isExpired(session.value, yield* DateTime.now)) {
+          const now = yield* DateTime.now;
+          const tokenHash = yield* hashToken(token);
+          const session = yield* sessions.findByTokenHash(tokenHash);
+          if (Option.isNone(session)) {
+            return yield* new Unauthenticated();
+          }
+          if (isExpired(session.value, now)) {
+            // Nothing sweeps the store: a Session that has expired leaves it when it is read.
+            yield* sessions.remove(tokenHash);
             return yield* new Unauthenticated();
           }
           const user = yield* users.findById(session.value.userId);
           if (Option.isNone(user)) {
             return yield* new Unauthenticated();
           }
-          return user.value;
+          const extendedUntil = extension(session.value, now);
+          if (Option.isSome(extendedUntil)) {
+            yield* sessions.extend(tokenHash, extendedUntil.value);
+          }
+          return { user: user.value, extendedUntil };
         }),
       });
     }),
