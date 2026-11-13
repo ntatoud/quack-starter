@@ -30,19 +30,10 @@ export const AttemptLimiterMemory = Layer.effect(
     let sweptAt = yield* Clock.currentTimeMillis;
 
     /** Where the counter is kept in the map, and what it allows. */
-    const slotOf = (counter: AttemptCounter) => {
-      switch (counter._tag) {
-        case "SignInFailuresOfEmail":
-          return {
-            key: `${counter._tag}:${counter.email}`,
-            ...attemptLimits.signInFailuresPerEmail,
-          };
-        case "SignInFailuresOfIp":
-          return { key: `${counter._tag}:${counter.ip}`, ...attemptLimits.signInFailuresPerIp };
-        case "SignUpsOfIp":
-          return { key: `${counter._tag}:${counter.ip}`, ...attemptLimits.signUpsPerIp };
-      }
-    };
+    const slotOf = (counter: AttemptCounter) => ({
+      key: `${counter.limit}:${counter.subject}`,
+      ...attemptLimits[counter.limit],
+    });
 
     /** The window kept under `key` that is open at `now`, if one is. */
     const openWindow = (key: string, now: number): AttemptWindow | undefined => {

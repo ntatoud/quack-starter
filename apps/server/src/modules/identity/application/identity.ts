@@ -10,7 +10,7 @@ import { Digest, SecureRandom } from "effect/crypto";
 import { Base64Url } from "effect/encoding";
 
 import {
-  type AttemptCounter,
+  AttemptCounter,
   AttemptLimiter,
   type ClientIp,
 } from "#/modules/identity/domain/attempt-limiter.ts";
@@ -106,14 +106,14 @@ export class Identity extends Context.Service<
       return Identity.of({
         signUp: Effect.fn("Identity.signUp")(function* (email, password, ip) {
           // Counted before it is known to succeed: one that fails costs a hash, and tells whether a User has the email.
-          yield* limiter.take([{ _tag: "SignUpsOfIp", ip }]);
+          yield* limiter.take([AttemptCounter.signUpsOfIp(ip)]);
           const user = new User({ id: yield* users.nextId, email });
           yield* users.create(user, yield* hasher.hash(password));
           return { user, session: yield* openSession(user) };
         }),
         signIn: Effect.fn("Identity.signIn")(function* (email, password, ip) {
-          const failuresOfEmail: AttemptCounter = { _tag: "SignInFailuresOfEmail", email };
-          const failuresOfIp: AttemptCounter = { _tag: "SignInFailuresOfIp", ip };
+          const failuresOfEmail = AttemptCounter.signInFailuresOfEmail(email);
+          const failuresOfIp = AttemptCounter.signInFailuresOfIp(ip);
           // Before the User is looked up and the password hashed: a refusal costs nothing, and says nothing of the email.
           // The attempt is counted as a failure here, not once it has failed: the sign-ins that arrive at once
           // would all be let through before the first of them is counted.

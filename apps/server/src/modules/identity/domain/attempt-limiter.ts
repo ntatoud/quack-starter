@@ -5,17 +5,36 @@ import { Context, type Effect } from "effect";
 /** The address a request comes from, as the web app's relay names it. */
 export type ClientIp = string;
 
+/** The limits the limiter enforces. The adapter holds how many attempts each allows, and in which window. */
+export type AttemptLimit = "signInFailuresPerEmail" | "signInFailuresPerIp" | "signUpsPerIp";
+
 /**
- * What the limiter counts. Each counter has its own limit and its own window, which the adapter holds.
+ * What the limiter counts: attempts against one limit, on one email or from one address.
  * No counter belongs to a User: an email is counted whether a User has it or not.
  */
-export type AttemptCounter =
-  /** Sign-ins that failed on this email. An `Email` is normalized, so one address has one counter. */
-  | { readonly _tag: "SignInFailuresOfEmail"; readonly email: Email }
-  /** Sign-ins that failed from this address, whatever the email. */
-  | { readonly _tag: "SignInFailuresOfIp"; readonly ip: ClientIp }
-  /** Sign-ups from this address. */
-  | { readonly _tag: "SignUpsOfIp"; readonly ip: ClientIp };
+export class AttemptCounter {
+  readonly limit: AttemptLimit;
+  readonly subject: string;
+
+  private constructor(limit: AttemptLimit, subject: string) {
+    this.limit = limit;
+    this.subject = subject;
+  }
+
+  /** An `Email` is normalized, so one address has one counter. */
+  static signInFailuresOfEmail(email: Email) {
+    return new AttemptCounter("signInFailuresPerEmail", email);
+  }
+
+  /** Whatever the email. */
+  static signInFailuresOfIp(ip: ClientIp) {
+    return new AttemptCounter("signInFailuresPerIp", ip);
+  }
+
+  static signUpsOfIp(ip: ClientIp) {
+    return new AttemptCounter("signUpsPerIp", ip);
+  }
+}
 
 /**
  * Port. Slows down the guessing of passwords and the mass creation of Users.
