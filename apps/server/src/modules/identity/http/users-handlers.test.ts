@@ -25,7 +25,7 @@ const users: ReadonlyArray<User> = [
   userOf("edsger", "user"),
   userOf("barbara", "user"),
 ];
-const firstPage = { page: 1, pageSize: 20 };
+const firstPage = { page: 1, pageSize: 20, orderBy: "email", dir: "asc" } as const;
 const emailsSorted = users.map(({ email }) => email).toSorted();
 
 const SeededUsers = Layer.effectDiscard(
@@ -88,7 +88,7 @@ layer(Layer.mergeAll(UsersLayer, HttpServer.layerServices))("UsersApi", (it) => 
       const client = yield* clientOf(grace);
       const pageOf = (page: number) =>
         client.users
-          .list({ query: { page, pageSize: 2 } })
+          .list({ query: { ...firstPage, page, pageSize: 2 } })
           .pipe(
             Effect.map(({ items, total }) => ({ emails: items.map(({ email }) => email), total })),
           );
@@ -97,6 +97,21 @@ layer(Layer.mergeAll(UsersLayer, HttpServer.layerServices))("UsersApi", (it) => 
       assert.deepStrictEqual(yield* pageOf(2), { emails: emailsSorted.slice(2, 4), total: 5 });
       assert.deepStrictEqual(yield* pageOf(3), { emails: emailsSorted.slice(4), total: 5 });
       assert.deepStrictEqual(yield* pageOf(4), { emails: [], total: 5 });
+    }),
+  );
+
+  it.effect("sorts by the field and in the direction asked, ties by email, ascending", () =>
+    Effect.gen(function* () {
+      const client = yield* clientOf(grace);
+      const emailsBy = (orderBy: "email" | "role", dir: "asc" | "desc") =>
+        client.users
+          .list({ query: { ...firstPage, orderBy, dir } })
+          .pipe(Effect.map(({ items }) => items.map(({ email }) => email)));
+      const userEmails = emailsSorted.filter((email) => email !== grace.email);
+
+      assert.deepStrictEqual(yield* emailsBy("email", "desc"), emailsSorted.toReversed());
+      assert.deepStrictEqual(yield* emailsBy("role", "asc"), [grace.email, ...userEmails]);
+      assert.deepStrictEqual(yield* emailsBy("role", "desc"), [...userEmails, grace.email]);
     }),
   );
 

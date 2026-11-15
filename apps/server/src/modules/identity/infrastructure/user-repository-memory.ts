@@ -4,6 +4,8 @@ import { Effect, Layer, Option } from "effect";
 
 import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
 
+const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+
 export const UserRepositoryMemory = Layer.sync(UserRepository, () => {
   const users = new Map<UserId, { readonly user: User; readonly passwordHash: string }>();
   // An `Email` is already trimmed and lowercased, so it is its own unique key.
@@ -25,11 +27,12 @@ export const UserRepositoryMemory = Layer.sync(UserRepository, () => {
           Option.flatMapNullishOr((id) => users.get(id)),
         ),
       ),
-    findAll: ({ page, pageSize }) =>
+    findAll: ({ page, pageSize, orderBy, dir }) =>
       Effect.sync(() => {
         const offset = (page - 1) * pageSize;
-        const sorted = Array.from(users.values(), ({ user }) => user).toSorted((a, b) =>
-          a.email < b.email ? -1 : a.email > b.email ? 1 : 0,
+        const sign = dir === "asc" ? 1 : -1;
+        const sorted = Array.from(users.values(), ({ user }) => user).toSorted(
+          (a, b) => sign * compare(a[orderBy], b[orderBy]) || compare(a.email, b.email),
         );
         return { items: sorted.slice(offset, offset + pageSize), total: sorted.length };
       }),

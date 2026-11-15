@@ -301,7 +301,7 @@ describe("server routes, with the dev Users seeded", () => {
 
   afterAll(seeded.dispose);
 
-  it("answers /api/users to an Admin, and with 400 when the page or its size is out of bounds", async () => {
+  it("answers /api/users to an Admin, sorted as the query asks, and with 400 when the query is out of bounds", async () => {
     const signedIn = await seeded.handler(
       new Request("http://api.test/api/sign-in", {
         method: "POST",
@@ -317,8 +317,12 @@ describe("server routes, with the dev Users seeded", () => {
     expect(firstPage.status).toBe(200);
     expect(await firstPage.json()).toMatchObject({ total: devUsers.length });
     const outOfBounds = await Promise.all(
-      ["?pageSize=0", "?pageSize=101", "?pageSize=2.5", "?page=0"].map(usersAt),
+      ["?pageSize=0", "?pageSize=101", "?pageSize=2.5", "?page=0", "?orderBy=id", "?dir=up"].map(
+        usersAt,
+      ),
     );
-    expect(outOfBounds.map((response) => response.status)).toEqual([400, 400, 400, 400]);
+    expect(outOfBounds.map((response) => response.status)).toEqual([400, 400, 400, 400, 400, 400]);
+    const byRoleDesc = await usersAt("?orderBy=role&dir=desc&pageSize=1");
+    expect(await byRoleDesc.json()).toMatchObject({ items: [{ role: "user" }] });
   });
 });
