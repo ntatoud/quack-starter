@@ -7,12 +7,18 @@ import { Trash2Icon } from "lucide-react";
 import { invalidateTodos } from "#/features/todos/invalidate-todos.ts";
 import { api } from "#/lib/api.ts";
 
-export function TodoItem({ todo }: { todo: typeof Todo.Encoded }) {
+export function TodoItem({ todo }: { todo: Todo }) {
   const completeTodo = useMutation(
-    api.todos.complete.mutationOptions({ ...invalidateTodos, onMutate: () => removeTodo.reset() }),
+    api.todos.complete.mutationOptions({
+      ...invalidateTodos,
+      onMutate: (): void => removeTodo.reset(),
+    }),
   );
   const removeTodo = useMutation(
-    api.todos.remove.mutationOptions({ ...invalidateTodos, onMutate: () => completeTodo.reset() }),
+    api.todos.remove.mutationOptions({
+      ...invalidateTodos,
+      onMutate: (): void => completeTodo.reset(),
+    }),
   );
   const busy = completeTodo.isPending || removeTodo.isPending;
   const failed = completeTodo.isError || removeTodo.isError;
