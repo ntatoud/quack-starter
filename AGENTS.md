@@ -85,7 +85,7 @@ The stores are in memory, so the server starts empty. `SEED_USERS=true`, set by 
 
 Reserve an endpoint or a group for a Role in the contract: `.middleware(RequireRole("admin"))` (`identity/require-role.ts`), declared before `.middleware(Authentication)`, so that `Authentication` runs first and provides the `CurrentUser` it reads. A Current User of another Role gets `Forbidden` (403), before the request is decoded. The Role is in the type of the middleware, and `IdentityModule` implements it for every literal of `Role` (`http/require-role-middleware.ts`): a new Role needs no other change. `IdentityModule` also serves the list of Users, since it owns the `UserRepository`.
 
-A list that pages takes `PaginationQuery` as its query and answers its items `Paginated`, with the total (`pagination/paginated.ts`).
+A list that pages takes `PaginationQuery` as its query and answers its items `Paginated`, with the total (`pagination/paginated.ts`). A list that sorts adds `sortingFields(fields, defaultField)` to its query, `orderBy` and `dir` (`sorting/sorting.ts`), and breaks the ties on a field that is unique, so a page does not change from one request to the next (`UserListQuery`).
 
 Only a handler reads `CurrentUser`. It passes the Owner to the use case as an explicit `ownerId`, and the repository filters by it (`modules/todos`): what belongs to another Owner is not found (404), never forbidden (403), so the API does not tell that it exists.
 
