@@ -14,7 +14,7 @@ import { SignInForm } from "#/features/identity/sign-in-form.tsx";
 export function SignInPage() {
   const setCurrentUser = useSetCurrentUser();
   const navigate = useNavigate();
-  const search = useSearch({ from: "/sign-in" });
+  const search = useSearch({ from: "/_guest/sign-in" });
 
   return (
     <Card>

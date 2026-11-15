@@ -4,7 +4,6 @@ import { createRootRouteWithContext } from "@tanstack/react-router";
 import { currentUserQueryOptions } from "#/features/identity/current-user.ts";
 import { NotFound } from "#/features/layout/not-found.tsx";
 import { RootDocument } from "#/features/layout/root-document.tsx";
-import { RootLayout } from "#/features/layout/root-layout.tsx";
 import type { RouterContext } from "#/router.tsx";
 
 export const Route = createRootRouteWithContext<RouterContext>()({
@@ -21,5 +20,4 @@ export const Route = createRootRouteWithContext<RouterContext>()({
   }),
   notFoundComponent: NotFound,
   shellComponent: RootDocument,
-  component: RootLayout,
 });
