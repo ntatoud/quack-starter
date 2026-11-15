@@ -81,7 +81,7 @@ The `AttemptLimiter` (port in `modules/identity/domain/attempt-limiter.ts`) slow
 
 A variable of the server goes in `ServerConfig` (`config.ts`) and in `.env.example`: in dev, `node --env-file-if-exists` loads the `.env` of the repo root. `COOKIE_SECURE` says whether the session cookie is `Secure`: true when unset, false in the `.env` of dev.
 
-The stores are in memory, so the server starts empty. `SEED_USERS=true`, set by the `dev` script of the server, creates the Users of `devUsers` (`modules/identity/application/user-seed.ts`) at startup and logs their credentials.
+The stores are in memory, so the server starts empty. `SEED_USERS=true`, set by the `dev` script of the server, creates the Users of `devUsers` (`modules/identity/application/user-seed.ts`) at startup and logs their credentials. The email of the seeded `user` and `admin` and their password are in `@quack/contracts/identity/dev-accounts`, which the sign-in page also reads: in the dev build only (`import.meta.env.DEV`), it signs in as either in one click (`features/identity/dev-quick-sign-in.tsx`).
 
 Reserve an endpoint or a group for a Role in the contract: `.middleware(RequireRole("admin"))` (`identity/require-role.ts`), declared before `.middleware(Authentication)`, so that `Authentication` runs first and provides the `CurrentUser` it reads. A Current User of another Role gets `Forbidden` (403), before the request is decoded. The Role is in the type of the middleware, and `IdentityModule` implements it for every literal of `Role` (`http/require-role-middleware.ts`): a new Role needs no other change. `IdentityModule` also serves the list of Users, since it owns the `UserRepository`.
 
