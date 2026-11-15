@@ -86,7 +86,7 @@ export class Identity extends Context.Service<
         signUp: Effect.fn("Identity.signUp")(function* (email, password, ip) {
           // Counted before it is known to succeed: one that fails costs a hash, and tells whether a User has the email.
           yield* limiter.take([AttemptCounter.signUpsOfIp(ip)]);
-          const user = new User({ id: yield* users.nextId, email });
+          const user = new User({ id: yield* users.nextId, email, role: "user" });
           yield* users.create(user, yield* hasher.hash(password));
           return { user, session: yield* openSession(user) };
         }),

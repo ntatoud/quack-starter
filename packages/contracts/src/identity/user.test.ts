@@ -1,7 +1,7 @@
 import { Redacted, Schema } from "effect";
 import { describe, expect, it } from "vite-plus/test";
 
-import { Email, Password } from "#/identity/user.ts";
+import { Email, Password, Role } from "#/identity/user.ts";
 
 describe("Email", () => {
   const decode = Schema.decodeUnknownOption(Email);
@@ -48,5 +48,16 @@ describe("Password", () => {
 
     expect(String(password)).not.toContain("correct horse battery");
     expect(JSON.stringify({ password })).not.toContain("correct horse battery");
+  });
+});
+
+describe("Role", () => {
+  const decode = Schema.decodeUnknownOption(Role);
+
+  it("is user or admin, nothing else", () => {
+    expect(decode("user")._tag).toBe("Some");
+    expect(decode("admin")._tag).toBe("Some");
+    expect(decode("Admin")._tag).toBe("None");
+    expect(decode("owner")._tag).toBe("None");
   });
 });

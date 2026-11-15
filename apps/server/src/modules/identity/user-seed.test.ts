@@ -11,11 +11,12 @@ import { SessionStoreMemory } from "#/modules/identity/infrastructure/session-st
 import { UserRepositoryMemory } from "#/modules/identity/infrastructure/user-repository-memory.ts";
 
 const seeds = [
-  { email: "ada@example.com", password: "correct horse battery staple" },
-  { email: "grace@example.com", password: "another long passphrase" },
-].map(({ email, password }) => ({
+  { email: "ada@example.com", password: "correct horse battery staple", role: "admin" as const },
+  { email: "grace@example.com", password: "another long passphrase", role: "user" as const },
+].map(({ email, password, role }) => ({
   email: Schema.decodeSync(Email)(email),
   password: Schema.decodeSync(Password)(password),
+  role,
 }));
 
 const SeededIdentity = Layer.mergeAll(Identity.layer, UserSeed(seeds), UserSeed(seeds)).pipe(
@@ -29,23 +30,32 @@ const SeededIdentity = Layer.mergeAll(Identity.layer, UserSeed(seeds), UserSeed(
 );
 
 layer(SeededIdentity)("UserSeed", (it) => {
-  it.effect("creates Users who sign in with their password, even when seeded twice", () =>
-    Effect.gen(function* () {
-      const identity = yield* Identity;
+  it.effect(
+    "creates Users of their Role who sign in with their password, even when seeded twice",
+    () =>
+      Effect.gen(function* () {
+        const identity = yield* Identity;
 
-      for (const { email, password } of seeds) {
-        const { user } = yield* identity.signIn(email, password, "203.0.113.1");
-        assert.strictEqual(user.email, email);
-      }
-    }),
+        for (const { email, password, role } of seeds) {
+          const { user } = yield* identity.signIn(email, password, "203.0.113.1");
+          assert.strictEqual(user.email, email);
+          assert.strictEqual(user.role, role);
+        }
+      }),
   );
 
-  it.effect("seeds user@quack.dev and 100 other Users in dev, each with an email of its own", () =>
-    Effect.sync(() => {
-      const emails = devUsers.map(({ email }) => email);
+  it.effect(
+    "seeds admin@quack.dev as the only admin, then user@quack.dev and 100 other Users, each with an email of its own",
+    () =>
+      Effect.sync(() => {
+        const emails = devUsers.map(({ email }) => email);
 
-      assert.strictEqual(emails[0], "user@quack.dev");
-      assert.strictEqual(new Set(emails).size, 101);
-    }),
+        assert.deepStrictEqual(emails.slice(0, 2), ["admin@quack.dev", "user@quack.dev"]);
+        assert.strictEqual(new Set(emails).size, 102);
+        assert.deepStrictEqual(
+          devUsers.filter(({ role }) => role === "admin").map(({ email }) => email),
+          ["admin@quack.dev"],
+        );
+      }),
   );
 });

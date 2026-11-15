@@ -112,7 +112,7 @@ describe("server routes", () => {
     const response = await signUp("Ada@Example.com");
     expect(response.status).toBe(200);
     const user = await response.json();
-    expect(user).toEqual({ id: expect.any(String), email: "ada@example.com" });
+    expect(user).toEqual({ id: expect.any(String), email: "ada@example.com", role: "user" });
 
     const [cookie] = response.headers.getSetCookie();
     const me = await handler(

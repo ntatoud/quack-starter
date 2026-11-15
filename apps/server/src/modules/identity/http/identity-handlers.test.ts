@@ -107,7 +107,7 @@ const withConfig = (env: Record<string, string>) =>
 
 // Every browser of these tests has the same address, none, and they sign up more than 10 times in the hour.
 layer(withConfig({ SIGN_UPS_PER_IP: "1000" }))("IdentityApi", (it) => {
-  it.effect("signs a visitor up, and answers with their public User", () =>
+  it.effect("signs a visitor up as a user, and answers with their public User", () =>
     Effect.gen(function* () {
       const browser = yield* makeBrowser;
 
@@ -115,7 +115,8 @@ layer(withConfig({ SIGN_UPS_PER_IP: "1000" }))("IdentityApi", (it) => {
 
       assert.strictEqual(user.email, "ada@example.com");
       assert.isAbove(user.id.length, 0);
-      assert.deepStrictEqual(Object.keys(user).toSorted(), ["email", "id"]);
+      assert.strictEqual(user.role, "user");
+      assert.deepStrictEqual(Object.keys(user).toSorted(), ["email", "id", "role"]);
     }),
   );
 
@@ -172,7 +173,7 @@ layer(withConfig({ SIGN_UPS_PER_IP: "1000" }))("IdentityApi", (it) => {
         const signedIn = yield* browser.signIn(asTyped(" Hedy@Example.com"));
 
         assert.deepStrictEqual(signedIn.user, user);
-        assert.deepStrictEqual(Object.keys(signedIn.user).toSorted(), ["email", "id"]);
+        assert.deepStrictEqual(Object.keys(signedIn.user).toSorted(), ["email", "id", "role"]);
         assert.deepStrictEqual(yield* browser.me, user);
       }),
   );
