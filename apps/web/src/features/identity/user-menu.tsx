@@ -42,19 +42,18 @@ export function UserMenu({ currentUser }: { currentUser: typeof User.Encoded }) 
           <DropdownMenuTrigger
             render={
               <SidebarMenuButton
-                size="lg"
                 tooltip={currentUser.email}
-                className="data-popup-open:bg-sidebar-accent data-popup-open:text-sidebar-accent-foreground"
+                className="p-1 group-data-[collapsible=icon]:p-1! data-popup-open:bg-sidebar-accent data-popup-open:text-sidebar-accent-foreground"
               />
             }
           >
-            <Avatar className="rounded-lg after:rounded-lg">
-              <AvatarFallback aria-hidden="true" className="rounded-lg">
+            <Avatar size="sm" className="rounded-md after:rounded-md">
+              <AvatarFallback aria-hidden="true" className="rounded-md">
                 {initial(currentUser.email)}
               </AvatarFallback>
             </Avatar>
             <span className="min-w-0 flex-1 truncate text-left text-sm">{currentUser.email}</span>
-            <ChevronsUpDownIcon className="ml-auto" />
+            <ChevronsUpDownIcon className="mr-1 ml-auto" />
           </DropdownMenuTrigger>
           <DropdownMenuContent
             side={isMobile ? "bottom" : "right"}
