@@ -66,18 +66,54 @@ describe("TodosList", () => {
     await expect.element(page.getByRole("button", { name: "Remove Ship it" })).toBeVisible();
   });
 
-  it("completes a todo when its title is clicked", async () => {
-    const requests: Array<string> = [];
+  it("shows a todo completed once the API has completed it", async () => {
+    let completed = false;
     await setup((request) => {
-      requests.push(`${request.method} ${new URL(request.url).pathname}`);
+      if (request.method === "POST") completed = true;
       return request.method === "GET"
-        ? Response.json([todo("1", "Ship it")])
+        ? Response.json([todo("1", "Ship it", completed)])
         : Response.json(todo("1", "Ship it", true));
     });
 
-    await page.getByText("Ship it").click();
+    await page.getByRole("checkbox", { name: "Complete Ship it" }).click();
 
-    await expect.poll(() => requests).toContain("POST /api/todos/1/complete");
+    await expect.element(page.getByRole("checkbox", { name: "Complete Ship it" })).toBeChecked();
+  });
+
+  it("keeps a row disabled while its own request runs, whatever the other rows do", async () => {
+    const removals = new Map<string, PromiseWithResolvers<Response>>();
+    await setup((request) => {
+      if (request.method === "GET")
+        return Response.json([todo("1", "Ship it"), todo("2", "Write it")]);
+      const removal = Promise.withResolvers<Response>();
+      removals.set(new URL(request.url).pathname, removal);
+      return removal.promise;
+    });
+    const removeShip = page.getByRole("button", { name: "Remove Ship it" });
+    const removeWrite = page.getByRole("button", { name: "Remove Write it" });
+
+    await removeShip.click();
+    await expect.element(removeShip).toBeDisabled();
+    await expect.element(removeWrite).toBeEnabled();
+    await removeWrite.click();
+
+    await expect.element(removeShip).toBeDisabled();
+    await expect.element(removeWrite).toBeDisabled();
+    for (const removal of removals.values()) removal.resolve(new Response(null, { status: 204 }));
+  });
+
+  it("keeps the todos already loaded when a refetch fails", async () => {
+    await setup(() => Response.json([todo("1", "Ship it")]));
+    await expect.element(page.getByRole("checkbox", { name: "Complete Ship it" })).toBeVisible();
+
+    respond = () => new Response(null, { status: 500 });
+    await page.getByRole("checkbox", { name: "Complete Ship it" }).click();
+
+    await expect
+      .element(page.getByRole("alert"))
+      .toHaveTextContent("Could not update this todo. Try again.");
+    await expect.element(page.getByRole("checkbox", { name: "Complete Ship it" })).toBeVisible();
+    expect(page.getByText("Could not load your todos").elements()).toEqual([]);
   });
 
   it("offers to try again when the list cannot be loaded, and loads it on the retry", async () => {
@@ -104,7 +140,7 @@ describe("TodosList", () => {
 
     await expect
       .element(page.getByRole("alert"))
-      .toHaveTextContent("Could not update the todo. Try again.");
+      .toHaveTextContent("Could not update this todo. Try again.");
     await expect.element(page.getByRole("checkbox", { name: "Complete Ship it" })).toBeVisible();
   });
 });

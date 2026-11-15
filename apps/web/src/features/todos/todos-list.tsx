@@ -1,5 +1,4 @@
 import { Button } from "@quack/ui/components/button";
-import { Checkbox } from "@quack/ui/components/checkbox";
 import {
   Empty,
   EmptyContent,
@@ -9,31 +8,35 @@ import {
   EmptyTitle,
 } from "@quack/ui/components/empty";
 import { Skeleton } from "@quack/ui/components/skeleton";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { ListTodoIcon, Trash2Icon } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { ListTodoIcon } from "lucide-react";
 
-import { invalidateTodos } from "#/features/todos/invalidate-todos.ts";
+import { TodoItem } from "#/features/todos/todo-item.tsx";
 import { api } from "#/lib/api.ts";
 
 export function TodosList() {
   const todos = useQuery(api.todos.list.queryOptions());
-  const completeTodo = useMutation(api.todos.complete.mutationOptions(invalidateTodos));
-  const removeTodo = useMutation(api.todos.remove.mutationOptions(invalidateTodos));
 
   if (todos.isPending) {
     return (
-      <div className="flex flex-col gap-2">
+      <>
         <p role="status" className="sr-only">
           Loading todos…
         </p>
-        <Skeleton className="h-11" />
-        <Skeleton className="h-11" />
-        <Skeleton className="h-11" />
-      </div>
+        <ul className="divide-y rounded-lg border" aria-hidden="true">
+          {[0, 1, 2].map((row) => (
+            <li key={row} className="flex h-11 items-center gap-3 px-3">
+              <Skeleton className="size-4" />
+              <Skeleton className="h-4 w-1/2" />
+            </li>
+          ))}
+        </ul>
+      </>
     );
   }
 
-  if (todos.isError) {
+  // A failed refetch keeps the todos already loaded: only a first load that fails has nothing to show.
+  if (todos.data === undefined) {
     return (
       <Empty className="border border-dashed">
         <EmptyHeader>
@@ -68,55 +71,11 @@ export function TodosList() {
     );
   }
 
-  const isBusy = (id: string) =>
-    (completeTodo.isPending && completeTodo.variables.params.id === id) ||
-    (removeTodo.isPending && removeTodo.variables.params.id === id);
-
   return (
-    <div className="flex flex-col gap-2">
-      <ul className="divide-y rounded-lg border">
-        {todos.data.map((todo) => (
-          <li
-            key={todo.id}
-            className="group/todo flex min-h-11 items-center gap-3 px-3 py-1.5"
-            aria-busy={isBusy(todo.id)}
-          >
-            <label className="flex min-w-0 flex-1 items-center gap-3">
-              <Checkbox
-                checked={todo.completed}
-                disabled={todo.completed || isBusy(todo.id)}
-                onCheckedChange={() => completeTodo.mutate({ params: { id: todo.id } })}
-                aria-label={`Complete ${todo.title}`}
-              />
-              <span
-                className={
-                  todo.completed
-                    ? "min-w-0 flex-1 text-sm wrap-anywhere text-muted-foreground line-through"
-                    : "min-w-0 flex-1 text-sm wrap-anywhere"
-                }
-              >
-                {todo.title}
-              </span>
-            </label>
-            {/* Hidden until hover only where there is a hover: a touch screen would never show it. */}
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="pointer-fine:opacity-0 pointer-fine:group-focus-within/todo:opacity-100 pointer-fine:group-hover/todo:opacity-100"
-              disabled={isBusy(todo.id)}
-              onClick={() => removeTodo.mutate({ params: { id: todo.id } })}
-              aria-label={`Remove ${todo.title}`}
-            >
-              <Trash2Icon />
-            </Button>
-          </li>
-        ))}
-      </ul>
-      {(completeTodo.isError || removeTodo.isError) && (
-        <p role="alert" className="text-sm text-destructive">
-          Could not update the todo. Try again.
-        </p>
-      )}
-    </div>
+    <ul className="divide-y rounded-lg border">
+      {todos.data.map((todo) => (
+        <TodoItem key={todo.id} todo={todo} />
+      ))}
+    </ul>
   );
 }
