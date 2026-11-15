@@ -1,3 +1,4 @@
+import { defaultPageSize } from "@quack/contracts/pagination/paginated";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
@@ -11,7 +12,6 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { render } from "vitest-browser-react";
 
-import { usersPageSize } from "#/features/users/users-query.ts";
 import { UsersSearch } from "#/features/users/users-search.ts";
 import { UsersTable } from "#/features/users/users-table.tsx";
 
@@ -28,17 +28,18 @@ const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) =>
 );
 vi.stubGlobal("fetch", fetch);
 
-const total = usersPageSize + 1;
+const total = defaultPageSize + 1;
 const pageOf = (request: Request) => Number(new URL(request.url).searchParams.get("page"));
-const pagesOfUsers: Record<number, ReadonlyArray<ReturnType<typeof user>>> = {
-  1: [user(1, "admin"), ...Array.from({ length: usersPageSize - 1 }, (_, i) => user(i + 2))],
-  2: [user(total)],
-};
+const firstPage = [
+  user(1, "admin"),
+  ...Array.from({ length: defaultPageSize - 1 }, (_, i) => user(i + 2)),
+];
 const usersOn = (request: Request) =>
-  Response.json({ items: pagesOfUsers[pageOf(request)] ?? [], total });
+  Response.json({ items: [firstPage, [user(total)]][pageOf(request) - 1] ?? [], total });
+const ninePages = () => Response.json({ items: firstPage, total: defaultPageSize * 9 });
 
 const scrollerOfTable = () => {
-  const scroller = page.getByRole("table").element().closest("[data-slot=scroll-area-viewport]");
+  const scroller = page.getByRole("table").element().closest("[data-slot=data-table-viewport]");
   if (!(scroller instanceof HTMLElement)) throw new Error("The table scrolls in no viewport.");
   return scroller;
 };
@@ -116,7 +117,7 @@ describe("UsersTable", () => {
     await expect.element(admin.getByRole("cell", { name: "Admin" })).toBeVisible();
     const other = page.getByRole("row").filter({ hasText: "user-2@quack.dev" });
     await expect.element(other.getByRole("cell", { name: "User" })).toBeVisible();
-    expect(page.getByRole("row").elements()).toHaveLength(usersPageSize + 1);
+    expect(page.getByRole("row").elements()).toHaveLength(defaultPageSize + 1);
     await expect.element(page.getByText("Page 1 of 2")).toBeVisible();
   });
 
@@ -130,9 +131,6 @@ describe("UsersTable", () => {
 
     await expect.element(page.getByText(`user-${total}@quack.dev`)).toBeVisible();
     expect(router.state.location.search).toEqual({ page: 2 });
-    await expect
-      .element(pagination().getByRole("link", { name: "Page 2" }))
-      .toHaveAttribute("aria-current", "page");
     expect(currentPages()).toEqual(["Page 2"]);
   });
 
@@ -144,7 +142,7 @@ describe("UsersTable", () => {
     const request = fetch.mock.calls[0]?.[0];
     const { searchParams } = new URL(String(request));
     expect(searchParams.get("page")).toBe("2");
-    expect(searchParams.get("pageSize")).toBe(String(usersPageSize));
+    expect(searchParams.get("pageSize")).toBe(String(defaultPageSize));
   });
 
   it("links to the next and the previous page through the URL", async () => {
@@ -246,11 +244,7 @@ describe("UsersTable", () => {
 
   it("stacks the footer when the table is narrow, whatever the width of the window", async () => {
     await page.viewport(1280, 800);
-    await setup(
-      () => Response.json({ items: pagesOfUsers[1], total: usersPageSize * 9 }),
-      "/users?page=5",
-      { width: 470 },
-    );
+    await setup(ninePages, "/users?page=5", { width: 470 });
     await expect.element(next()).toBeVisible();
 
     const scroller = scrollerOfTable();
@@ -261,11 +255,7 @@ describe("UsersTable", () => {
 
   it("puts the footer on one row when the table is wide", async () => {
     await page.viewport(1280, 800);
-    await setup(
-      () => Response.json({ items: pagesOfUsers[1], total: usersPageSize * 9 }),
-      "/users?page=5",
-      { width: 900 },
-    );
+    await setup(ninePages, "/users?page=5", { width: 900 });
     await expect.element(next()).toBeVisible();
 
     const summary = page.getByText("Page 5 of 9").element().getBoundingClientRect();
@@ -276,10 +266,7 @@ describe("UsersTable", () => {
 
   it("fits the pagination in the width of a phone", async () => {
     await page.viewport(375, 667);
-    await setup(
-      () => Response.json({ items: pagesOfUsers[1], total: usersPageSize * 9 }),
-      "/users?page=5",
-    );
+    await setup(ninePages, "/users?page=5");
 
     await expect.element(next()).toBeVisible();
     const scroller = scrollerOfTable();

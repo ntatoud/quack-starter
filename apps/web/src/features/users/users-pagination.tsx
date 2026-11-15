@@ -9,10 +9,8 @@ import { type MouseEvent, useEffect, useRef } from "react";
 
 import { ButtonLink } from "#/components/button-link.tsx";
 
-const disabledLink = "aria-disabled:pointer-events-none aria-disabled:opacity-50";
-
-// The router matches the raw search: by default `{}`, the first page, would be active on every page.
-const exactly = { exact: true };
+// The router matches a search partly by default: `{}`, the first page, would be active on every page.
+const step = { to: "/users", variant: "ghost", activeOptions: { exact: true } } as const;
 
 const searchOf = (page: number) => (page === 1 ? {} : { page });
 
@@ -34,7 +32,7 @@ export const pagesAround = (
 
 export function UsersPagination({ page, pages }: { page: number; pages: number }) {
   const currentLink = useRef<HTMLAnchorElement>(null);
-  // Previous or Next, disabled on the first or the last page, can no longer hold the focus it had.
+  // Previous or Next, disabled once it reaches its end, can no longer hold the focus it had.
   const refocusOn = useRef<number | null>(null);
   useEffect(() => {
     const target = refocusOn.current;
@@ -42,10 +40,9 @@ export function UsersPagination({ page, pages }: { page: number; pages: number }
     if (target === page) currentLink.current?.focus();
   }, [page]);
   // A click with a modifier opens another tab and leaves this page where it is.
-  const refocusAfter = (target: number, end: number) => (event: MouseEvent) => {
-    const plain =
-      event.button === 0 && !(event.metaKey || event.ctrlKey || event.shiftKey || event.altKey);
-    if (plain && target === end) refocusOn.current = target;
+  const keepFocusOn = (target: number) => (event: MouseEvent) => {
+    if (event.button === 0 && !(event.metaKey || event.ctrlKey || event.shiftKey || event.altKey))
+      refocusOn.current = target;
   };
 
   const previous = Math.min(page - 1, pages);
@@ -56,14 +53,12 @@ export function UsersPagination({ page, pages }: { page: number; pages: number }
       <PaginationContent>
         <PaginationItem>
           <ButtonLink
-            to="/users"
+            {...step}
             search={searchOf(previous)}
             disabled={previous < 1}
-            activeOptions={exactly}
-            onClick={refocusAfter(previous, 1)}
-            variant="ghost"
+            onClick={previous === 1 ? keepFocusOn(1) : undefined}
             aria-label="Go to previous page"
-            className={`pl-1.5 ${disabledLink}`}
+            className="pl-1.5"
           >
             <ChevronLeftIcon data-icon="inline-start" />
             <span className="hidden @md:block">Previous</span>
@@ -77,10 +72,9 @@ export function UsersPagination({ page, pages }: { page: number; pages: number }
           ) : (
             <PaginationItem key={n}>
               <ButtonLink
+                {...step}
                 ref={n === page ? currentLink : undefined}
-                to="/users"
                 search={searchOf(n)}
-                activeOptions={exactly}
                 aria-current={n === page ? "page" : undefined}
                 variant={n === page ? "outline" : "ghost"}
                 size="icon"
@@ -93,14 +87,12 @@ export function UsersPagination({ page, pages }: { page: number; pages: number }
         )}
         <PaginationItem>
           <ButtonLink
-            to="/users"
+            {...step}
             search={searchOf(next)}
             disabled={page >= pages}
-            activeOptions={exactly}
-            onClick={refocusAfter(next, pages)}
-            variant="ghost"
+            onClick={next === pages ? keepFocusOn(pages) : undefined}
             aria-label="Go to next page"
-            className={`pr-1.5 ${disabledLink}`}
+            className="pr-1.5"
           >
             <span className="hidden @md:block">Next</span>
             <ChevronRightIcon data-icon="inline-end" />

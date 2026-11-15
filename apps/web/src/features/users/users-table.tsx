@@ -1,3 +1,4 @@
+import { defaultPageSize } from "@quack/contracts/pagination/paginated";
 import { Button } from "@quack/ui/components/button";
 import { DataTable } from "@quack/ui/components/data-table";
 import {
@@ -15,7 +16,7 @@ import { UsersIcon } from "lucide-react";
 import { ButtonLink } from "#/components/button-link.tsx";
 import { usersColumns } from "#/features/users/users-columns.tsx";
 import { UsersPagination } from "#/features/users/users-pagination.tsx";
-import { usersPageSize, usersQueryOptions } from "#/features/users/users-query.ts";
+import { usersQueryOptions } from "#/features/users/users-query.ts";
 
 export function UsersTable({ page }: { page: number }) {
   const users = useQuery(usersQueryOptions(page));
@@ -60,7 +61,7 @@ export function UsersTable({ page }: { page: number }) {
   }
 
   const { items, total } = users.data;
-  const pages = Math.max(1, Math.ceil(total / usersPageSize));
+  const pages = Math.max(1, Math.ceil(total / defaultPageSize));
 
   return (
     <>
@@ -91,13 +92,6 @@ export function UsersTable({ page }: { page: number }) {
                 <UsersIcon />
               </EmptyMedia>
               <EmptyTitle>No users on this page</EmptyTitle>
-              {total > 0 && (
-                <EmptyDescription>
-                  {pages === 1
-                    ? "There is one page of users."
-                    : `There are ${pages} pages of users.`}
-                </EmptyDescription>
-              )}
             </EmptyHeader>
             {total > 0 && (
               <EmptyContent>
@@ -109,16 +103,11 @@ export function UsersTable({ page }: { page: number }) {
           </Empty>
         }
         footer={
-          <div className="@container">
-            <div className="flex flex-col items-center gap-2 @xl:flex-row @xl:justify-between">
-              <p
-                aria-live="polite"
-                className="shrink-0 text-sm whitespace-nowrap text-muted-foreground"
-              >
-                Page {page} of {pages}
-              </p>
-              <UsersPagination page={page} pages={pages} />
-            </div>
+          <div className="flex flex-col items-center gap-2 @xl:flex-row @xl:justify-between">
+            <p aria-live="polite" className="shrink-0 whitespace-nowrap text-muted-foreground">
+              Page {page} of {pages}
+            </p>
+            <UsersPagination page={page} pages={pages} />
           </div>
         }
       />
