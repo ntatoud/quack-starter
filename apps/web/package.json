@@ -28,6 +28,9 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "catalog:",
+    "@tanstack/react-devtools": "0.10.14",
+    "@tanstack/react-query-devtools": "catalog:",
+    "@tanstack/react-router-devtools": "1.167.3",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "6.3.0",
