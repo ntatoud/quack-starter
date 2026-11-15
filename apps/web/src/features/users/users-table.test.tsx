@@ -83,9 +83,11 @@ const pagination = () => page.getByRole("navigation", { name: "Pages of users" }
 const previous = () => pagination().getByRole("link", { name: "Go to previous page" });
 const next = () => pagination().getByRole("link", { name: "Go to next page" });
 
+const defaultViewport = { width: 414, height: 896 };
+
 afterEach(async () => {
   fetch.mockClear();
-  await page.viewport(414, 896);
+  await page.viewport(defaultViewport.width, defaultViewport.height);
 });
 
 describe("UsersTable", () => {
@@ -203,6 +205,17 @@ describe("UsersTable", () => {
 
     await expect.element(previous()).toHaveAttribute("aria-disabled", "true");
     await expect.element(pagination().getByRole("link", { name: "Page 1" })).toHaveFocus();
+  });
+
+  it("leaves the focus on Previous when it stays enabled, from a page past the last", async () => {
+    await setup(usersOn, "/users?page=9");
+    await expect.element(page.getByText("No users on this page")).toBeVisible();
+
+    previous().element().focus();
+    await userEvent.keyboard("{Enter}");
+
+    await expect.element(page.getByText(`user-${total}@quack.dev`)).toBeVisible();
+    await expect.element(previous()).toHaveFocus();
   });
 
   it("stacks the footer when the table is narrow, whatever the width of the window", async () => {
