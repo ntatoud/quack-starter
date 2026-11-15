@@ -81,6 +81,8 @@ The `AttemptLimiter` (port in `modules/identity/domain/attempt-limiter.ts`) slow
 
 A variable of the server goes in `ServerConfig` (`config.ts`) and in `.env.example`: in dev, `node --env-file-if-exists` loads the `.env` of the repo root. `COOKIE_SECURE` says whether the session cookie is `Secure`: true when unset, false in the `.env` of dev.
 
+The stores are in memory, so the server starts empty. `SEED_USERS=true`, set by the `dev` script of the server, creates the Users of `devUsers` (`modules/identity/application/user-seed.ts`) at startup and logs their credentials.
+
 Only a handler reads `CurrentUser`. It passes the Owner to the use case as an explicit `ownerId`, and the repository filters by it (`modules/todos`): what belongs to another Owner is not found (404), never forbidden (403), so the API does not tell that it exists.
 
 The server serves everything under `/api`, the docs (`/api/docs`) and the OpenAPI document (`/api/openapi.json`) included. It has no CORS policy: the browser reaches it through the web app's relay only.

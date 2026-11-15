@@ -1,7 +1,10 @@
 import { NodeCrypto } from "@effect/platform-node";
-import { Layer } from "effect";
+import { Effect, Layer } from "effect";
+
+import { ServerConfig } from "#/config.ts";
 
 import { Identity } from "#/modules/identity/application/identity.ts";
+import { devUsers, UserSeed } from "#/modules/identity/application/user-seed.ts";
 import { AuthenticationMiddleware } from "#/modules/identity/http/authentication-middleware.ts";
 import { IdentityHandlers } from "#/modules/identity/http/identity-handlers.ts";
 import { SessionCookie } from "#/modules/identity/http/session-cookie.ts";
@@ -10,9 +13,13 @@ import { PasswordHasherArgon2 } from "#/modules/identity/infrastructure/password
 import { SessionStoreMemory } from "#/modules/identity/infrastructure/session-store-memory.ts";
 import { UserRepositoryMemory } from "#/modules/identity/infrastructure/user-repository-memory.ts";
 
+const DevUserSeed = Layer.unwrap(
+  Effect.map(ServerConfig, ({ seedUsers }) => (seedUsers ? UserSeed(devUsers) : Layer.empty)),
+);
+
 export const IdentityModule = IdentityHandlers.pipe(
   Layer.provideMerge(AuthenticationMiddleware),
-  Layer.provide([Identity.layer, SessionCookie.layer]),
+  Layer.provide([Identity.layer, SessionCookie.layer, DevUserSeed]),
   Layer.provide([
     UserRepositoryMemory,
     SessionStoreMemory,
