@@ -1,6 +1,6 @@
 import { ConfigProvider, Layer } from "effect";
 import { HttpRouter, HttpServer } from "effect/http";
-import { afterAll, describe, expect, it } from "vite-plus/test";
+import { afterAll, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { devUsers } from "#/modules/identity/application/user-seed.ts";
 import { Routes } from "#/server.ts";
@@ -291,17 +291,22 @@ describe("server routes", () => {
   });
 });
 
-describe("server routes, with the dev Users seeded", () => {
-  const seeded = HttpRouter.toWebHandler(
+const makeSeeded = () =>
+  HttpRouter.toWebHandler(
     Routes.pipe(
       Layer.provide(HttpServer.layerServices),
       Layer.provide(ConfigProvider.layer(ConfigProvider.fromUnknown({ SEED_USERS: "true" }))),
     ),
   );
 
-  afterAll(seeded.dispose);
+describe("server routes, with the dev Users seeded", () => {
+  let seeded: ReturnType<typeof makeSeeded>;
+  let cookie = "";
 
-  it("answers /api/users to an Admin, sorted as the query asks, and with 400 when the query is out of bounds", async () => {
+  // `toWebHandler` builds at once, and the seed hashes every dev User with argon2: built here, it
+  // does not run beside the other tests of the file.
+  beforeAll(async () => {
+    seeded = makeSeeded();
     const signedIn = await seeded.handler(
       new Request("http://api.test/api/sign-in", {
         method: "POST",
@@ -309,10 +314,15 @@ describe("server routes, with the dev Users seeded", () => {
         body: JSON.stringify({ email: "admin@quack.dev", password: "quack-password" }),
       }),
     );
-    const cookie = signedIn.headers.getSetCookie()[0]?.split(";")[0] ?? "";
-    const usersAt = (search: string) =>
-      seeded.handler(new Request(`http://api.test/api/users${search}`, { headers: { cookie } }));
+    cookie = signedIn.headers.getSetCookie()[0]?.split(";")[0] ?? "";
+  });
 
+  afterAll(() => seeded.dispose());
+
+  const usersAt = (search: string) =>
+    seeded.handler(new Request(`http://api.test/api/users${search}`, { headers: { cookie } }));
+
+  it("answers /api/users to an Admin, sorted as the query asks, and with 400 when the query is out of bounds", async () => {
     const firstPage = await usersAt("");
     expect(firstPage.status).toBe(200);
     expect(await firstPage.json()).toMatchObject({ total: devUsers.length });
