@@ -113,7 +113,7 @@ export function UsersTable({ page }: { page: number }) {
             <div className="flex flex-col items-center gap-2 @xl:flex-row @xl:justify-between">
               <p
                 aria-live="polite"
-                className="shrink-0 text-sm font-normal whitespace-nowrap text-muted-foreground"
+                className="shrink-0 text-sm whitespace-nowrap text-muted-foreground"
               >
                 Page {page} of {pages}
               </p>

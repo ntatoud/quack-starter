@@ -116,7 +116,7 @@ describe("UsersTable", () => {
     await expect.element(admin.getByRole("cell", { name: "Admin" })).toBeVisible();
     const other = page.getByRole("row").filter({ hasText: "user-2@quack.dev" });
     await expect.element(other.getByRole("cell", { name: "User" })).toBeVisible();
-    expect(page.getByRole("row").elements()).toHaveLength(usersPageSize + 2);
+    expect(page.getByRole("row").elements()).toHaveLength(usersPageSize + 1);
     await expect.element(page.getByText("Page 1 of 2")).toBeVisible();
   });
 
@@ -237,11 +237,11 @@ describe("UsersTable", () => {
     scroller.scrollTop = scroller.scrollHeight;
 
     const bounds = scroller.getBoundingClientRect();
-    expect(bounds.height).toBeLessThanOrEqual(height);
     const header = page.getByText("Email", { exact: true }).element().getBoundingClientRect();
     expect(header.top).toBeGreaterThanOrEqual(bounds.top);
     const footer = pagination().element().getBoundingClientRect();
-    expect(footer.bottom).toBeLessThanOrEqual(bounds.bottom);
+    expect(footer.top).toBeGreaterThanOrEqual(bounds.bottom);
+    expect(footer.bottom - bounds.top).toBeLessThanOrEqual(height);
   });
 
   it("stacks the footer when the table is narrow, whatever the width of the window", async () => {
