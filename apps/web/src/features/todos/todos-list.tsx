@@ -57,20 +57,6 @@ export function TodosList() {
     );
   }
 
-  if (todos.data.length === 0) {
-    return (
-      <Empty className="border border-dashed">
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <ListTodoIcon />
-          </EmptyMedia>
-          <EmptyTitle>No todos yet</EmptyTitle>
-          <EmptyDescription>Add your first one above.</EmptyDescription>
-        </EmptyHeader>
-      </Empty>
-    );
-  }
-
   return (
     <div className="flex flex-col gap-2">
       {todos.isRefetchError && (
@@ -87,11 +73,23 @@ export function TodosList() {
           </Button>
         </p>
       )}
-      <ul className="divide-y rounded-lg border">
-        {todos.data.map((todo) => (
-          <TodoItem key={todo.id} todo={todo} />
-        ))}
-      </ul>
+      {todos.data.length === 0 ? (
+        <Empty className="border border-dashed">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <ListTodoIcon />
+            </EmptyMedia>
+            <EmptyTitle>No todos yet</EmptyTitle>
+            <EmptyDescription>Add your first one above.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      ) : (
+        <ul className="divide-y rounded-lg border">
+          {todos.data.map((todo) => (
+            <TodoItem key={todo.id} todo={todo} />
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

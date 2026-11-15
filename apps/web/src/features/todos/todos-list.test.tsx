@@ -22,13 +22,13 @@ vi.stubGlobal("fetch", fetch);
 
 const setup = async (response: typeof respond) => {
   respond = response;
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   await render(
-    <QueryClientProvider
-      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
-    >
+    <QueryClientProvider client={queryClient}>
       <TodosList />
     </QueryClientProvider>,
   );
+  return { queryClient };
 };
 
 const said = () =>
@@ -122,10 +122,31 @@ describe("TodosList", () => {
     await page.getByRole("checkbox", { name: "Complete Ship it" }).click();
 
     await expect.element(page.getByText("Could not complete this todo. Try again.")).toBeVisible();
-    await expect.element(page.getByText("Could not refresh your todos.")).toBeVisible();
+    const refreshFailed = page
+      .getByRole("alert")
+      .filter({ hasText: "Could not refresh your todos." });
+    await expect.element(refreshFailed).toBeVisible();
     expect(loads).toBe(2);
     await expect.element(page.getByRole("checkbox", { name: "Complete Ship it" })).toBeVisible();
     expect(page.getByText("Could not load your todos").elements()).toEqual([]);
+
+    respond = () => Response.json([todo("1", "Ship it", true)]);
+    await refreshFailed.getByRole("button", { name: "Try again" }).click();
+
+    await expect.element(page.getByRole("checkbox", { name: "Complete Ship it" })).toBeChecked();
+    expect(page.getByText("Could not refresh your todos.").elements()).toEqual([]);
+  });
+
+  it("says a failed refresh over an empty list too", async () => {
+    const { queryClient } = await setup(() => Response.json([]));
+    await expect.element(page.getByText("No todos yet")).toBeVisible();
+
+    respond = () => new Response(null, { status: 500 });
+    await queryClient.invalidateQueries();
+
+    await expect
+      .element(page.getByRole("alert").filter({ hasText: "Could not refresh your todos." }))
+      .toBeVisible();
   });
 
   it("offers to try again when the list cannot be loaded, and loads it on the retry", async () => {
