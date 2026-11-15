@@ -29,7 +29,7 @@ export function AppSidebar({ currentUser }: { currentUser: typeof User.Encoded }
         <SidebarTrigger className="size-8 shrink-0" />
         <Link
           to="/"
-          className="flex h-12 min-w-0 items-center gap-2 rounded-md px-1 transition-opacity duration-200 ease-out outline-hidden focus-visible:ring-2 focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:opacity-0"
+          className="flex h-8 min-w-0 items-center gap-2 rounded-md px-1 transition-opacity duration-200 ease-out outline-hidden focus-visible:ring-2 focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:opacity-0"
           inert={collapsed}
         >
           <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary font-semibold text-sidebar-primary-foreground">
