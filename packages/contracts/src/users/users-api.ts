@@ -2,7 +2,7 @@ import { Schema } from "effect";
 import { HttpApiEndpoint, HttpApiGroup } from "effect/http-api";
 
 import { Authentication } from "#/identity/authentication.ts";
-import { RequireAdmin } from "#/identity/require-admin.ts";
+import { RequireRole } from "#/identity/require-role.ts";
 import { User } from "#/identity/user.ts";
 import { Page, PageQuery } from "#/pagination/page.ts";
 
@@ -17,6 +17,6 @@ export class UsersApi extends HttpApiGroup.make("users")
       success: UsersPage,
     }),
   )
-  .middleware(RequireAdmin)
+  .middleware(RequireRole("admin"))
   .middleware(Authentication)
   .prefix("/users") {}

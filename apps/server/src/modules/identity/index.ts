@@ -7,7 +7,7 @@ import { Identity } from "#/modules/identity/application/identity.ts";
 import { devUsers, UserSeed } from "#/modules/identity/application/user-seed.ts";
 import { Users } from "#/modules/identity/application/users.ts";
 import { AuthenticationMiddleware } from "#/modules/identity/http/authentication-middleware.ts";
-import { RequireAdminMiddleware } from "#/modules/identity/http/require-admin-middleware.ts";
+import { RequireRoleMiddleware } from "#/modules/identity/http/require-role-middleware.ts";
 import { IdentityHandlers } from "#/modules/identity/http/identity-handlers.ts";
 import { SessionCookie } from "#/modules/identity/http/session-cookie.ts";
 import { UsersHandlers } from "#/modules/identity/http/users-handlers.ts";
@@ -21,7 +21,7 @@ const DevUserSeed = Layer.unwrap(
 );
 
 export const IdentityModule = Layer.mergeAll(IdentityHandlers, UsersHandlers).pipe(
-  Layer.provideMerge([AuthenticationMiddleware, RequireAdminMiddleware]),
+  Layer.provideMerge([AuthenticationMiddleware, RequireRoleMiddleware]),
   Layer.provide([Identity.layer, Users.layer, SessionCookie.layer, DevUserSeed]),
   Layer.provide([
     UserRepositoryMemory,

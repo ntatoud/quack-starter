@@ -9,7 +9,7 @@ import { HttpApiMiddleware, HttpApiTest } from "effect/http-api";
 
 import { Users } from "#/modules/identity/application/users.ts";
 import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
-import { RequireAdminMiddleware } from "#/modules/identity/http/require-admin-middleware.ts";
+import { RequireRoleMiddleware } from "#/modules/identity/http/require-role-middleware.ts";
 import { UsersHandlers } from "#/modules/identity/http/users-handlers.ts";
 import { UserRepositoryMemory } from "#/modules/identity/infrastructure/user-repository-memory.ts";
 
@@ -64,7 +64,7 @@ const clientOf = (user: User | undefined) =>
 const UsersLayer = UsersHandlers.pipe(
   Layer.provide(Users.layer),
   Layer.provide(Layer.provideMerge(SeededUsers, UserRepositoryMemory)),
-  Layer.provideMerge(RequireAdminMiddleware),
+  Layer.provideMerge(RequireRoleMiddleware),
   Layer.provideMerge(AuthenticationByUserId),
 );
 

@@ -2,7 +2,7 @@ import { assert, layer } from "@effect/vitest";
 import { Api } from "@quack/contracts/api";
 import { Authentication, CurrentUser } from "@quack/contracts/identity/authentication";
 import { Unauthenticated } from "@quack/contracts/identity/identity-errors";
-import { RequireAdmin } from "@quack/contracts/identity/require-admin";
+import { RequireRole } from "@quack/contracts/identity/require-role";
 import { Email, User, UserId } from "@quack/contracts/identity/user";
 import { TodoId, TodoTitle } from "@quack/contracts/todos/todo";
 import { TodoNotFound } from "@quack/contracts/todos/todo-errors";
@@ -39,8 +39,8 @@ const AuthenticationByUserId = Layer.succeed(
 
 // The routes of the users group are built with those of the todos, but no test calls them.
 const RequireAdminUnused = Layer.succeed(
-  RequireAdmin,
-  RequireAdmin.of((httpEffect) => httpEffect),
+  RequireRole("admin"),
+  RequireRole("admin").of((httpEffect) => httpEffect),
 );
 
 const clientOf = (user: User) =>
