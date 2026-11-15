@@ -5,7 +5,7 @@ import { redirectTarget } from "#/features/identity/redirect-target.ts";
 import { SignInSearch } from "#/features/identity/sign-in-search.ts";
 import { SignInPage } from "#/features/identity/sign-in-page.tsx";
 
-export const Route = createFileRoute("/sign-in")({
+export const Route = createFileRoute("/_guest/sign-in")({
   validateSearch: Schema.toStandardSchemaV1(SignInSearch),
   // Also what leads away once the sign-in sets the Current User.
   beforeLoad: ({ context, search }) => {

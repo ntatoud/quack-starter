@@ -20,7 +20,7 @@ export function TodosCard() {
   const removeTodo = useMutation(api.todos.remove.mutationOptions(invalidateTodos));
 
   return (
-    <Card>
+    <Card className="mx-auto max-w-xl">
       <CardHeader>
         <CardTitle>Todos</CardTitle>
         <CardDescription>Served by the Effect API, typed end to end.</CardDescription>

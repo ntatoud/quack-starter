@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { TodosCard } from "#/features/todos/todos-card.tsx";
+import { TodosPage } from "#/features/todos/todos-page.tsx";
 
-export const Route = createFileRoute("/_authenticated/")({ component: TodosCard });
+export const Route = createFileRoute("/_authenticated/")({ component: TodosPage });

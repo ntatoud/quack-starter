@@ -14,12 +14,14 @@ import { SignInForm } from "#/features/identity/sign-in-form.tsx";
 export function SignInPage() {
   const setCurrentUser = useSetCurrentUser();
   const navigate = useNavigate();
-  const search = useSearch({ from: "/sign-in" });
+  const search = useSearch({ from: "/_guest/sign-in" });
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Sign in</CardTitle>
+        <CardTitle>
+          <h1>Sign in</h1>
+        </CardTitle>
         <CardDescription>Find your todos where you left them.</CardDescription>
       </CardHeader>
       <CardContent>
