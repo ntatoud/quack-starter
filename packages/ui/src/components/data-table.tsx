@@ -25,6 +25,7 @@ export function DataTable<TData extends RowData>({
   data,
   empty,
   footer,
+  getRowId,
   className,
   ...props
 }: {
@@ -33,9 +34,17 @@ export function DataTable<TData extends RowData>({
   /** Shown in place of the rows when there is none. */
   empty?: ReactNode;
   footer?: ReactNode;
+  /** Keys the rows: by default a row is its index, the same from one page to the next. */
+  getRowId?: (row: TData) => string;
 } & Omit<ComponentProps<"div">, "children">) {
-  const table = useTable({ features, columns, data });
+  const table = useTable({
+    features,
+    columns,
+    data,
+    ...(getRowId && { getRowId }),
+  });
   const rows = table.getRowModel().rows;
+  const width = table.getAllLeafColumns().length;
 
   return (
     <div
@@ -58,7 +67,7 @@ export function DataTable<TData extends RowData>({
         <TableBody>
           {rows.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={columns.length} className="whitespace-normal">
+              <TableCell colSpan={width} className="whitespace-normal">
                 {empty}
               </TableCell>
             </TableRow>
@@ -77,7 +86,9 @@ export function DataTable<TData extends RowData>({
         {footer !== undefined && (
           <TableFooter>
             <TableRow>
-              <TableCell colSpan={columns.length}>{footer}</TableCell>
+              <TableCell colSpan={width} className="whitespace-normal">
+                {footer}
+              </TableCell>
             </TableRow>
           </TableFooter>
         )}

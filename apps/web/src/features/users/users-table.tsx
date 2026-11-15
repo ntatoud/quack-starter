@@ -81,6 +81,7 @@ export function UsersTable({ page }: { page: number }) {
       <DataTable
         columns={usersColumns}
         data={items}
+        getRowId={(user) => user.id}
         className="transition-opacity aria-busy:opacity-60"
         aria-busy={users.isPlaceholderData}
         empty={
@@ -90,7 +91,13 @@ export function UsersTable({ page }: { page: number }) {
                 <UsersIcon />
               </EmptyMedia>
               <EmptyTitle>No users on this page</EmptyTitle>
-              {total > 0 && <EmptyDescription>There are {pages} pages of users.</EmptyDescription>}
+              {total > 0 && (
+                <EmptyDescription>
+                  {pages === 1
+                    ? "There is one page of users."
+                    : `There are ${pages} pages of users.`}
+                </EmptyDescription>
+              )}
             </EmptyHeader>
             {total > 0 && (
               <EmptyContent>
@@ -102,8 +109,8 @@ export function UsersTable({ page }: { page: number }) {
           </Empty>
         }
         footer={
-          <div className="flex items-center justify-between gap-4">
-            <p className="text-sm font-normal text-muted-foreground">
+          <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
+            <p aria-live="polite" className="text-sm font-normal text-muted-foreground">
               Page {page} of {pages}
             </p>
             <UsersPagination page={page} pages={pages} />

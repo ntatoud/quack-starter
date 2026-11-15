@@ -116,6 +116,7 @@ apps/web/src/
 - A call of the API that fails with `Unauthenticated` needs no handling where it is made: the `QueryCache` and the `MutationCache` of the `QueryClient` (`router.tsx`) set the Current User to `null` and lead to `/sign-in?redirect=<the current page>`. Such a call is not retried. `signInLocation` (`features/identity/redirect-target.ts`) is that link, for the layout of the protected pages too.
 - A page for visitors only goes under `routes/_guest/` (`sign-in.tsx`, `sign-up.tsx`), whose layout `GuestLayout` (`features/layout/guest-layout.tsx`) centers its card, with no bar. Such a page redirects a Current User in its `beforeLoad`. The `redirect` of the sign-in page comes from a link anyone can write: read it through `redirectTarget` (`features/identity/redirect-target.ts`), which answers a path of the app or `/`. Validate the search of a route with an Effect schema: `validateSearch: Schema.toStandardSchemaV1(SignInSearch)` (`features/identity/sign-in-search.ts`).
 - Link to a page with the look of a button through `ButtonLink` (`components/button-link.tsx`): the `to` of a `Link`, the `variant` and `size` of a `Button`.
+- A list that pages keeps its page in the URL: a `page` search validated by a schema that answers 1 for anything else (`features/users/users-search.ts`), the query with `placeholderData: keepPreviousData`, and the table `aria-busy` while the next page loads. Render it with `DataTable` and the pagination in its footer (`features/users/users-table.tsx`). Its links are `ButtonLink`s in a `PaginationItem`, not `PaginationLink`, which gives its `<a>` the role of a button, and the current page is marked from the validated `page`, not by the router.
 - The `QueryClient` is in the router's context (`context.queryClient`), the same one the components use. No other data is loaded in the server render: the API client has no cookie there.
 - The forms of `/sign-in` and `/sign-up` say how long to wait when the API refuses with `TooManyAttempts`: `tooManyAttemptsMessage` (`features/identity/too-many-attempts-message.ts`).
 - Build forms with `@quack/form`: see "Form package" below.
@@ -124,6 +125,8 @@ apps/web/src/
 ## UI package
 
 Add a component from `packages/ui`: `pnpm dlx shadcn@latest add <name>`. Import it as `@quack/ui/components/<name>`, and a hook as `@quack/ui/hooks/<name>`. Do not edit generated components to restyle one screen; pass `className` or compose.
+
+`DataTable` (`components/data-table.tsx`) is shadcn's data-table recipe on TanStack Table v9: `columns` (`DataTableColumn<T>`), `data`, `getRowId`, and slots for the empty state and the footer. It sorts, filters, and pages nothing itself: the API does.
 
 ## Form package
 

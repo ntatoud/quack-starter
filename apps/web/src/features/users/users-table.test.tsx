@@ -8,7 +8,7 @@ import {
 } from "@tanstack/react-router";
 import { Schema } from "effect";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
-import { page } from "vite-plus/test/browser";
+import { page, userEvent } from "vite-plus/test/browser";
 import { render } from "vitest-browser-react";
 
 import { usersPageSize } from "#/features/users/users-query.ts";
@@ -30,14 +30,19 @@ vi.stubGlobal("fetch", fetch);
 
 const total = usersPageSize + 1;
 const pageOf = (request: Request) => Number(new URL(request.url).searchParams.get("page"));
+const pagesOfUsers: Record<number, ReadonlyArray<ReturnType<typeof user>>> = {
+  1: [user(1, "admin"), ...Array.from({ length: usersPageSize - 1 }, (_, i) => user(i + 2))],
+  2: [user(total)],
+};
 const usersOn = (request: Request) =>
-  Response.json({
-    items:
-      pageOf(request) === 1
-        ? [user(1, "admin"), ...Array.from({ length: usersPageSize - 1 }, (_, i) => user(i + 2))]
-        : [user(total)],
-    total,
-  });
+  Response.json({ items: pagesOfUsers[pageOf(request)] ?? [], total });
+
+const currentPages = () =>
+  pagination()
+    .getByRole("link")
+    .elements()
+    .filter((link) => link.getAttribute("aria-current") === "page")
+    .map((link) => link.getAttribute("aria-label"));
 
 const setup = async (response: typeof respond, url = "/users") => {
   respond = response;
@@ -111,13 +116,7 @@ describe("UsersTable", () => {
     await expect
       .element(pagination().getByRole("link", { name: "Page 2" }))
       .toHaveAttribute("aria-current", "page");
-    expect(
-      pagination()
-        .getByRole("link")
-        .elements()
-        .filter((link) => link.getAttribute("aria-current") === "page")
-        .map((link) => link.getAttribute("aria-label")),
-    ).toEqual(["Page 2"]);
+    expect(currentPages()).toEqual(["Page 2"]);
   });
 
   it("asks the API for the page of the URL", async () => {
@@ -126,7 +125,9 @@ describe("UsersTable", () => {
     await expect.element(page.getByText(`user-${total}@quack.dev`)).toBeVisible();
     await expect.element(page.getByText("Page 2 of 2")).toBeVisible();
     const request = fetch.mock.calls[0]?.[0];
-    expect(new URL(String(request)).searchParams.get("pageSize")).toBe(String(usersPageSize));
+    const { searchParams } = new URL(String(request));
+    expect(searchParams.get("page")).toBe("2");
+    expect(searchParams.get("pageSize")).toBe(String(usersPageSize));
   });
 
   it("links to the next and the previous page through the URL", async () => {
@@ -155,8 +156,11 @@ describe("UsersTable", () => {
     await expect.element(page.getByText("Page 2 of 2")).toBeVisible();
     await expect.element(page.getByText("user-1@quack.dev")).toBeVisible();
     expect(said()).toEqual([]);
+    const table = page.getByRole("table").element().closest("[aria-busy]");
+    expect(table?.getAttribute("aria-busy")).toBe("true");
     second.resolve(Response.json({ items: [user(total)], total }));
     await expect.element(page.getByText(`user-${total}@quack.dev`)).toBeVisible();
+    expect(table?.getAttribute("aria-busy")).toBe("false");
   });
 
   it("shows the first page for a page that is not a page number", async () => {
@@ -164,6 +168,38 @@ describe("UsersTable", () => {
 
     await expect.element(page.getByText("user-1@quack.dev")).toBeVisible();
     await expect.element(page.getByText("Page 1 of 2")).toBeVisible();
+    expect(currentPages()).toEqual(["Page 1"]);
+  });
+
+  it("marks the first page current when the URL names it", async () => {
+    await setup(usersOn, "/users?page=1");
+
+    await expect.element(page.getByText("user-1@quack.dev")).toBeVisible();
+    expect(currentPages()).toEqual(["Page 1"]);
+  });
+
+  it("keeps the focus in the pagination when Next leads to the last page", async () => {
+    await setup(usersOn);
+    await expect.element(page.getByText("user-1@quack.dev")).toBeVisible();
+
+    next().element().focus();
+    await userEvent.keyboard("{Enter}");
+
+    await expect.element(next()).toHaveAttribute("aria-disabled", "true");
+    await expect.element(pagination().getByRole("link", { name: "Page 2" })).toHaveFocus();
+  });
+
+  it("fits the pagination in the width of a phone", async () => {
+    await page.viewport(375, 667);
+    await setup(
+      () => Response.json({ items: pagesOfUsers[1], total: usersPageSize * 6 }),
+      "/users?page=3",
+    );
+
+    await expect.element(next()).toBeVisible();
+    const container = page.getByRole("table").element().parentElement;
+    expect(container?.scrollWidth).toBe(container?.clientWidth);
+    expect(next().element().getBoundingClientRect().right).toBeLessThanOrEqual(window.innerWidth);
   });
 
   it("leads back to the first page from a page past the last", async () => {
@@ -173,6 +209,7 @@ describe("UsersTable", () => {
     );
 
     await expect.element(page.getByText("No users on this page")).toBeVisible();
+    await expect.element(previous()).toHaveAttribute("href", "/users?page=2");
     await page.getByRole("link", { name: "Go to the first page" }).click();
 
     await expect.element(page.getByText("user-1@quack.dev")).toBeVisible();

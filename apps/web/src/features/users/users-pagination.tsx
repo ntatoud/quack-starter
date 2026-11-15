@@ -5,13 +5,14 @@ import {
   PaginationItem,
 } from "@quack/ui/components/pagination";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+import { useEffect, useRef } from "react";
 
 import { ButtonLink } from "#/components/button-link.tsx";
 
-// Not the `PaginationLink` of `@quack/ui`: it renders its `<a>` through `Button`, which gives it the role of a button.
 const disabledLink = "aria-disabled:pointer-events-none aria-disabled:opacity-50";
 
-// Without it, a link whose search is part of the current one is active: `{}`, the first page, on every page.
+// The router matches the raw search: by default `{}`, the first page, would be active on every page. The current
+// page is marked from the validated `page` instead, which also covers `?page=1`.
 const exactly = { exact: true };
 
 const searchOf = (page: number) => (page === 1 ? {} : { page });
@@ -31,16 +32,33 @@ export const pagesAround = (
   );
 };
 
+// The page links are `ButtonLink`s, not the `PaginationLink` of `@quack/ui`: it renders its `<a>` through
+// `Button`, which gives it the role of a button.
 export function UsersPagination({ page, pages }: { page: number; pages: number }) {
+  const currentLink = useRef<HTMLAnchorElement>(null);
+  // Previous or Next, disabled on the first or the last page, can no longer hold the focus it had.
+  const refocusOn = useRef<number | null>(null);
+  useEffect(() => {
+    if (refocusOn.current !== page) return;
+    refocusOn.current = null;
+    currentLink.current?.focus();
+  }, [page]);
+
+  const previous = Math.min(page - 1, pages);
+  const next = page + 1;
+
   return (
     <Pagination aria-label="Pages of users" className="mx-0 w-auto">
       <PaginationContent>
         <PaginationItem>
           <ButtonLink
             to="/users"
-            search={searchOf(page - 1)}
-            disabled={page <= 1}
+            search={searchOf(previous)}
+            disabled={previous < 1}
             activeOptions={exactly}
+            onClick={() => {
+              if (previous === 1) refocusOn.current = previous;
+            }}
             variant="ghost"
             aria-label="Go to previous page"
             className={`pl-1.5 ${disabledLink}`}
@@ -57,9 +75,11 @@ export function UsersPagination({ page, pages }: { page: number; pages: number }
           ) : (
             <PaginationItem key={n}>
               <ButtonLink
+                ref={n === page ? currentLink : undefined}
                 to="/users"
                 search={searchOf(n)}
                 activeOptions={exactly}
+                aria-current={n === page ? "page" : undefined}
                 variant={n === page ? "outline" : "ghost"}
                 size="icon"
                 aria-label={`Page ${n}`}
@@ -72,9 +92,12 @@ export function UsersPagination({ page, pages }: { page: number; pages: number }
         <PaginationItem>
           <ButtonLink
             to="/users"
-            search={searchOf(page + 1)}
+            search={searchOf(next)}
             disabled={page >= pages}
             activeOptions={exactly}
+            onClick={() => {
+              if (next === pages) refocusOn.current = next;
+            }}
             variant="ghost"
             aria-label="Go to next page"
             className={`pr-1.5 ${disabledLink}`}
