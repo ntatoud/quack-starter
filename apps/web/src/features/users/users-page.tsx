@@ -10,16 +10,16 @@ export function UsersPage() {
   const users = useQuery(usersQueryOptions(page));
 
   return (
-    <>
+    <div className="flex h-svh flex-col">
       <PageHeader>
         <h1 className="text-sm font-medium">Users</h1>
         {users.data !== undefined && (
           <span className="ml-auto text-sm text-muted-foreground">{users.data.total} in all</span>
         )}
       </PageHeader>
-      <div className="flex flex-col gap-4 p-6">
+      <div className="flex min-h-0 flex-1 flex-col gap-4 p-6">
         <UsersTable page={page} />
       </div>
-    </>
+    </div>
   );
 }

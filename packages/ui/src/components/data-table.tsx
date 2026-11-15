@@ -46,14 +46,18 @@ export function DataTable<TData extends RowData>({
   const rows = table.getRowModel().rows;
   const width = table.getAllLeafColumns().length;
 
+  // Scrolls in its own container once its parent bounds its height, with the header and the footer in view.
   return (
     <div
       data-slot="data-table"
-      className={cn("overflow-hidden rounded-lg border [&_td]:px-3 [&_th]:px-3", className)}
+      className={cn(
+        "flex min-h-0 flex-col overflow-hidden rounded-lg border [&_td]:px-3 [&_th]:px-3 [&>[data-slot=table-container]]:min-h-0 [&>[data-slot=table-container]]:overflow-auto",
+        className,
+      )}
       {...props}
     >
       <Table>
-        <TableHeader>
+        <TableHeader className="sticky top-0 z-10 bg-background shadow-[inset_0_-1px_0_var(--color-border)]">
           {table.getHeaderGroups().map((group) => (
             <TableRow key={group.id}>
               {group.headers.map((header) => (
@@ -84,7 +88,7 @@ export function DataTable<TData extends RowData>({
           )}
         </TableBody>
         {footer !== undefined && (
-          <TableFooter>
+          <TableFooter className="sticky bottom-0 bg-muted shadow-[inset_0_1px_0_var(--color-border)]">
             <TableRow>
               <TableCell colSpan={width} className="whitespace-normal">
                 {footer}

@@ -44,7 +44,11 @@ const currentPages = () =>
     .filter((link) => link.getAttribute("aria-current") === "page")
     .map((link) => link.getAttribute("aria-label"));
 
-const setup = async (response: typeof respond, url = "/users", width?: number) => {
+const setup = async (
+  response: typeof respond,
+  url = "/users",
+  size: { width?: number; height?: number } = {},
+) => {
   respond = response;
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const rootRoute = createRootRoute();
@@ -55,7 +59,7 @@ const setup = async (response: typeof respond, url = "/users", width?: number) =
     component: function Users() {
       const { page: current = 1 } = usersRoute.useSearch();
       return (
-        <div style={{ width }}>
+        <div style={{ ...size, display: "flex", flexDirection: "column" }}>
           <UsersTable page={current} />
         </div>
       );
@@ -218,12 +222,29 @@ describe("UsersTable", () => {
     await expect.element(previous()).toHaveFocus();
   });
 
+  it("scrolls its rows under the header and above the footer when its height is bounded", async () => {
+    const height = 400;
+    await setup(usersOn, "/users", { height });
+    await expect.element(page.getByText("user-1@quack.dev")).toBeVisible();
+
+    const scroller = page.getByRole("table").element().parentElement;
+    if (scroller === null) throw new Error("The table has no container.");
+    scroller.scrollTop = scroller.scrollHeight;
+
+    const bounds = scroller.getBoundingClientRect();
+    expect(bounds.height).toBeLessThanOrEqual(height);
+    const header = page.getByText("Email", { exact: true }).element().getBoundingClientRect();
+    expect(header.top).toBeGreaterThanOrEqual(bounds.top);
+    const footer = pagination().element().getBoundingClientRect();
+    expect(footer.bottom).toBeLessThanOrEqual(bounds.bottom);
+  });
+
   it("stacks the footer when the table is narrow, whatever the width of the window", async () => {
     await page.viewport(1280, 800);
     await setup(
       () => Response.json({ items: pagesOfUsers[1], total: usersPageSize * 9 }),
       "/users?page=5",
-      470,
+      { width: 470 },
     );
     await expect.element(next()).toBeVisible();
 
@@ -238,7 +259,7 @@ describe("UsersTable", () => {
     await setup(
       () => Response.json({ items: pagesOfUsers[1], total: usersPageSize * 9 }),
       "/users?page=5",
-      900,
+      { width: 900 },
     );
     await expect.element(next()).toBeVisible();
 
