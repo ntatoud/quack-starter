@@ -38,7 +38,7 @@ export function UserMenu({ currentUser }: { currentUser: typeof User.Encoded }) 
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <DropdownMenu onOpenChange={(open) => open && signOut.reset()}>
+        <DropdownMenu onOpenChange={(open) => open && signOut.isError && signOut.reset()}>
           <DropdownMenuTrigger
             render={
               <SidebarMenuButton
