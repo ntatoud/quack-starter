@@ -37,6 +37,12 @@ const pagesOfUsers: Record<number, ReadonlyArray<ReturnType<typeof user>>> = {
 const usersOn = (request: Request) =>
   Response.json({ items: pagesOfUsers[pageOf(request)] ?? [], total });
 
+const scrollerOfTable = () => {
+  const scroller = page.getByRole("table").element().closest("[data-slot=scroll-area-viewport]");
+  if (!(scroller instanceof HTMLElement)) throw new Error("The table scrolls in no viewport.");
+  return scroller;
+};
+
 const currentPages = () =>
   pagination()
     .getByRole("link")
@@ -227,8 +233,7 @@ describe("UsersTable", () => {
     await setup(usersOn, "/users", { height });
     await expect.element(page.getByText("user-1@quack.dev")).toBeVisible();
 
-    const scroller = page.getByRole("table").element().parentElement;
-    if (scroller === null) throw new Error("The table has no container.");
+    const scroller = scrollerOfTable();
     scroller.scrollTop = scroller.scrollHeight;
 
     const bounds = scroller.getBoundingClientRect();
@@ -248,8 +253,8 @@ describe("UsersTable", () => {
     );
     await expect.element(next()).toBeVisible();
 
-    const container = page.getByRole("table").element().parentElement;
-    expect(container?.scrollWidth).toBe(container?.clientWidth);
+    const scroller = scrollerOfTable();
+    expect(scroller.scrollWidth).toBe(scroller.clientWidth);
     const summary = page.getByText("Page 5 of 9").element().getBoundingClientRect();
     expect(summary.bottom).toBeLessThanOrEqual(pagination().element().getBoundingClientRect().top);
   });
@@ -277,8 +282,8 @@ describe("UsersTable", () => {
     );
 
     await expect.element(next()).toBeVisible();
-    const container = page.getByRole("table").element().parentElement;
-    expect(container?.scrollWidth).toBe(container?.clientWidth);
+    const scroller = scrollerOfTable();
+    expect(scroller.scrollWidth).toBe(scroller.clientWidth);
     expect(next().element().getBoundingClientRect().right).toBeLessThanOrEqual(window.innerWidth);
   });
 

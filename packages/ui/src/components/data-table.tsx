@@ -1,3 +1,4 @@
+import { ScrollArea } from "@quack/ui/components/scroll-area";
 import {
   Table,
   TableBody,
@@ -51,52 +52,60 @@ export function DataTable<TData extends RowData>({
     <div
       data-slot="data-table"
       className={cn(
-        "flex min-h-0 flex-col overflow-hidden rounded-lg border [&_td]:px-3 [&_th]:px-3 [&>[data-slot=table-container]]:min-h-0 [&>[data-slot=table-container]]:overflow-auto",
+        "flex min-h-0 flex-col overflow-hidden rounded-lg border [&_td]:px-3 [&_th]:px-3 [&_[data-slot=table-container]]:overflow-visible",
         className,
       )}
       {...props}
     >
-      <Table>
-        <TableHeader className="sticky top-0 z-10 bg-background shadow-[inset_0_-1px_0_var(--color-border)]">
-          {table.getHeaderGroups().map((group) => (
-            <TableRow key={group.id}>
-              {group.headers.map((header) => (
-                <TableHead key={header.id} colSpan={header.colSpan}>
-                  {header.isPlaceholder ? null : <table.FlexRender header={header} />}
-                </TableHead>
-              ))}
-            </TableRow>
-          ))}
-        </TableHeader>
-        <TableBody>
-          {rows.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={width} className="whitespace-normal">
-                {empty}
-              </TableCell>
-            </TableRow>
-          ) : (
-            rows.map((row) => (
-              <TableRow key={row.id}>
-                {row.getAllCells().map((cell) => (
-                  <TableCell key={cell.id}>
-                    <table.FlexRender cell={cell} />
-                  </TableCell>
+      <ScrollArea
+        className={cn(
+          "flex min-h-0 flex-col",
+          // Shown only while the pointer is over the rows or they scroll: it lies over the header and the footer.
+          "[&>[data-slot=scroll-area-scrollbar]]:opacity-0 [&>[data-slot=scroll-area-scrollbar]]:transition-opacity [&>[data-slot=scroll-area-scrollbar][data-hovering]]:opacity-100 [&>[data-slot=scroll-area-scrollbar][data-scrolling]]:opacity-100",
+        )}
+      >
+        <Table>
+          <TableHeader className="sticky top-0 z-10 bg-background shadow-[inset_0_-1px_0_var(--color-border)]">
+            {table.getHeaderGroups().map((group) => (
+              <TableRow key={group.id}>
+                {group.headers.map((header) => (
+                  <TableHead key={header.id} colSpan={header.colSpan}>
+                    {header.isPlaceholder ? null : <table.FlexRender header={header} />}
+                  </TableHead>
                 ))}
               </TableRow>
-            ))
+            ))}
+          </TableHeader>
+          <TableBody>
+            {rows.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={width} className="whitespace-normal">
+                  {empty}
+                </TableCell>
+              </TableRow>
+            ) : (
+              rows.map((row) => (
+                <TableRow key={row.id}>
+                  {row.getAllCells().map((cell) => (
+                    <TableCell key={cell.id}>
+                      <table.FlexRender cell={cell} />
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+          {footer !== undefined && (
+            <TableFooter className="sticky bottom-0 bg-muted shadow-[inset_0_1px_0_var(--color-border)]">
+              <TableRow>
+                <TableCell colSpan={width} className="whitespace-normal">
+                  {footer}
+                </TableCell>
+              </TableRow>
+            </TableFooter>
           )}
-        </TableBody>
-        {footer !== undefined && (
-          <TableFooter className="sticky bottom-0 bg-muted shadow-[inset_0_1px_0_var(--color-border)]">
-            <TableRow>
-              <TableCell colSpan={width} className="whitespace-normal">
-                {footer}
-              </TableCell>
-            </TableRow>
-          </TableFooter>
-        )}
-      </Table>
+        </Table>
+      </ScrollArea>
     </div>
   );
 }
