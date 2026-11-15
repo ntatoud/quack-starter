@@ -14,7 +14,7 @@ import {
   useSidebar,
 } from "@quack/ui/components/sidebar";
 import { Link, useMatchRoute } from "@tanstack/react-router";
-import { ListTodoIcon } from "lucide-react";
+import { ListTodoIcon, UsersIcon } from "lucide-react";
 
 import { UserMenu } from "#/features/identity/user-menu.tsx";
 import { Logo } from "#/features/layout/logo.tsx";
@@ -53,6 +53,18 @@ export function AppSidebar({ currentUser }: { currentUser: typeof User.Encoded }
                   <span>Todos</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              {currentUser.role === "admin" && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    render={<Link to="/users" onClick={closeOnMobile} />}
+                    isActive={matchRoute({ to: "/users" }) !== false}
+                    tooltip="Users"
+                  >
+                    <UsersIcon />
+                    <span>Users</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
