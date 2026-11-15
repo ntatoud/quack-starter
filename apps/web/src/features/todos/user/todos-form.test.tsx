@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { render } from "vitest-browser-react";
 
-import { TodosForm } from "#/features/todos/todos-form.tsx";
+import { TodosForm } from "#/features/todos/user/todos-form.tsx";
 
 const created = (title: string) =>
   Response.json({

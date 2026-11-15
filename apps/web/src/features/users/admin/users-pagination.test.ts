@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { pagesAround } from "#/features/users/users-pagination.tsx";
+import { pagesAround } from "#/features/users/admin/users-pagination.tsx";
 
 describe("pagesAround", () => {
   it("shows every page when there are few", () => {

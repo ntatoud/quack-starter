@@ -1,7 +1,7 @@
 import { Schema } from "effect";
 import { describe, expect, it } from "vite-plus/test";
 
-import { TodoDraft } from "#/features/todos/todo-draft.ts";
+import { TodoDraft } from "#/features/todos/user/todo-draft.ts";
 
 const validate = (title: string) =>
   Schema.toStandardSchemaV1(TodoDraft)["~standard"].validate({ title });

@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 import { render } from "vitest-browser-react";
 
-import { TodosList } from "#/features/todos/todos-list.tsx";
+import { TodosList } from "#/features/todos/user/todos-list.tsx";
 
 const todo = (id: string, title: string, completed = false) => ({
   id,

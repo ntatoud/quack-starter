@@ -2,8 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
 
 import { PageHeader } from "#/features/layout/page-header.tsx";
-import { usersQueryOptions } from "#/features/users/users-query.ts";
-import { UsersTable } from "#/features/users/users-table.tsx";
+import { usersQueryOptions } from "#/features/users/admin/users-query.ts";
+import { UsersTable } from "#/features/users/admin/users-table.tsx";
 
 export function UsersPage() {
   const { page = 1 } = useSearch({ from: "/_authenticated/_admin/users" });

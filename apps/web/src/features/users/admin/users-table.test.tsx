@@ -12,8 +12,8 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { render } from "vitest-browser-react";
 
-import { UsersSearch } from "#/features/users/users-search.ts";
-import { UsersTable } from "#/features/users/users-table.tsx";
+import { UsersSearch } from "#/features/users/admin/users-search.ts";
+import { UsersTable } from "#/features/users/admin/users-table.tsx";
 
 const user = (n: number, role: "user" | "admin" = "user") => ({
   id: `user-${n}`,

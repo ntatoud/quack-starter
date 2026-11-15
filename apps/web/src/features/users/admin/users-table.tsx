@@ -14,9 +14,9 @@ import { useQuery } from "@tanstack/react-query";
 import { UsersIcon } from "lucide-react";
 
 import { ButtonLink } from "#/components/button-link.tsx";
-import { usersColumns } from "#/features/users/users-columns.tsx";
-import { UsersPagination } from "#/features/users/users-pagination.tsx";
-import { usersQueryOptions } from "#/features/users/users-query.ts";
+import { usersColumns } from "#/features/users/admin/users-columns.tsx";
+import { UsersPagination } from "#/features/users/admin/users-pagination.tsx";
+import { usersQueryOptions } from "#/features/users/admin/users-query.ts";
 
 export function UsersTable({ page }: { page: number }) {
   const users = useQuery(usersQueryOptions(page));
