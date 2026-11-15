@@ -1,4 +1,5 @@
 import { base, en, Faker } from "@faker-js/faker";
+import { devAccounts, devPassword } from "@quack/contracts/identity/dev-accounts";
 import { Email, Password, type Role, User } from "@quack/contracts/identity/user";
 import { Effect, Layer, Schema } from "effect";
 
@@ -10,8 +11,6 @@ export interface SeedUser {
   readonly password: Password;
   readonly role: Role;
 }
-
-const seedPassword = "quack-password";
 
 const randomEmails = (count: number) => {
   const faker = new Faker({ locale: [en, base] });
@@ -26,13 +25,13 @@ const randomEmails = (count: number) => {
 
 const seedUser = (email: string, role: Role): SeedUser => ({
   email: Schema.decodeSync(Email)(email),
-  password: Schema.decodeSync(Password)(seedPassword),
+  password: Schema.decodeSync(Password)(devPassword),
   role,
 });
 
 export const devUsers: ReadonlyArray<SeedUser> = [
-  seedUser("admin@quack.dev", "admin"),
-  ...["user@quack.dev", ...randomEmails(100)].map((email) => seedUser(email, "user")),
+  seedUser(devAccounts.admin, "admin"),
+  ...[devAccounts.user, ...randomEmails(100)].map((email) => seedUser(email, "user")),
 ];
 
 export const UserSeed = (seeds: ReadonlyArray<SeedUser>) =>
@@ -53,7 +52,7 @@ export const UserSeed = (seeds: ReadonlyArray<SeedUser>) =>
       yield* Effect.logInfo(`Seeded ${seeds.length} Users`).pipe(
         Effect.annotateLogs({
           first: seeds.slice(0, 3).map(({ email }) => email),
-          password: seedPassword,
+          password: devPassword,
         }),
       );
     }),
