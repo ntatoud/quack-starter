@@ -10,11 +10,12 @@ describe("pagesAround", () => {
 
   it("shows the first, the last, and the neighbours of the current page, with a gap between", () => {
     expect(pagesAround(1, 6)).toEqual([1, 2, "gap-after", 6]);
-    expect(pagesAround(4, 10)).toEqual([1, "gap-before", 3, 4, 5, "gap-after", 10]);
+    expect(pagesAround(5, 10)).toEqual([1, "gap-before", 4, 5, 6, "gap-after", 10]);
     expect(pagesAround(6, 6)).toEqual([1, "gap-before", 5, 6]);
   });
 
-  it("shows a page alone between two others rather than a gap of one", () => {
-    expect(pagesAround(3, 6)).toEqual([1, 2, 3, 4, "gap-after", 6]);
+  it("shows a single hidden page rather than an ellipsis in its place", () => {
+    expect(pagesAround(4, 8)).toEqual([1, 2, 3, 4, 5, "gap-after", 8]);
+    expect(pagesAround(4, 7)).toEqual([1, 2, 3, 4, 5, 6, 7]);
   });
 });

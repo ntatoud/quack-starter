@@ -44,7 +44,7 @@ const currentPages = () =>
     .filter((link) => link.getAttribute("aria-current") === "page")
     .map((link) => link.getAttribute("aria-label"));
 
-const setup = async (response: typeof respond, url = "/users") => {
+const setup = async (response: typeof respond, url = "/users", width?: number) => {
   respond = response;
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const rootRoute = createRootRoute();
@@ -54,7 +54,11 @@ const setup = async (response: typeof respond, url = "/users") => {
     validateSearch: Schema.toStandardSchemaV1(UsersSearch),
     component: function Users() {
       const { page: current = 1 } = usersRoute.useSearch();
-      return <UsersTable page={current} />;
+      return (
+        <div style={{ width }}>
+          <UsersTable page={current} />
+        </div>
+      );
     },
   });
   const router = createRouter({
@@ -189,11 +193,37 @@ describe("UsersTable", () => {
     await expect.element(pagination().getByRole("link", { name: "Page 2" })).toHaveFocus();
   });
 
+  it("keeps the focus in the pagination when Previous leads to the first page", async () => {
+    await setup(usersOn, "/users?page=2");
+    await expect.element(page.getByText(`user-${total}@quack.dev`)).toBeVisible();
+
+    previous().element().focus();
+    await userEvent.keyboard("{Enter}");
+
+    await expect.element(previous()).toHaveAttribute("aria-disabled", "true");
+    await expect.element(pagination().getByRole("link", { name: "Page 1" })).toHaveFocus();
+  });
+
+  it("stacks the footer when the table is narrow, whatever the width of the window", async () => {
+    await page.viewport(1280, 800);
+    await setup(
+      () => Response.json({ items: pagesOfUsers[1], total: usersPageSize * 9 }),
+      "/users?page=5",
+      470,
+    );
+    await expect.element(next()).toBeVisible();
+
+    const container = page.getByRole("table").element().parentElement;
+    expect(container?.scrollWidth).toBe(container?.clientWidth);
+    const summary = page.getByText("Page 5 of 9").element().getBoundingClientRect();
+    expect(summary.bottom).toBeLessThanOrEqual(pagination().element().getBoundingClientRect().top);
+  });
+
   it("fits the pagination in the width of a phone", async () => {
     await page.viewport(375, 667);
     await setup(
-      () => Response.json({ items: pagesOfUsers[1], total: usersPageSize * 6 }),
-      "/users?page=3",
+      () => Response.json({ items: pagesOfUsers[1], total: usersPageSize * 9 }),
+      "/users?page=5",
     );
 
     await expect.element(next()).toBeVisible();

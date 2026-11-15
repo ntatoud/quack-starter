@@ -109,11 +109,16 @@ export function UsersTable({ page }: { page: number }) {
           </Empty>
         }
         footer={
-          <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
-            <p aria-live="polite" className="text-sm font-normal text-muted-foreground">
-              Page {page} of {pages}
-            </p>
-            <UsersPagination page={page} pages={pages} />
+          <div className="@container">
+            <div className="flex flex-col items-center gap-2 @lg:flex-row @lg:justify-between">
+              <p
+                aria-live="polite"
+                className="shrink-0 text-sm font-normal whitespace-nowrap text-muted-foreground"
+              >
+                Page {page} of {pages}
+              </p>
+              <UsersPagination page={page} pages={pages} />
+            </div>
           </div>
         }
       />
