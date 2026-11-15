@@ -25,5 +25,13 @@ export const UserRepositoryMemory = Layer.sync(UserRepository, () => {
           Option.flatMapNullishOr((id) => users.get(id)),
         ),
       ),
+    findAll: ({ page, pageSize }) =>
+      Effect.sync(() => {
+        const offset = (page - 1) * pageSize;
+        const sorted = Array.from(users.values(), ({ user }) => user).toSorted((a, b) =>
+          a.email < b.email ? -1 : a.email > b.email ? 1 : 0,
+        );
+        return { items: sorted.slice(offset, offset + pageSize), total: sorted.length };
+      }),
   });
 });

@@ -23,3 +23,9 @@ export class TooManyAttempts extends Schema.TaggedError<
   /** Seconds. */
   retryAfter: Schema.Int,
 }) {}
+
+/** The Current User is known, but their Role does not allow the request. */
+export class Forbidden extends Schema.TaggedError<Forbidden, { readonly brand: unique symbol }>()(
+  "Forbidden",
+  {},
+) {}

@@ -1,7 +1,8 @@
-import { Layer } from "effect";
+import { ConfigProvider, Layer } from "effect";
 import { HttpRouter, HttpServer } from "effect/http";
 import { afterAll, describe, expect, it } from "vite-plus/test";
 
+import { devUsers } from "#/modules/identity/application/user-seed.ts";
 import { Routes } from "#/server.ts";
 
 const { handler, dispose } = HttpRouter.toWebHandler(
@@ -76,6 +77,25 @@ describe("server routes", () => {
     ]);
   });
 
+  it("answers /api/users with 403 Forbidden to a user, before it reads the query", async () => {
+    const [setCookie] = (
+      await signUp("katherine@example.com", { from: "203.0.113.50" })
+    ).headers.getSetCookie();
+    const cookie = setCookie?.split(";")[0] ?? "";
+
+    const responses = await Promise.all(
+      ["", "?pageSize=0"].map((search) =>
+        handler(new Request(`http://api.test/api/users${search}`, { headers: { cookie } })),
+      ),
+    );
+
+    expect(responses.map((response) => response.status)).toEqual([403, 403]);
+    expect(await Promise.all(responses.map((response) => response.json()))).toEqual([
+      { _tag: "Forbidden" },
+      { _tag: "Forbidden" },
+    ]);
+  });
+
   it("serves the health check under /api", async () => {
     expect((await get("/api/health")).status).toBe(204);
   });
@@ -88,7 +108,7 @@ describe("server routes", () => {
     expect(Object.keys(paths)).toContain("/api/todos");
   });
 
-  it("describes the session cookie as the security scheme of /api/me and of the todos, and of no public endpoint", async () => {
+  it("describes the session cookie as the security scheme of /api/me, of the todos and of the users, and of no public endpoint", async () => {
     const openapi = (await (await get("/api/openapi.json")).json()) as {
       components: { securitySchemes: Record<string, unknown> };
       paths: Record<string, Record<string, { security?: ReadonlyArray<Record<string, unknown>> }>>;
@@ -106,6 +126,7 @@ describe("server routes", () => {
       { session: [] },
     ]);
     expect(openapi.paths["/api/todos/{id}"]?.["delete"]?.security).toEqual([{ session: [] }]);
+    expect(openapi.paths["/api/users"]?.["get"]?.security).toEqual([{ session: [] }]);
   });
 
   it("signs a visitor up, then answers /api/me to the session cookie it set", async () => {
@@ -267,5 +288,37 @@ describe("server routes", () => {
     );
 
     expect(response.headers.get("access-control-allow-origin")).toBeNull();
+  });
+});
+
+describe("server routes, with the dev Users seeded", () => {
+  const seeded = HttpRouter.toWebHandler(
+    Routes.pipe(
+      Layer.provide(HttpServer.layerServices),
+      Layer.provide(ConfigProvider.layer(ConfigProvider.fromUnknown({ SEED_USERS: "true" }))),
+    ),
+  );
+
+  afterAll(seeded.dispose);
+
+  it("answers /api/users to an Admin, and with 400 when the page or its size is out of bounds", async () => {
+    const signedIn = await seeded.handler(
+      new Request("http://api.test/api/sign-in", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email: "admin@quack.dev", password: "quack-password" }),
+      }),
+    );
+    const cookie = signedIn.headers.getSetCookie()[0]?.split(";")[0] ?? "";
+    const usersAt = (search: string) =>
+      seeded.handler(new Request(`http://api.test/api/users${search}`, { headers: { cookie } }));
+
+    const firstPage = await usersAt("");
+    expect(firstPage.status).toBe(200);
+    expect(await firstPage.json()).toMatchObject({ total: devUsers.length });
+    const outOfBounds = await Promise.all(
+      ["?pageSize=0", "?pageSize=101", "?pageSize=2.5", "?page=0"].map(usersAt),
+    );
+    expect(outOfBounds.map((response) => response.status)).toEqual([400, 400, 400, 400]);
   });
 });
