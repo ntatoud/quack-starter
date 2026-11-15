@@ -59,7 +59,7 @@ export function DataTable<TData extends RowData>({
     >
       <ScrollArea
         className={cn(
-          "flex min-h-0 flex-col",
+          "flex min-h-0 flex-col [&>[data-slot=scroll-area-viewport]]:overscroll-none",
           // Shown only while the pointer is over the rows or they scroll: it lies over the header and the footer.
           "[&>[data-slot=scroll-area-scrollbar]]:opacity-0 [&>[data-slot=scroll-area-scrollbar]]:transition-opacity [&>[data-slot=scroll-area-scrollbar][data-hovering]]:opacity-100 [&>[data-slot=scroll-area-scrollbar][data-scrolling]]:opacity-100",
         )}
