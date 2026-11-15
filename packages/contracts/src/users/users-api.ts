@@ -5,7 +5,7 @@ import { Authentication } from "#/identity/authentication.ts";
 import { RequireRole } from "#/identity/require-role.ts";
 import { User } from "#/identity/user.ts";
 import { Paginated, PaginationQuery } from "#/pagination/paginated.ts";
-import { sortingFields } from "#/pagination/sorting.ts";
+import { sortingFields } from "#/sorting/sorting.ts";
 
 export class UserList extends Schema.Class<UserList, { readonly brand: unique symbol }>("UserList")(
   Paginated(User).fields,
