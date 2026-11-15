@@ -42,10 +42,10 @@ export function UsersPagination({ page, pages }: { page: number; pages: number }
     if (target === page) currentLink.current?.focus();
   }, [page]);
   // A click with a modifier opens another tab and leaves this page where it is.
-  const refocusAfter = (target: number) => (event: MouseEvent) => {
+  const refocusAfter = (target: number, end: number) => (event: MouseEvent) => {
     const plain =
       event.button === 0 && !(event.metaKey || event.ctrlKey || event.shiftKey || event.altKey);
-    if (plain && (target === 1 || target === pages)) refocusOn.current = target;
+    if (plain && target === end) refocusOn.current = target;
   };
 
   const previous = Math.min(page - 1, pages);
@@ -60,13 +60,13 @@ export function UsersPagination({ page, pages }: { page: number; pages: number }
             search={searchOf(previous)}
             disabled={previous < 1}
             activeOptions={exactly}
-            onClick={refocusAfter(previous)}
+            onClick={refocusAfter(previous, 1)}
             variant="ghost"
             aria-label="Go to previous page"
             className={`pl-1.5 ${disabledLink}`}
           >
             <ChevronLeftIcon data-icon="inline-start" />
-            <span className="hidden sm:block">Previous</span>
+            <span className="hidden @md:block">Previous</span>
           </ButtonLink>
         </PaginationItem>
         {pagesAround(page, pages).map((n) =>
@@ -97,12 +97,12 @@ export function UsersPagination({ page, pages }: { page: number; pages: number }
             search={searchOf(next)}
             disabled={page >= pages}
             activeOptions={exactly}
-            onClick={refocusAfter(next)}
+            onClick={refocusAfter(next, pages)}
             variant="ghost"
             aria-label="Go to next page"
             className={`pr-1.5 ${disabledLink}`}
           >
-            <span className="hidden sm:block">Next</span>
+            <span className="hidden @md:block">Next</span>
             <ChevronRightIcon data-icon="inline-end" />
           </ButtonLink>
         </PaginationItem>

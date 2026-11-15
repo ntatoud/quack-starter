@@ -110,7 +110,7 @@ export function UsersTable({ page }: { page: number }) {
         }
         footer={
           <div className="@container">
-            <div className="flex flex-col items-center gap-2 @lg:flex-row @lg:justify-between">
+            <div className="flex flex-col items-center gap-2 @xl:flex-row @xl:justify-between">
               <p
                 aria-live="polite"
                 className="shrink-0 text-sm font-normal whitespace-nowrap text-muted-foreground"

@@ -83,8 +83,9 @@ const pagination = () => page.getByRole("navigation", { name: "Pages of users" }
 const previous = () => pagination().getByRole("link", { name: "Go to previous page" });
 const next = () => pagination().getByRole("link", { name: "Go to next page" });
 
-afterEach(() => {
+afterEach(async () => {
   fetch.mockClear();
+  await page.viewport(414, 896);
 });
 
 describe("UsersTable", () => {
@@ -217,6 +218,21 @@ describe("UsersTable", () => {
     expect(container?.scrollWidth).toBe(container?.clientWidth);
     const summary = page.getByText("Page 5 of 9").element().getBoundingClientRect();
     expect(summary.bottom).toBeLessThanOrEqual(pagination().element().getBoundingClientRect().top);
+  });
+
+  it("puts the footer on one row when the table is wide", async () => {
+    await page.viewport(1280, 800);
+    await setup(
+      () => Response.json({ items: pagesOfUsers[1], total: usersPageSize * 9 }),
+      "/users?page=5",
+      900,
+    );
+    await expect.element(next()).toBeVisible();
+
+    const summary = page.getByText("Page 5 of 9").element().getBoundingClientRect();
+    const links = pagination().element().getBoundingClientRect();
+    expect(summary.top).toBeGreaterThanOrEqual(links.top);
+    expect(summary.bottom).toBeLessThanOrEqual(links.bottom);
   });
 
   it("fits the pagination in the width of a phone", async () => {
