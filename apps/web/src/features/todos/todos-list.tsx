@@ -8,7 +8,9 @@ import {
   EmptyTitle,
 } from "@quack/ui/components/empty";
 import { Skeleton } from "@quack/ui/components/skeleton";
+import { matchQuery } from "@quack/ui-state/query";
 import { useQuery } from "@tanstack/react-query";
+import { Option } from "effect";
 import { ListTodoIcon } from "lucide-react";
 
 import { TodoItem } from "#/features/todos/todo-item.tsx";
@@ -17,8 +19,8 @@ import { api } from "#/lib/api.ts";
 export function TodosList() {
   const todos = useQuery(api.todos.list.queryOptions());
 
-  if (todos.isPending) {
-    return (
+  return matchQuery(todos, {
+    Pending: () => (
       <>
         <p role="status" className="sr-only">
           Loading todos…
@@ -32,12 +34,8 @@ export function TodosList() {
           ))}
         </ul>
       </>
-    );
-  }
-
-  // A failed refetch keeps the todos already loaded: only a first load that fails has nothing to show.
-  if (todos.data === undefined) {
-    return (
+    ),
+    Error: () => (
       <Empty className="border border-dashed">
         <EmptyHeader role="alert">
           <EmptyTitle>Could not load your todos</EmptyTitle>
@@ -54,42 +52,41 @@ export function TodosList() {
           </Button>
         </EmptyContent>
       </Empty>
-    );
-  }
-
-  return (
-    <div className="flex flex-col gap-2">
-      {todos.isRefetchError && (
-        <p role="alert" className="flex items-center gap-2 text-sm text-destructive">
-          <span>Could not refresh your todos.</span>
-          <Button
-            variant="link"
-            size="sm"
-            className="h-auto p-0"
-            disabled={todos.isFetching}
-            onClick={() => todos.refetch()}
-          >
-            Try again
-          </Button>
-        </p>
-      )}
-      {todos.data.length === 0 ? (
-        <Empty className="border border-dashed">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <ListTodoIcon />
-            </EmptyMedia>
-            <EmptyTitle>No todos yet</EmptyTitle>
-            <EmptyDescription>Add your first one above.</EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      ) : (
-        <ul className="divide-y rounded-lg border">
-          {todos.data.map((todo) => (
-            <TodoItem key={todo.id} todo={todo} />
-          ))}
-        </ul>
-      )}
-    </div>
-  );
+    ),
+    Success: ({ data, refreshError }) => (
+      <div className="flex flex-col gap-2">
+        {Option.isSome(refreshError) && (
+          <p role="alert" className="flex items-center gap-2 text-sm text-destructive">
+            <span>Could not refresh your todos.</span>
+            <Button
+              variant="link"
+              size="sm"
+              className="h-auto p-0"
+              disabled={todos.isFetching}
+              onClick={() => todos.refetch()}
+            >
+              Try again
+            </Button>
+          </p>
+        )}
+        {data.length === 0 ? (
+          <Empty className="border border-dashed">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <ListTodoIcon />
+              </EmptyMedia>
+              <EmptyTitle>No todos yet</EmptyTitle>
+              <EmptyDescription>Add your first one above.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        ) : (
+          <ul className="divide-y rounded-lg border">
+            {data.map((todo) => (
+              <TodoItem key={todo.id} todo={todo} />
+            ))}
+          </ul>
+        )}
+      </div>
+    ),
+  });
 }

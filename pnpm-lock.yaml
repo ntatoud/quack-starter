@@ -301,6 +301,9 @@ importers:
       '@quack/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@quack/ui-state':
+        specifier: workspace:*
+        version: link:../../packages/ui-state
       '@tanstack/react-query':
         specifier: 'catalog:'
         version: 5.107.1(@types/react@19.3.0)(react@19.3.1)
@@ -474,6 +477,19 @@ importers:
       tailwindcss:
         specifier: 'catalog:'
         version: 4.3.5
+
+  packages/ui-state:
+    dependencies:
+      '@tanstack/react-query':
+        specifier: 'catalog:'
+        version: 5.107.1(@types/react@19.3.0)(react@19.3.1)
+      effect:
+        specifier: 4.1.4
+        version: 4.1.4
+    devDependencies:
+      vite-plus:
+        specifier: 'catalog:'
+        version: 1.6.0(@types/node@26.6.6)(@vitest/browser-playwright@5.1.0)(@vitest/ui@5.1.0)(jiti@2.7.0)(playwright@1.65.0)(typescript@7.0.2)(yaml@2.9.1)
 
 packages:
 
