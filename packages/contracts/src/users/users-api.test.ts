@@ -21,4 +21,12 @@ describe("UserListQuery", () => {
     expect(decode({ orderBy: "Email" })._tag).toBe("None");
     expect(decode({ dir: "up" })._tag).toBe("None");
   });
+
+  it("trims and lowercases the search, up to the length of an email", () => {
+    expect(Schema.decodeSync(UserListQuery)({ search: "  Ada@Example " }).search).toBe(
+      "ada@example",
+    );
+    expect(decode({ search: "a".repeat(254) })._tag).toBe("Some");
+    expect(decode({ search: "a".repeat(255) })._tag).toBe("None");
+  });
 });

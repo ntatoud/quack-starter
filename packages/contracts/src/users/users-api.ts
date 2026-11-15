@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import { Schema, SchemaTransformation } from "effect";
 import { HttpApiEndpoint, HttpApiGroup } from "effect/http-api";
 
 import { Authentication } from "#/identity/authentication.ts";
@@ -14,8 +14,15 @@ export class UserList extends Schema.Class<UserList, { readonly brand: unique sy
 export const UserOrder = Schema.Literals(["email", "role"]);
 export type UserOrder = typeof UserOrder.Type;
 
+/** Matches the Users whose email contains it, whatever its case. */
+export const UserSearch = Schema.String.pipe(
+  Schema.decode(SchemaTransformation.trim()),
+  Schema.decode(SchemaTransformation.toLowerCase()),
+).check(Schema.isMaxLength(254));
+
 export const UserListQuery = Schema.Struct({
   ...PaginationQuery.fields,
+  search: Schema.optionalKey(UserSearch),
   ...sortingFields(UserOrder.literals, "email"),
 });
 export type UserListQuery = typeof UserListQuery.Type;
