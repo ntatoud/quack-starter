@@ -26,7 +26,11 @@ export const Password = Schema.RedactedFromValue(
 );
 export type Password = typeof Password.Type;
 
+export const Role = Schema.Literals(["user", "admin"]);
+export type Role = typeof Role.Type;
+
 export class User extends Schema.Class<User, { readonly brand: unique symbol }>("User")({
   id: UserId,
   email: Email,
+  role: Role,
 }) {}

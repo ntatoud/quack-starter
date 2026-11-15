@@ -63,7 +63,7 @@ describe("SignUpForm", () => {
     const requests: Array<{ url: string; body: unknown }> = [];
     const form = await setup(async (request) => {
       requests.push({ url: request.url, body: await request.json() });
-      return Response.json({ id: "1", email: "ada@example.com" });
+      return Response.json({ id: "1", email: "ada@example.com", role: "user" });
     });
 
     await form.email.fill("  Ada@Example.COM ");
@@ -71,7 +71,7 @@ describe("SignUpForm", () => {
     await userEvent.keyboard("{Enter}");
 
     await expect.poll(() => form.signedUp).toHaveLength(1);
-    expect(form.signedUp[0]).toMatchObject({ id: "1", email: "ada@example.com" });
+    expect(form.signedUp[0]).toMatchObject({ id: "1", email: "ada@example.com", role: "user" });
     expect(requests).toEqual([
       {
         url: `${location.origin}/api/sign-up`,

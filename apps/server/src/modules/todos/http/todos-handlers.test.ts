@@ -11,8 +11,16 @@ import { HttpApiMiddleware, HttpApiTest } from "effect/http-api";
 
 import { TodosModule } from "#/modules/todos/index.ts";
 
-const ada = new User({ id: UserId.make("ada"), email: Email.make("ada@example.com") });
-const grace = new User({ id: UserId.make("grace"), email: Email.make("grace@example.com") });
+const ada = new User({
+  id: UserId.make("ada"),
+  email: Email.make("ada@example.com"),
+  role: "user",
+});
+const grace = new User({
+  id: UserId.make("grace"),
+  email: Email.make("grace@example.com"),
+  role: "user",
+});
 const users: ReadonlyArray<User> = [ada, grace];
 
 // The session cookie is the id of the Current User: these tests need a Current User, not a Session.
