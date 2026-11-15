@@ -1,11 +1,13 @@
 import { Effect, Schema } from "effect";
 
+export const PageNumber = Schema.Int.check(Schema.isGreaterThanOrEqualTo(1));
+
+export const defaultPageSize = 20;
+
 export const PaginationQuery = Schema.Struct({
-  page: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)).pipe(
-    Schema.withDecodingDefaultKey(Effect.succeed(1)),
-  ),
+  page: PageNumber.pipe(Schema.withDecodingDefaultKey(Effect.succeed(1))),
   pageSize: Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 100 })).pipe(
-    Schema.withDecodingDefaultKey(Effect.succeed(20)),
+    Schema.withDecodingDefaultKey(Effect.succeed(defaultPageSize)),
   ),
 });
 export type PaginationQuery = typeof PaginationQuery.Type;

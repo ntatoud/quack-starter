@@ -10,6 +10,15 @@ export const ButtonLink = createLink(
     size,
     ...props
   }: ComponentProps<"a"> & Pick<ComponentProps<typeof Button>, "variant" | "size">) => (
-    <a data-slot="button" className={buttonVariants({ variant, size, className })} {...props} />
+    <a
+      data-slot="button"
+      // A disabled link has no `disabled` state, only `aria-disabled`.
+      className={buttonVariants({
+        variant,
+        size,
+        className: ["aria-disabled:pointer-events-none aria-disabled:opacity-50", className],
+      })}
+      {...props}
+    />
   ),
 );

@@ -98,12 +98,13 @@ To add a context: add its schemas and `*-api.ts` to `packages/contracts` and its
 ```
 apps/web/src/
   components/          Components that no feature owns and that need the router, which `@quack/ui` does not know (button-link.tsx)
-  features/<context>/  Components, queries, and UI logic of one context
+  features/<context>/  Components, queries, and UI logic of one context; what only Admins use in admin/
   routes/              TanStack file routes: the route and its context only, no component
   lib/                 API client (api.ts), relay to the API (api-relay.ts)
   env/                 Environment, validated at startup: server.ts for the web server's variables
 ```
 
+- What only Admins use goes in the `admin/` folder of its feature (`features/users/admin`), next to the pages of a route under `routes/_authenticated/_admin/`. Everything else stays at the root of its feature.
 - A route file declares its route (`createFileRoute`, `beforeLoad`, `head`) and names its components; it defines none. A component lives in `features/`, the page of a route included (`features/identity/sign-up-page.tsx`), and the document of the root route and the layouts in `features/layout`. There it reads the router with `useNavigate()` and `useRouteContext({ from })`, since it has no `Route`.
 - The web app does not depend on the server. What they share lives in `@quack/contracts`.
 - The browser calls the web app's origin only. The server route `routes/api/$.ts` relays `/api/*` to the server at `API_URL`, in dev and in production, with the path unchanged: it calls `handler.handle(request, { prefix, context })` on an `ApiRelayHandler` (`lib/api-relay.ts`), the shape of an oRPC handler. The relay replaces `X-Forwarded-For` with the address it sees and checks no authentication.
@@ -113,9 +114,11 @@ apps/web/src/
 - The Current User lives in the query cache under `["me"]` (`features/identity/current-user.ts`), filled by the server function `getCurrentUser`: the session cookie is `HttpOnly` and a server render has no browser, so the web server sends the request's cookie to the API's `me`, names the client in `X-Forwarded-For` as the relay does, and sends the API's `Set-Cookie` back. After a call that changes who the Current User is, call `useSetCurrentUser()` with the User, or `null` after a sign-out: it updates `["me"]`, drops every other query of the cache, since they hold the data of the User before, then invalidates the router.
 - A page for a Current User only goes under `routes/_authenticated/`: its layout `routes/_authenticated/route.tsx` has no path, and redirects a visitor to `/sign-in?redirect=<the page>`, which leads back once they are signed in. Below it, `context.currentUser` is never `null`.
 - That layout renders `AppLayout` (`features/layout/app-layout.tsx`): the sidebar (`app-sidebar.tsx`), with a link per page and the menu of the Current User (`features/identity/user-menu.tsx`), and the page. Add a page to the sidebar in `app-sidebar.tsx`. A page renders its own top bar, `PageHeader` (`features/layout/page-header.tsx`), with what it shows there as children (`features/todos/todos-page.tsx`). Whether the sidebar is open is kept in the `sidebar_state` cookie, read in the `beforeLoad` of the layout (`features/layout/sidebar-open.ts`), so the server render draws it as the browser will.
+- A page for Admins only goes under `routes/_authenticated/_admin/`: its layout `routes/_authenticated/_admin/route.tsx` has no path and no component, and redirects a Current User of another Role to `/`. The API refuses them anyway (`RequireRole`); the redirect spares them a page that can only fail.
 - A call of the API that fails with `Unauthenticated` needs no handling where it is made: the `QueryCache` and the `MutationCache` of the `QueryClient` (`router.tsx`) set the Current User to `null` and lead to `/sign-in?redirect=<the current page>`. Such a call is not retried. `signInLocation` (`features/identity/redirect-target.ts`) is that link, for the layout of the protected pages too.
 - A page for visitors only goes under `routes/_guest/` (`sign-in.tsx`, `sign-up.tsx`), whose layout `GuestLayout` (`features/layout/guest-layout.tsx`) centers its card, with no bar. Such a page redirects a Current User in its `beforeLoad`. The `redirect` of the sign-in page comes from a link anyone can write: read it through `redirectTarget` (`features/identity/redirect-target.ts`), which answers a path of the app or `/`. Validate the search of a route with an Effect schema: `validateSearch: Schema.toStandardSchemaV1(SignInSearch)` (`features/identity/sign-in-search.ts`).
 - Link to a page with the look of a button through `ButtonLink` (`components/button-link.tsx`): the `to` of a `Link`, the `variant` and `size` of a `Button`.
+- A list that pages keeps its page in the URL: a `page` search validated by `PageSearch`, which answers 1 for anything else (`components/page-pagination.tsx`), the query with `placeholderData: keepPreviousData`, and the table `aria-busy` while the next page loads. Render it with `DataTable` and `PagePagination` (`components/page-pagination.tsx`) in its footer (`features/users/admin/users-table.tsx`): it links to the pages of the current route through `page`, keeps the rest of the search, and marks the current page from the validated `page`, not by the router. Its links are `ButtonLink`s, not `PaginationLink`, which gives its `<a>` the role of a button.
 - The `QueryClient` is in the router's context (`context.queryClient`), the same one the components use. No other data is loaded in the server render: the API client has no cookie there.
 - The forms of `/sign-in` and `/sign-up` say how long to wait when the API refuses with `TooManyAttempts`: `tooManyAttemptsMessage` (`features/identity/too-many-attempts-message.ts`).
 - Build forms with `@quack/form`: see "Form package" below.
@@ -124,6 +127,8 @@ apps/web/src/
 ## UI package
 
 Add a component from `packages/ui`: `pnpm dlx shadcn@latest add <name>`. Import it as `@quack/ui/components/<name>`, and a hook as `@quack/ui/hooks/<name>`. Do not edit generated components to restyle one screen; pass `className` or compose.
+
+`DataTable` (`components/data-table.tsx`) is shadcn's data-table recipe on TanStack Table v9: `columns` (`DataTableColumn<T>`), `data`, `getRowId`, and slots for the empty state and the footer. It sorts, filters, and pages nothing itself: the API does.
 
 ## Form package
 
