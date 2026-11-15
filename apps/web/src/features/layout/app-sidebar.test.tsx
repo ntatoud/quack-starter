@@ -37,9 +37,10 @@ const setup = async (role: "user" | "admin") => {
 };
 
 describe("AppSidebar", () => {
-  it("links to the users for an admin", async () => {
+  it("links to the users in an Admin section, for an admin", async () => {
     await setup("admin");
 
+    await expect.element(page.getByText("Admin", { exact: true })).toBeVisible();
     await expect.element(page.getByRole("link", { name: "Users" })).toBeVisible();
   });
 
@@ -48,5 +49,6 @@ describe("AppSidebar", () => {
 
     await expect.element(page.getByRole("link", { name: "Todos" })).toBeVisible();
     expect(page.getByRole("link", { name: "Users" }).elements()).toEqual([]);
+    expect(page.getByText("Admin", { exact: true }).elements()).toEqual([]);
   });
 });

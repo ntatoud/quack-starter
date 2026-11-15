@@ -5,6 +5,7 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -53,7 +54,14 @@ export function AppSidebar({ currentUser }: { currentUser: typeof User.Encoded }
                   <span>Todos</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              {currentUser.role === "admin" && (
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+        {currentUser.role === "admin" && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Admin</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     render={<Link to="/users" onClick={closeOnMobile} />}
@@ -64,10 +72,10 @@ export function AppSidebar({ currentUser }: { currentUser: typeof User.Encoded }
                     <span>Users</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-              )}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
       <SidebarFooter>
         <UserMenu currentUser={currentUser} />
