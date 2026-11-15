@@ -4,17 +4,17 @@ import { HttpApiEndpoint, HttpApiGroup } from "effect/http-api";
 import { Authentication } from "#/identity/authentication.ts";
 import { RequireRole } from "#/identity/require-role.ts";
 import { User } from "#/identity/user.ts";
-import { Page, PageQuery } from "#/pagination/page.ts";
+import { Paginated, PaginationQuery } from "#/pagination/paginated.ts";
 
-export class UsersPage extends Schema.Class<UsersPage, { readonly brand: unique symbol }>(
-  "UsersPage",
-)(Page(User).fields) {}
+export class UserList extends Schema.Class<UserList, { readonly brand: unique symbol }>("UserList")(
+  Paginated(User).fields,
+) {}
 
 export class UsersApi extends HttpApiGroup.make("users")
   .add(
     HttpApiEndpoint.get("list", "/", {
-      query: PageQuery,
-      success: UsersPage,
+      query: PaginationQuery,
+      success: UserList,
     }),
   )
   .middleware(RequireRole("admin"))
