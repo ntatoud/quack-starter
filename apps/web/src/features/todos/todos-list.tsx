@@ -2,6 +2,7 @@ import { Button } from "@quack/ui/components/button";
 import { Checkbox } from "@quack/ui/components/checkbox";
 import {
   Empty,
+  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
@@ -21,7 +22,10 @@ export function TodosList() {
 
   if (todos.isPending) {
     return (
-      <div className="flex flex-col gap-2" aria-busy="true" aria-label="Loading todos">
+      <div className="flex flex-col gap-2">
+        <p role="status" className="sr-only">
+          Loading todos…
+        </p>
         <Skeleton className="h-11" />
         <Skeleton className="h-11" />
         <Skeleton className="h-11" />
@@ -31,7 +35,22 @@ export function TodosList() {
 
   if (todos.isError) {
     return (
-      <p className="text-sm text-destructive">Could not reach the API. Is the server running?</p>
+      <Empty className="border border-dashed">
+        <EmptyHeader>
+          <EmptyTitle>Could not load your todos</EmptyTitle>
+          <EmptyDescription role="alert">Check your connection and try again.</EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={todos.isFetching}
+            onClick={() => todos.refetch()}
+          >
+            Try again
+          </Button>
+        </EmptyContent>
+      </Empty>
     );
   }
 
@@ -49,36 +68,55 @@ export function TodosList() {
     );
   }
 
+  const isBusy = (id: string) =>
+    (completeTodo.isPending && completeTodo.variables.params.id === id) ||
+    (removeTodo.isPending && removeTodo.variables.params.id === id);
+
   return (
-    <ul className="divide-y rounded-lg border">
-      {todos.data.map((todo) => (
-        <li key={todo.id} className="group flex min-h-11 items-center gap-3 px-3 py-1.5">
-          <Checkbox
-            checked={todo.completed}
-            disabled={todo.completed}
-            onCheckedChange={() => completeTodo.mutate({ params: { id: todo.id } })}
-            aria-label={`Complete ${todo.title}`}
-          />
-          <span
-            className={
-              todo.completed
-                ? "flex-1 text-sm text-muted-foreground line-through"
-                : "flex-1 text-sm"
-            }
+    <div className="flex flex-col gap-2">
+      <ul className="divide-y rounded-lg border">
+        {todos.data.map((todo) => (
+          <li
+            key={todo.id}
+            className="group/todo flex min-h-11 items-center gap-3 px-3 py-1.5"
+            aria-busy={isBusy(todo.id)}
           >
-            {todo.title}
-          </span>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="md:opacity-0 md:group-focus-within:opacity-100 md:group-hover:opacity-100"
-            onClick={() => removeTodo.mutate({ params: { id: todo.id } })}
-            aria-label={`Remove ${todo.title}`}
-          >
-            <Trash2Icon />
-          </Button>
-        </li>
-      ))}
-    </ul>
+            <label className="flex min-w-0 flex-1 items-center gap-3">
+              <Checkbox
+                checked={todo.completed}
+                disabled={todo.completed || isBusy(todo.id)}
+                onCheckedChange={() => completeTodo.mutate({ params: { id: todo.id } })}
+                aria-label={`Complete ${todo.title}`}
+              />
+              <span
+                className={
+                  todo.completed
+                    ? "min-w-0 flex-1 text-sm wrap-anywhere text-muted-foreground line-through"
+                    : "min-w-0 flex-1 text-sm wrap-anywhere"
+                }
+              >
+                {todo.title}
+              </span>
+            </label>
+            {/* Hidden until hover only where there is a hover: a touch screen would never show it. */}
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="pointer-fine:opacity-0 pointer-fine:group-focus-within/todo:opacity-100 pointer-fine:group-hover/todo:opacity-100"
+              disabled={isBusy(todo.id)}
+              onClick={() => removeTodo.mutate({ params: { id: todo.id } })}
+              aria-label={`Remove ${todo.title}`}
+            >
+              <Trash2Icon />
+            </Button>
+          </li>
+        ))}
+      </ul>
+      {(completeTodo.isError || removeTodo.isError) && (
+        <p role="alert" className="text-sm text-destructive">
+          Could not update the todo. Try again.
+        </p>
+      )}
+    </div>
   );
 }

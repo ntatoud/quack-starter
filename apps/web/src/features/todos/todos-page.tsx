@@ -7,14 +7,15 @@ import { api } from "#/lib/api.ts";
 
 export function TodosPage() {
   const todos = useQuery(api.todos.list.queryOptions());
-  const left = todos.data?.filter((todo) => !todo.completed).length;
+  const all = todos.data ?? [];
+  const remaining = all.filter((todo) => !todo.completed).length;
 
   return (
     <>
       <PageHeader>
         <h1 className="text-sm font-medium">Todos</h1>
-        {left !== undefined && (
-          <span className="ml-auto text-sm text-muted-foreground">{left} left</span>
+        {all.length > 0 && (
+          <span className="ml-auto text-sm text-muted-foreground">{remaining} left</span>
         )}
       </PageHeader>
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
