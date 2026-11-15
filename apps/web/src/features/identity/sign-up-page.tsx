@@ -17,7 +17,9 @@ export function SignUpPage() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Sign up</CardTitle>
+        <CardTitle>
+          <h1>Sign up</h1>
+        </CardTitle>
         <CardDescription>Your todos are yours alone.</CardDescription>
       </CardHeader>
       <CardContent>

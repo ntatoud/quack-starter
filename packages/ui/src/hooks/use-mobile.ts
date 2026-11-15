@@ -1,9 +1,11 @@
 import { useSyncExternalStore } from "react";
 
-const MOBILE_QUERY = "(max-width: 767px)";
+let mobileQuery: MediaQueryList | undefined;
+
+const getMobileQuery = () => (mobileQuery ??= window.matchMedia("(max-width: 767px)"));
 
 function subscribe(onChange: () => void) {
-  const query = window.matchMedia(MOBILE_QUERY);
+  const query = getMobileQuery();
   query.addEventListener("change", onChange);
   return () => query.removeEventListener("change", onChange);
 }
@@ -11,7 +13,7 @@ function subscribe(onChange: () => void) {
 export function useIsMobile() {
   return useSyncExternalStore(
     subscribe,
-    () => window.matchMedia(MOBILE_QUERY).matches,
+    () => getMobileQuery().matches,
     () => false,
   );
 }

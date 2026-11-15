@@ -19,7 +19,9 @@ export function SignInPage() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Sign in</CardTitle>
+        <CardTitle>
+          <h1>Sign in</h1>
+        </CardTitle>
         <CardDescription>Find your todos where you left them.</CardDescription>
       </CardHeader>
       <CardContent>

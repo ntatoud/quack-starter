@@ -34,21 +34,26 @@ export function UserMenu({ currentUser }: { currentUser: typeof User.Encoded }) 
       },
     }),
   );
-  const identity = <UserIdentity email={currentUser.email} />;
 
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <DropdownMenu>
+        <DropdownMenu onOpenChange={(open) => open && signOut.reset()}>
           <DropdownMenuTrigger
             render={
               <SidebarMenuButton
                 size="lg"
+                tooltip={currentUser.email}
                 className="data-popup-open:bg-sidebar-accent data-popup-open:text-sidebar-accent-foreground"
               />
             }
           >
-            {identity}
+            <Avatar className="rounded-lg after:rounded-lg">
+              <AvatarFallback aria-hidden="true" className="rounded-lg">
+                {initial(currentUser.email)}
+              </AvatarFallback>
+            </Avatar>
+            <span className="min-w-0 flex-1 truncate text-left text-sm">{currentUser.email}</span>
             <ChevronsUpDownIcon className="ml-auto" />
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -58,18 +63,25 @@ export function UserMenu({ currentUser }: { currentUser: typeof User.Encoded }) 
             className="w-(--anchor-width) min-w-56"
           >
             <DropdownMenuGroup>
-              <DropdownMenuLabel className="flex items-center gap-2 px-1 py-1.5 text-left text-sm text-foreground">
-                {identity}
+              <DropdownMenuLabel className="truncate">
+                Signed in as <span className="text-foreground">{currentUser.email}</span>
               </DropdownMenuLabel>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
+            {/* Stays open on click, so a failed sign-out is said where it was asked. */}
             <DropdownMenuItem
+              closeOnClick={false}
               disabled={signOut.isPending}
               onClick={() => signOut.mutate(undefined)}
             >
               <LogOutIcon />
-              Sign out
+              {signOut.isPending ? "Signing out…" : "Sign out"}
             </DropdownMenuItem>
+            {signOut.isError && (
+              <p role="alert" className="px-2 py-1.5 text-xs text-destructive">
+                Could not sign out. Try again.
+              </p>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
@@ -77,18 +89,4 @@ export function UserMenu({ currentUser }: { currentUser: typeof User.Encoded }) 
   );
 }
 
-function UserIdentity({ email }: { email: string }) {
-  const name = email.split("@")[0] ?? email;
-
-  return (
-    <>
-      <Avatar className="rounded-lg after:rounded-lg">
-        <AvatarFallback className="rounded-lg">{name.slice(0, 1).toUpperCase()}</AvatarFallback>
-      </Avatar>
-      <span className="grid flex-1 text-left text-sm leading-tight">
-        <span className="truncate font-medium">{name}</span>
-        <span className="truncate text-xs text-muted-foreground">{email}</span>
-      </span>
-    </>
-  );
-}
+const initial = (email: string) => (Array.from(email)[0] ?? "").toUpperCase();

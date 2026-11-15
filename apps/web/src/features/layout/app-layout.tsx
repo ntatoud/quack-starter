@@ -5,11 +5,11 @@ import { Outlet, useRouteContext } from "@tanstack/react-router";
 import { AppSidebar } from "#/features/layout/app-sidebar.tsx";
 
 export function AppLayout() {
-  const { currentUser } = useRouteContext({ from: "/_authenticated" });
+  const { currentUser, sidebarOpen } = useRouteContext({ from: "/_authenticated" });
 
   return (
     <TooltipProvider>
-      <SidebarProvider>
+      <SidebarProvider defaultOpen={sidebarOpen}>
         <AppSidebar currentUser={currentUser} />
         <SidebarInset>
           <Outlet />
