@@ -1,0 +1,20 @@
+import { describe, expect, it } from "vite-plus/test";
+
+import { pagesAround } from "#/features/users/users-pagination.tsx";
+
+describe("pagesAround", () => {
+  it("shows every page when there are few", () => {
+    expect(pagesAround(1, 1)).toEqual([1]);
+    expect(pagesAround(2, 3)).toEqual([1, 2, 3]);
+  });
+
+  it("shows the first, the last, and the neighbours of the current page, with a gap between", () => {
+    expect(pagesAround(1, 6)).toEqual([1, 2, "gap-after", 6]);
+    expect(pagesAround(4, 10)).toEqual([1, "gap-before", 3, 4, 5, "gap-after", 10]);
+    expect(pagesAround(6, 6)).toEqual([1, "gap-before", 5, 6]);
+  });
+
+  it("shows a page alone between two others rather than a gap of one", () => {
+    expect(pagesAround(3, 6)).toEqual([1, 2, 3, 4, "gap-after", 6]);
+  });
+});

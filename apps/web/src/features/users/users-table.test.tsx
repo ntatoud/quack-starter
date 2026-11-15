@@ -70,8 +70,9 @@ const said = () =>
     .elements()
     .map((status) => status.textContent);
 
-const previous = () => page.getByRole("link", { name: "Previous" });
-const next = () => page.getByRole("link", { name: "Next" });
+const pagination = () => page.getByRole("navigation", { name: "Pages of users" });
+const previous = () => pagination().getByRole("link", { name: "Go to previous page" });
+const next = () => pagination().getByRole("link", { name: "Go to next page" });
 
 afterEach(() => {
   fetch.mockClear();
@@ -93,8 +94,30 @@ describe("UsersTable", () => {
     await expect.element(admin.getByRole("cell", { name: "Admin" })).toBeVisible();
     const other = page.getByRole("row").filter({ hasText: "user-2@quack.dev" });
     await expect.element(other.getByRole("cell", { name: "User" })).toBeVisible();
-    expect(page.getByRole("row").elements()).toHaveLength(usersPageSize + 1);
+    expect(page.getByRole("row").elements()).toHaveLength(usersPageSize + 2);
     await expect.element(page.getByText("Page 1 of 2")).toBeVisible();
+  });
+
+  it("links to each page by its number, and marks the current one", async () => {
+    const { router } = await setup(usersOn);
+    await expect
+      .element(pagination().getByRole("link", { name: "Page 1" }))
+      .toHaveAttribute("aria-current", "page");
+
+    await pagination().getByRole("link", { name: "Page 2" }).click();
+
+    await expect.element(page.getByText(`user-${total}@quack.dev`)).toBeVisible();
+    expect(router.state.location.search).toEqual({ page: 2 });
+    await expect
+      .element(pagination().getByRole("link", { name: "Page 2" }))
+      .toHaveAttribute("aria-current", "page");
+    expect(
+      pagination()
+        .getByRole("link")
+        .elements()
+        .filter((link) => link.getAttribute("aria-current") === "page")
+        .map((link) => link.getAttribute("aria-label")),
+    ).toEqual(["Page 2"]);
   });
 
   it("asks the API for the page of the URL", async () => {
