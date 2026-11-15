@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { pagesAround } from "#/features/users/admin/users-pagination.tsx";
+import { pageCount, pagesAround } from "#/components/page-pagination.tsx";
 
 describe("pagesAround", () => {
   it("shows every page when there are few", () => {
@@ -17,5 +17,13 @@ describe("pagesAround", () => {
   it("shows a single hidden page rather than an ellipsis in its place", () => {
     expect(pagesAround(4, 8)).toEqual([1, 2, 3, 4, 5, "gap-after", 8]);
     expect(pagesAround(4, 7)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+  });
+});
+
+describe("pageCount", () => {
+  it("counts a last page that is not full, and one page when there is nothing", () => {
+    expect(pageCount(41, 20)).toBe(3);
+    expect(pageCount(40, 20)).toBe(2);
+    expect(pageCount(0, 20)).toBe(1);
   });
 });

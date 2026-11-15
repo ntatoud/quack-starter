@@ -134,6 +134,16 @@ describe("UsersTable", () => {
     expect(currentPages()).toEqual(["Page 2"]);
   });
 
+  it("keeps the rest of the search when it changes page", async () => {
+    const { router } = await setup(usersOn, "/users?page=2&q=duck");
+    await expect.element(page.getByText(`user-${total}@quack.dev`)).toBeVisible();
+
+    await pagination().getByRole("link", { name: "Page 1" }).click();
+
+    await expect.element(page.getByText("user-1@quack.dev")).toBeVisible();
+    expect(router.state.location.search).toEqual({ q: "duck" });
+  });
+
   it("asks the API for the page of the URL", async () => {
     await setup(usersOn, "/users?page=2");
 

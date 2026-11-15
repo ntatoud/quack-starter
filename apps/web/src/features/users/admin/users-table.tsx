@@ -14,8 +14,8 @@ import { useQuery } from "@tanstack/react-query";
 import { UsersIcon } from "lucide-react";
 
 import { ButtonLink } from "#/components/button-link.tsx";
+import { PagePagination, pageCount } from "#/components/page-pagination.tsx";
 import { usersColumns } from "#/features/users/admin/users-columns.tsx";
-import { UsersPagination } from "#/features/users/admin/users-pagination.tsx";
 import { usersQueryOptions } from "#/features/users/admin/users-query.ts";
 
 export function UsersTable({ page }: { page: number }) {
@@ -61,7 +61,7 @@ export function UsersTable({ page }: { page: number }) {
   }
 
   const { items, total } = users.data;
-  const pages = Math.max(1, Math.ceil(total / defaultPageSize));
+  const pages = pageCount(total, defaultPageSize);
 
   return (
     <>
@@ -102,14 +102,7 @@ export function UsersTable({ page }: { page: number }) {
             )}
           </Empty>
         }
-        footer={
-          <div className="flex flex-col items-center gap-2 @xl:flex-row @xl:justify-between">
-            <p aria-live="polite" className="shrink-0 whitespace-nowrap text-muted-foreground">
-              Page {page} of {pages}
-            </p>
-            <UsersPagination page={page} pages={pages} />
-          </div>
-        }
+        footer={<PagePagination page={page} pages={pages} aria-label="Pages of users" />}
       />
     </>
   );
