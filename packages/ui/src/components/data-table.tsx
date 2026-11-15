@@ -47,7 +47,8 @@ export function DataTable<TData extends RowData>({
   const rows = table.getRowModel().rows;
   const width = table.getAllLeafColumns().length;
 
-  // Scrolls in its own container once its parent bounds its height, with the header and the footer in view.
+  // Scrolls in its own container once its parent bounds its height, with the header and the footer in view: their
+  // cells are sticky, not the sections, which a table does not keep above its rows.
   return (
     <div
       data-slot="data-table"
@@ -60,16 +61,21 @@ export function DataTable<TData extends RowData>({
       <ScrollArea
         className={cn(
           "flex min-h-0 flex-col [&>[data-slot=scroll-area-viewport]]:overscroll-none",
-          // Shown only while the pointer is over the rows or they scroll: it lies over the header and the footer.
-          "[&>[data-slot=scroll-area-scrollbar]]:opacity-0 [&>[data-slot=scroll-area-scrollbar]]:transition-opacity [&>[data-slot=scroll-area-scrollbar][data-hovering]]:opacity-100 [&>[data-slot=scroll-area-scrollbar][data-scrolling]]:opacity-100",
+          // Above the sticky cells (z-10), which would hide the thumb at both ends; shown only while the pointer is
+          // over the rows or they scroll, since it lies over the header and the footer.
+          "[&>[data-slot=scroll-area-scrollbar]]:z-20 [&>[data-slot=scroll-area-scrollbar]]:opacity-0 [&>[data-slot=scroll-area-scrollbar]]:transition-opacity [&>[data-slot=scroll-area-scrollbar][data-hovering]]:opacity-100 [&>[data-slot=scroll-area-scrollbar][data-scrolling]]:opacity-100",
         )}
       >
         <Table>
-          <TableHeader className="sticky top-0 z-10 bg-background shadow-[inset_0_-1px_0_var(--color-border)]">
+          <TableHeader>
             {table.getHeaderGroups().map((group) => (
               <TableRow key={group.id}>
                 {group.headers.map((header) => (
-                  <TableHead key={header.id} colSpan={header.colSpan}>
+                  <TableHead
+                    key={header.id}
+                    colSpan={header.colSpan}
+                    className="sticky top-0 z-10 bg-background shadow-[inset_0_-1px_0_var(--color-border)]"
+                  >
                     {header.isPlaceholder ? null : <table.FlexRender header={header} />}
                   </TableHead>
                 ))}
@@ -96,9 +102,12 @@ export function DataTable<TData extends RowData>({
             )}
           </TableBody>
           {footer !== undefined && (
-            <TableFooter className="sticky bottom-0 bg-muted shadow-[inset_0_1px_0_var(--color-border)]">
+            <TableFooter className="border-t-0">
               <TableRow>
-                <TableCell colSpan={width} className="whitespace-normal">
+                <TableCell
+                  colSpan={width}
+                  className="sticky bottom-0 z-10 bg-muted whitespace-normal shadow-[inset_0_1px_0_var(--color-border)]"
+                >
                   {footer}
                 </TableCell>
               </TableRow>
