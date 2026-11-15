@@ -1,13 +1,13 @@
 import { Schema } from "effect";
 import { describe, expect, it } from "vite-plus/test";
 
-import { UsersPageQuery } from "#/users/users-api.ts";
+import { PageQuery } from "#/pagination/page.ts";
 
-describe("UsersPageQuery", () => {
-  const decode = Schema.decodeUnknownOption(UsersPageQuery);
+describe("PageQuery", () => {
+  const decode = Schema.decodeUnknownOption(PageQuery);
 
   it("asks for the first page of 20 when the query says nothing", () => {
-    expect(Schema.decodeUnknownSync(UsersPageQuery)({})).toEqual({ page: 1, pageSize: 20 });
+    expect(Schema.decodeUnknownSync(PageQuery)({})).toEqual({ page: 1, pageSize: 20 });
   });
 
   it("takes a page from 1, and a size from 1 to 100, in whole numbers", () => {

@@ -1,5 +1,6 @@
 import type { EmailAlreadyTaken } from "@quack/contracts/identity/identity-errors";
 import type { Email, User, UserId } from "@quack/contracts/identity/user";
+import type { Page, PageQuery } from "@quack/contracts/pagination/page";
 import { Context, type Effect, type Option } from "effect";
 
 export class UserRepository extends Context.Service<
@@ -13,9 +14,6 @@ export class UserRepository extends Context.Service<
       email: Email,
     ): Effect.Effect<Option.Option<{ readonly user: User; readonly passwordHash: string }>>;
     /** Sorted by email. */
-    findPage(page: {
-      readonly offset: number;
-      readonly limit: number;
-    }): Effect.Effect<{ readonly items: ReadonlyArray<User>; readonly total: number }>;
+    findAll(query: PageQuery): Effect.Effect<Page<User>>;
   }
 >()("@quack/server/identity/UserRepository") {}

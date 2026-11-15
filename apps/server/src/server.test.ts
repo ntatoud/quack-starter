@@ -1,7 +1,8 @@
-import { Layer } from "effect";
+import { ConfigProvider, Layer } from "effect";
 import { HttpRouter, HttpServer } from "effect/http";
 import { afterAll, describe, expect, it } from "vite-plus/test";
 
+import { devUsers } from "#/modules/identity/application/user-seed.ts";
 import { Routes } from "#/server.ts";
 
 const { handler, dispose } = HttpRouter.toWebHandler(
@@ -76,20 +77,23 @@ describe("server routes", () => {
     ]);
   });
 
-  it("answers /api/users with 400 when the page or its size is out of bounds, before the Role is checked", async () => {
+  it("answers /api/users with 403 Forbidden to a user, before it reads the query", async () => {
     const [setCookie] = (
       await signUp("katherine@example.com", { from: "203.0.113.50" })
     ).headers.getSetCookie();
     const cookie = setCookie?.split(";")[0] ?? "";
-    const statusOf = async (search: string) =>
-      (await handler(new Request(`http://api.test/api/users${search}`, { headers: { cookie } })))
-        .status;
 
-    expect(await statusOf("?pageSize=0")).toBe(400);
-    expect(await statusOf("?pageSize=101")).toBe(400);
-    expect(await statusOf("?pageSize=2.5")).toBe(400);
-    expect(await statusOf("?page=0")).toBe(400);
-    expect(await statusOf("?page=1&pageSize=100")).toBe(403);
+    const responses = await Promise.all(
+      ["", "?pageSize=0"].map((search) =>
+        handler(new Request(`http://api.test/api/users${search}`, { headers: { cookie } })),
+      ),
+    );
+
+    expect(responses.map((response) => response.status)).toEqual([403, 403]);
+    expect(await Promise.all(responses.map((response) => response.json()))).toEqual([
+      { _tag: "Forbidden" },
+      { _tag: "Forbidden" },
+    ]);
   });
 
   it("serves the health check under /api", async () => {
@@ -284,5 +288,37 @@ describe("server routes", () => {
     );
 
     expect(response.headers.get("access-control-allow-origin")).toBeNull();
+  });
+});
+
+describe("server routes, with the dev Users seeded", () => {
+  const seeded = HttpRouter.toWebHandler(
+    Routes.pipe(
+      Layer.provide(HttpServer.layerServices),
+      Layer.provide(ConfigProvider.layer(ConfigProvider.fromUnknown({ SEED_USERS: "true" }))),
+    ),
+  );
+
+  afterAll(seeded.dispose);
+
+  it("answers /api/users to an Admin, and with 400 when the page or its size is out of bounds", async () => {
+    const signedIn = await seeded.handler(
+      new Request("http://api.test/api/sign-in", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email: "admin@quack.dev", password: "quack-password" }),
+      }),
+    );
+    const cookie = signedIn.headers.getSetCookie()[0]?.split(";")[0] ?? "";
+    const usersAt = (search: string) =>
+      seeded.handler(new Request(`http://api.test/api/users${search}`, { headers: { cookie } }));
+
+    const firstPage = await usersAt("");
+    expect(firstPage.status).toBe(200);
+    expect(await firstPage.json()).toMatchObject({ total: devUsers.length });
+    const outOfBounds = await Promise.all(
+      ["?pageSize=0", "?pageSize=101", "?pageSize=2.5", "?page=0"].map(usersAt),
+    );
+    expect(outOfBounds.map((response) => response.status)).toEqual([400, 400, 400, 400]);
   });
 });
