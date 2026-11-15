@@ -12,5 +12,10 @@ export class UserRepository extends Context.Service<
     findByEmail(
       email: Email,
     ): Effect.Effect<Option.Option<{ readonly user: User; readonly passwordHash: string }>>;
+    /** Sorted by email. */
+    findPage(page: {
+      readonly offset: number;
+      readonly limit: number;
+    }): Effect.Effect<{ readonly items: ReadonlyArray<User>; readonly total: number }>;
   }
 >()("@quack/server/identity/UserRepository") {}

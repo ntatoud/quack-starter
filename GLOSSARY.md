@@ -20,6 +20,10 @@ _Avoid_: Viewer, logged-in user, me
 What a User is allowed to do: `user` or `admin`.
 _Avoid_: Permission, group, profile
 
+**Admin**:
+A User whose Role is `admin`. Only an Admin sees the list of Users; any other Current User is forbidden from it.
+_Avoid_: Superuser, staff
+
 ## Todos
 
 **Todo**:
