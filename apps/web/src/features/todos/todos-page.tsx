@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { PageHeader } from "#/features/layout/page-header.tsx";
-import { TodosForm } from "#/features/todos/user/todos-form.tsx";
-import { TodosList } from "#/features/todos/user/todos-list.tsx";
+import { TodosForm } from "#/features/todos/todos-form.tsx";
+import { TodosList } from "#/features/todos/todos-list.tsx";
 import { api } from "#/lib/api.ts";
 
 export function TodosPage() {

@@ -4,8 +4,8 @@ import { useAppForm } from "@quack/form/use-app-form";
 import { useMutation } from "@tanstack/react-query";
 import { Equal, Schema } from "effect";
 
-import { invalidateTodos } from "#/features/todos/user/invalidate-todos.ts";
-import { TodoDraft } from "#/features/todos/user/todo-draft.ts";
+import { invalidateTodos } from "#/features/todos/invalidate-todos.ts";
+import { TodoDraft } from "#/features/todos/todo-draft.ts";
 import { api } from "#/lib/api.ts";
 
 const decodeTodoDraft = Schema.decodeSync(TodoDraft);

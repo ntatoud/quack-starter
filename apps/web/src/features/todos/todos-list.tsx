@@ -11,7 +11,7 @@ import { Skeleton } from "@quack/ui/components/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { ListTodoIcon } from "lucide-react";
 
-import { TodoItem } from "#/features/todos/user/todo-item.tsx";
+import { TodoItem } from "#/features/todos/todo-item.tsx";
 import { api } from "#/lib/api.ts";
 
 export function TodosList() {

@@ -4,7 +4,7 @@ import { Checkbox } from "@quack/ui/components/checkbox";
 import { useMutation } from "@tanstack/react-query";
 import { Trash2Icon } from "lucide-react";
 
-import { invalidateTodos } from "#/features/todos/user/invalidate-todos.ts";
+import { invalidateTodos } from "#/features/todos/invalidate-todos.ts";
 import { api } from "#/lib/api.ts";
 
 export function TodoItem({ todo }: { todo: Todo }) {
