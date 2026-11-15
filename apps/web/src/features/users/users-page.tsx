@@ -6,7 +6,7 @@ import { usersQueryOptions } from "#/features/users/users-query.ts";
 import { UsersTable } from "#/features/users/users-table.tsx";
 
 export function UsersPage() {
-  const { page = 1 } = useSearch({ from: "/_authenticated/users" });
+  const { page = 1 } = useSearch({ from: "/_authenticated/_admin/users" });
   const users = useQuery(usersQueryOptions(page));
 
   return (
