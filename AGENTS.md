@@ -130,6 +130,8 @@ Add a component from `packages/ui`: `pnpm dlx shadcn@latest add <name>`. Import 
 
 `DataTable` (`components/data-table.tsx`) is shadcn's data-table recipe on TanStack Table v9: `columns` (`DataTableColumn<T>`), `data`, `getRowId`, and slots for the empty state and the footer. It sorts, filters, and pages nothing itself: the API does.
 
+`SearchInput` (`components/search-input.tsx`) calls `onSearch` with the trimmed text once the typing pauses (`delay`, 300 ms), at once on Enter or when the text is cleared, and never twice in a row with the same text. It holds its text itself: give it a new `key` to replace it.
+
 ## Form package
 
 `packages/form` is TanStack Form with the repo's components, validated by Effect schemas. It imports `@quack/ui`; `@quack/ui` knows no form library.

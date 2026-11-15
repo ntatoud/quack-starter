@@ -1,10 +1,12 @@
 {
   "extends": "../../tsconfig.react.json",
   "compilerOptions": {
+    // The browser tests import the theme's stylesheet.
+    "types": ["vite-plus/client"],
     // The shadcn CLI resolves the aliases of components.json through these paths.
     "paths": {
       "@quack/ui/*": ["./src/*"]
     }
   },
-  "include": ["src"]
+  "include": ["src", "vite.config.ts"]
 }
