@@ -82,12 +82,16 @@ describe("TodosList", () => {
 
   it("keeps a row disabled while its own request runs, whatever the other rows do", async () => {
     const removals = new Map<string, PromiseWithResolvers<Response>>();
+    const removed = new Set<string>();
     await setup((request) => {
       if (request.method === "GET")
-        return Response.json([todo("1", "Ship it"), todo("2", "Write it")]);
+        return Response.json(
+          [todo("1", "Ship it"), todo("2", "Write it")].filter(({ id }) => !removed.has(id)),
+        );
+      const id = new URL(request.url).pathname.split("/").at(-1) ?? "";
       const removal = Promise.withResolvers<Response>();
-      removals.set(new URL(request.url).pathname, removal);
-      return removal.promise;
+      removals.set(id, removal);
+      return removal.promise.finally(() => removed.add(id));
     });
     const removeShip = page.getByRole("button", { name: "Remove Ship it" });
     const removeWrite = page.getByRole("button", { name: "Remove Write it" });
@@ -100,18 +104,26 @@ describe("TodosList", () => {
     await expect.element(removeShip).toBeDisabled();
     await expect.element(removeWrite).toBeDisabled();
     for (const removal of removals.values()) removal.resolve(new Response(null, { status: 204 }));
+    await expect.element(page.getByText("No todos yet")).toBeVisible();
   });
 
-  it("keeps the todos already loaded when a refetch fails", async () => {
-    await setup(() => Response.json([todo("1", "Ship it")]));
+  it("keeps the todos already loaded when a refetch fails, and says so", async () => {
+    let loads = 0;
+    await setup((request) => {
+      if (request.method === "GET") loads += 1;
+      return Response.json([todo("1", "Ship it")]);
+    });
     await expect.element(page.getByRole("checkbox", { name: "Complete Ship it" })).toBeVisible();
 
-    respond = () => new Response(null, { status: 500 });
+    respond = (request) => {
+      if (request.method === "GET") loads += 1;
+      return new Response(null, { status: 500 });
+    };
     await page.getByRole("checkbox", { name: "Complete Ship it" }).click();
 
-    await expect
-      .element(page.getByRole("alert"))
-      .toHaveTextContent("Could not update this todo. Try again.");
+    await expect.element(page.getByText("Could not complete this todo. Try again.")).toBeVisible();
+    await expect.element(page.getByText("Could not refresh your todos.")).toBeVisible();
+    expect(loads).toBe(2);
     await expect.element(page.getByRole("checkbox", { name: "Complete Ship it" })).toBeVisible();
     expect(page.getByText("Could not load your todos").elements()).toEqual([]);
   });
@@ -120,8 +132,9 @@ describe("TodosList", () => {
     await setup(() => new Response(null, { status: 500 }));
 
     await expect
-      .element(page.getByRole("alert"))
-      .toHaveTextContent("Check your connection and try again.");
+      .element(page.getByRole("alert").getByText("Could not load your todos"))
+      .toBeVisible();
+    await expect.element(page.getByText("Check your connection and try again.")).toBeVisible();
 
     respond = () => Response.json([todo("1", "Ship it")]);
     await page.getByRole("button", { name: "Try again" }).click();
@@ -140,7 +153,7 @@ describe("TodosList", () => {
 
     await expect
       .element(page.getByRole("alert"))
-      .toHaveTextContent("Could not update this todo. Try again.");
+      .toHaveTextContent("Could not remove this todo. Try again.");
     await expect.element(page.getByRole("checkbox", { name: "Complete Ship it" })).toBeVisible();
   });
 });

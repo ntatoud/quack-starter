@@ -39,9 +39,9 @@ export function TodosList() {
   if (todos.data === undefined) {
     return (
       <Empty className="border border-dashed">
-        <EmptyHeader>
+        <EmptyHeader role="alert">
           <EmptyTitle>Could not load your todos</EmptyTitle>
-          <EmptyDescription role="alert">Check your connection and try again.</EmptyDescription>
+          <EmptyDescription>Check your connection and try again.</EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
           <Button
@@ -72,10 +72,26 @@ export function TodosList() {
   }
 
   return (
-    <ul className="divide-y rounded-lg border">
-      {todos.data.map((todo) => (
-        <TodoItem key={todo.id} todo={todo} />
-      ))}
-    </ul>
+    <div className="flex flex-col gap-2">
+      {todos.isRefetchError && (
+        <p role="alert" className="flex items-center gap-2 text-sm text-destructive">
+          <span>Could not refresh your todos.</span>
+          <Button
+            variant="link"
+            size="sm"
+            className="h-auto p-0"
+            disabled={todos.isFetching}
+            onClick={() => todos.refetch()}
+          >
+            Try again
+          </Button>
+        </p>
+      )}
+      <ul className="divide-y rounded-lg border">
+        {todos.data.map((todo) => (
+          <TodoItem key={todo.id} todo={todo} />
+        ))}
+      </ul>
+    </div>
   );
 }

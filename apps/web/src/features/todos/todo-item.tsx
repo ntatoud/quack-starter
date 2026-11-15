@@ -21,7 +21,6 @@ export function TodoItem({ todo }: { todo: Todo }) {
     }),
   );
   const busy = completeTodo.isPending || removeTodo.isPending;
-  const failed = completeTodo.isError || removeTodo.isError;
 
   return (
     <li className="group/todo flex min-h-11 items-center gap-3 px-3 py-1.5" aria-busy={busy}>
@@ -41,9 +40,11 @@ export function TodoItem({ todo }: { todo: Todo }) {
         >
           {todo.title}
         </span>
-        {failed && (
+        {(completeTodo.isError || removeTodo.isError) && (
           <span role="alert" className="text-xs text-destructive">
-            Could not update this todo. Try again.
+            {completeTodo.isError
+              ? "Could not complete this todo. Try again."
+              : "Could not remove this todo. Try again."}
           </span>
         )}
       </div>
