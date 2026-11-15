@@ -5,14 +5,23 @@ import {
   PaginationItem,
 } from "@quack/ui/components/pagination";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+import { PageNumber } from "@quack/contracts/pagination/paginated";
+import { Effect, Option, Schema } from "effect";
 import { type MouseEvent, useEffect, useRef } from "react";
 
 import { ButtonLink } from "#/components/button-link.tsx";
 
+// Replaced, not dropped: the router keeps the raw value of a key that validation drops.
+export const PageSearch = Schema.Struct({
+  page: Schema.optional(
+    PageNumber.pipe(Schema.catchDecoding(() => Effect.succeed(Option.some(1)))),
+  ),
+});
+
 // The router matches a search partly by default: without `page`, the first page would be active on every page.
 const step = { to: ".", variant: "ghost", activeOptions: { exact: true } } as const;
 
-// Leaves the rest of the search as it is; the first page has no `page`, so a page has one URL.
+// The first page has no `page`, so a page has one URL.
 const withPage =
   (page: number) =>
   ({ page: _, ...rest }: Record<string, unknown>) =>
@@ -21,7 +30,6 @@ const withPage =
 export const pageCount = (total: number, pageSize: number) =>
   Math.max(1, Math.ceil(total / pageSize));
 
-/** The first page, the last, and those next to the current one; a gap of more than one page is an ellipsis. */
 export const pagesAround = (
   page: number,
   pages: number,
@@ -37,7 +45,6 @@ export const pagesAround = (
   });
 };
 
-/** Links to the pages of the current route, through its `page` search. */
 export function PagePagination({
   page,
   pages,

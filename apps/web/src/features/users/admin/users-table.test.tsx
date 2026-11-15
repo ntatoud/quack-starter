@@ -1,3 +1,4 @@
+import type { Role } from "@quack/contracts/identity/user";
 import { defaultPageSize } from "@quack/contracts/pagination/paginated";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -12,10 +13,10 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { render } from "vitest-browser-react";
 
-import { UsersSearch } from "#/features/users/admin/users-search.ts";
+import { PageSearch } from "#/components/page-pagination.tsx";
 import { UsersTable } from "#/features/users/admin/users-table.tsx";
 
-const user = (n: number, role: "user" | "admin" = "user") => ({
+const user = (n: number, role: Role = "user") => ({
   id: `user-${n}`,
   email: `user-${n}@quack.dev`,
   role,
@@ -62,7 +63,7 @@ const setup = async (
   const usersRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: "/users",
-    validateSearch: Schema.toStandardSchemaV1(UsersSearch),
+    validateSearch: Schema.toStandardSchemaV1(PageSearch),
     component: function Users() {
       const { page: current = 1 } = usersRoute.useSearch();
       return (

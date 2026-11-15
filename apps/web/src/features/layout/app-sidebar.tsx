@@ -17,6 +17,7 @@ import {
 import { Link, useMatchRoute } from "@tanstack/react-router";
 import { ListTodoIcon, UsersIcon } from "lucide-react";
 
+import { isAdmin } from "#/features/identity/is-admin.ts";
 import { UserMenu } from "#/features/identity/user-menu.tsx";
 import { Logo } from "#/features/layout/logo.tsx";
 
@@ -57,7 +58,7 @@ export function AppSidebar({ currentUser }: { currentUser: typeof User.Encoded }
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-        {currentUser.role === "admin" && (
+        {isAdmin(currentUser) && (
           <SidebarGroup>
             <SidebarGroupLabel>Admin</SidebarGroupLabel>
             <SidebarGroupContent>

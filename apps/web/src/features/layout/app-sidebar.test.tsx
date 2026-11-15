@@ -1,3 +1,4 @@
+import type { Role } from "@quack/contracts/identity/user";
 import { SidebarProvider } from "@quack/ui/components/sidebar";
 import { TooltipProvider } from "@quack/ui/components/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -13,7 +14,7 @@ import { render } from "vitest-browser-react";
 
 import { AppSidebar } from "#/features/layout/app-sidebar.tsx";
 
-const setup = async (role: "user" | "admin") => {
+const setup = async (role: Role) => {
   // Below the breakpoint of `useIsMobile`, the sidebar is a closed sheet.
   await page.viewport(1280, 800);
   const rootRoute = createRootRoute({
@@ -44,7 +45,7 @@ describe("AppSidebar", () => {
     await expect.element(page.getByRole("link", { name: "Users" })).toBeVisible();
   });
 
-  it("does not link to the users for another user", async () => {
+  it("does not link to the users for a User of another Role", async () => {
     await setup("user");
 
     await expect.element(page.getByRole("link", { name: "Todos" })).toBeVisible();
