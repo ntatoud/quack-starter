@@ -10,7 +10,9 @@ import {
   EmptyTitle,
 } from "@quack/ui/components/empty";
 import { Skeleton } from "@quack/ui/components/skeleton";
+import { matchQuery } from "@quack/ui-state/query";
 import { useQuery } from "@tanstack/react-query";
+import { Option } from "effect";
 import { UsersIcon } from "lucide-react";
 
 import { ButtonLink } from "#/components/button-link.tsx";
@@ -21,8 +23,8 @@ import { usersQueryOptions } from "#/features/users/admin/users-query.ts";
 export function UsersTable({ page }: { page: number }) {
   const users = useQuery(usersQueryOptions(page));
 
-  if (users.isPending) {
-    return (
+  return matchQuery(users, {
+    Pending: () => (
       <>
         <p role="status" className="sr-only">
           Loading users…
@@ -36,11 +38,8 @@ export function UsersTable({ page }: { page: number }) {
           ))}
         </ul>
       </>
-    );
-  }
-
-  if (users.data === undefined) {
-    return (
+    ),
+    Error: () => (
       <Empty className="border border-dashed">
         <EmptyHeader role="alert">
           <EmptyTitle>Could not load the users</EmptyTitle>
@@ -57,53 +56,55 @@ export function UsersTable({ page }: { page: number }) {
           </Button>
         </EmptyContent>
       </Empty>
-    );
-  }
-
-  const { items, total } = users.data;
-  const pages = pageCount(total, defaultPageSize);
-
-  return (
-    <>
-      {users.isRefetchError && (
-        <p role="alert" className="flex items-center gap-2 text-sm text-destructive">
-          <span>Could not refresh the users.</span>
-          <Button
-            variant="link"
-            size="sm"
-            className="h-auto p-0"
-            disabled={users.isFetching}
-            onClick={() => users.refetch()}
-          >
-            Try again
-          </Button>
-        </p>
-      )}
-      <DataTable
-        columns={usersColumns}
-        data={items}
-        getRowId={(user) => user.id}
-        className="transition-opacity aria-busy:opacity-60"
-        aria-busy={users.isPlaceholderData}
-        empty={
-          <Empty>
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <UsersIcon />
-              </EmptyMedia>
-              <EmptyTitle>No users on this page</EmptyTitle>
-            </EmptyHeader>
-            {total > 0 && (
-              <EmptyContent>
-                <ButtonLink to="/users" search={{}} variant="outline" size="sm">
-                  Go to the first page
-                </ButtonLink>
-              </EmptyContent>
-            )}
-          </Empty>
-        }
-        footer={<PagePagination page={page} pages={pages} aria-label="Pages of users" />}
-      />
-    </>
-  );
+    ),
+    Success: ({ data: { items, total }, refreshError }) => (
+      <>
+        {Option.isSome(refreshError) && (
+          <p role="alert" className="flex items-center gap-2 text-sm text-destructive">
+            <span>Could not refresh the users.</span>
+            <Button
+              variant="link"
+              size="sm"
+              className="h-auto p-0"
+              disabled={users.isFetching}
+              onClick={() => users.refetch()}
+            >
+              Try again
+            </Button>
+          </p>
+        )}
+        <DataTable
+          columns={usersColumns}
+          data={items}
+          getRowId={(user) => user.id}
+          className="transition-opacity aria-busy:opacity-60"
+          aria-busy={users.isPlaceholderData}
+          empty={
+            <Empty>
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <UsersIcon />
+                </EmptyMedia>
+                <EmptyTitle>No users on this page</EmptyTitle>
+              </EmptyHeader>
+              {total > 0 && (
+                <EmptyContent>
+                  <ButtonLink to="/users" search={{}} variant="outline" size="sm">
+                    Go to the first page
+                  </ButtonLink>
+                </EmptyContent>
+              )}
+            </Empty>
+          }
+          footer={
+            <PagePagination
+              page={page}
+              pages={pageCount(total, defaultPageSize)}
+              aria-label="Pages of users"
+            />
+          }
+        />
+      </>
+    ),
+  });
 }

@@ -1,0 +1,5 @@
+{
+  // The DOM lib supplies AbortSignal, which the types of a TanStack Query result name.
+  "extends": "../../tsconfig.react.json",
+  "include": ["src"]
+}

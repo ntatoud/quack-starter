@@ -32,6 +32,8 @@ apps/web                TanStack Start app
 packages/contracts      Schemas and the HttpApi definition, shared by the server and the web app
 packages/ui             shadcn components and the Tailwind theme
 packages/form           Form hook and its components: TanStack Form, validated by Effect schemas
+packages/ui-state       UiState: what a screen shows while data loads, matched with a case per state; the UiState of a query
+packages/effect-query   TanStack Query options from Effects
 packages/oxlint-plugin  Lint rules of this repo: no relative imports, module boundaries, no useless comments
 ```
 
@@ -119,6 +121,7 @@ apps/web/src/
 - A page for visitors only goes under `routes/_guest/` (`sign-in.tsx`, `sign-up.tsx`), whose layout `GuestLayout` (`features/layout/guest-layout.tsx`) centers its card, with no bar. Such a page redirects a Current User in its `beforeLoad`. The `redirect` of the sign-in page comes from a link anyone can write: read it through `redirectTarget` (`features/identity/redirect-target.ts`), which answers a path of the app or `/`. Validate the search of a route with an Effect schema: `validateSearch: Schema.toStandardSchemaV1(SignInSearch)` (`features/identity/sign-in-search.ts`).
 - Link to a page with the look of a button through `ButtonLink` (`components/button-link.tsx`): the `to` of a `Link`, the `variant` and `size` of a `Button`.
 - A list that pages keeps its page in the URL: a `page` search validated by `PageSearch`, which answers 1 for anything else (`components/page-pagination.tsx`), the query with `placeholderData: keepPreviousData`, and the table `aria-busy` while the next page loads. Render it with `DataTable` and `PagePagination` (`components/page-pagination.tsx`) in its footer (`features/users/admin/users-table.tsx`): it links to the pages of the current route through `page`, keeps the rest of the search, and marks the current page from the validated `page`, not by the router. Its links are `ButtonLink`s, not `PaginationLink`, which gives its `<a>` the role of a button.
+- Render a query through `matchQuery(query, { Pending, Error, Success })` (`@quack/ui-state/query`), not with `isPending` and `data === undefined`: a state left without a case does not compile. A refetch that fails stays `Success`, with its `refreshError`. Anything else that loads (a mutation, an Effect run by hand) answers a `UiState` (`@quack/ui-state/ui-state`) and is matched with `UiState.match`, which asks a case for each state its type can hold, `Idle` included.
 - The `QueryClient` is in the router's context (`context.queryClient`), the same one the components use. No other data is loaded in the server render: the API client has no cookie there.
 - The forms of `/sign-in` and `/sign-up` say how long to wait when the API refuses with `TooManyAttempts`: `tooManyAttemptsMessage` (`features/identity/too-many-attempts-message.ts`).
 - Build forms with `@quack/form`: see "Form package" below.
