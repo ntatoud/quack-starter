@@ -14,11 +14,22 @@ const millisOf = (date: DateTime.Utc | null) =>
 
 const sortKeys: Record<UserOrder, (user: User) => SortKey> = {
   email: (user) => user.email,
+  // The NUL sorts a last name before the same one followed by more letters, whatever the first name.
+  name: ({ profile }) =>
+    profile === null ? null : `${profile.lastName}\u0000${profile.firstName}`.toLowerCase(),
   role: (user) => user.role,
   status: (user) => user.status,
+  team: (user) => user.profile?.team ?? null,
+  country: (user) => user.profile?.country ?? null,
   createdAt: (user) => millisOf(user.createdAt),
   lastSignInAt: (user) => millisOf(user.lastSignInAt),
 };
+
+const fullName = ({ profile }: User) =>
+  profile === null ? "" : `${profile.firstName} ${profile.lastName}`.toLowerCase();
+
+const keeps = <A>(wanted: A | undefined, value: A | undefined) =>
+  wanted === undefined || value === wanted;
 
 export const UserRepositoryMemory = Layer.sync(UserRepository, () => {
   const users = new Map<UserId, { readonly user: User; readonly passwordHash: string }>();
@@ -48,18 +59,20 @@ export const UserRepositoryMemory = Layer.sync(UserRepository, () => {
           Option.flatMapNullishOr((id) => users.get(id)),
         ),
       ),
-    findAll: ({ page, pageSize, orderBy, dir, search = "", status, role }) =>
+    findAll: ({ page, pageSize, orderBy, dir, search = "", status, role, team }) =>
       Effect.sync(() => {
         const offset = (page - 1) * pageSize;
         const sign = dir === "asc" ? 1 : -1;
+        const keyOf = sortKeys[orderBy];
         const sorted = Array.from(users.values(), ({ user }) => user)
           .filter(
             (user) =>
-              user.email.includes(search) &&
-              (status === undefined || user.status === status) &&
-              (role === undefined || user.role === role),
+              (user.email.includes(search) || fullName(user).includes(search)) &&
+              keeps(status, user.status) &&
+              keeps(role, user.role) &&
+              keeps(team, user.profile?.team),
           )
-          .map((user) => ({ user, key: sortKeys[orderBy](user) }))
+          .map((user) => ({ user, key: keyOf(user) }))
           .toSorted(
             (a, b) =>
               (a.key === null || b.key === null

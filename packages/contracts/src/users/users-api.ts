@@ -3,6 +3,7 @@ import { HttpApiEndpoint, HttpApiGroup } from "effect/http-api";
 
 import { Authentication } from "#/identity/authentication.ts";
 import { RequireRole } from "#/identity/require-role.ts";
+import { Team } from "#/identity/profile.ts";
 import { Role, User, UserStatus } from "#/identity/user.ts";
 import { Paginated, PaginationQuery } from "#/pagination/paginated.ts";
 import { sortingFields } from "#/sorting/sorting.ts";
@@ -11,11 +12,20 @@ export class UserList extends Schema.Class<UserList, { readonly brand: unique sy
   Paginated(User).fields,
 ) {}
 
-/** A User with no value for the field comes last, in either direction. */
-export const UserOrder = Schema.Literals(["email", "role", "status", "createdAt", "lastSignInAt"]);
+/** `name` sorts by last name, then first name. A User with no value for the field comes last, in either direction. */
+export const UserOrder = Schema.Literals([
+  "email",
+  "name",
+  "role",
+  "status",
+  "team",
+  "country",
+  "createdAt",
+  "lastSignInAt",
+]);
 export type UserOrder = typeof UserOrder.Type;
 
-/** Matches the Users whose email contains it, whatever its case. */
+/** Matches the Users whose email or full name contains it, whatever its case. */
 export const UserSearch = Schema.String.pipe(
   Schema.decode(SchemaTransformation.trim()),
   Schema.decode(SchemaTransformation.toLowerCase()),
@@ -26,6 +36,7 @@ export const UserListQuery = Schema.Struct({
   search: Schema.optionalKey(UserSearch),
   status: Schema.optionalKey(UserStatus),
   role: Schema.optionalKey(Role),
+  team: Schema.optionalKey(Team),
   ...sortingFields(UserOrder.literals, "email"),
 });
 export type UserListQuery = typeof UserListQuery.Type;

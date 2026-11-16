@@ -122,6 +122,7 @@ layer(withConfig({ SIGN_UPS_PER_IP: "1000" }))("IdentityApi", (it) => {
         "emailVerifiedAt",
         "id",
         "lastSignInAt",
+        "profile",
         "role",
         "status",
       ]);
@@ -187,6 +188,7 @@ layer(withConfig({ SIGN_UPS_PER_IP: "1000" }))("IdentityApi", (it) => {
           "emailVerifiedAt",
           "id",
           "lastSignInAt",
+          "profile",
           "role",
           "status",
         ]);

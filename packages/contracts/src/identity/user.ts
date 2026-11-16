@@ -1,5 +1,7 @@
 import { Schema, SchemaTransformation } from "effect";
 
+import { Profile } from "#/identity/profile.ts";
+
 export const UserId = Schema.String.pipe(Schema.brand("UserId"));
 export type UserId = typeof UserId.Type;
 
@@ -41,4 +43,6 @@ export class User extends Schema.Class<User, { readonly brand: unique symbol }>(
   createdAt: Schema.DateTimeUtcFromString,
   lastSignInAt: Schema.NullOr(Schema.DateTimeUtcFromString),
   emailVerifiedAt: Schema.NullOr(Schema.DateTimeUtcFromString),
+  /** `null` until the User fills it in: a sign-up asks for an email and a password only. */
+  profile: Schema.NullOr(Profile),
 }) {}
