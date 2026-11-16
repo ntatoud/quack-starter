@@ -22,9 +22,10 @@ import { labelOf } from "#/features/users/admin/users-filters.ts";
 import { usersQueryOptions } from "#/features/users/admin/users-query.ts";
 import type { UsersQuery } from "#/features/users/admin/users-search.ts";
 
-const emptyTitle = ({ search, role }: UsersQuery, total: number) => {
+const emptyTitle = ({ search, status, role, team }: UsersQuery, total: number) => {
   if (total > 0) return "No users on this page";
   if (search !== "") return `No users match “${search}”`;
+  if (status !== undefined || team !== undefined) return "No users match these filters";
   if (role !== undefined) return `No users have the Role ${labelOf("role", role)}`;
   return "No users on this page";
 };
