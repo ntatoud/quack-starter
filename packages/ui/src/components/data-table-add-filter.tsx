@@ -35,7 +35,7 @@ function DataTableAddFilter<Key extends string>({
         onAdd(key);
       }}
     >
-      <DropdownMenuTrigger render={<Button variant="ghost" size="sm" />}>
+      <DropdownMenuTrigger render={<Button variant="ghost" />}>
         <PlusIcon data-icon="inline-start" />
         Add filter
       </DropdownMenuTrigger>
