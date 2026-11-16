@@ -504,4 +504,23 @@ describe("UsersList", () => {
     const input = searchbox.element() as HTMLInputElement;
     expect([input.selectionStart, input.selectionEnd]).toEqual([0, "duck".length]);
   });
+
+  it("adds a filter from the button next to the search", async () => {
+    const { router } = await setup(usersOn);
+
+    await page.getByRole("button", { name: "Add filter" }).click();
+    await page.getByRole("menuitem", { name: "Role" }).click();
+    await page.getByRole("menuitemradio", { name: "Admin" }).click();
+
+    await expect.poll(() => router.state.location.search).toEqual({ role: "admin" });
+    await expect.element(page.getByRole("button", { name: "Role: Admin" })).toBeVisible();
+    expect(queryOf(fetch.mock.calls.length - 1).get("role")).toBe("admin");
+  });
+
+  it("hides the button once every filter is shown", async () => {
+    await setup(usersOn, "/users?role=user");
+
+    await expect.element(page.getByRole("button", { name: "Role: User" })).toBeVisible();
+    expect(page.getByRole("button", { name: "Add filter" }).elements()).toHaveLength(0);
+  });
 });

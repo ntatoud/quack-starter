@@ -1,3 +1,4 @@
+import { DataTableAddFilter } from "@quack/ui/components/data-table-add-filter";
 import { DataTableSelectFilter } from "@quack/ui/components/data-table-select-filter";
 import { useAddedFilters } from "@quack/ui/hooks/use-added-filters";
 import { useNavigate } from "@tanstack/react-router";
@@ -51,6 +52,12 @@ export function UsersList({ urlSearch }: { urlSearch: UsersSearch }) {
     <>
       <div className="flex flex-wrap items-center gap-2">
         <UsersSearchInput ref={setSearchInput} search={urlSearch.q ?? ""} />
+        <DataTableAddFilter
+          filters={usersFilterKeys
+            .filter((key) => !filters.isShown(key))
+            .map((key) => ({ key, title: usersFilters[key].title }))}
+          onAdd={filters.add}
+        />
         {usersFilterKeys.filter(filters.isShown).map((key) => (
           <DataTableSelectFilter
             key={key}
