@@ -29,4 +29,9 @@ describe("UserListQuery", () => {
     expect(decode({ search: "a".repeat(254) })._tag).toBe("Some");
     expect(decode({ search: "a".repeat(255) })._tag).toBe("None");
   });
+
+  it("filters by a Role, nothing else", () => {
+    expect(Schema.decodeSync(UserListQuery)({ role: "admin" }).role).toBe("admin");
+    expect(decode({ role: "owner" })._tag).toBe("None");
+  });
 });

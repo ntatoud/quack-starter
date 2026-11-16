@@ -7,6 +7,10 @@ import type { ComponentProps, ReactNode } from "react";
 
 const features = tableFeatures({});
 
+export type SortDirection = "asc" | "desc";
+
+const ariaSort = { asc: "ascending", desc: "descending" } as const;
+
 export type DataTableColumn<TData extends RowData> = ColumnDef<
   typeof features,
   TData,
@@ -20,6 +24,7 @@ export function DataTable<TData extends RowData>({
   empty,
   footer,
   getRowId,
+  sorting,
   className,
   ...props
 }: {
@@ -29,6 +34,8 @@ export function DataTable<TData extends RowData>({
   footer?: ReactNode;
   /** Keys the rows: by default a row is its index, the same from one page to the next. */
   getRowId?: (row: TData) => string;
+  /** The column the data is sorted by, which its header tells assistive tech. */
+  sorting?: { readonly column: string; readonly direction: SortDirection };
 } & Omit<ComponentProps<"div">, "children">) {
   const table = useTable({ features, columns, data, ...(getRowId && { getRowId }) });
   const rows = table.getRowModel().rows;
@@ -56,6 +63,11 @@ export function DataTable<TData extends RowData>({
                     <TableHead
                       key={header.id}
                       colSpan={header.colSpan}
+                      aria-sort={
+                        sorting?.column === header.column.id
+                          ? ariaSort[sorting.direction]
+                          : undefined
+                      }
                       className="sticky top-0 z-10 h-10 bg-background px-3 shadow-[inset_0_-1px_0_var(--color-border)]"
                     >
                       {header.isPlaceholder ? null : <table.FlexRender header={header} />}

@@ -1,6 +1,7 @@
+import type { User } from "@quack/contracts/identity/user";
 import { defaultPageSize } from "@quack/contracts/pagination/paginated";
 import { Button } from "@quack/ui/components/button";
-import { DataTable } from "@quack/ui/components/data-table";
+import { DataTable, type DataTableColumn } from "@quack/ui/components/data-table";
 import {
   Empty,
   EmptyContent,
@@ -17,11 +18,25 @@ import { UsersIcon } from "lucide-react";
 
 import { ButtonLink } from "#/components/button-link.tsx";
 import { PagePagination, pageCount } from "#/components/page-pagination.tsx";
-import { usersColumns } from "#/features/users/admin/users-columns.tsx";
+import { labelOf } from "#/features/users/admin/users-filters.ts";
 import { usersQueryOptions } from "#/features/users/admin/users-query.ts";
+import type { UsersQuery } from "#/features/users/admin/users-search.ts";
 
-export function UsersTable({ page, search }: { page: number; search: string }) {
-  const users = useQuery(usersQueryOptions(page, search));
+const emptyTitle = ({ search, role }: UsersQuery, total: number) => {
+  if (total > 0) return "No users on this page";
+  if (search !== "") return `No users match “${search}”`;
+  if (role !== undefined) return `No users have the Role ${labelOf("role", role)}`;
+  return "No users on this page";
+};
+
+export function UsersTable({
+  query,
+  columns,
+}: {
+  query: UsersQuery;
+  columns: ReadonlyArray<DataTableColumn<User>>;
+}) {
+  const users = useQuery(usersQueryOptions(query));
 
   return matchQuery(users, {
     Pending: () => (
@@ -74,8 +89,9 @@ export function UsersTable({ page, search }: { page: number; search: string }) {
           </p>
         )}
         <DataTable
-          columns={usersColumns}
+          columns={columns}
           data={items}
+          sorting={{ column: query.orderBy, direction: query.dir }}
           getRowId={(user) => user.id}
           className="transition-opacity aria-busy:opacity-60"
           aria-busy={users.isPlaceholderData}
@@ -85,11 +101,7 @@ export function UsersTable({ page, search }: { page: number; search: string }) {
                 <EmptyMedia variant="icon">
                   <UsersIcon />
                 </EmptyMedia>
-                <EmptyTitle>
-                  {total === 0 && search.trim() !== ""
-                    ? `No users match “${search.trim()}”`
-                    : "No users on this page"}
-                </EmptyTitle>
+                <EmptyTitle>{emptyTitle(query, total)} </EmptyTitle>
               </EmptyHeader>
               {total > 0 && (
                 <EmptyContent>
@@ -107,7 +119,7 @@ export function UsersTable({ page, search }: { page: number; search: string }) {
           }
           footer={
             <PagePagination
-              page={page}
+              page={query.page}
               pages={pageCount(total, defaultPageSize)}
               aria-label="Pages of users"
             />

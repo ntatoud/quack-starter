@@ -13,9 +13,8 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { render } from "vitest-browser-react";
 
+import { UsersList } from "#/features/users/admin/users-list.tsx";
 import { UsersSearch } from "#/features/users/admin/users-search.ts";
-import { UsersSearchInput } from "#/features/users/admin/users-search-input.tsx";
-import { UsersTable } from "#/features/users/admin/users-table.tsx";
 
 const user = (n: number, role: Role = "user") => ({
   id: `user-${n}`,
@@ -66,11 +65,9 @@ const setup = async (
     path: "/users",
     validateSearch: Schema.toStandardSchemaV1(UsersSearch),
     component: function Users() {
-      const { page: current = 1, q = "" } = usersRoute.useSearch();
       return (
         <div style={{ ...size, display: "flex", flexDirection: "column" }}>
-          <UsersSearchInput search={q} />
-          <UsersTable page={current} search={q} />
+          <UsersList urlSearch={usersRoute.useSearch()} />
         </div>
       );
     },
@@ -97,6 +94,14 @@ const pagination = () => page.getByRole("navigation", { name: "Pages of users" }
 const previous = () => pagination().getByRole("link", { name: "Go to previous page" });
 const next = () => pagination().getByRole("link", { name: "Go to next page" });
 
+const sortOf = (column: string) =>
+  page
+    .getByRole("button", { name: column, exact: true })
+    .element()
+    .closest("th")
+    ?.getAttribute("aria-sort");
+const queryOf = (call = 0) => new URL(String(fetch.mock.calls[call]?.[0])).searchParams;
+
 const defaultViewport = { width: 414, height: 896 };
 
 afterEach(async () => {
@@ -104,7 +109,7 @@ afterEach(async () => {
   await page.viewport(defaultViewport.width, defaultViewport.height);
 });
 
-describe("UsersTable", () => {
+describe("UsersList", () => {
   it("says it is loading while the users are on their way", async () => {
     const response = Promise.withResolvers<Response>();
     await setup(() => response.promise);
@@ -366,5 +371,137 @@ describe("UsersTable", () => {
     await expect
       .element(page.getByRole("link", { name: "Go to the first page" }))
       .toHaveAttribute("href", "/users?q=user");
+  });
+
+  it("sorts by a column from its header, from the first page, and keeps the order in the URL", async () => {
+    const { router } = await setup(usersOn, "/users?page=2");
+    await expect.element(page.getByText(`user-${total}@quack.dev`)).toBeVisible();
+    await expect.poll(() => sortOf("Email")).toBe("ascending");
+    fetch.mockClear();
+
+    await page.getByRole("button", { name: "Role", exact: true }).click();
+    await page.getByRole("menuitemradio", { name: "Descending" }).click();
+
+    await expect.poll(() => router.state.location.search).toEqual({ orderBy: "role", dir: "desc" });
+    await expect.poll(() => sortOf("Role")).toBe("descending");
+    expect(sortOf("Email")).toBeNull();
+    expect(queryOf().get("orderBy")).toBe("role");
+    expect(queryOf().get("dir")).toBe("desc");
+    expect(queryOf().get("page")).toBe("1");
+  });
+
+  it("marks the order of its column in the menu of its header", async () => {
+    await setup(usersOn, "/users?orderBy=role&dir=desc");
+
+    await page.getByRole("button", { name: "Role", exact: true }).click();
+
+    await expect
+      .element(page.getByRole("menuitemradio", { name: "Descending" }))
+      .toHaveAttribute("aria-checked", "true");
+    await expect
+      .element(page.getByRole("menuitemradio", { name: "Ascending" }))
+      .toHaveAttribute("aria-checked", "false");
+  });
+
+  it("leaves the default order out of the URL", async () => {
+    const { router } = await setup(usersOn, "/users?orderBy=role&dir=desc&q=user");
+    await expect.poll(() => sortOf("Role")).toBe("descending");
+
+    await page.getByRole("button", { name: "Email", exact: true }).click();
+    await page.getByRole("menuitemradio", { name: "Ascending" }).click();
+
+    await expect.poll(() => router.state.location.search).toEqual({ q: "user" });
+    await expect.poll(() => sortOf("Email")).toBe("ascending");
+  });
+
+  it("asks the API for the default order and every Role when the URL names neither", async () => {
+    await setup(usersOn, "/users?orderBy=id&dir=up&role=owner");
+
+    await expect.element(page.getByText("user-1@quack.dev")).toBeVisible();
+    expect(queryOf().get("orderBy")).toBe("email");
+    expect(queryOf().get("dir")).toBe("asc");
+    expect(queryOf().has("role")).toBe(false);
+  });
+
+  it("adds a filter on the Role from its header, and keeps the Role chosen in the URL", async () => {
+    const { router } = await setup(usersOn, "/users?page=2");
+    await expect.element(page.getByText(`user-${total}@quack.dev`)).toBeVisible();
+    fetch.mockClear();
+    respond = () => Response.json({ items: [user(1, "admin")], total: 1 });
+
+    await page.getByRole("button", { name: "Role", exact: true }).click();
+    await page.getByRole("menuitem", { name: "Filter" }).click();
+    await page.getByRole("menuitemradio", { name: "Admin" }).click();
+
+    await expect.poll(() => router.state.location.search).toEqual({ role: "admin" });
+    await expect.element(page.getByRole("button", { name: "Role: Admin" })).toBeVisible();
+    await expect.element(page.getByText("Page 1 of 1")).toBeVisible();
+    expect(queryOf().get("role")).toBe("admin");
+    expect(queryOf().get("page")).toBe("1");
+  });
+
+  it("keeps the Role filter it adds until it is removed, even without a Role", async () => {
+    await setup(usersOn);
+    await page.getByRole("button", { name: "Role", exact: true }).click();
+    await page.getByRole("menuitem", { name: "Filter" }).click();
+    await expect.element(page.getByRole("menuitemradio", { name: "Admin" })).toBeVisible();
+
+    await userEvent.keyboard("{Escape}");
+
+    await expect.element(page.getByRole("button", { name: "Role: Select" })).toHaveFocus();
+  });
+
+  it("removes the Role filter, and hands the focus to the search", async () => {
+    const { router } = await setup(usersOn, "/users?role=admin&q=user");
+
+    await page.getByRole("button", { name: "Remove the Role filter" }).click();
+
+    await expect.poll(() => router.state.location.search).toEqual({ q: "user" });
+    expect(page.getByRole("button", { name: "Role: Admin" }).elements()).toHaveLength(0);
+    await expect.element(page.getByRole("searchbox")).toHaveFocus();
+  });
+
+  it("filters by email from its header in the search", async () => {
+    await setup(usersOn);
+
+    await page.getByRole("button", { name: "Email", exact: true }).click();
+    await page.getByRole("menuitem", { name: "Filter" }).click();
+
+    await expect
+      .element(page.getByRole("searchbox", { name: "Search users by email" }))
+      .toHaveFocus();
+  });
+
+  it("says no user has the Role of a filter that finds none", async () => {
+    await setup(() => Response.json({ items: [], total: 0 }), "/users?role=admin");
+
+    await expect.element(page.getByText("No users have the Role Admin")).toBeVisible();
+  });
+
+  it("hides a Role filter that loses its value when going back", async () => {
+    const { router } = await setup(usersOn);
+    await page.getByRole("button", { name: "Role", exact: true }).click();
+    await page.getByRole("menuitem", { name: "Filter" }).click();
+    await page.getByRole("menuitemradio", { name: "Admin" }).click();
+    await expect.element(page.getByRole("button", { name: "Role: Admin" })).toBeVisible();
+
+    router.history.back();
+
+    await expect.poll(() => router.state.location.search).toEqual({});
+    await expect
+      .poll(() => page.getByRole("group", { name: "Role filter" }).elements())
+      .toHaveLength(0);
+  });
+
+  it("selects the search from the Email column, so typing replaces it", async () => {
+    await setup(usersOn, "/users?q=duck");
+
+    await page.getByRole("button", { name: "Email", exact: true }).click();
+    await page.getByRole("menuitem", { name: "Filter" }).click();
+
+    const searchbox = page.getByRole("searchbox");
+    await expect.element(searchbox).toHaveFocus();
+    const input = searchbox.element() as HTMLInputElement;
+    expect([input.selectionStart, input.selectionEnd]).toEqual([0, "duck".length]);
   });
 });

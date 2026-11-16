@@ -142,6 +142,28 @@ layer(Layer.mergeAll(UsersLayer, HttpServer.layerServices))("UsersApi", (it) => 
     }),
   );
 
+  it.effect("keeps the Users of the Role asked, along with the search", () =>
+    Effect.gen(function* () {
+      const client = yield* clientOf(grace);
+      const filter = (query: { role: Role; search?: string }) =>
+        client.users
+          .list({ query: { ...firstPage, ...query } })
+          .pipe(
+            Effect.map(({ items, total }) => ({ emails: items.map(({ email }) => email), total })),
+          );
+
+      assert.deepStrictEqual(yield* filter({ role: "admin" }), { emails: [grace.email], total: 1 });
+      assert.deepStrictEqual(yield* filter({ role: "user", search: "d" }), {
+        emails: [ada.email, userOf("edsger", "user").email],
+        total: 2,
+      });
+      assert.deepStrictEqual(yield* filter({ role: "admin", search: "ada" }), {
+        emails: [],
+        total: 0,
+      });
+    }),
+  );
+
   it.effect("refuses a user with Forbidden, 403", () =>
     Effect.gen(function* () {
       const client = yield* clientOf(ada);

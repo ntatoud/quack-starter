@@ -27,12 +27,14 @@ export const UserRepositoryMemory = Layer.sync(UserRepository, () => {
           Option.flatMapNullishOr((id) => users.get(id)),
         ),
       ),
-    findAll: ({ page, pageSize, orderBy, dir, search = "" }) =>
+    findAll: ({ page, pageSize, orderBy, dir, search = "", role }) =>
       Effect.sync(() => {
         const offset = (page - 1) * pageSize;
         const sign = dir === "asc" ? 1 : -1;
         const sorted = Array.from(users.values(), ({ user }) => user)
-          .filter(({ email }) => email.includes(search))
+          .filter(
+            (user) => user.email.includes(search) && (role === undefined || user.role === role),
+          )
           .toSorted((a, b) => sign * compare(a[orderBy], b[orderBy]) || compare(a.email, b.email));
         return { items: sorted.slice(offset, offset + pageSize), total: sorted.length };
       }),
