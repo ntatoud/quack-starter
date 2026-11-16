@@ -13,7 +13,8 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { render } from "vitest-browser-react";
 
-import { PageSearch } from "#/components/page-pagination.tsx";
+import { UsersSearch } from "#/features/users/admin/users-search.ts";
+import { UsersSearchInput } from "#/features/users/admin/users-search-input.tsx";
 import { UsersTable } from "#/features/users/admin/users-table.tsx";
 
 const user = (n: number, role: Role = "user") => ({
@@ -63,12 +64,13 @@ const setup = async (
   const usersRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: "/users",
-    validateSearch: Schema.toStandardSchemaV1(PageSearch),
+    validateSearch: Schema.toStandardSchemaV1(UsersSearch),
     component: function Users() {
-      const { page: current = 1 } = usersRoute.useSearch();
+      const { page: current = 1, q = "" } = usersRoute.useSearch();
       return (
         <div style={{ ...size, display: "flex", flexDirection: "column" }}>
-          <UsersTable page={current} />
+          <UsersSearchInput search={q} />
+          <UsersTable page={current} search={q} />
         </div>
       );
     },
@@ -309,5 +311,60 @@ describe("UsersTable", () => {
     await page.getByRole("button", { name: "Try again" }).click();
 
     await expect.element(page.getByText("user-1@quack.dev")).toBeVisible();
+  });
+
+  it("asks the API once the typing pauses, from the first page, and keeps the search in the URL", async () => {
+    const { router } = await setup(usersOn, "/users?page=2");
+    await expect.element(page.getByText(`user-${total}@quack.dev`)).toBeVisible();
+    fetch.mockClear();
+    respond = () => Response.json({ items: [user(7)], total: 1 });
+
+    await userEvent.type(page.getByRole("searchbox", { name: "Search users by email" }), "User-7");
+
+    await expect.element(page.getByText("user-7@quack.dev")).toBeVisible();
+    await expect.element(page.getByText("Page 1 of 1")).toBeVisible();
+    expect(fetch).toHaveBeenCalledOnce();
+    const { searchParams } = new URL(String(fetch.mock.calls[0]?.[0]));
+    expect(searchParams.get("search")).toBe("User-7");
+    expect(searchParams.get("page")).toBe("1");
+    expect(router.state.location.search).toEqual({ q: "User-7" });
+  });
+
+  it("waits for the typing to pause before it asks the API", async () => {
+    await setup(usersOn);
+    await expect.element(page.getByText("user-1@quack.dev")).toBeVisible();
+    fetch.mockClear();
+
+    await userEvent.type(page.getByRole("searchbox"), "ad");
+
+    expect(fetch).not.toHaveBeenCalled();
+    await expect.poll(() => fetch.mock.calls.length, { timeout: 1000 }).toBe(1);
+  });
+
+  it("drops the search from the URL once the field is cleared", async () => {
+    const { router } = await setup(usersOn, "/users?q=duck");
+    await expect.element(page.getByRole("searchbox")).toHaveValue("duck");
+
+    await userEvent.clear(page.getByRole("searchbox"));
+
+    await expect.poll(() => router.state.location.search).toEqual({});
+  });
+
+  it("says no user matches a search that finds none", async () => {
+    await setup(() => Response.json({ items: [], total: 0 }), "/users?q=duck");
+
+    await expect.element(page.getByText("No users match “duck”")).toBeVisible();
+    expect(page.getByRole("link", { name: "Go to the first page" }).elements()).toHaveLength(0);
+  });
+
+  it("keeps the search when it leads back to the first page", async () => {
+    await setup(
+      (request) => (pageOf(request) === 1 ? usersOn(request) : Response.json({ items: [], total })),
+      "/users?page=9&q=user",
+    );
+
+    await expect
+      .element(page.getByRole("link", { name: "Go to the first page" }))
+      .toHaveAttribute("href", "/users?q=user");
   });
 });

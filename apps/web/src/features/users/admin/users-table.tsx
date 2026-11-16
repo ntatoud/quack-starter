@@ -20,8 +20,8 @@ import { PagePagination, pageCount } from "#/components/page-pagination.tsx";
 import { usersColumns } from "#/features/users/admin/users-columns.tsx";
 import { usersQueryOptions } from "#/features/users/admin/users-query.ts";
 
-export function UsersTable({ page }: { page: number }) {
-  const users = useQuery(usersQueryOptions(page));
+export function UsersTable({ page, search }: { page: number; search: string }) {
+  const users = useQuery(usersQueryOptions(page, search));
 
   return matchQuery(users, {
     Pending: () => (
@@ -85,11 +85,20 @@ export function UsersTable({ page }: { page: number }) {
                 <EmptyMedia variant="icon">
                   <UsersIcon />
                 </EmptyMedia>
-                <EmptyTitle>No users on this page</EmptyTitle>
+                <EmptyTitle>
+                  {total === 0 && search.trim() !== ""
+                    ? `No users match “${search.trim()}”`
+                    : "No users on this page"}
+                </EmptyTitle>
               </EmptyHeader>
               {total > 0 && (
                 <EmptyContent>
-                  <ButtonLink to="/users" search={{}} variant="outline" size="sm">
+                  <ButtonLink
+                    to="/users"
+                    search={({ page: _, ...rest }) => rest}
+                    variant="outline"
+                    size="sm"
+                  >
                     Go to the first page
                   </ButtonLink>
                 </EmptyContent>

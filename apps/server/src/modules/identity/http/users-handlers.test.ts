@@ -115,6 +115,33 @@ layer(Layer.mergeAll(UsersLayer, HttpServer.layerServices))("UsersApi", (it) => 
     }),
   );
 
+  it.effect("keeps the Users whose email contains the search, whatever its case", () =>
+    Effect.gen(function* () {
+      const client = yield* clientOf(grace);
+      const search = (text: string, page = 1) =>
+        client.users
+          .list({ query: { ...firstPage, page, pageSize: 1, search: text } })
+          .pipe(
+            Effect.map(({ items, total }) => ({ emails: items.map(({ email }) => email), total })),
+          );
+
+      assert.deepStrictEqual(yield* search(" R"), {
+        emails: [userOf("barbara", "user").email],
+        total: 3,
+      });
+      assert.deepStrictEqual(yield* search(" R", 2), {
+        emails: [userOf("edsger", "user").email],
+        total: 3,
+      });
+      assert.deepStrictEqual(yield* search("LINUS@"), {
+        emails: [userOf("linus", "user").email],
+        total: 1,
+      });
+      assert.deepStrictEqual(yield* search("nobody"), { emails: [], total: 0 });
+      assert.deepStrictEqual(yield* search(""), { emails: [ada.email], total: users.length });
+    }),
+  );
+
   it.effect("refuses a user with Forbidden, 403", () =>
     Effect.gen(function* () {
       const client = yield* clientOf(ada);
