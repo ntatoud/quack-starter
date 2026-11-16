@@ -17,15 +17,31 @@ import { labelOf, usersFilterOfColumn } from "#/features/users/admin/users-filte
 
 export type UsersSorting = { readonly column: UserOrder; readonly direction: SortDirection };
 
+/** The columns an Admin may hide; the name and the email say which User a row is, so they stay. */
+export const hideableUsersColumns = [
+  { id: "status", title: "Status" },
+  { id: "role", title: "Role" },
+  { id: "team", title: "Team" },
+  { id: "jobTitle", title: "Job title" },
+  { id: "country", title: "Country" },
+  { id: "tags", title: "Tags" },
+  { id: "verified", title: "Verified" },
+  { id: "createdAt", title: "Created" },
+  { id: "lastSignInAt", title: "Last sign-in" },
+] as const;
+export type HideableUsersColumn = (typeof hideableUsersColumns)[number]["id"];
+
 export const usersColumns = ({
   sorting,
   onSort,
   onFilter,
+  hidden,
   now,
 }: {
   sorting: UsersSorting;
   onSort: (sorting: UsersSorting) => void;
   onFilter: (column: UserOrder) => void;
+  hidden: ReadonlySet<HideableUsersColumn>;
   /** What a relative date counts from. */
   now: Date;
 }): ReadonlyArray<DataTableColumn<User>> => {
@@ -38,7 +54,7 @@ export const usersColumns = ({
     />
   );
 
-  return [
+  const columns: ReadonlyArray<DataTableColumn<User> & { id: string }> = [
     {
       id: "name",
       header: header("name", "Name"),
@@ -104,4 +120,6 @@ export const usersColumns = ({
       cell: ({ row }) => <TimeAgoCell date={row.original.lastSignInAt} now={now} />,
     },
   ];
+
+  return columns.filter(({ id }) => ![...hidden].some((column) => column === id));
 };
