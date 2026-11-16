@@ -1,6 +1,7 @@
 import { DataTableAddFilter } from "@quack/ui/components/data-table-add-filter";
 import { DataTableSelectFilter } from "@quack/ui/components/data-table-select-filter";
 import { useAddedFilters } from "@quack/ui/hooks/use-added-filters";
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 
@@ -11,6 +12,7 @@ import {
   usersFilterOfColumn,
   usersFilters,
 } from "#/features/users/admin/users-filters.ts";
+import { usersQueryOptions } from "#/features/users/admin/users-query.ts";
 import {
   defaultUsersSorting,
   type UsersSearch,
@@ -24,6 +26,8 @@ export function UsersList({ urlSearch }: { urlSearch: UsersSearch }) {
   const query = usersQueryOf(urlSearch);
   const [searchInput, setSearchInput] = useState<HTMLInputElement | null>(null);
   const filters = useAddedFilters((key: UsersFilterKey) => urlSearch[key] !== undefined);
+  // Relative dates count from when the page was fetched: the render stays pure, and they read the same until the next fetch.
+  const { dataUpdatedAt } = useQuery(usersQueryOptions(query));
 
   const focusSearch = () => {
     searchInput?.focus();
@@ -46,6 +50,7 @@ export function UsersList({ urlSearch }: { urlSearch: UsersSearch }) {
       if (filter === "search") focusSearch();
       else if (filter !== undefined) filters.add(filter);
     },
+    now: new Date(dataUpdatedAt),
   });
 
   return (

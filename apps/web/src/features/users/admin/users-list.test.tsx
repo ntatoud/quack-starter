@@ -13,6 +13,8 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { render } from "vitest-browser-react";
 
+import { TooltipProvider } from "@quack/ui/components/tooltip";
+
 import { UsersList } from "#/features/users/admin/users-list.tsx";
 import { UsersSearch } from "#/features/users/admin/users-search.ts";
 
@@ -44,6 +46,31 @@ const usersOn = (request: Request) =>
   Response.json({ items: [firstPage, [user(total)]][pageOf(request) - 1] ?? [], total });
 const ninePages = () => Response.json({ items: firstPage, total: defaultPageSize * 9 });
 
+// The rows scroll sideways when the table is narrow; the footer must fit.
+const footerOfTable = () => {
+  const footer = pagination().element().closest("[data-slot=data-table-footer]");
+  if (!(footer instanceof HTMLElement)) throw new Error("The pagination is in no footer.");
+  return footer;
+};
+
+const lastQuery = () => new URL(String(fetch.mock.lastCall?.[0])).searchParams;
+
+const ada = {
+  ...user(1),
+  email: "ada@quack.dev",
+  status: "suspended",
+  emailVerifiedAt: "2026-01-02T00:00:00.000Z",
+  profile: {
+    firstName: "Ada",
+    lastName: "Lovelace",
+    avatarUrl: null,
+    jobTitle: "Analyst",
+    team: "engineering",
+    country: "GB",
+    tags: ["beta", "vip", "mentor", "remote"],
+  },
+};
+
 const scrollerOfTable = () => {
   const scroller = page.getByRole("table").element().closest("[data-slot=data-table-viewport]");
   if (!(scroller instanceof HTMLElement)) throw new Error("The table scrolls in no viewport.");
@@ -71,9 +98,11 @@ const setup = async (
     validateSearch: Schema.toStandardSchemaV1(UsersSearch),
     component: function Users() {
       return (
-        <div style={{ ...size, display: "flex", flexDirection: "column" }}>
-          <UsersList urlSearch={usersRoute.useSearch()} />
-        </div>
+        <TooltipProvider>
+          <div style={{ ...size, display: "flex", flexDirection: "column" }}>
+            <UsersList urlSearch={usersRoute.useSearch()} />
+          </div>
+        </TooltipProvider>
       );
     },
   });
@@ -270,8 +299,8 @@ describe("UsersList", () => {
     await setup(ninePages, "/users?page=5", { width: 470 });
     await expect.element(next()).toBeVisible();
 
-    const scroller = scrollerOfTable();
-    expect(scroller.scrollWidth).toBe(scroller.clientWidth);
+    const footer = footerOfTable();
+    expect(footer.scrollWidth).toBe(footer.clientWidth);
     const summary = page.getByText("Page 5 of 9").element().getBoundingClientRect();
     expect(summary.bottom).toBeLessThanOrEqual(pagination().element().getBoundingClientRect().top);
   });
@@ -292,8 +321,8 @@ describe("UsersList", () => {
     await setup(ninePages, "/users?page=5");
 
     await expect.element(next()).toBeVisible();
-    const scroller = scrollerOfTable();
-    expect(scroller.scrollWidth).toBe(scroller.clientWidth);
+    const footer = footerOfTable();
+    expect(footer.scrollWidth).toBe(footer.clientWidth);
     expect(next().element().getBoundingClientRect().right).toBeLessThanOrEqual(window.innerWidth);
   });
 
@@ -329,7 +358,10 @@ describe("UsersList", () => {
     fetch.mockClear();
     respond = () => Response.json({ items: [user(7)], total: 1 });
 
-    await userEvent.type(page.getByRole("searchbox", { name: "Search users by email" }), "User-7");
+    await userEvent.type(
+      page.getByRole("searchbox", { name: "Search users by name or email" }),
+      "User-7",
+    );
 
     await expect.element(page.getByText("user-7@quack.dev")).toBeVisible();
     await expect.element(page.getByText("Page 1 of 1")).toBeVisible();
@@ -473,7 +505,7 @@ describe("UsersList", () => {
     await page.getByRole("menuitem", { name: "Filter" }).click();
 
     await expect
-      .element(page.getByRole("searchbox", { name: "Search users by email" }))
+      .element(page.getByRole("searchbox", { name: "Search users by name or email" }))
       .toHaveFocus();
   });
 
@@ -519,13 +551,99 @@ describe("UsersList", () => {
 
     await expect.poll(() => router.state.location.search).toEqual({ role: "admin" });
     await expect.element(page.getByRole("button", { name: "Role: Admin" })).toBeVisible();
-    expect(queryOf(fetch.mock.calls.length - 1).get("role")).toBe("admin");
+    expect(lastQuery().get("role")).toBe("admin");
   });
 
   it("hides the button once every filter is shown", async () => {
-    await setup(usersOn, "/users?role=user");
+    await setup(usersOn, "/users?status=active&role=user&team=design");
 
-    await expect.element(page.getByRole("button", { name: "Role: User" })).toBeVisible();
+    await expect.element(page.getByRole("button", { name: "Team: Design" })).toBeVisible();
     expect(page.getByRole("button", { name: "Add filter" }).elements()).toHaveLength(0);
+  });
+
+  it("shows the Profile, the Status, and the dates of a User, and Never for one who never signed in", async () => {
+    await setup(() => Response.json({ items: [ada, user(2)], total: 2 }));
+
+    const row = page.getByRole("row").filter({ hasText: "ada@quack.dev" });
+    await expect.element(row.getByRole("cell", { name: "Ada Lovelace" })).toBeVisible();
+    await expect.element(row.getByRole("cell", { name: "Suspended" })).toBeVisible();
+    await expect.element(row.getByRole("cell", { name: "Engineering" })).toBeVisible();
+    await expect.element(row.getByRole("cell", { name: "Analyst" })).toBeVisible();
+    await expect.element(row.getByRole("cell", { name: "United Kingdom" })).toBeVisible();
+    await expect.element(row.getByRole("cell", { name: "Never" })).toBeVisible();
+    await expect.element(row.getByRole("img", { name: "Verified" })).toBeVisible();
+    await expect.element(row.getByRole("cell", { name: "Jan 1, 2026" })).toBeVisible();
+    await expect.element(row.getByText("+2: mentor, remote")).toBeInTheDocument();
+    const other = page.getByRole("row").filter({ hasText: "user-2@quack.dev" });
+    await expect.element(other.getByRole("cell", { name: "No profile" })).toBeVisible();
+    await expect.element(other.getByText("Not verified")).toBeInTheDocument();
+  });
+
+  it("sorts by the last sign-in from its header", async () => {
+    const { router } = await setup(usersOn);
+    await expect.element(page.getByText("user-1@quack.dev")).toBeVisible();
+
+    await page.getByRole("button", { name: "Last sign-in", exact: true }).click();
+    await page.getByRole("menuitemradio", { name: "Descending" }).click();
+
+    await expect
+      .poll(() => router.state.location.search)
+      .toEqual({ orderBy: "lastSignInAt", dir: "desc" });
+    await expect.poll(() => sortOf("Last sign-in")).toBe("descending");
+    expect(lastQuery().get("orderBy")).toBe("lastSignInAt");
+  });
+
+  it("offers no filter from the header of a column that has none", async () => {
+    await setup(usersOn);
+
+    await page.getByRole("button", { name: "Country", exact: true }).click();
+
+    await expect.element(page.getByRole("menuitemradio", { name: "Ascending" })).toBeVisible();
+    expect(page.getByRole("menuitem", { name: "Filter" }).elements()).toHaveLength(0);
+  });
+
+  it("filters by the status and the team from their header, and keeps both in the URL", async () => {
+    const { router } = await setup(usersOn);
+    await expect.element(page.getByText("user-1@quack.dev")).toBeVisible();
+
+    await page.getByRole("button", { name: "Status", exact: true }).click();
+    await page.getByRole("menuitem", { name: "Filter" }).click();
+    await page.getByRole("menuitemradio", { name: "Suspended" }).click();
+    await page.getByRole("button", { name: "Team", exact: true }).click();
+    await page.getByRole("menuitem", { name: "Filter" }).click();
+    await page.getByRole("menuitemradio", { name: "Design" }).click();
+
+    await expect
+      .poll(() => router.state.location.search)
+      .toEqual({ status: "suspended", team: "design" });
+    await expect.element(page.getByRole("button", { name: "Status: Suspended" })).toBeVisible();
+    await expect.element(page.getByRole("button", { name: "Team: Design" })).toBeVisible();
+    expect(lastQuery().get("status")).toBe("suspended");
+    expect(lastQuery().get("team")).toBe("design");
+  });
+
+  it("filters by name from its header in the search", async () => {
+    await setup(usersOn);
+
+    await page.getByRole("button", { name: "Name", exact: true }).click();
+    await page.getByRole("menuitem", { name: "Filter" }).click();
+
+    await expect
+      .element(page.getByRole("searchbox", { name: "Search users by name or email" }))
+      .toHaveFocus();
+  });
+
+  it("says no user matches the filters when none does", async () => {
+    await setup(() => Response.json({ items: [], total: 0 }), "/users?status=invited&team=sales");
+
+    await expect.element(page.getByText("No users match these filters")).toBeVisible();
+  });
+
+  it("asks the API for every status and team when the URL names neither", async () => {
+    await setup(usersOn, "/users?status=deleted&team=Sales");
+
+    await expect.element(page.getByText("user-1@quack.dev")).toBeVisible();
+    expect(queryOf().has("status")).toBe(false);
+    expect(queryOf().has("team")).toBe(false);
   });
 });
