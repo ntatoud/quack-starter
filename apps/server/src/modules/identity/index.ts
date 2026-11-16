@@ -1,5 +1,5 @@
 import { NodeCrypto } from "@effect/platform-node";
-import { Effect, Layer } from "effect";
+import { DateTime, Effect, Layer } from "effect";
 
 import { ServerConfig } from "#/config.ts";
 
@@ -17,7 +17,10 @@ import { SessionStoreMemory } from "#/modules/identity/infrastructure/session-st
 import { UserRepositoryMemory } from "#/modules/identity/infrastructure/user-repository-memory.ts";
 
 const DevUserSeed = Layer.unwrap(
-  Effect.map(ServerConfig, ({ seedUsers }) => (seedUsers ? UserSeed(devUsers) : Layer.empty)),
+  Effect.gen(function* () {
+    const { seedUsers } = yield* ServerConfig;
+    return seedUsers ? UserSeed(devUsers(DateTime.toDateUtc(yield* DateTime.now))) : Layer.empty;
+  }),
 );
 
 export const IdentityModule = Layer.mergeAll(IdentityHandlers, UsersHandlers).pipe(

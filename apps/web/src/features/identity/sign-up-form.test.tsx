@@ -63,7 +63,15 @@ describe("SignUpForm", () => {
     const requests: Array<{ url: string; body: unknown }> = [];
     const form = await setup(async (request) => {
       requests.push({ url: request.url, body: await request.json() });
-      return Response.json({ id: "1", email: "ada@example.com", role: "user", status: "active" });
+      return Response.json({
+        id: "1",
+        email: "ada@example.com",
+        role: "user",
+        status: "active",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        lastSignInAt: null,
+        emailVerifiedAt: null,
+      });
     });
 
     await form.email.fill("  Ada@Example.COM ");

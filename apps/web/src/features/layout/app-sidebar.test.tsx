@@ -22,7 +22,15 @@ const setup = async (role: Role) => {
       <TooltipProvider>
         <SidebarProvider>
           <AppSidebar
-            currentUser={{ id: "user-1", email: "someone@quack.dev", role, status: "active" }}
+            currentUser={{
+              id: "user-1",
+              email: "someone@quack.dev",
+              role,
+              status: "active",
+              createdAt: "2026-01-01T00:00:00.000Z",
+              lastSignInAt: null,
+              emailVerifiedAt: null,
+            }}
           />
         </SidebarProvider>
       </TooltipProvider>

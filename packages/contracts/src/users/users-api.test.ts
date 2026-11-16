@@ -15,9 +15,11 @@ describe("UserListQuery", () => {
     });
   });
 
-  it("orders by email, role, or status, ascending or descending, nothing else", () => {
+  it("orders by email, role, status, or a date, ascending or descending, nothing else", () => {
     expect(decode({ orderBy: "role", dir: "desc" })._tag).toBe("Some");
     expect(decode({ orderBy: "status" })._tag).toBe("Some");
+    expect(decode({ orderBy: "lastSignInAt" })._tag).toBe("Some");
+    expect(decode({ orderBy: "emailVerifiedAt" })._tag).toBe("None");
     expect(decode({ orderBy: "id" })._tag).toBe("None");
     expect(decode({ orderBy: "Email" })._tag).toBe("None");
     expect(decode({ dir: "up" })._tag).toBe("None");

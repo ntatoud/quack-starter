@@ -132,12 +132,15 @@ describe("server routes", () => {
   it("signs a visitor up, then answers /api/me to the session cookie it set", async () => {
     const response = await signUp("Ada@Example.com");
     expect(response.status).toBe(200);
-    const user = await response.json();
+    const user = (await response.json()) as { createdAt: string };
     expect(user).toEqual({
       id: expect.any(String),
       email: "ada@example.com",
       role: "user",
       status: "active",
+      createdAt: expect.any(String),
+      lastSignInAt: user.createdAt,
+      emailVerifiedAt: null,
     });
 
     const [cookie] = response.headers.getSetCookie();
@@ -330,7 +333,7 @@ describe("server routes, with the dev Users seeded", () => {
   it("answers /api/users to an Admin, sorted as the query asks, and with 400 when the query is out of bounds", async () => {
     const firstPage = await usersAt("");
     expect(firstPage.status).toBe(200);
-    expect(await firstPage.json()).toMatchObject({ total: devUsers.length });
+    expect(await firstPage.json()).toMatchObject({ total: devUsers(new Date()).length });
     const outOfBounds = await Promise.all(
       ["?pageSize=0", "?pageSize=101", "?pageSize=2.5", "?page=0", "?orderBy=id", "?dir=up"].map(
         usersAt,

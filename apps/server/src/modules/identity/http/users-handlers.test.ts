@@ -3,7 +3,7 @@ import { Api } from "@quack/contracts/api";
 import { Authentication, CurrentUser } from "@quack/contracts/identity/authentication";
 import { Forbidden, Unauthenticated } from "@quack/contracts/identity/identity-errors";
 import { Email, type Role, User, UserId, type UserStatus } from "@quack/contracts/identity/user";
-import { Effect, Layer, Redacted } from "effect";
+import { DateTime, Effect, Layer, Redacted } from "effect";
 import { HttpClientRequest, HttpServer } from "effect/http";
 import { HttpApiMiddleware, HttpApiTest } from "effect/http-api";
 
@@ -13,15 +13,34 @@ import { RequireRoleMiddleware } from "#/modules/identity/http/require-role-midd
 import { UsersHandlers } from "#/modules/identity/http/users-handlers.ts";
 import { UserRepositoryMemory } from "#/modules/identity/infrastructure/user-repository-memory.ts";
 
-const userOf = (name: string, role: Role, status: UserStatus = "active") =>
-  new User({ id: UserId.make(name), email: Email.make(`${name}@example.com`), role, status });
+const day = (n: number) => DateTime.makeUnsafe(`2026-01-${String(n).padStart(2, "0")}T00:00:00Z`);
 
-const grace = userOf("grace", "admin");
-const ada = userOf("ada", "user");
-const linus = userOf("linus", "user", "suspended");
-const edsger = userOf("edsger", "user", "invited");
-const barbara = userOf("barbara", "user");
+const userOf = (
+  name: string,
+  {
+    role = "user",
+    status = "active",
+    createdOn,
+    lastSignInOn,
+  }: { role?: Role; status?: UserStatus; createdOn: number; lastSignInOn: number | null },
+) =>
+  new User({
+    id: UserId.make(name),
+    email: Email.make(`${name}@example.com`),
+    role,
+    status,
+    createdAt: day(createdOn),
+    lastSignInAt: lastSignInOn === null ? null : day(lastSignInOn),
+    emailVerifiedAt: null,
+  });
+
+const grace = userOf("grace", { role: "admin", createdOn: 1, lastSignInOn: 10 });
+const ada = userOf("ada", { createdOn: 2, lastSignInOn: 9 });
+const linus = userOf("linus", { status: "suspended", createdOn: 3, lastSignInOn: 5 });
+const edsger = userOf("edsger", { status: "invited", createdOn: 5, lastSignInOn: null });
+const barbara = userOf("barbara", { createdOn: 4, lastSignInOn: 8 });
 const users: ReadonlyArray<User> = [grace, linus, ada, edsger, barbara];
+const emailsOf = (...list: ReadonlyArray<User>) => list.map(({ email }) => email);
 const firstPage = { page: 1, pageSize: 20, orderBy: "email", dir: "asc" } as const;
 const emailsSorted = users.map(({ email }) => email).toSorted();
 
@@ -179,16 +198,39 @@ layer(Layer.mergeAll(UsersLayer, HttpServer.layerServices))("UsersApi", (it) => 
     }),
   );
 
+  it.effect("sorts by a date, and puts the Users who have none last in either direction", () =>
+    Effect.gen(function* () {
+      const client = yield* clientOf(grace);
+      const emailsBy = (orderBy: "createdAt" | "lastSignInAt", dir: "asc" | "desc") =>
+        client.users
+          .list({ query: { ...firstPage, orderBy, dir } })
+          .pipe(Effect.map(({ items }) => items.map(({ email }) => email)));
+
+      assert.deepStrictEqual(
+        yield* emailsBy("lastSignInAt", "desc"),
+        emailsOf(grace, ada, barbara, linus, edsger),
+      );
+      assert.deepStrictEqual(
+        yield* emailsBy("lastSignInAt", "asc"),
+        emailsOf(linus, barbara, ada, grace, edsger),
+      );
+      assert.deepStrictEqual(
+        yield* emailsBy("createdAt", "asc"),
+        emailsOf(grace, ada, linus, barbara, edsger),
+      );
+    }),
+  );
+
   it.effect("keeps the Users of the status asked", () =>
     Effect.gen(function* () {
       const client = yield* clientOf(grace);
-      const emailsOf = (status: UserStatus) =>
+      const emailsWith = (status: UserStatus) =>
         client.users
           .list({ query: { ...firstPage, status } })
           .pipe(Effect.map(({ items }) => items.map(({ email }) => email)));
 
-      assert.deepStrictEqual(yield* emailsOf("suspended"), [linus.email]);
-      assert.deepStrictEqual(yield* emailsOf("active"), [ada.email, barbara.email, grace.email]);
+      assert.deepStrictEqual(yield* emailsWith("suspended"), [linus.email]);
+      assert.deepStrictEqual(yield* emailsWith("active"), [ada.email, barbara.email, grace.email]);
     }),
   );
 

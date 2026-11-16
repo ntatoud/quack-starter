@@ -1,10 +1,24 @@
 import { EmailAlreadyTaken } from "@quack/contracts/identity/identity-errors";
 import { type Email, User, UserId } from "@quack/contracts/identity/user";
-import { Effect, Layer, Option } from "effect";
+import type { UserOrder } from "@quack/contracts/users/users-api";
+import { DateTime, Effect, Layer, Option } from "effect";
 
 import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
 
-const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+type SortKey = string | number | null;
+
+const compare = (a: string | number, b: string | number) => (a < b ? -1 : a > b ? 1 : 0);
+
+const millisOf = (date: DateTime.Utc | null) =>
+  date === null ? null : DateTime.toEpochMillis(date);
+
+const sortKeys: Record<UserOrder, (user: User) => SortKey> = {
+  email: (user) => user.email,
+  role: (user) => user.role,
+  status: (user) => user.status,
+  createdAt: (user) => millisOf(user.createdAt),
+  lastSignInAt: (user) => millisOf(user.lastSignInAt),
+};
 
 export const UserRepositoryMemory = Layer.sync(UserRepository, () => {
   const users = new Map<UserId, { readonly user: User; readonly passwordHash: string }>();
@@ -45,7 +59,14 @@ export const UserRepositoryMemory = Layer.sync(UserRepository, () => {
               (status === undefined || user.status === status) &&
               (role === undefined || user.role === role),
           )
-          .toSorted((a, b) => sign * compare(a[orderBy], b[orderBy]) || compare(a.email, b.email));
+          .map((user) => ({ user, key: sortKeys[orderBy](user) }))
+          .toSorted(
+            (a, b) =>
+              (a.key === null || b.key === null
+                ? Number(a.key === null) - Number(b.key === null)
+                : sign * compare(a.key, b.key)) || compare(a.user.email, b.user.email),
+          )
+          .map(({ user }) => user);
         return { items: sorted.slice(offset, offset + pageSize), total: sorted.length };
       }),
   });

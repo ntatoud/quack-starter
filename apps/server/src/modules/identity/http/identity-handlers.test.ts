@@ -116,7 +116,15 @@ layer(withConfig({ SIGN_UPS_PER_IP: "1000" }))("IdentityApi", (it) => {
       assert.strictEqual(user.email, "ada@example.com");
       assert.isAbove(user.id.length, 0);
       assert.strictEqual(user.role, "user");
-      assert.deepStrictEqual(Object.keys(user).toSorted(), ["email", "id", "role", "status"]);
+      assert.deepStrictEqual(Object.keys(user).toSorted(), [
+        "createdAt",
+        "email",
+        "emailVerifiedAt",
+        "id",
+        "lastSignInAt",
+        "role",
+        "status",
+      ]);
     }),
   );
 
@@ -172,10 +180,13 @@ layer(withConfig({ SIGN_UPS_PER_IP: "1000" }))("IdentityApi", (it) => {
 
         const signedIn = yield* browser.signIn(asTyped(" Hedy@Example.com"));
 
-        assert.deepStrictEqual(signedIn.user, user);
+        assert.deepStrictEqual({ ...signedIn.user, lastSignInAt: user.lastSignInAt }, { ...user });
         assert.deepStrictEqual(Object.keys(signedIn.user).toSorted(), [
+          "createdAt",
           "email",
+          "emailVerifiedAt",
           "id",
+          "lastSignInAt",
           "role",
           "status",
         ]);
@@ -603,7 +614,7 @@ describe("IdentityApi, attempt limits", () => {
       yield* TestClock.adjust("1 second");
 
       assert.deepStrictEqual(refusal(refused[2]), { _tag: "TooManyAttempts", retryAfter: 1 });
-      assert.deepStrictEqual((yield* browser.signIn(asTyped("ada@example.com"))).user, user);
+      assert.strictEqual((yield* browser.signIn(asTyped("ada@example.com"))).user.id, user.id);
       const failures = yield* failSignIn(browser, "ada@example.com", 6);
       assert.strictEqual(failures[4]?._tag, "InvalidCredentials");
       assert.deepStrictEqual(refusal(failures[5]), { _tag: "TooManyAttempts", retryAfter: 900 });
@@ -621,7 +632,7 @@ describe("IdentityApi, attempt limits", () => {
         }
         yield* failSignIn(browser, "guessed-4@example.com", 3);
         // A sign-in that succeeds leaves the counter of the address as it is: 19 failures.
-        assert.deepStrictEqual((yield* browser.signIn(asTyped("ada@example.com"))).user, user);
+        assert.strictEqual((yield* browser.signIn(asTyped("ada@example.com"))).user.id, user.id);
         const twentieth = yield* failSignIn(browser, "guessed-4@example.com", 1);
 
         const onAnotherEmail = yield* failSignIn(browser, "guessed-5@example.com", 1);
@@ -640,7 +651,7 @@ describe("IdentityApi, attempt limits", () => {
         });
 
         yield* TestClock.adjust("15 minutes");
-        assert.deepStrictEqual((yield* browser.signIn(asTyped("ada@example.com"))).user, user);
+        assert.strictEqual((yield* browser.signIn(asTyped("ada@example.com"))).user.id, user.id);
       }).pipe(withLimits()),
   );
 
