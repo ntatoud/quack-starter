@@ -23,6 +23,7 @@ import {
   sessionTokenBytes,
 } from "#/modules/identity/domain/session.ts";
 import { SessionStore } from "#/modules/identity/domain/session-store.ts";
+import { canSignIn } from "#/modules/identity/domain/user.ts";
 import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
 
 export interface OpenedSession {
@@ -86,7 +87,12 @@ export class Identity extends Context.Service<
         signUp: Effect.fn("Identity.signUp")(function* (email, password, ip) {
           // Counted before it is known to succeed: one that fails costs a hash, and tells whether a User has the email.
           yield* limiter.take([AttemptCounter.signUpsOfIp(ip)]);
-          const user = new User({ id: yield* users.nextId, email, role: "user" });
+          const user = new User({
+            id: yield* users.nextId,
+            email,
+            role: "user",
+            status: "active",
+          });
           yield* users.create(user, yield* hasher.hash(password));
           return { user, session: yield* openSession(user) };
         }),
@@ -104,7 +110,8 @@ export class Identity extends Context.Service<
             return yield* new InvalidCredentials();
           }
           const { user, passwordHash } = found.value;
-          if (!(yield* hasher.verify(password, passwordHash))) {
+          // After the password: whoever does not know it must not learn the status of the User.
+          if (!(yield* hasher.verify(password, passwordHash)) || !canSignIn(user)) {
             return yield* new InvalidCredentials();
           }
           // The address only gives this attempt back: signing into one's own account must not clear
@@ -130,6 +137,11 @@ export class Identity extends Context.Service<
           }
           const user = yield* users.findById(session.value.userId);
           if (Option.isNone(user)) {
+            return yield* new Unauthenticated();
+          }
+          if (!canSignIn(user.value)) {
+            // A User suspended after signing in loses their Session at their next request.
+            yield* sessions.remove(tokenHash);
             return yield* new Unauthenticated();
           }
           const extendedUntil = extension(session.value, now);

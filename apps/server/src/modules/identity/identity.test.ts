@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 
 import { NodeCrypto } from "@effect/platform-node";
 import { assert, layer } from "@effect/vitest";
-import { Email } from "@quack/contracts/identity/user";
+import { Email, User } from "@quack/contracts/identity/user";
 import { ConfigProvider, DateTime, Effect, Layer, Option, Redacted } from "effect";
 
 import { TestClock } from "effect/testing";
@@ -10,6 +10,7 @@ import { TestClock } from "effect/testing";
 import { Identity } from "#/modules/identity/application/identity.ts";
 import { PasswordHasher } from "#/modules/identity/domain/password-hasher.ts";
 import { SessionStore } from "#/modules/identity/domain/session-store.ts";
+import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
 import { AttemptLimiterMemory } from "#/modules/identity/infrastructure/attempt-limiter-memory.ts";
 import { PasswordHasherArgon2 } from "#/modules/identity/infrastructure/password-hasher-argon2.ts";
 import { SessionStoreMemory } from "#/modules/identity/infrastructure/session-store-memory.ts";
@@ -42,13 +43,12 @@ const PasswordHasherCounted = Layer.effect(
 
 const IdentityLayer = Identity.layer.pipe(
   Layer.provide([
-    UserRepositoryMemory,
     PasswordHasherCounted,
     // The limits of an unset config, whatever the environment of the machine that runs the tests.
     AttemptLimiterMemory.pipe(Layer.provide(ConfigProvider.layer(ConfigProvider.fromUnknown({})))),
   ]),
-  // The store stays visible, to see what a sign-up leaves in it.
-  Layer.provideMerge(SessionStoreMemory),
+  // The stores stay visible, to see what a sign-up leaves in them.
+  Layer.provideMerge([SessionStoreMemory, UserRepositoryMemory]),
   Layer.provide([NodeCrypto.layerSecureRandom, NodeCrypto.layerDigest, NodeCrypto.layerKdf]),
 );
 
@@ -211,6 +211,44 @@ layer(IdentityLayer)("Identity", (it) => {
 
       yield* identity.signOut(Redacted.make("not-a-session-the-server-opened"));
       yield* identity.signOut(Redacted.make(""));
+    }),
+  );
+
+  it.effect.each(["suspended", "invited"] as const)(
+    "refuses the sign-in of a User %s, with their password, as it refuses a wrong one",
+    (status) =>
+      Effect.gen(function* () {
+        const identity = yield* Identity;
+        const users = yield* UserRepository;
+        const email = Email.make(`${status}@example.com`);
+        const { user } = yield* identity.signUp(email, password, ip);
+        yield* users.update(new User({ ...user, status }));
+
+        const before = hasherWork.count;
+        const error = yield* identity.signIn(email, password, ip).pipe(Effect.flip);
+
+        assert.strictEqual(error._tag, "InvalidCredentials");
+        assert.strictEqual(hasherWork.count - before, 1);
+      }),
+  );
+
+  it.effect("ends the Session of a User suspended after they signed in", () =>
+    Effect.gen(function* () {
+      const identity = yield* Identity;
+      const users = yield* UserRepository;
+      const store = yield* SessionStore;
+      const { user, session } = yield* identity.signUp(
+        Email.make("barbara@example.com"),
+        password,
+        ip,
+      );
+      yield* users.update(new User({ ...user, status: "suspended" }));
+
+      const error = yield* identity.authenticate(session.token).pipe(Effect.flip);
+
+      assert.strictEqual(error._tag, "Unauthenticated");
+      const tokenHash = sha256Hex(Redacted.value(session.token));
+      assert.isTrue(Option.isNone(yield* store.findByTokenHash(tokenHash)));
     }),
   );
 });

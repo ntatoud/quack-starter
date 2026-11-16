@@ -10,6 +10,8 @@ export class UserRepository extends Context.Service<
     readonly nextId: Effect.Effect<UserId>;
     /** Checks the email and writes in one step, so two sign-ups with one email cannot both pass. */
     create(user: User, passwordHash: string): Effect.Effect<void, EmailAlreadyTaken>;
+    /** Keeps the email and the password hash the User was created with. */
+    update(user: User): Effect.Effect<void>;
     findById(id: UserId): Effect.Effect<Option.Option<User>>;
     findByEmail(
       email: Email,

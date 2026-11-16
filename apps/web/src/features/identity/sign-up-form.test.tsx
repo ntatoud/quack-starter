@@ -63,7 +63,7 @@ describe("SignUpForm", () => {
     const requests: Array<{ url: string; body: unknown }> = [];
     const form = await setup(async (request) => {
       requests.push({ url: request.url, body: await request.json() });
-      return Response.json({ id: "1", email: "ada@example.com", role: "user" });
+      return Response.json({ id: "1", email: "ada@example.com", role: "user", status: "active" });
     });
 
     await form.email.fill("  Ada@Example.COM ");

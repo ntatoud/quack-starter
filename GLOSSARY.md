@@ -20,6 +20,10 @@ _Avoid_: Viewer, logged-in user, me
 What a User is allowed to do: `user` or `admin`.
 _Avoid_: Permission, group, profile
 
+**Status**:
+Whether a User can sign in: `active`, `invited` (added, but has not chosen a password yet), or `suspended` (refused by an Admin). Only an `active` User signs in, and a Session of a User who is no longer `active` ends at its next request.
+_Avoid_: State, enabled, banned
+
 **Admin**:
 A User whose Role is `admin`. Only an Admin sees the list of Users; any other Current User is forbidden from it.
 _Avoid_: Superuser, staff

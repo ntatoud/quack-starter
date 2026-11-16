@@ -3,7 +3,7 @@ import { HttpApiEndpoint, HttpApiGroup } from "effect/http-api";
 
 import { Authentication } from "#/identity/authentication.ts";
 import { RequireRole } from "#/identity/require-role.ts";
-import { Role, User } from "#/identity/user.ts";
+import { Role, User, UserStatus } from "#/identity/user.ts";
 import { Paginated, PaginationQuery } from "#/pagination/paginated.ts";
 import { sortingFields } from "#/sorting/sorting.ts";
 
@@ -11,7 +11,7 @@ export class UserList extends Schema.Class<UserList, { readonly brand: unique sy
   Paginated(User).fields,
 ) {}
 
-export const UserOrder = Schema.Literals(["email", "role"]);
+export const UserOrder = Schema.Literals(["email", "role", "status"]);
 export type UserOrder = typeof UserOrder.Type;
 
 /** Matches the Users whose email contains it, whatever its case. */
@@ -23,6 +23,7 @@ export const UserSearch = Schema.String.pipe(
 export const UserListQuery = Schema.Struct({
   ...PaginationQuery.fields,
   search: Schema.optionalKey(UserSearch),
+  status: Schema.optionalKey(UserStatus),
   role: Schema.optionalKey(Role),
   ...sortingFields(UserOrder.literals, "email"),
 });

@@ -133,7 +133,12 @@ describe("server routes", () => {
     const response = await signUp("Ada@Example.com");
     expect(response.status).toBe(200);
     const user = await response.json();
-    expect(user).toEqual({ id: expect.any(String), email: "ada@example.com", role: "user" });
+    expect(user).toEqual({
+      id: expect.any(String),
+      email: "ada@example.com",
+      role: "user",
+      status: "active",
+    });
 
     const [cookie] = response.headers.getSetCookie();
     const me = await handler(
@@ -334,5 +339,12 @@ describe("server routes, with the dev Users seeded", () => {
     expect(outOfBounds.map((response) => response.status)).toEqual([400, 400, 400, 400, 400, 400]);
     const byRoleDesc = await usersAt("?orderBy=role&dir=desc&pageSize=1");
     expect(await byRoleDesc.json()).toMatchObject({ items: [{ role: "user" }] });
+    const suspended = (await (await usersAt("?status=suspended&pageSize=100")).json()) as {
+      total: number;
+      items: Array<{ status: string }>;
+    };
+    expect(suspended.total).toBeGreaterThan(0);
+    expect(new Set(suspended.items.map(({ status }) => status))).toEqual(new Set(["suspended"]));
+    expect((await usersAt("?status=deleted")).status).toBe(400);
   });
 });

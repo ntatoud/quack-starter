@@ -17,6 +17,7 @@ const seeds = [
   email: Schema.decodeSync(Email)(email),
   password: Schema.decodeSync(Password)(password),
   role,
+  status: "active" as const,
 }));
 
 const SeededIdentity = Layer.mergeAll(Identity.layer, UserSeed(seeds), UserSeed(seeds)).pipe(
@@ -57,5 +58,17 @@ layer(SeededIdentity)("UserSeed", (it) => {
           ["admin@quack.dev"],
         );
       }),
+  );
+
+  it.effect("seeds Users of every status, the dev accounts active", () =>
+    Effect.sync(() => {
+      const statuses = new Set(devUsers.map(({ status }) => status));
+
+      assert.deepStrictEqual([...statuses].toSorted(), ["active", "invited", "suspended"]);
+      assert.deepStrictEqual(
+        devUsers.slice(0, 2).map(({ status }) => status),
+        ["active", "active"],
+      );
+    }),
   );
 });

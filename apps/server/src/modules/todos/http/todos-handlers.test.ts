@@ -16,11 +16,13 @@ const ada = new User({
   id: UserId.make("ada"),
   email: Email.make("ada@example.com"),
   role: "user",
+  status: "active",
 });
 const grace = new User({
   id: UserId.make("grace"),
   email: Email.make("grace@example.com"),
   role: "user",
+  status: "active",
 });
 const users: ReadonlyArray<User> = [ada, grace];
 

@@ -34,7 +34,7 @@ describe("DevQuickSignIn", () => {
     const requests: Array<unknown> = [];
     const signedIn = await setup(async (request) => {
       requests.push(await request.json());
-      return Response.json({ id: "1", email: devAccounts.admin, role: "admin" });
+      return Response.json({ id: "1", email: devAccounts.admin, role: "admin", status: "active" });
     });
 
     await page.getByRole("button", { name: "As admin" }).click();

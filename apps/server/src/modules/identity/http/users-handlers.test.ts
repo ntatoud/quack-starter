@@ -2,7 +2,7 @@ import { assert, layer } from "@effect/vitest";
 import { Api } from "@quack/contracts/api";
 import { Authentication, CurrentUser } from "@quack/contracts/identity/authentication";
 import { Forbidden, Unauthenticated } from "@quack/contracts/identity/identity-errors";
-import { Email, type Role, User, UserId } from "@quack/contracts/identity/user";
+import { Email, type Role, User, UserId, type UserStatus } from "@quack/contracts/identity/user";
 import { Effect, Layer, Redacted } from "effect";
 import { HttpClientRequest, HttpServer } from "effect/http";
 import { HttpApiMiddleware, HttpApiTest } from "effect/http-api";
@@ -13,18 +13,15 @@ import { RequireRoleMiddleware } from "#/modules/identity/http/require-role-midd
 import { UsersHandlers } from "#/modules/identity/http/users-handlers.ts";
 import { UserRepositoryMemory } from "#/modules/identity/infrastructure/user-repository-memory.ts";
 
-const userOf = (name: string, role: Role) =>
-  new User({ id: UserId.make(name), email: Email.make(`${name}@example.com`), role });
+const userOf = (name: string, role: Role, status: UserStatus = "active") =>
+  new User({ id: UserId.make(name), email: Email.make(`${name}@example.com`), role, status });
 
 const grace = userOf("grace", "admin");
 const ada = userOf("ada", "user");
-const users: ReadonlyArray<User> = [
-  grace,
-  userOf("linus", "user"),
-  ada,
-  userOf("edsger", "user"),
-  userOf("barbara", "user"),
-];
+const linus = userOf("linus", "user", "suspended");
+const edsger = userOf("edsger", "user", "invited");
+const barbara = userOf("barbara", "user");
+const users: ReadonlyArray<User> = [grace, linus, ada, edsger, barbara];
 const firstPage = { page: 1, pageSize: 20, orderBy: "email", dir: "asc" } as const;
 const emailsSorted = users.map(({ email }) => email).toSorted();
 
@@ -126,15 +123,15 @@ layer(Layer.mergeAll(UsersLayer, HttpServer.layerServices))("UsersApi", (it) => 
           );
 
       assert.deepStrictEqual(yield* search(" R"), {
-        emails: [userOf("barbara", "user").email],
+        emails: [barbara.email],
         total: 3,
       });
       assert.deepStrictEqual(yield* search(" R", 2), {
-        emails: [userOf("edsger", "user").email],
+        emails: [edsger.email],
         total: 3,
       });
       assert.deepStrictEqual(yield* search("LINUS@"), {
-        emails: [userOf("linus", "user").email],
+        emails: [linus.email],
         total: 1,
       });
       assert.deepStrictEqual(yield* search("nobody"), { emails: [], total: 0 });
@@ -154,13 +151,44 @@ layer(Layer.mergeAll(UsersLayer, HttpServer.layerServices))("UsersApi", (it) => 
 
       assert.deepStrictEqual(yield* filter({ role: "admin" }), { emails: [grace.email], total: 1 });
       assert.deepStrictEqual(yield* filter({ role: "user", search: "d" }), {
-        emails: [ada.email, userOf("edsger", "user").email],
+        emails: [ada.email, edsger.email],
         total: 2,
       });
       assert.deepStrictEqual(yield* filter({ role: "admin", search: "ada" }), {
         emails: [],
         total: 0,
       });
+    }),
+  );
+
+  it.effect("sorts by status, then by email", () =>
+    Effect.gen(function* () {
+      const client = yield* clientOf(grace);
+      const emailsBy = (dir: "asc" | "desc") =>
+        client.users
+          .list({ query: { ...firstPage, orderBy: "status", dir } })
+          .pipe(Effect.map(({ items }) => items.map(({ email }) => email)));
+
+      assert.deepStrictEqual(yield* emailsBy("desc"), [
+        linus.email,
+        edsger.email,
+        ada.email,
+        barbara.email,
+        grace.email,
+      ]);
+    }),
+  );
+
+  it.effect("keeps the Users of the status asked", () =>
+    Effect.gen(function* () {
+      const client = yield* clientOf(grace);
+      const emailsOf = (status: UserStatus) =>
+        client.users
+          .list({ query: { ...firstPage, status } })
+          .pipe(Effect.map(({ items }) => items.map(({ email }) => email)));
+
+      assert.deepStrictEqual(yield* emailsOf("suspended"), [linus.email]);
+      assert.deepStrictEqual(yield* emailsOf("active"), [ada.email, barbara.email, grace.email]);
     }),
   );
 
