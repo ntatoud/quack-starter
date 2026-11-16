@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ListFilterPlusIcon } from "lucide-react";
+import { PlusIcon } from "lucide-react";
 
 import { Button } from "@quack/ui/components/button";
 import {
@@ -36,7 +36,7 @@ function DataTableAddFilter<Key extends string>({
       }}
     >
       <DropdownMenuTrigger render={<Button variant="ghost" size="sm" />}>
-        <ListFilterPlusIcon data-icon="inline-start" />
+        <PlusIcon data-icon="inline-start" />
         Add filter
       </DropdownMenuTrigger>
       <DropdownMenuContent
