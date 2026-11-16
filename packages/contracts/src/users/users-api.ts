@@ -3,7 +3,7 @@ import { HttpApiEndpoint, HttpApiGroup } from "effect/http-api";
 
 import { Authentication } from "#/identity/authentication.ts";
 import { RequireRole } from "#/identity/require-role.ts";
-import { User } from "#/identity/user.ts";
+import { Role, User } from "#/identity/user.ts";
 import { Paginated, PaginationQuery } from "#/pagination/paginated.ts";
 import { sortingFields } from "#/sorting/sorting.ts";
 
@@ -23,6 +23,7 @@ export const UserSearch = Schema.String.pipe(
 export const UserListQuery = Schema.Struct({
   ...PaginationQuery.fields,
   search: Schema.optionalKey(UserSearch),
+  role: Schema.optionalKey(Role),
   ...sortingFields(UserOrder.literals, "email"),
 });
 export type UserListQuery = typeof UserListQuery.Type;

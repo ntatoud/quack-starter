@@ -8,6 +8,17 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "@quack/ui/componen
  * the text is cleared, and never twice in a row with the same text.
  * Uncontrolled: give it a new `key` to replace its text.
  */
+const setRef = <T,>(ref: React.Ref<T> | undefined, value: T) => {
+  if (typeof ref === "function") {
+    const cleanup = ref(value);
+    return () => (typeof cleanup === "function" ? cleanup() : ref(null));
+  }
+  if (ref) ref.current = value;
+  return () => {
+    if (ref) ref.current = null;
+  };
+};
+
 function SearchInput({
   defaultValue = "",
   onSearch,
@@ -16,8 +27,10 @@ function SearchInput({
   className,
   onChange,
   onKeyDown,
+  ref,
   ...props
 }: Omit<React.ComponentProps<typeof InputGroupInput>, "type" | "defaultValue" | "value" | "ref"> & {
+  ref?: React.Ref<HTMLInputElement>;
   defaultValue?: string;
   onSearch: (search: string) => void;
   delay?: number;
@@ -34,9 +47,18 @@ function SearchInput({
     onSearch(trimmed);
   };
 
-  // A search that is still waiting must not run once the input is gone. Stable, so React runs its
+  // A search that is still waiting must not run once the input is gone. Stable while `ref` is, so React runs its
   // cleanup on unmount only, not on every render.
-  const cancelOnUnmount = React.useCallback(() => () => clearTimeout(timer.current), []);
+  const attach = React.useCallback(
+    (input: HTMLInputElement | null) => {
+      const detach = setRef(ref, input);
+      return () => {
+        clearTimeout(timer.current);
+        detach();
+      };
+    },
+    [ref],
+  );
 
   return (
     <InputGroup size={size} className={className}>
@@ -44,7 +66,7 @@ function SearchInput({
         <SearchIcon />
       </InputGroupAddon>
       <InputGroupInput
-        ref={cancelOnUnmount}
+        ref={attach}
         type="search"
         defaultValue={defaultValue}
         onChange={(event) => {
