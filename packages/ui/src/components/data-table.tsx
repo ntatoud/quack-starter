@@ -50,10 +50,11 @@ export function DataTable<TData extends RowData>({
       className={cn("flex min-h-0 flex-col overflow-hidden rounded-lg border", className)}
       {...props}
     >
-      <ScrollAreaPrimitive.Root className="relative flex min-h-0 flex-col">
+      <ScrollAreaPrimitive.Root className="group/scroll relative flex min-h-0 flex-col">
         <ScrollAreaPrimitive.Viewport
           data-slot="data-table-viewport"
-          className="size-full overscroll-none outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          // The horizontal scrollbar overlays the rows: its height (h-2.5) is kept free below the last one.
+          className="size-full overscroll-none outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 data-has-overflow-x:pb-2.5"
         >
           <table data-slot="table" className="w-full caption-bottom text-sm">
             <TableHeader>
@@ -63,6 +64,7 @@ export function DataTable<TData extends RowData>({
                     <TableHead
                       key={header.id}
                       colSpan={header.colSpan}
+                      scope="col"
                       aria-sort={
                         sorting?.column === header.column.id
                           ? ariaSort[sorting.direction]
@@ -99,6 +101,18 @@ export function DataTable<TData extends RowData>({
         </ScrollAreaPrimitive.Viewport>
         {/* The track starts below the header (h-10), a padding that Base UI counts when it sizes the thumb. */}
         <ScrollBar className="pt-10 opacity-0 transition-opacity data-hovering:opacity-100 data-scrolling:opacity-100" />
+        {/* A scrollbar that shows on hover only says nothing of the columns past the edge: a shadow does. */}
+        <div
+          aria-hidden="true"
+          data-slot="data-table-overflow-start"
+          className="pointer-events-none absolute inset-y-0 left-0 z-20 w-6 bg-linear-to-r from-foreground/10 to-transparent opacity-0 transition-opacity group-data-overflow-x-start/scroll:opacity-100"
+        />
+        <div
+          aria-hidden="true"
+          data-slot="data-table-overflow-end"
+          className="pointer-events-none absolute inset-y-0 right-0 z-20 w-6 bg-linear-to-l from-foreground/10 to-transparent opacity-0 transition-opacity group-data-overflow-x-end/scroll:opacity-100"
+        />
+        <ScrollBar orientation="horizontal" className="z-20" />
         <ScrollAreaPrimitive.Corner />
       </ScrollAreaPrimitive.Root>
       {footer !== undefined && (
