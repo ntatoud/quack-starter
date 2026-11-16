@@ -214,6 +214,27 @@ layer(IdentityLayer)("Identity", (it) => {
     }),
   );
 
+  it.effect("records the sign-up, then each sign-in, as the last sign-in of the User", () =>
+    Effect.gen(function* () {
+      const identity = yield* Identity;
+      const users = yield* UserRepository;
+      const email = Email.make("katherine@example.com");
+      const signedUpAt = yield* DateTime.now;
+
+      const { user } = yield* identity.signUp(email, password, ip);
+      assert.deepStrictEqual(user.lastSignInAt, signedUpAt);
+      assert.deepStrictEqual(user.createdAt, signedUpAt);
+      yield* TestClock.adjust("1 hour");
+      const signedIn = yield* identity.signIn(email, password, ip);
+
+      const signedInAt = DateTime.addDuration(signedUpAt, "1 hour");
+      assert.deepStrictEqual(signedIn.user.lastSignInAt, signedInAt);
+      assert.deepStrictEqual(signedIn.user.createdAt, signedUpAt);
+      const stored = Option.getOrThrow(yield* users.findById(user.id));
+      assert.deepStrictEqual(stored.lastSignInAt, signedInAt);
+    }),
+  );
+
   it.effect.each(["suspended", "invited"] as const)(
     "refuses the sign-in of a User %s, with their password, as it refuses a wrong one",
     (status) =>

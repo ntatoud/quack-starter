@@ -11,7 +11,8 @@ export class UserList extends Schema.Class<UserList, { readonly brand: unique sy
   Paginated(User).fields,
 ) {}
 
-export const UserOrder = Schema.Literals(["email", "role", "status"]);
+/** A User with no value for the field comes last, in either direction. */
+export const UserOrder = Schema.Literals(["email", "role", "status", "createdAt", "lastSignInAt"]);
 export type UserOrder = typeof UserOrder.Type;
 
 /** Matches the Users whose email contains it, whatever its case. */

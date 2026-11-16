@@ -1,7 +1,7 @@
 import { base, en, Faker } from "@faker-js/faker";
 import { devAccounts, devPassword } from "@quack/contracts/identity/dev-accounts";
 import { Email, Password, type Role, User, type UserStatus } from "@quack/contracts/identity/user";
-import { Effect, Layer, Schema } from "effect";
+import { DateTime, Effect, Layer, Schema } from "effect";
 
 import { PasswordHasher } from "#/modules/identity/domain/password-hasher.ts";
 import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
@@ -10,14 +10,20 @@ export interface SeedUser extends Omit<ConstructorParameters<typeof User>[0], "i
   readonly password: Password;
 }
 
-const devAccount = (email: string, role: Role): SeedUser => ({
+const dayMillis = 24 * 60 * 60 * 1000;
+
+const devAccount = (email: string, role: Role, now: Date): SeedUser => ({
   email: Schema.decodeSync(Email)(email),
   password: Schema.decodeSync(Password)(devPassword),
   role,
   status: "active",
+  createdAt: DateTime.fromDateUnsafe(new Date(now.getTime() - 400 * dayMillis)),
+  lastSignInAt: DateTime.fromDateUnsafe(new Date(now.getTime() - dayMillis)),
+  emailVerifiedAt: DateTime.fromDateUnsafe(new Date(now.getTime() - 400 * dayMillis)),
 });
 
-const randomUsers = (count: number): ReadonlyArray<SeedUser> => {
+/** Spread over the two years before `now`, with as many Users and dates at every start for the same `now`. */
+const randomUsers = (count: number, now: Date): ReadonlyArray<SeedUser> => {
   const faker = new Faker({ locale: [en, base] });
   // A fixed seed gives the same Users at every start, so an email noted once keeps working.
   faker.seed(1);
@@ -29,24 +35,37 @@ const randomUsers = (count: number): ReadonlyArray<SeedUser> => {
     const email = faker.internet.email({ firstName, lastName }).toLowerCase();
     if (emails.has(email)) continue;
     emails.add(email);
+    const status = faker.helpers.weightedArrayElement<UserStatus>([
+      { weight: 80, value: "active" },
+      { weight: 12, value: "invited" },
+      { weight: 8, value: "suspended" },
+    ]);
+    const createdAt = faker.date.past({ years: 2, refDate: now });
     users.push({
       email: Schema.decodeSync(Email)(email),
       password: Schema.decodeSync(Password)(devPassword),
       role: "user",
-      status: faker.helpers.weightedArrayElement<UserStatus>([
-        { weight: 80, value: "active" },
-        { weight: 12, value: "invited" },
-        { weight: 8, value: "suspended" },
-      ]),
+      status,
+      createdAt: DateTime.fromDateUnsafe(createdAt),
+      lastSignInAt:
+        status === "invited"
+          ? null
+          : DateTime.fromDateUnsafe(faker.date.between({ from: createdAt, to: now })),
+      emailVerifiedAt:
+        status === "invited" || faker.datatype.boolean({ probability: 0.15 })
+          ? null
+          : DateTime.fromDateUnsafe(
+              new Date(createdAt.getTime() + faker.number.int({ min: 60_000, max: dayMillis })),
+            ),
     });
   }
   return users;
 };
 
-export const devUsers: ReadonlyArray<SeedUser> = [
-  devAccount(devAccounts.admin, "admin"),
-  devAccount(devAccounts.user, "user"),
-  ...randomUsers(100),
+export const devUsers = (now: Date): ReadonlyArray<SeedUser> => [
+  devAccount(devAccounts.admin, "admin", now),
+  devAccount(devAccounts.user, "user", now),
+  ...randomUsers(100, now),
 ];
 
 export const UserSeed = (seeds: ReadonlyArray<SeedUser>) =>

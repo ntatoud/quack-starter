@@ -2,6 +2,8 @@ import { createServer } from "node:http";
 import type { IncomingHttpHeaders, ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 
+import { User } from "@quack/contracts/identity/user";
+import { Schema } from "effect";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vite-plus/test";
 
 import { fetchCurrentUser } from "#/features/identity/fetch-current-user.server.ts";
@@ -32,7 +34,15 @@ const json =
     response.end(JSON.stringify(body));
   };
 
-const ada = { id: "1", email: "ada@example.com", role: "user", status: "active" };
+const ada = {
+  id: "1",
+  email: "ada@example.com",
+  role: "user",
+  status: "active",
+  createdAt: "2026-01-01T00:00:00.000Z",
+  lastSignInAt: null,
+  emailVerifiedAt: null,
+};
 
 beforeEach(() => {
   received = [];
@@ -47,7 +57,7 @@ describe("fetchCurrentUser", () => {
       clientIp: "203.0.113.7",
     });
 
-    expect(user).toEqual(ada);
+    expect(user === null ? null : Schema.encodeSync(User)(user)).toEqual(ada);
     expect(setCookie).toEqual([]);
     expect(received).toHaveLength(1);
     expect(received[0]?.url).toBe("/api/me");

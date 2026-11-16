@@ -23,7 +23,7 @@ import {
   sessionTokenBytes,
 } from "#/modules/identity/domain/session.ts";
 import { SessionStore } from "#/modules/identity/domain/session-store.ts";
-import { canSignIn } from "#/modules/identity/domain/user.ts";
+import { canSignIn, signedIn } from "#/modules/identity/domain/user.ts";
 import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
 
 export interface OpenedSession {
@@ -87,11 +87,15 @@ export class Identity extends Context.Service<
         signUp: Effect.fn("Identity.signUp")(function* (email, password, ip) {
           // Counted before it is known to succeed: one that fails costs a hash, and tells whether a User has the email.
           yield* limiter.take([AttemptCounter.signUpsOfIp(ip)]);
+          const now = yield* DateTime.now;
           const user = new User({
             id: yield* users.nextId,
             email,
             role: "user",
             status: "active",
+            createdAt: now,
+            lastSignInAt: now,
+            emailVerifiedAt: null,
           });
           yield* users.create(user, yield* hasher.hash(password));
           return { user, session: yield* openSession(user) };
@@ -109,15 +113,17 @@ export class Identity extends Context.Service<
             yield* hasher.hash(password);
             return yield* new InvalidCredentials();
           }
-          const { user, passwordHash } = found.value;
+          const { passwordHash } = found.value;
           // After the password: whoever does not know it must not learn the status of the User.
-          if (!(yield* hasher.verify(password, passwordHash)) || !canSignIn(user)) {
+          if (!(yield* hasher.verify(password, passwordHash)) || !canSignIn(found.value.user)) {
             return yield* new InvalidCredentials();
           }
           // The address only gives this attempt back: signing into one's own account must not clear
           // the failures on the emails of others.
           yield* limiter.reset(failuresOfEmail);
           yield* limiter.giveBack(failuresOfIp);
+          const user = signedIn(found.value.user, yield* DateTime.now);
+          yield* users.update(user);
           return { user, session: yield* openSession(user) };
         }),
         signOut: Effect.fn("Identity.signOut")(function* (token) {

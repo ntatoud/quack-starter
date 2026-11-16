@@ -38,4 +38,7 @@ export class User extends Schema.Class<User, { readonly brand: unique symbol }>(
   email: Email,
   role: Role,
   status: UserStatus,
+  createdAt: Schema.DateTimeUtcFromString,
+  lastSignInAt: Schema.NullOr(Schema.DateTimeUtcFromString),
+  emailVerifiedAt: Schema.NullOr(Schema.DateTimeUtcFromString),
 }) {}

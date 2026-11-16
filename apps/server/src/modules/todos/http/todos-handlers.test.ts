@@ -6,7 +6,7 @@ import { RequireRole } from "@quack/contracts/identity/require-role";
 import { Email, User, UserId } from "@quack/contracts/identity/user";
 import { TodoId, TodoTitle } from "@quack/contracts/todos/todo";
 import { TodoNotFound } from "@quack/contracts/todos/todo-errors";
-import { Effect, Layer, Redacted } from "effect";
+import { DateTime, Effect, Layer, Redacted } from "effect";
 import { HttpClientRequest, HttpServer } from "effect/http";
 import { HttpApiMiddleware, HttpApiTest } from "effect/http-api";
 
@@ -17,12 +17,18 @@ const ada = new User({
   email: Email.make("ada@example.com"),
   role: "user",
   status: "active",
+  createdAt: DateTime.makeUnsafe("2026-01-01T00:00:00Z"),
+  lastSignInAt: null,
+  emailVerifiedAt: null,
 });
 const grace = new User({
   id: UserId.make("grace"),
   email: Email.make("grace@example.com"),
   role: "user",
   status: "active",
+  createdAt: DateTime.makeUnsafe("2026-01-01T00:00:00Z"),
+  lastSignInAt: null,
+  emailVerifiedAt: null,
 });
 const users: ReadonlyArray<User> = [ada, grace];
 

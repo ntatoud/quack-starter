@@ -1,7 +1,7 @@
 import { NodeCrypto } from "@effect/platform-node";
 import { assert, layer } from "@effect/vitest";
 import { Email, Password } from "@quack/contracts/identity/user";
-import { ConfigProvider, Effect, Layer, Schema } from "effect";
+import { ConfigProvider, DateTime, Effect, Layer, Schema } from "effect";
 
 import { Identity } from "#/modules/identity/application/identity.ts";
 import { devUsers, UserSeed } from "#/modules/identity/application/user-seed.ts";
@@ -18,7 +18,12 @@ const seeds = [
   password: Schema.decodeSync(Password)(password),
   role,
   status: "active" as const,
+  createdAt: DateTime.makeUnsafe("2026-01-01T00:00:00Z"),
+  lastSignInAt: null,
+  emailVerifiedAt: null,
 }));
+
+const now = new Date("2026-06-01T00:00:00Z");
 
 const SeededIdentity = Layer.mergeAll(Identity.layer, UserSeed(seeds), UserSeed(seeds)).pipe(
   Layer.provide([
@@ -49,12 +54,14 @@ layer(SeededIdentity)("UserSeed", (it) => {
     "seeds admin@quack.dev as the only admin, then user@quack.dev and 100 other Users, each with an email of its own",
     () =>
       Effect.sync(() => {
-        const emails = devUsers.map(({ email }) => email);
+        const emails = devUsers(now).map(({ email }) => email);
 
         assert.deepStrictEqual(emails.slice(0, 2), ["admin@quack.dev", "user@quack.dev"]);
         assert.strictEqual(new Set(emails).size, 102);
         assert.deepStrictEqual(
-          devUsers.filter(({ role }) => role === "admin").map(({ email }) => email),
+          devUsers(now)
+            .filter(({ role }) => role === "admin")
+            .map(({ email }) => email),
           ["admin@quack.dev"],
         );
       }),
@@ -62,13 +69,37 @@ layer(SeededIdentity)("UserSeed", (it) => {
 
   it.effect("seeds Users of every status, the dev accounts active", () =>
     Effect.sync(() => {
-      const statuses = new Set(devUsers.map(({ status }) => status));
+      const statuses = new Set(devUsers(now).map(({ status }) => status));
 
       assert.deepStrictEqual([...statuses].toSorted(), ["active", "invited", "suspended"]);
       assert.deepStrictEqual(
-        devUsers.slice(0, 2).map(({ status }) => status),
+        devUsers(now)
+          .slice(0, 2)
+          .map(({ status }) => status),
         ["active", "active"],
       );
     }),
+  );
+
+  it.effect(
+    "seeds the same Users for the same date, created before it, the invited never signed in",
+    () =>
+      Effect.sync(() => {
+        const seeded = devUsers(now);
+        const nowMillis = now.getTime();
+
+        assert.deepStrictEqual(seeded, devUsers(now));
+        for (const { status, createdAt, lastSignInAt } of seeded) {
+          assert.isAtMost(DateTime.toEpochMillis(createdAt), nowMillis);
+          if (lastSignInAt !== null) {
+            assert.isAtLeast(
+              DateTime.toEpochMillis(lastSignInAt),
+              DateTime.toEpochMillis(createdAt),
+            );
+            assert.isAtMost(DateTime.toEpochMillis(lastSignInAt), nowMillis);
+          }
+          assert.strictEqual(lastSignInAt === null, status === "invited");
+        }
+      }),
   );
 });
