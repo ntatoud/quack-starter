@@ -11,7 +11,8 @@ export function AppLayout() {
     <TooltipProvider>
       <SidebarProvider defaultOpen={sidebarOpen}>
         <AppSidebar currentUser={currentUser} />
-        <SidebarInset>
+        {/* A flex item is as wide as its content by default: a wide table would push the page past the window. */}
+        <SidebarInset className="min-w-0">
           <Outlet />
         </SidebarInset>
       </SidebarProvider>
