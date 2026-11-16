@@ -1,5 +1,5 @@
 import { EmailAlreadyTaken } from "@quack/contracts/identity/identity-errors";
-import { type Email, type User, UserId } from "@quack/contracts/identity/user";
+import { type Email, User, UserId } from "@quack/contracts/identity/user";
 import { Effect, Layer, Option } from "effect";
 
 import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
@@ -20,6 +20,13 @@ export const UserRepositoryMemory = Layer.sync(UserRepository, () => {
         users.set(user.id, { user, passwordHash });
         return Effect.void;
       }),
+    update: (user) =>
+      Effect.sync(() => {
+        const stored = users.get(user.id);
+        if (stored !== undefined) {
+          users.set(user.id, { ...stored, user: new User({ ...user, email: stored.user.email }) });
+        }
+      }),
     findById: (id) => Effect.sync(() => Option.fromNullishOr(users.get(id)?.user)),
     findByEmail: (email) =>
       Effect.sync(() =>
@@ -27,13 +34,16 @@ export const UserRepositoryMemory = Layer.sync(UserRepository, () => {
           Option.flatMapNullishOr((id) => users.get(id)),
         ),
       ),
-    findAll: ({ page, pageSize, orderBy, dir, search = "", role }) =>
+    findAll: ({ page, pageSize, orderBy, dir, search = "", status, role }) =>
       Effect.sync(() => {
         const offset = (page - 1) * pageSize;
         const sign = dir === "asc" ? 1 : -1;
         const sorted = Array.from(users.values(), ({ user }) => user)
           .filter(
-            (user) => user.email.includes(search) && (role === undefined || user.role === role),
+            (user) =>
+              user.email.includes(search) &&
+              (status === undefined || user.status === status) &&
+              (role === undefined || user.role === role),
           )
           .toSorted((a, b) => sign * compare(a[orderBy], b[orderBy]) || compare(a.email, b.email));
         return { items: sorted.slice(offset, offset + pageSize), total: sorted.length };

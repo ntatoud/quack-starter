@@ -15,8 +15,9 @@ describe("UserListQuery", () => {
     });
   });
 
-  it("orders by email or role, ascending or descending, nothing else", () => {
+  it("orders by email, role, or status, ascending or descending, nothing else", () => {
     expect(decode({ orderBy: "role", dir: "desc" })._tag).toBe("Some");
+    expect(decode({ orderBy: "status" })._tag).toBe("Some");
     expect(decode({ orderBy: "id" })._tag).toBe("None");
     expect(decode({ orderBy: "Email" })._tag).toBe("None");
     expect(decode({ dir: "up" })._tag).toBe("None");
@@ -30,8 +31,10 @@ describe("UserListQuery", () => {
     expect(decode({ search: "a".repeat(255) })._tag).toBe("None");
   });
 
-  it("filters by a Role, nothing else", () => {
+  it("filters by a Role and a status, nothing else", () => {
     expect(Schema.decodeSync(UserListQuery)({ role: "admin" }).role).toBe("admin");
+    expect(Schema.decodeSync(UserListQuery)({ status: "suspended" }).status).toBe("suspended");
     expect(decode({ role: "owner" })._tag).toBe("None");
+    expect(decode({ status: "deleted" })._tag).toBe("None");
   });
 });

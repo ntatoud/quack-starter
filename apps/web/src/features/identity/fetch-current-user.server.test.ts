@@ -32,7 +32,7 @@ const json =
     response.end(JSON.stringify(body));
   };
 
-const ada = { id: "1", email: "ada@example.com", role: "user" };
+const ada = { id: "1", email: "ada@example.com", role: "user", status: "active" };
 
 beforeEach(() => {
   received = [];

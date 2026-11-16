@@ -116,7 +116,7 @@ layer(withConfig({ SIGN_UPS_PER_IP: "1000" }))("IdentityApi", (it) => {
       assert.strictEqual(user.email, "ada@example.com");
       assert.isAbove(user.id.length, 0);
       assert.strictEqual(user.role, "user");
-      assert.deepStrictEqual(Object.keys(user).toSorted(), ["email", "id", "role"]);
+      assert.deepStrictEqual(Object.keys(user).toSorted(), ["email", "id", "role", "status"]);
     }),
   );
 
@@ -173,7 +173,12 @@ layer(withConfig({ SIGN_UPS_PER_IP: "1000" }))("IdentityApi", (it) => {
         const signedIn = yield* browser.signIn(asTyped(" Hedy@Example.com"));
 
         assert.deepStrictEqual(signedIn.user, user);
-        assert.deepStrictEqual(Object.keys(signedIn.user).toSorted(), ["email", "id", "role"]);
+        assert.deepStrictEqual(Object.keys(signedIn.user).toSorted(), [
+          "email",
+          "id",
+          "role",
+          "status",
+        ]);
         assert.deepStrictEqual(yield* browser.me, user);
       }),
   );

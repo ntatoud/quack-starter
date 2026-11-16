@@ -20,6 +20,7 @@ const user = (n: number, role: Role = "user") => ({
   id: `user-${n}`,
   email: `user-${n}@quack.dev`,
   role,
+  status: "active",
 });
 
 // The API client keeps the `fetch` it first saw, so one stub serves every test and each test sets its response.

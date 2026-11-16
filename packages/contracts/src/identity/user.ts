@@ -29,8 +29,13 @@ export type Password = typeof Password.Type;
 export const Role = Schema.Literals(["user", "admin"]);
 export type Role = typeof Role.Type;
 
+/** Only an `active` User signs in: an `invited` one has not chosen a password yet, a `suspended` one is refused by an Admin. */
+export const UserStatus = Schema.Literals(["active", "invited", "suspended"]);
+export type UserStatus = typeof UserStatus.Type;
+
 export class User extends Schema.Class<User, { readonly brand: unique symbol }>("User")({
   id: UserId,
   email: Email,
   role: Role,
+  status: UserStatus,
 }) {}

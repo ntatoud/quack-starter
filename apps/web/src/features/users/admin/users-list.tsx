@@ -43,7 +43,7 @@ export function UsersList({ urlSearch }: { urlSearch: UsersSearch }) {
     onFilter: (column) => {
       const filter = usersFilterOfColumn[column];
       if (filter === "search") focusSearch();
-      else filters.add(filter);
+      else if (filter !== undefined) filters.add(filter);
     },
   });
 

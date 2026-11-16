@@ -21,7 +21,9 @@ const setup = async (role: Role) => {
     component: () => (
       <TooltipProvider>
         <SidebarProvider>
-          <AppSidebar currentUser={{ id: "user-1", email: "someone@quack.dev", role }} />
+          <AppSidebar
+            currentUser={{ id: "user-1", email: "someone@quack.dev", role, status: "active" }}
+          />
         </SidebarProvider>
       </TooltipProvider>
     ),

@@ -28,8 +28,10 @@ export const labelOf = <Key extends UsersFilterKey>(
   value: NonNullable<UsersSearch[Key]>,
 ) => usersFilters[key].options.find((option) => option.value === value)?.label ?? value;
 
-// The email has its own filter, the search above the table.
-export const usersFilterOfColumn: { readonly [Column in UserOrder]: "search" | UsersFilterKey } = {
+// The email has its own filter, the search above the table. A column with none offers no filter.
+export const usersFilterOfColumn: {
+  readonly [Column in UserOrder]?: "search" | UsersFilterKey;
+} = {
   email: "search",
   role: "role",
 };
