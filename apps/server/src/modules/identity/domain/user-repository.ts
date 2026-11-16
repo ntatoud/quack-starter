@@ -16,7 +16,11 @@ export class UserRepository extends Context.Service<
     findByEmail(
       email: Email,
     ): Effect.Effect<Option.Option<{ readonly user: User; readonly passwordHash: string }>>;
-    /** Users that tie on `orderBy` are sorted by email, ascending, so a page is the same from one request to the next. */
+    /**
+     * Keeps the Users whose email or full name contains `search`, and whose status, Role, and team are those the
+     * query asks for. Those that tie on `orderBy` are sorted by email, ascending, so a page is the same from one
+     * request to the next.
+     */
     findAll(query: UserListQuery): Effect.Effect<Paginated<User>>;
   }
 >()("@quack/server/identity/UserRepository") {}

@@ -24,6 +24,7 @@ const user = (n: number, role: Role = "user") => ({
   createdAt: "2026-01-01T00:00:00.000Z",
   lastSignInAt: null,
   emailVerifiedAt: null,
+  profile: null,
 });
 
 // The API client keeps the `fetch` it first saw, so one stub serves every test and each test sets its response.

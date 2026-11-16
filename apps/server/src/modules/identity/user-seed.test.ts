@@ -21,6 +21,7 @@ const seeds = [
   createdAt: DateTime.makeUnsafe("2026-01-01T00:00:00Z"),
   lastSignInAt: null,
   emailVerifiedAt: null,
+  profile: null,
 }));
 
 const now = new Date("2026-06-01T00:00:00Z");
@@ -101,5 +102,15 @@ layer(SeededIdentity)("UserSeed", (it) => {
           assert.strictEqual(lastSignInAt === null, status === "invited");
         }
       }),
+  );
+
+  it.effect("seeds a Profile for most Users, not all", () =>
+    Effect.sync(() => {
+      const seeded = devUsers(now);
+      const withProfile = seeded.filter(({ profile }) => profile !== null);
+
+      assert.isAbove(withProfile.length, seeded.length / 2);
+      assert.isBelow(withProfile.length, seeded.length);
+    }),
   );
 });

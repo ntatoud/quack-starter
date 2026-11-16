@@ -24,6 +24,10 @@ _Avoid_: Permission, group, profile
 Whether a User can sign in: `active`, `invited` (added, but has not chosen a password yet), or `suspended` (refused by an Admin). Only an `active` User signs in, and a Session of a User who is no longer `active` ends at its next request.
 _Avoid_: State, enabled, banned
 
+**Profile**:
+What a User tells about themself: their first and last name, avatar, job title, team, country, and tags. A User who just signed up has none.
+_Avoid_: Account, details, metadata
+
 **Admin**:
 A User whose Role is `admin`. Only an Admin sees the list of Users; any other Current User is forbidden from it.
 _Avoid_: Superuser, staff

@@ -2,7 +2,9 @@ import { assert, layer } from "@effect/vitest";
 import { Api } from "@quack/contracts/api";
 import { Authentication, CurrentUser } from "@quack/contracts/identity/authentication";
 import { Forbidden, Unauthenticated } from "@quack/contracts/identity/identity-errors";
+import { CountryCode, Profile, type Team } from "@quack/contracts/identity/profile";
 import { Email, type Role, User, UserId, type UserStatus } from "@quack/contracts/identity/user";
+import type { UserOrder } from "@quack/contracts/users/users-api";
 import { DateTime, Effect, Layer, Redacted } from "effect";
 import { HttpClientRequest, HttpServer } from "effect/http";
 import { HttpApiMiddleware, HttpApiTest } from "effect/http-api";
@@ -22,7 +24,14 @@ const userOf = (
     status = "active",
     createdOn,
     lastSignInOn,
-  }: { role?: Role; status?: UserStatus; createdOn: number; lastSignInOn: number | null },
+    profile,
+  }: {
+    role?: Role;
+    status?: UserStatus;
+    createdOn: number;
+    lastSignInOn: number | null;
+    profile: { lastName: string; team: Team; country: string } | null;
+  },
 ) =>
   new User({
     id: UserId.make(name),
@@ -32,13 +41,48 @@ const userOf = (
     createdAt: day(createdOn),
     lastSignInAt: lastSignInOn === null ? null : day(lastSignInOn),
     emailVerifiedAt: null,
+    profile:
+      profile === null
+        ? null
+        : new Profile({
+            firstName: name[0]?.toUpperCase() + name.slice(1),
+            lastName: profile.lastName,
+            avatarUrl: null,
+            jobTitle: "",
+            team: profile.team,
+            country: CountryCode.make(profile.country),
+            tags: [],
+          }),
   });
 
-const grace = userOf("grace", { role: "admin", createdOn: 1, lastSignInOn: 10 });
-const ada = userOf("ada", { createdOn: 2, lastSignInOn: 9 });
-const linus = userOf("linus", { status: "suspended", createdOn: 3, lastSignInOn: 5 });
-const edsger = userOf("edsger", { status: "invited", createdOn: 5, lastSignInOn: null });
-const barbara = userOf("barbara", { createdOn: 4, lastSignInOn: 8 });
+const grace = userOf("grace", {
+  role: "admin",
+  createdOn: 1,
+  lastSignInOn: 10,
+  profile: { lastName: "Hopper", team: "engineering", country: "US" },
+});
+const ada = userOf("ada", {
+  createdOn: 2,
+  lastSignInOn: 9,
+  profile: { lastName: "Lovelace", team: "product", country: "GB" },
+});
+const linus = userOf("linus", {
+  status: "suspended",
+  createdOn: 3,
+  lastSignInOn: 5,
+  profile: { lastName: "Torvalds", team: "engineering", country: "FI" },
+});
+const edsger = userOf("edsger", {
+  status: "invited",
+  createdOn: 5,
+  lastSignInOn: null,
+  profile: null,
+});
+const barbara = userOf("barbara", {
+  createdOn: 4,
+  lastSignInOn: 8,
+  profile: { lastName: "Liskov", team: "design", country: "US" },
+});
 const users: ReadonlyArray<User> = [grace, linus, ada, edsger, barbara];
 const emailsOf = (...list: ReadonlyArray<User>) => list.map(({ email }) => email);
 const firstPage = { page: 1, pageSize: 20, orderBy: "email", dir: "asc" } as const;
@@ -131,7 +175,7 @@ layer(Layer.mergeAll(UsersLayer, HttpServer.layerServices))("UsersApi", (it) => 
     }),
   );
 
-  it.effect("keeps the Users whose email contains the search, whatever its case", () =>
+  it.effect("keeps the Users whose email or full name contains the search, whatever its case", () =>
     Effect.gen(function* () {
       const client = yield* clientOf(grace);
       const search = (text: string, page = 1) =>
@@ -141,18 +185,11 @@ layer(Layer.mergeAll(UsersLayer, HttpServer.layerServices))("UsersApi", (it) => 
             Effect.map(({ items, total }) => ({ emails: items.map(({ email }) => email), total })),
           );
 
-      assert.deepStrictEqual(yield* search(" R"), {
-        emails: [barbara.email],
-        total: 3,
-      });
-      assert.deepStrictEqual(yield* search(" R", 2), {
-        emails: [edsger.email],
-        total: 3,
-      });
-      assert.deepStrictEqual(yield* search("LINUS@"), {
-        emails: [linus.email],
-        total: 1,
-      });
+      assert.deepStrictEqual(yield* search(" R"), { emails: [barbara.email], total: 4 });
+      assert.deepStrictEqual(yield* search(" R", 2), { emails: [edsger.email], total: 4 });
+      assert.deepStrictEqual(yield* search("LINUS@"), { emails: [linus.email], total: 1 });
+      assert.deepStrictEqual(yield* search("Ada Love"), { emails: [ada.email], total: 1 });
+      assert.deepStrictEqual(yield* search("torvalds"), { emails: [linus.email], total: 1 });
       assert.deepStrictEqual(yield* search("nobody"), { emails: [], total: 0 });
       assert.deepStrictEqual(yield* search(""), { emails: [ada.email], total: users.length });
     }),
@@ -170,8 +207,8 @@ layer(Layer.mergeAll(UsersLayer, HttpServer.layerServices))("UsersApi", (it) => 
 
       assert.deepStrictEqual(yield* filter({ role: "admin" }), { emails: [grace.email], total: 1 });
       assert.deepStrictEqual(yield* filter({ role: "user", search: "d" }), {
-        emails: [ada.email, edsger.email],
-        total: 2,
+        emails: [ada.email, edsger.email, linus.email],
+        total: 3,
       });
       assert.deepStrictEqual(yield* filter({ role: "admin", search: "ada" }), {
         emails: [],
@@ -231,6 +268,47 @@ layer(Layer.mergeAll(UsersLayer, HttpServer.layerServices))("UsersApi", (it) => 
 
       assert.deepStrictEqual(yield* emailsWith("suspended"), [linus.email]);
       assert.deepStrictEqual(yield* emailsWith("active"), [ada.email, barbara.email, grace.email]);
+    }),
+  );
+
+  it.effect("sorts by name, last name first, and by country, those with no Profile last", () =>
+    Effect.gen(function* () {
+      const client = yield* clientOf(grace);
+      const emailsBy = (orderBy: UserOrder, dir: "asc" | "desc") =>
+        client.users
+          .list({ query: { ...firstPage, orderBy, dir } })
+          .pipe(Effect.map(({ items }) => items.map(({ email }) => email)));
+
+      assert.deepStrictEqual(
+        yield* emailsBy("name", "asc"),
+        emailsOf(grace, barbara, ada, linus, edsger),
+      );
+      assert.deepStrictEqual(
+        yield* emailsBy("name", "desc"),
+        emailsOf(linus, ada, barbara, grace, edsger),
+      );
+      assert.deepStrictEqual(
+        yield* emailsBy("country", "desc"),
+        emailsOf(barbara, grace, ada, linus, edsger),
+      );
+    }),
+  );
+
+  it.effect("keeps the Users of the team asked, along with the status", () =>
+    Effect.gen(function* () {
+      const client = yield* clientOf(grace);
+      const emailsWhere = (filters: { status?: UserStatus; team: Team }) =>
+        client.users
+          .list({ query: { ...firstPage, ...filters } })
+          .pipe(Effect.map(({ items }) => items.map(({ email }) => email)));
+
+      assert.deepStrictEqual(yield* emailsWhere({ team: "engineering" }), [
+        grace.email,
+        linus.email,
+      ]);
+      assert.deepStrictEqual(yield* emailsWhere({ status: "active", team: "engineering" }), [
+        grace.email,
+      ]);
     }),
   );
 

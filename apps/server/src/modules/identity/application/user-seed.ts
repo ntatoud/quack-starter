@@ -1,5 +1,6 @@
 import { base, en, Faker } from "@faker-js/faker";
 import { devAccounts, devPassword } from "@quack/contracts/identity/dev-accounts";
+import { CountryCode, Profile, Team } from "@quack/contracts/identity/profile";
 import { Email, Password, type Role, User, type UserStatus } from "@quack/contracts/identity/user";
 import { DateTime, Effect, Layer, Schema } from "effect";
 
@@ -10,9 +11,20 @@ export interface SeedUser extends Omit<ConstructorParameters<typeof User>[0], "i
   readonly password: Password;
 }
 
+const tags = [
+  "beta",
+  "vip",
+  "early-adopter",
+  "mentor",
+  "on-call",
+  "remote",
+  "part-time",
+  "contractor",
+];
+
 const dayMillis = 24 * 60 * 60 * 1000;
 
-const devAccount = (email: string, role: Role, now: Date): SeedUser => ({
+const devAccount = (email: string, role: Role, firstName: string, now: Date): SeedUser => ({
   email: Schema.decodeSync(Email)(email),
   password: Schema.decodeSync(Password)(devPassword),
   role,
@@ -20,6 +32,15 @@ const devAccount = (email: string, role: Role, now: Date): SeedUser => ({
   createdAt: DateTime.fromDateUnsafe(new Date(now.getTime() - 400 * dayMillis)),
   lastSignInAt: DateTime.fromDateUnsafe(new Date(now.getTime() - dayMillis)),
   emailVerifiedAt: DateTime.fromDateUnsafe(new Date(now.getTime() - 400 * dayMillis)),
+  profile: new Profile({
+    firstName,
+    lastName: "Quack",
+    avatarUrl: null,
+    jobTitle: role === "admin" ? "Administrator" : "Member",
+    team: "operations",
+    country: CountryCode.make("FR"),
+    tags: [],
+  }),
 });
 
 /** Spread over the two years before `now`, with as many Users and dates at every start for the same `now`. */
@@ -57,14 +78,25 @@ const randomUsers = (count: number, now: Date): ReadonlyArray<SeedUser> => {
           : DateTime.fromDateUnsafe(
               new Date(createdAt.getTime() + faker.number.int({ min: 60_000, max: dayMillis })),
             ),
+      profile: faker.datatype.boolean({ probability: 0.1 })
+        ? null
+        : new Profile({
+            firstName,
+            lastName,
+            avatarUrl: faker.datatype.boolean({ probability: 0.6 }) ? faker.image.avatar() : null,
+            jobTitle: faker.person.jobTitle(),
+            team: faker.helpers.arrayElement(Team.literals),
+            country: CountryCode.make(faker.location.countryCode("alpha-2")),
+            tags: faker.helpers.arrayElements(tags, { min: 0, max: 3 }),
+          }),
     });
   }
   return users;
 };
 
 export const devUsers = (now: Date): ReadonlyArray<SeedUser> => [
-  devAccount(devAccounts.admin, "admin", now),
-  devAccount(devAccounts.user, "user", now),
+  devAccount(devAccounts.admin, "admin", "Admin", now),
+  devAccount(devAccounts.user, "user", "User", now),
   ...randomUsers(100, now),
 ];
 

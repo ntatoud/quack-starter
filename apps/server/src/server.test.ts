@@ -141,6 +141,7 @@ describe("server routes", () => {
       createdAt: expect.any(String),
       lastSignInAt: user.createdAt,
       emailVerifiedAt: null,
+      profile: null,
     });
 
     const [cookie] = response.headers.getSetCookie();

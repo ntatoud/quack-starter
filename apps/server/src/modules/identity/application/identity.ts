@@ -96,6 +96,7 @@ export class Identity extends Context.Service<
             createdAt: now,
             lastSignInAt: now,
             emailVerifiedAt: null,
+            profile: null,
           });
           yield* users.create(user, yield* hasher.hash(password));
           return { user, session: yield* openSession(user) };
