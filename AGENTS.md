@@ -64,9 +64,9 @@ apps/server/src/
     application/     Use cases. Depend on the domain only
     infrastructure/  Layers that implement the domain's ports
     http/            Handlers of the context's HttpApiGroup (*-handlers.ts)
-    index.ts         The module's Layer: handlers + use cases + chosen adapters
+    index.ts         The module's Layer: handlers + use cases + the adapters that are not storage
   server.ts          Routes, HTTP server
-  main.ts            Entrypoint
+  main.ts            Entrypoint: chooses the storage
 ```
 
 Dependency rules, enforced by lint (`quack/module-boundaries` in `packages/oxlint-plugin`):
@@ -74,6 +74,8 @@ Dependency rules, enforced by lint (`quack/module-boundaries` in `packages/oxlin
 - `domain` imports no other layer, no `node:*`, no HTTP or platform package.
 - `application` imports `domain` only. It receives adapters as Layers.
 - A module never imports another module's layers. Go through its `index.ts`: `#/modules/<context>/index.ts`.
+
+A module's `index.ts` exports the module without its storage: `IdentityModule` requires `UserRepository` and `SessionStore`, `TodosModule` requires `TodoRepository`. `main.ts` chooses the storage and provides it to `ServerLayer`, and a test provides it to the module or the `Routes` it builds, so a storage port left unprovided does not compile. `Routes` (`server.ts`) knows no storage.
 
 `IdentityModule` implements the contract's `Authentication` middleware for every group that declares it. Another module depends on the contract (`CurrentUser`, `UserId`), never on `modules/identity`. The handlers of a protected group need the middleware when they are built, so `server.ts` provides `IdentityModule` after the other modules.
 
@@ -83,7 +85,7 @@ The `AttemptLimiter` (port in `modules/identity/domain/attempt-limiter.ts`) slow
 
 A variable of the server goes in `ServerConfig` (`config.ts`) and in `.env.example`: in dev, `node --env-file-if-exists` loads the `.env` of the repo root. `COOKIE_SECURE` says whether the session cookie is `Secure`: true when unset, false in the `.env` of dev.
 
-The stores are in memory, so the server starts empty. `SEED_USERS=true`, set by the `dev` script of the server, creates the Users of `devUsers(now)` (`modules/identity/application/user-seed.ts`) at startup and logs their credentials: from a fixed seed, so the same emails come back at every start, of every Status, some with no Profile or never signed in, their dates spread over the two years before `now`. The email of the seeded `user` and `admin` and their password are in `@quack/contracts/identity/dev-accounts`, which the sign-in page also reads: in the dev build only (`import.meta.env.DEV`), it signs in as either in one click (`features/identity/dev-quick-sign-in.tsx`).
+The storage that `main.ts` provides is in memory, so the server starts empty. `SEED_USERS=true`, set by the `dev` script of the server, creates the Users of `devUsers(now)` (`modules/identity/application/user-seed.ts`) at startup and logs their credentials: from a fixed seed, so the same emails come back at every start, of every Status, some with no Profile or never signed in, their dates spread over the two years before `now`. The email of the seeded `user` and `admin` and their password are in `@quack/contracts/identity/dev-accounts`, which the sign-in page also reads: in the dev build only (`import.meta.env.DEV`), it signs in as either in one click (`features/identity/dev-quick-sign-in.tsx`).
 
 Reserve an endpoint or a group for a Role in the contract: `.middleware(RequireRole("admin"))` (`identity/require-role.ts`), declared before `.middleware(Authentication)`, so that `Authentication` runs first and provides the `CurrentUser` it reads. A Current User of another Role gets `Forbidden` (403), before the request is decoded. The Role is in the type of the middleware, and `IdentityModule` implements it for every literal of `Role` (`http/require-role-middleware.ts`): a new Role needs no other change. `IdentityModule` also serves the list of Users, since it owns the `UserRepository`.
 
@@ -93,7 +95,7 @@ Only a handler reads `CurrentUser`. It passes the Owner to the use case as an ex
 
 The server serves everything under `/api`, the docs (`/api/docs`) and the OpenAPI document (`/api/openapi.json`) included. It has no CORS policy: the browser reaches it through the web app's relay only.
 
-To add a context: add its schemas and `*-api.ts` to `packages/contracts` and its group to `api.ts`, then copy the shape of `modules/todos` and add the module Layer to `server.ts`.
+To add a context: add its schemas and `*-api.ts` to `packages/contracts` and its group to `api.ts`, then copy the shape of `modules/todos`, add the module Layer to `server.ts`, and its storage to `main.ts`.
 
 ## Web: one folder per feature
 
