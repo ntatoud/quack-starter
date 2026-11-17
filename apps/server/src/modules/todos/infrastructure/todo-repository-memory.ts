@@ -1,8 +1,13 @@
 import type { UserId } from "@quack/contracts/identity/user";
 import { type Todo, TodoId } from "@quack/contracts/todos/todo";
-import { Effect, Layer, Option } from "effect";
+import { Array, DateTime, Effect, Layer, Option, Order, String } from "effect";
 
 import { TodoRepository } from "#/modules/todos/domain/todo-repository.ts";
+
+const byCreation = Order.combine(
+  Order.mapInput(DateTime.Order, (todo: Todo) => todo.createdAt),
+  Order.mapInput(String.Order, (todo: Todo) => todo.id),
+);
 
 export const TodoRepositoryMemory = Layer.sync(TodoRepository, () => {
   const todos = new Map<TodoId, Todo>();
@@ -13,7 +18,12 @@ export const TodoRepositoryMemory = Layer.sync(TodoRepository, () => {
   return TodoRepository.of({
     nextId: Effect.sync(() => TodoId.make(crypto.randomUUID())),
     findAll: (ownerId) =>
-      Effect.sync(() => Array.from(todos.values()).filter((todo) => todo.ownerId === ownerId)),
+      Effect.sync(() =>
+        Array.sort(
+          Array.filter(todos.values(), (todo) => todo.ownerId === ownerId),
+          byCreation,
+        ),
+      ),
     findById: (ownerId, id) => Effect.sync(() => ownedBy(ownerId, id)),
     save: (todo) => Effect.sync(() => void todos.set(todo.id, todo)),
     remove: (ownerId, id) =>

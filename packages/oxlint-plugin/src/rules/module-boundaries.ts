@@ -6,6 +6,7 @@ import { forEachImport, isRelative } from "#/imports.ts";
 
 const LAYERS = ["domain", "application", "infrastructure", "http"] as const;
 type Layer = (typeof LAYERS)[number];
+type Folder = Layer | "testing";
 
 const ALLOWED: Record<Layer, { readonly layers: ReadonlyArray<Layer>; readonly message: string }> =
   {
@@ -27,17 +28,20 @@ interface Location {
   readonly src: string;
   readonly module: string;
   /** Undefined for a file at the module's root, such as its `index.ts`. */
-  readonly layer: Layer | undefined;
+  readonly folder: Folder | undefined;
 }
 
 const isLayer = (name: string | undefined): name is Layer => LAYERS.includes(name as Layer);
+const isFolder = (name: string | undefined): name is Folder => name === "testing" || isLayer(name);
+const isTest = (path: string) => /\.test\.tsx?$/.test(path);
+const srcOf = (path: string) => /^(.*\/src)\//.exec(path)?.[1];
 
 const locate = (path: string): Location | undefined => {
   const match = /^(.*\/src)\/modules\/([^/]+)\/(?:([^/]+)\/)?/.exec(path);
   if (match === null) return undefined;
   const [, src, module, folder] = match;
   if (src === undefined || module === undefined) return undefined;
-  return { src, module, layer: isLayer(folder) ? folder : undefined };
+  return { src, module, folder: isFolder(folder) ? folder : undefined };
 };
 
 /** Undefined for a specifier that leaves the package. */
@@ -52,16 +56,18 @@ export default defineRule({
     type: "problem",
     docs: {
       description:
-        "Keep the layers of a module apart: the domain is pure, use cases see the domain only, and a module is used through its index.ts.",
+        "Keep the layers of a module apart: the domain is pure, use cases see the domain only, a module is used through its index.ts, and its testing/ folder by tests only.",
     },
   },
   create(context) {
     const filename = context.filename.replaceAll("\\", "/");
+    const src = srcOf(filename);
+    if (src === undefined) return {};
     const from = locate(filename);
-    if (from === undefined) return {};
+    const fromTesting = isTest(filename) || from?.folder === "testing";
 
     return forEachImport((specifier, node) => {
-      if (from.layer === "domain" && isPlatformOrTransport(specifier)) {
+      if (from?.folder === "domain" && isPlatformOrTransport(specifier)) {
         context.report({
           node,
           message: "The domain stays free of platform and transport code.",
@@ -69,9 +75,26 @@ export default defineRule({
         return;
       }
 
-      const target = resolve(specifier, filename, from.src);
+      const target = resolve(specifier, filename, src);
       const to = target === undefined ? undefined : locate(target);
-      if (to?.layer === undefined) return;
+      if (to?.folder === undefined) return;
+
+      if (to.folder === "testing") {
+        if (!fromTesting) {
+          context.report({
+            node,
+            message: "Only a test or another testing/ file imports from a testing/ folder.",
+          });
+        } else if (!isTest(filename) && to.module !== from?.module) {
+          context.report({
+            node,
+            message: "Only a test imports another module's testing/ folder.",
+          });
+        }
+        return;
+      }
+
+      if (from === undefined) return;
 
       if (to.module !== from.module) {
         context.report({
@@ -81,8 +104,8 @@ export default defineRule({
         return;
       }
 
-      if (from.layer !== undefined && !ALLOWED[from.layer].layers.includes(to.layer)) {
-        context.report({ node, message: ALLOWED[from.layer].message });
+      if (isLayer(from.folder) && !ALLOWED[from.folder].layers.includes(to.folder)) {
+        context.report({ node, message: ALLOWED[from.folder].message });
       }
     });
   },
