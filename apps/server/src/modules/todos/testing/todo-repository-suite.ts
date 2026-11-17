@@ -5,19 +5,26 @@ import { DateTime, Effect, type Layer, Option } from "effect";
 
 import { TodoRepository } from "#/modules/todos/domain/todo-repository.ts";
 
-const ada = UserId.make("ada");
-const grace = UserId.make("grace");
+const at = (iso: string) => DateTime.makeUnsafe(iso);
 
-const aTodo = (fields: Partial<Todo> & Pick<Todo, "id">) =>
+// An adapter that persists keeps the Todos of the tests before, so each test has its own Owners.
+const anOwner = Effect.sync(() => UserId.make(crypto.randomUUID()));
+
+const aTodo = (fields: Partial<Todo> & Pick<Todo, "id" | "ownerId">) =>
   new Todo({
-    ownerId: ada,
     title: TodoTitle.make("Ship it"),
     completed: false,
     createdAt: at("2026-01-01T00:00:00Z"),
     ...fields,
   });
 
-const at = (iso: string) => DateTime.makeUnsafe(iso);
+const aSavedTodo = (ownerId: UserId) =>
+  Effect.gen(function* () {
+    const repository = yield* TodoRepository;
+    const todo = aTodo({ id: yield* repository.nextId, ownerId });
+    yield* repository.save(todo);
+    return todo;
+  });
 
 export const todoRepositorySuite = (layer: Layer.Layer<TodoRepository>) => {
   const test = (name: string, body: () => Effect.Effect<void, never, TodoRepository>) =>
@@ -27,35 +34,46 @@ export const todoRepositorySuite = (layer: Layer.Layer<TodoRepository>) => {
     test("finds a saved Todo by its Owner and id", () =>
       Effect.gen(function* () {
         const repository = yield* TodoRepository;
-        const todo = aTodo({ id: yield* repository.nextId });
+        const owner = yield* anOwner;
+        const todo = yield* aSavedTodo(owner);
 
-        yield* repository.save(todo);
-
-        assert.deepStrictEqual(yield* repository.findById(ada, todo.id), Option.some(todo));
+        assert.deepStrictEqual(yield* repository.findById(owner, todo.id), Option.some(todo));
       }));
 
     test("does not find a Todo of another Owner", () =>
       Effect.gen(function* () {
         const repository = yield* TodoRepository;
-        const todo = aTodo({ id: yield* repository.nextId });
+        const todo = yield* aSavedTodo(yield* anOwner);
 
-        yield* repository.save(todo);
-
-        assert.isTrue(Option.isNone(yield* repository.findById(grace, todo.id)));
+        assert.isTrue(Option.isNone(yield* repository.findById(yield* anOwner, todo.id)));
       }));
 
     test("lists the Todos of an Owner by creation, then by id", () =>
       Effect.gen(function* () {
         const repository = yield* TodoRepository;
-        const last = aTodo({ id: TodoId.make("a"), createdAt: at("2026-03-01T00:00:00Z") });
-        const first = aTodo({ id: TodoId.make("b"), createdAt: at("2026-01-01T00:00:00Z") });
-        const second = aTodo({ id: TodoId.make("c"), createdAt: at("2026-01-01T00:00:00Z") });
-        const others = aTodo({ id: TodoId.make("d"), ownerId: grace });
+        const owner = yield* anOwner;
+        const idOf = (suffix: string) => TodoId.make(`${owner}-${suffix}`);
+        const last = aTodo({
+          id: idOf("a"),
+          ownerId: owner,
+          createdAt: at("2026-03-01T00:00:00Z"),
+        });
+        const first = aTodo({
+          id: idOf("b"),
+          ownerId: owner,
+          createdAt: at("2026-01-01T00:00:00Z"),
+        });
+        const second = aTodo({
+          id: idOf("c"),
+          ownerId: owner,
+          createdAt: at("2026-01-01T00:00:00Z"),
+        });
+        const otherOwners = aTodo({ id: idOf("d"), ownerId: yield* anOwner });
 
-        yield* Effect.forEach([last, second, others, first], repository.save);
+        yield* Effect.forEach([last, second, otherOwners, first], repository.save);
 
         assert.deepStrictEqual(
-          (yield* repository.findAll(ada)).map(({ id }) => id),
+          (yield* repository.findAll(owner)).map(({ id }) => id),
           [first.id, second.id, last.id],
         );
       }));
@@ -70,40 +88,40 @@ export const todoRepositorySuite = (layer: Layer.Layer<TodoRepository>) => {
     test("replaces the Todo of the same id on save", () =>
       Effect.gen(function* () {
         const repository = yield* TodoRepository;
-        const todo = aTodo({ id: yield* repository.nextId });
-        const completed = aTodo({ id: todo.id, completed: true });
+        const owner = yield* anOwner;
+        const todo = yield* aSavedTodo(owner);
+        const completed = aTodo({ id: todo.id, ownerId: owner, completed: true });
 
-        yield* repository.save(todo);
         yield* repository.save(completed);
 
-        assert.deepStrictEqual(yield* repository.findAll(ada), [completed]);
+        assert.deepStrictEqual(yield* repository.findAll(owner), [completed]);
       }));
 
     test("removes a Todo of its Owner and says so", () =>
       Effect.gen(function* () {
         const repository = yield* TodoRepository;
-        const todo = aTodo({ id: yield* repository.nextId });
-        yield* repository.save(todo);
+        const owner = yield* anOwner;
+        const todo = yield* aSavedTodo(owner);
 
-        assert.isTrue(yield* repository.remove(ada, todo.id));
-        assert.isTrue(Option.isNone(yield* repository.findById(ada, todo.id)));
+        assert.isTrue(yield* repository.remove(owner, todo.id));
+        assert.isTrue(Option.isNone(yield* repository.findById(owner, todo.id)));
       }));
 
     test("removes nothing for another Owner and says so", () =>
       Effect.gen(function* () {
         const repository = yield* TodoRepository;
-        const todo = aTodo({ id: yield* repository.nextId });
-        yield* repository.save(todo);
+        const owner = yield* anOwner;
+        const todo = yield* aSavedTodo(owner);
 
-        assert.isFalse(yield* repository.remove(grace, todo.id));
-        assert.deepStrictEqual(yield* repository.findById(ada, todo.id), Option.some(todo));
+        assert.isFalse(yield* repository.remove(yield* anOwner, todo.id));
+        assert.deepStrictEqual(yield* repository.findById(owner, todo.id), Option.some(todo));
       }));
 
     test("removes nothing for an unknown id and says so", () =>
       Effect.gen(function* () {
         const repository = yield* TodoRepository;
 
-        assert.isFalse(yield* repository.remove(ada, yield* repository.nextId));
+        assert.isFalse(yield* repository.remove(yield* anOwner, yield* repository.nextId));
       }));
   });
 };
