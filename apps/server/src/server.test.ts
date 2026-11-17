@@ -3,10 +3,19 @@ import { HttpRouter, HttpServer } from "effect/http";
 import { afterAll, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { devUsers } from "#/modules/identity/application/user-seed.ts";
+import { SessionStoreMemory } from "#/modules/identity/infrastructure/session-store-memory.ts";
+import { UserRepositoryMemory } from "#/modules/identity/infrastructure/user-repository-memory.ts";
+import { TodoRepositoryMemory } from "#/modules/todos/infrastructure/todo-repository-memory.ts";
 import { Routes } from "#/server.ts";
 
+const MemoryStorage = Layer.mergeAll(
+  UserRepositoryMemory,
+  SessionStoreMemory,
+  TodoRepositoryMemory,
+);
+
 const { handler, dispose } = HttpRouter.toWebHandler(
-  Routes.pipe(Layer.provide(HttpServer.layerServices)),
+  Routes.pipe(Layer.provide([HttpServer.layerServices, MemoryStorage])),
 );
 
 const get = (path: string) => handler(new Request(new URL(path, "http://api.test")));
@@ -303,7 +312,7 @@ describe("server routes", () => {
 const makeSeeded = () =>
   HttpRouter.toWebHandler(
     Routes.pipe(
-      Layer.provide(HttpServer.layerServices),
+      Layer.provide([HttpServer.layerServices, MemoryStorage]),
       Layer.provide(ConfigProvider.layer(ConfigProvider.fromUnknown({ SEED_USERS: "true" }))),
     ),
   );

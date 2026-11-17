@@ -11,6 +11,7 @@ import { HttpClientRequest, HttpServer } from "effect/http";
 import { HttpApiMiddleware, HttpApiTest } from "effect/http-api";
 
 import { TodosModule } from "#/modules/todos/index.ts";
+import { TodoRepositoryMemory } from "#/modules/todos/infrastructure/todo-repository-memory.ts";
 
 const ada = new User({
   id: UserId.make("ada"),
@@ -63,6 +64,7 @@ const clientOf = (user: User) =>
   );
 
 const TodosLayer = TodosModule.pipe(
+  Layer.provide(TodoRepositoryMemory),
   Layer.provideMerge(AuthenticationByUserId),
   Layer.provideMerge(RequireAdminUnused),
 );

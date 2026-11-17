@@ -19,6 +19,8 @@ import { TestClock } from "effect/testing";
 
 import { sessionExtensionThreshold, sessionLifetime } from "#/modules/identity/domain/session.ts";
 import { IdentityModule } from "#/modules/identity/index.ts";
+import { SessionStoreMemory } from "#/modules/identity/infrastructure/session-store-memory.ts";
+import { UserRepositoryMemory } from "#/modules/identity/infrastructure/user-repository-memory.ts";
 
 const maxAge = Duration.toSeconds(sessionLifetime);
 
@@ -101,6 +103,7 @@ const assertCookieCleared = (setCookie: ReadonlyArray<string>) => {
 
 const withConfig = (env: Record<string, string>) =>
   IdentityModule.pipe(
+    Layer.provide([UserRepositoryMemory, SessionStoreMemory]),
     Layer.provideMerge(HttpServer.layerServices),
     Layer.provide(ConfigProvider.layer(ConfigProvider.fromUnknown(env))),
   );
