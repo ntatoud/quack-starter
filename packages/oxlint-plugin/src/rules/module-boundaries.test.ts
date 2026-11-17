@@ -12,12 +12,21 @@ const application = `${src}/modules/todos/application/Todos.ts`;
 const infrastructure = `${src}/modules/todos/infrastructure/TodoRepositoryMemory.ts`;
 const http = `${src}/modules/todos/http/TodosHandlers.ts`;
 const index = `${src}/modules/todos/index.ts`;
+const testing = `${src}/modules/todos/testing/todo-repository-suite.ts`;
+const domainTest = `${src}/modules/todos/domain/todo.test.ts`;
+const infrastructureTest = `${src}/modules/todos/infrastructure/todo-repository-memory.test.ts`;
+const httpTest = `${src}/modules/todos/http/todos-handlers.test.tsx`;
+const routesTest = `${src}/server.test.ts`;
 
 const NO_OTHER_LAYER = { message: "The domain depends on no other layer." };
 const NO_PLATFORM = { message: "The domain stays free of platform and transport code." };
 const DOMAIN_ONLY = {
   message: "Use cases depend on the domain only. Adapters are provided as Layers.",
 };
+const TESTS_ONLY = {
+  message: "Only a test or another testing/ file imports from a testing/ folder.",
+};
+const TESTS_ONLY_ACROSS = { message: "Only a test imports another module's testing/ folder." };
 const throughIndex = (module: string) => ({
   message: `Import another module through its index.ts (#/modules/${module}/index.ts), not its internals.`,
 });
@@ -52,8 +61,52 @@ new RuleTester().run("module-boundaries", rule, {
       filename: "/repo/apps/web/src/features/todos/queries.ts",
       code: `import { callApi } from "#/lib/api";`,
     },
+    {
+      filename: infrastructureTest,
+      code: `import { todoRepositorySuite } from "#/modules/todos/testing/todo-repository-suite.ts";`,
+    },
+    {
+      filename: domainTest,
+      code: `import { aTodo } from "#/modules/todos/testing/todos.ts";`,
+    },
+    {
+      filename: testing,
+      code: `import { aTodo } from "#/modules/todos/testing/todos.ts";`,
+    },
+    {
+      filename: testing,
+      code: `import { TodoRepository } from "#/modules/todos/domain/todo-repository.ts";`,
+    },
+    {
+      filename: httpTest,
+      code: `import { UserRepositoryMemory } from "#/modules/identity/testing/user-repository-memory.ts";`,
+    },
+    {
+      filename: routesTest,
+      code: `import { TodoRepositoryMemory } from "#/modules/todos/testing/todo-repository-memory.ts";`,
+    },
   ],
   invalid: [
+    ...[domain, application, infrastructure, http, index, `${src}/main.ts`].map((filename) => ({
+      filename,
+      code: `import { aTodo } from "#/modules/todos/testing/todos.ts";`,
+      errors: [TESTS_ONLY],
+    })),
+    {
+      filename: infrastructure,
+      code: `export const load = () => import("../testing/todos.ts");`,
+      errors: [TESTS_ONLY],
+    },
+    {
+      filename: testing,
+      code: `import { UserRepositoryMemory } from "#/modules/identity/testing/user-repository-memory.ts";`,
+      errors: [TESTS_ONLY_ACROSS],
+    },
+    {
+      filename: testing,
+      code: `import { User } from "#/modules/identity/domain/user.ts";`,
+      errors: [throughIndex("identity")],
+    },
     {
       filename: domain,
       code: `import { Todos } from "#/modules/todos/application/todos.ts";`,

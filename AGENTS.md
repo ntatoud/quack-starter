@@ -64,6 +64,7 @@ apps/server/src/
     application/     Use cases. Depend on the domain only
     infrastructure/  Layers that implement the domain's ports
     http/            Handlers of the context's HttpApiGroup (*-handlers.ts)
+    testing/         What the tests share: the suite of each port, test doubles
     index.ts         The module's Layer: handlers + use cases + the adapters that are not storage
   server.ts          Routes, HTTP server
   main.ts            Entrypoint: chooses the storage
@@ -74,6 +75,7 @@ Dependency rules, enforced by lint (`quack/module-boundaries` in `packages/oxlin
 - `domain` imports no other layer, no `node:*`, no HTTP or platform package.
 - `application` imports `domain` only. It receives adapters as Layers.
 - A module never imports another module's layers. Go through its `index.ts`: `#/modules/<context>/index.ts`.
+- Only a test (`*.test.ts(x)`) or another file of `testing/` imports from a `testing/` folder, so `main.ts` never loads it. A test may import another module's `testing/`, the one exception to going through its `index.ts`.
 
 A module's `index.ts` exports the module without its storage: `IdentityModule` requires `UserRepository` and `SessionStore`, `TodosModule` requires `TodoRepository`. `main.ts` chooses the storage and provides it to `ServerLayer`, and a test provides it to the module or the `Routes` it builds, so a storage port left unprovided does not compile. `Routes` (`server.ts`) knows no storage.
 
@@ -156,6 +158,7 @@ Add a component from `packages/ui`: `pnpm dlx shadcn@latest add <name>`. Import 
 - Services are `Context.Service` classes with a static `layer`. Service methods use `Effect.fn("Service.method")`, written inline in `Service.of({ ... })`, which types their parameters: no `const method = Effect.fn(...)` passed by name. A helper that several methods share stays a local function.
 - Errors are `Schema.TaggedError` classes. Fail with typed errors; do not throw.
 - Tests sit next to the code as `*.test.ts`, which run in Node, or `*.test.tsx` for components, which run in a real browser: a simulated DOM has no focus rules, no keyboard, no accessibility tree, and no stylesheet. Install the browser once: `pnpm --filter @quack/form exec playwright install chromium`. Effect code uses `@effect/vitest` (`it.effect`, `layer`). Test handlers through `HttpApiTest`, with no server. It builds the routes of the whole `Api`, so the test Layer provides every middleware the `Api` declares: `IdentityModule`, or outside the identity module implementations of the test's own, an `Authentication` that names the Current User and a `RequireRole` for each Role the `Api` requires (`apps/server/src/modules/todos/http/todos-handlers.test.ts`), with `Layer.provideMerge` when the handlers under test are protected. A client keeps its cookies as `makeBrowser` does in `apps/server/src/modules/identity/http/identity-handlers.test.ts`. That client sends no `X-Forwarded-For`, so all its requests come from one address: a test of the `AttemptLimiter` builds the module for itself (`withLimits`), and its counters start empty. What the routes add to the handlers (the docs, the OpenAPI document, no CORS) is tested on the assembled `Routes`, through `HttpRouter.toWebHandler`: `apps/server/src/server.test.ts`. So is an endpoint that reads the cookie without declaring `Authentication` (`signOut`): the client of `HttpApiTest` sends a cookie to the endpoints that declare it only. So is what depends on the address of the client, read in `X-Forwarded-For`.
+- A storage port states its promises as one suite in the `testing/` folder of its module, which takes an adapter's Layer (`todoRepositorySuite(layer)` in `modules/todos/testing/todo-repository-suite.ts`) and runs from the test file of each adapter (`todo-repository-memory.test.ts`), so no adapter drifts from the port. The port keeps no doc comment that says a promise of its suite.
 - Shared dependency versions live in the `catalog:` of `pnpm-workspace.yaml`.
 - No comment by default. A comment says why the code is the way it is, or a constraint the code cannot show (a security reason, a browser quirk, a unit). It never says what the code or its names already say, narrates a step, describes a test's setup, or repeats a rule of this file. A number a test explains in a comment becomes an expression (`Duration.toSeconds(sessionLifetime)`). Lint rejects the comments it can recognize (`quack/no-useless-comments`): one that restates the code next to it, one that narrates (`Port.`, `Use cases of`, `This function`), and commented-out code.
 - A flaky test is fixed, not retried.
