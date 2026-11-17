@@ -5,7 +5,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 
-import { usersColumns } from "#/features/users/admin/users-columns.tsx";
+import { UsersColumnPicker } from "#/features/users/admin/users-column-picker.tsx";
+import { type HideableUsersColumn, usersColumns } from "#/features/users/admin/users-columns.tsx";
 import {
   type UsersFilterKey,
   usersFilterKeys,
@@ -21,11 +22,15 @@ import {
 import { UsersSearchInput } from "#/features/users/admin/users-search-input.tsx";
 import { UsersTable } from "#/features/users/admin/users-table.tsx";
 
+const hiddenByDefault: ReadonlySet<HideableUsersColumn> = new Set(["jobTitle", "tags", "verified"]);
+
 export function UsersList({ urlSearch }: { urlSearch: UsersSearch }) {
   const navigate = useNavigate({ from: "/users" });
   const query = usersQueryOf(urlSearch);
   const [searchInput, setSearchInput] = useState<HTMLInputElement | null>(null);
   const filters = useAddedFilters((key: UsersFilterKey) => urlSearch[key] !== undefined);
+  const [hiddenColumns, setHiddenColumns] =
+    useState<ReadonlySet<HideableUsersColumn>>(hiddenByDefault);
   // Relative dates count from when the page was fetched: the render stays pure, and they read the same until the next fetch.
   const { dataUpdatedAt } = useQuery(usersQueryOptions(query));
 
@@ -50,6 +55,7 @@ export function UsersList({ urlSearch }: { urlSearch: UsersSearch }) {
       if (filter === "search") focusSearch();
       else if (filter !== undefined) filters.add(filter);
     },
+    hidden: hiddenColumns,
     now: new Date(dataUpdatedAt),
   });
 
@@ -81,6 +87,9 @@ export function UsersList({ urlSearch }: { urlSearch: UsersSearch }) {
             }}
           />
         ))}
+        <div className="ml-auto">
+          <UsersColumnPicker hidden={hiddenColumns} onHiddenChange={setHiddenColumns} />
+        </div>
       </div>
       <UsersTable query={query} columns={columns} />
     </>

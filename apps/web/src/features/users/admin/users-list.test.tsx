@@ -71,6 +71,9 @@ const ada = {
   },
 };
 
+const columnPicker = () => page.getByRole("button", { name: "Columns" });
+const headerOf = (title: string) => page.getByRole("table").getByText(title, { exact: true });
+
 const scrollerOfTable = () => {
   const scroller = page.getByRole("table").element().closest("[data-slot=data-table-viewport]");
   if (!(scroller instanceof HTMLElement)) throw new Error("The table scrolls in no viewport.");
@@ -563,6 +566,11 @@ describe("UsersList", () => {
 
   it("shows the Profile, the Status, and the dates of a User, and Never for one who never signed in", async () => {
     await setup(() => Response.json({ items: [ada, user(2)], total: 2 }));
+    await columnPicker().click();
+    await page.getByRole("menuitemcheckbox", { name: "Job title" }).click();
+    await page.getByRole("menuitemcheckbox", { name: "Tags" }).click();
+    await page.getByRole("menuitemcheckbox", { name: "Verified" }).click();
+    await userEvent.keyboard("{Escape}");
 
     const row = page.getByRole("row").filter({ hasText: "ada@quack.dev" });
     await expect.element(row.getByRole("cell", { name: "Ada Lovelace" })).toBeVisible();
@@ -645,5 +653,19 @@ describe("UsersList", () => {
     await expect.element(page.getByText("user-1@quack.dev")).toBeVisible();
     expect(queryOf().has("status")).toBe(false);
     expect(queryOf().has("team")).toBe(false);
+  });
+
+  it("starts with the job title, the tags, and the verified date hidden, and shows them from the column picker", async () => {
+    await setup(usersOn);
+    await expect.element(headerOf("Country")).toBeVisible();
+    expect(headerOf("Job title").elements()).toHaveLength(0);
+
+    await columnPicker().click();
+    expect(page.getByRole("menuitemcheckbox", { name: "Email" }).elements()).toHaveLength(0);
+    await page.getByRole("menuitemcheckbox", { name: "Job title" }).click();
+    await page.getByRole("menuitemcheckbox", { name: "Country" }).click();
+
+    await expect.element(headerOf("Job title")).toBeVisible();
+    expect(headerOf("Country").elements()).toHaveLength(0);
   });
 });
