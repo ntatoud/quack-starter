@@ -92,10 +92,10 @@ layer(IdentityLayer)("Identity", (it) => {
       const identity = yield* Identity;
       const store = yield* SessionStore;
 
-      // The test clock starts at the epoch.
+      const now = yield* DateTime.now;
       const { session } = yield* identity.signUp(Email.make("margaret@example.com"), password, ip);
 
-      const thirtyDays = DateTime.makeUnsafe("1970-01-31T00:00:00Z");
+      const thirtyDays = DateTime.add(now, { days: 30 });
       assert.deepStrictEqual(session.expiresAt, thirtyDays);
       const stored = yield* store.findByTokenHash(sha256Hex(Redacted.value(session.token)));
       assert.deepStrictEqual(Option.getOrThrow(stored).expiresAt, thirtyDays);

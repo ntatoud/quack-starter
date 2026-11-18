@@ -5,5 +5,6 @@ export default defineConfig({
     environment: "node",
     include: ["src/**/*.test.ts"],
     retry: 0,
+    sequence: { shuffle: true },
   },
 });

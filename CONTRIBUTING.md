@@ -1,6 +1,6 @@
 # Contributing
 
-1. Install with `pnpm install`. This also installs the pre-commit hook, which formats and lints staged files. Then install the browser the component tests run in: `pnpm --filter @quack/form exec playwright install chromium`.
+1. Install with `pnpm install`. This also installs the git hooks: before a commit, they format and lint the staged files; before a push, they check and typecheck the repo. Then install the browser the component tests run in: `pnpm --filter @quack/form exec playwright install chromium`.
 2. Branch from `main`.
 3. Before opening a pull request, run:
 

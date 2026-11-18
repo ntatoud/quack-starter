@@ -8,6 +8,8 @@ export default defineConfig({
   test: {
     include: ["src/**/*.test.tsx"],
     setupFiles: ["src/testing/setup.ts"],
+    // Only one page of a browser has the focus: the keystrokes of a file running in parallel go to another.
+    fileParallelism: false,
     browser: {
       enabled: true,
       provider: playwright(),
@@ -15,5 +17,6 @@ export default defineConfig({
       instances: [{ browser: "chromium" }],
     },
     retry: 0,
+    sequence: { shuffle: true },
   },
 });

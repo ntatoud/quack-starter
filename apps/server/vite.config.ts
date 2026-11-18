@@ -6,5 +6,6 @@ export default defineConfig({
     include: ["src/**/*.test.ts"],
     allowOnly: !process.env.CI,
     retry: 0,
+    sequence: { shuffle: true },
   },
 });

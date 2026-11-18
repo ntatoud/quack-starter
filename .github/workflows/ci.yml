@@ -17,7 +17,7 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 2
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
@@ -31,7 +31,7 @@ jobs:
   typecheck:
     name: Typecheck
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 2
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
@@ -41,26 +41,32 @@ jobs:
       - name: Typecheck
         run: vp run -r --cache typecheck:ci
 
+  # The web app's tests take the longest, most of them in a browser: they get a job of their own.
   test:
-    name: Test
+    name: Test (${{ matrix.shard.name }})
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 3
+    strategy:
+      fail-fast: false
+      matrix:
+        shard:
+          - { name: web, filter: "--filter @quack/web" }
+          # Every package but the web app and the root, whose own `test` runs every package again. A
+          # package added later lands here.
+          - { name: others, filter: "--filter '!@quack/web' --filter '!@quack/monorepo'" }
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
         with:
-          task-cache-key: test
-      # Component tests (*.test.tsx) run in a real browser. No `--with-deps`: the runner image already
-      # has the system libraries Chromium needs, and apt mirrors are one more thing that can be down.
-      - name: Install Chromium
-        run: pnpm --filter @quack/form exec playwright install --only-shell chromium
+          task-cache-key: test-${{ matrix.shard.name }}
+          chromium: true
       - name: Test
-        run: vp run -r --cache test
+        run: vp run ${{ matrix.shard.filter }} --cache test
 
   build:
     name: Build
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 2
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
