@@ -18,3 +18,11 @@ export const ServerConfig = Config.all({
     signUpsPerIp: attemptLimit("SIGN_UPS_PER_IP", 10, Duration.hours(1)),
   }),
 });
+
+export const DatabaseConfig = Config.all({
+  url: Config.Redacted("DATABASE_URL"),
+  maxConnections: Config.schema(
+    Schema.Int.check(Schema.isGreaterThan(0)),
+    "DATABASE_MAX_CONNECTIONS",
+  ).pipe(Config.withDefault(10)),
+});

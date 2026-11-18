@@ -62,6 +62,10 @@ export default defineConfig({
         files: ["apps/server/src/modules/**"],
         rules: { "quack/module-boundaries": "error" },
       },
+      {
+        files: ["apps/server/src/**"],
+        rules: { "quack/no-sql-unsafe": "error" },
+      },
     ],
   },
 });

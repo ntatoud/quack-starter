@@ -1,0 +1,25 @@
+# Dev only: the credentials are written here on purpose. Every worktree shares this one container.
+name: quack
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: quack
+      POSTGRES_PASSWORD: quack
+      POSTGRES_DB: quack
+    ports:
+      - "127.0.0.1:54320:5432"
+    volumes:
+      - quack-postgres:/var/lib/postgresql
+    # Over TCP: during its first start, the image runs a server on the socket only, then restarts it.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U quack -d quack"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+      start_period: 60s
+      start_interval: 1s
+
+volumes:
+  quack-postgres:

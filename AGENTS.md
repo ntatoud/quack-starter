@@ -34,7 +34,7 @@ packages/ui             shadcn components and the Tailwind theme
 packages/form           Form hook and its components: TanStack Form, validated by Effect schemas
 packages/ui-state       UiState: what a screen shows while data loads, matched with a case per state; the UiState of a query
 packages/effect-query   TanStack Query options from Effects
-packages/oxlint-plugin  Lint rules of this repo: no relative imports, module boundaries, no useless comments
+packages/oxlint-plugin  Lint rules of this repo: no relative imports, module boundaries, no useless comments, no sql.unsafe outside migrations
 ```
 
 Packages import each other's TypeScript sources through `exports`. There is no build step between packages.
@@ -66,8 +66,10 @@ apps/server/src/
     http/            Handlers of the context's HttpApiGroup (*-handlers.ts)
     testing/         What the tests share: the suite of each port, test doubles
     index.ts         The module's Layer: handlers + use cases + the adapters that are not storage
+  database/          The Postgres client and the Migrator (database.ts), the check of the migrations (migration-files.ts)
+    migrations/      The migrations of every module, in one order
   server.ts          Routes, HTTP server
-  main.ts            Entrypoint: chooses the storage
+  main.ts            Entrypoint: chooses the storage, provides the database
 ```
 
 Dependency rules, enforced by lint (`quack/module-boundaries` in `packages/oxlint-plugin`):
@@ -85,9 +87,9 @@ A Session expires 30 days after its last extension, with no other limit. The mid
 
 The `AttemptLimiter` (port in `modules/identity/domain/attempt-limiter.ts`) slows down the guessing of passwords: the use cases `signIn` and `signUp` call it, with the address of the client that the handler reads in `X-Forwarded-For`. There is no HTTP middleware for it. It counts the sign-ins that failed on an email (5 in 15 minutes) and from an address (20 in 15 minutes), an email no User has included, and the sign-ups from an address (10 in one hour), the failed ones included. Past a limit the use case fails with `TooManyAttempts` (429) and its `retryAfter` in seconds, before the password is hashed, and the same whether a User has the email or not. A window is fixed: it opens at the first attempt counted and the counter starts again from zero when it ends, so nothing locks a User out for good. A sign-in is counted as a failure before its password is checked, in one step with the refusal (`take`), so the sign-ins that arrive at once do not all get through; one that succeeds sets the counter of its email back to zero and is taken off the counter of its address. The limits and the windows are in `ServerConfig` (`attemptLimits`). The adapter is a counter in memory, not Effect's `RateLimiter`, which cannot set a counter back to zero.
 
-A variable of the server goes in `ServerConfig` (`config.ts`) and in `.env.example`: in dev, `node --env-file-if-exists` loads the `.env` of the repo root. `COOKIE_SECURE` says whether the session cookie is `Secure`: true when unset, false in the `.env` of dev.
+A variable of the server goes in `ServerConfig` (`config.ts`), or in `DatabaseConfig` for the database, and in `.env.example`: in dev, `node --env-file-if-exists` loads the `.env` of the repo root. `COOKIE_SECURE` says whether the session cookie is `Secure`: true when unset, false in the `.env` of dev.
 
-The storage that `main.ts` provides is in memory, so the server starts empty. `SEED_USERS=true`, set by the `dev` script of the server, creates the Users of `devUsers()` at startup through `IdentitySeed` (`modules/identity/application/identity-seed.ts`, exported by the module's `index.ts`), which writes through `UserRepository.create`, and logs their credentials. The seed gives the same Users at every run, ids, dates, and Profiles included, so a database it fills is in a known state: ids from a seeded faker, dates spread over the two years before the fixed `seedDate`, of every Status, some with no Profile or never signed in. Every seeded User has the password hash `devPasswordHash`, a constant computed once from the dev password, so seeding hashes nothing; a test checks it still verifies. The email of the seeded `user` and `admin` and their password are in `@quack/contracts/identity/dev-accounts`, which the sign-in page also reads: in the dev build only (`import.meta.env.DEV`), it signs in as either in one click (`features/identity/dev-quick-sign-in.tsx`).
+The repositories that `main.ts` provides are still in memory, so the server starts with no User, Session, or Todo. `SEED_USERS=true`, set by the `dev` script of the server, creates the Users of `devUsers()` at startup through `IdentitySeed` (`modules/identity/application/identity-seed.ts`, exported by the module's `index.ts`), which writes through `UserRepository.create`, and logs their credentials. The seed gives the same Users at every run, ids, dates, and Profiles included, so the data it creates is in a known state: ids from a seeded faker, dates spread over the two years before the fixed `seedDate`, of every Status, some with no Profile or never signed in. Every seeded User has the password hash `devPasswordHash`, a constant computed once from the dev password, so seeding hashes nothing; a test checks it still verifies. The email of the seeded `user` and `admin` and their password are in `@quack/contracts/identity/dev-accounts`, which the sign-in page also reads: in the dev build only (`import.meta.env.DEV`), it signs in as either in one click (`features/identity/dev-quick-sign-in.tsx`).
 
 Reserve an endpoint or a group for a Role in the contract: `.middleware(RequireRole("admin"))` (`identity/require-role.ts`), declared before `.middleware(Authentication)`, so that `Authentication` runs first and provides the `CurrentUser` it reads. A Current User of another Role gets `Forbidden` (403), before the request is decoded. The Role is in the type of the middleware, and `IdentityModule` implements it for every literal of `Role` (`http/require-role-middleware.ts`): a new Role needs no other change. `IdentityModule` also serves the list of Users, since it owns the `UserRepository`.
 
@@ -98,6 +100,30 @@ Only a handler reads `CurrentUser`. It passes the Owner to the use case as an ex
 The server serves everything under `/api`, the docs (`/api/docs`) and the OpenAPI document (`/api/openapi.json`) included. It has no CORS policy: the browser reaches it through the web app's relay only.
 
 To add a context: add its schemas and `*-api.ts` to `packages/contracts` and its group to `api.ts`, then copy the shape of `modules/todos`, add the module Layer to `server.ts`, and its storage to `main.ts`.
+
+## Server: the database
+
+The server stores its data in PostgreSQL, through `effect/sql` and `@effect/sql-pg`, with no ORM or query builder (`docs/adr/0001-postgres-through-effect-sql-templates.md`). In dev, `compose.yaml` at the repo root runs it: `docker compose up -d`, on `127.0.0.1:54320`, one container that every worktree shares (`name: quack`), its data in the `quack-postgres` volume. `.env.example` points `DATABASE_URL` at it.
+
+`DatabaseConfig` (`config.ts`) holds `DATABASE_URL`, required and `Redacted` (SSL in the URL: `?sslmode=require`), and `DATABASE_MAX_CONNECTIONS`, 10 when unset. It is apart from `ServerConfig`, so the tests, which read `ServerConfig` and have no database, need no `DATABASE_URL`.
+
+`Database` (`database/database.ts`) is the `PgClient` Layer under the Migrator: it applies the pending migrations, then provides `SqlClient`. `main.ts` provides it below `ServerLayer`, so nothing serves before the schema is current, and the pool closes after the HTTP server on shutdown. When Postgres cannot be reached or refuses the credentials at startup, the process exits non-zero with `DatabaseUnreachable`, whose message names the URL with its password masked (`withoutPassword`); whatever runs the server restarts it, so there is no retry loop. `/health` touches no database: it says the process lives, and an outage of Postgres must not get every server restarted.
+
+Migrations (`docs/adr/0002-typescript-migrations-applied-at-startup.md`):
+
+- One file per migration in `database/migrations/`, for every module, named with a 4-digit id and a snake_case name: `0001_create_users.ts`. The ids run from 1 with no gap: the Migrator silently skips an id at or below the latest one it recorded.
+- The `default` export is the up, an Effect that needs `SqlClient`, of plain SQL in a `sql` template. A named `down` export is required, the Effect that undoes it; a `down` that cannot honestly undo (data dropped) fails with a message saying why.
+- `migration-files.test.ts` checks the ids and the exports, with no database.
+- They run at server startup, in every environment, in one transaction, under a lock that makes instances starting at once safe. Rolling back a production database also means deploying the old code, since startup migrates forward again.
+- A migration may be edited until it is merged; after that, a new migration changes the schema.
+- Name every constraint (`CONSTRAINT users_email_key UNIQUE (email)`): an adapter maps a `UniqueViolation` to a domain error by its name.
+
+Queries:
+
+- A Postgres adapter lives in its module's `infrastructure/` and depends on `SqlClient` only. It writes one `sql` tagged template per port method, decoded by `SqlSchema` (`findAll`, `findOneOption`, `void`) with a row schema private to the adapter, which maps it to the contract's types.
+- Every value is a bound parameter. `sql.unsafe` sends its text as is: lint rejects it outside `database/migrations/` (`quack/no-sql-unsafe`).
+- Columns are snake_case; the client maps them to and from camelCase (`transformQueryNames`, `transformResultNames`), so a query writes `${sql("createdAt")}` or the snake_case name, and a row arrives in camelCase.
+- A `SqlError` is a defect of the adapter (`Effect.orDie`), so a 500, except a `UniqueViolation` on a named constraint, mapped to the domain's error.
 
 ## Web: one folder per feature
 

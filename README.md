@@ -15,16 +15,20 @@ A starting point for TypeScript web applications.
 - Node.js 26 (see `.node-version`)
 - pnpm 12
 - [Vite+](https://viteplus.dev) (`vp`), which can also manage Node.js and pnpm for you
+- Docker (Docker Desktop or OrbStack), running: the server stores its data in PostgreSQL
 
 ## Getting started
 
 ```sh
 pnpm install
 cp .env.example .env
+docker compose up -d
 pnpm dev
 ```
 
-`pnpm dev` runs both apps under [portless](https://portless.sh), so they take a free port each and several checkouts run side by side. The web app is at https://quack.localhost and the API at https://api.quack.localhost. In a git worktree, the branch prefixes both: https://my-branch.quack.localhost. The browser only calls the web app: it relays `/api` to the API, so both share one origin. API docs are served at https://quack.localhost/api/docs. The data lives in memory: `pnpm dev` creates Users at each start, `admin@quack.dev` (an admin), `user@quack.dev` and 100 random ones (the same at every start), all with the password `quack-password`. In dev, the sign-in page signs in as `user@quack.dev` or `admin@quack.dev` in one click.
+`docker compose up -d` starts PostgreSQL from `compose.yaml`, on `127.0.0.1:54320`, the `DATABASE_URL` of `.env.example`. Every checkout shares this one container, and its data stays in the `quack-postgres` volume until `docker compose down -v`. The server brings the database's schema up to date at startup, and does not start when Postgres is unreachable.
+
+`pnpm dev` runs both apps under [portless](https://portless.sh), so they take a free port each and several checkouts run side by side. The web app is at https://quack.localhost and the API at https://api.quack.localhost. In a git worktree, the branch prefixes both: https://my-branch.quack.localhost. The browser only calls the web app: it relays `/api` to the API, so both share one origin. API docs are served at https://quack.localhost/api/docs. The Users, Sessions, and Todos still live in memory: `pnpm dev` creates Users at each start, `admin@quack.dev` (an admin), `user@quack.dev` and 100 random ones (the same at every start), all with the password `quack-password`. In dev, the sign-in page signs in as `user@quack.dev` or `admin@quack.dev` in one click.
 
 The portless proxy listens on port 443, which needs `sudo`, and `pnpm dev` has no terminal to ask for it. Start the proxy once, before `pnpm dev`:
 
@@ -63,7 +67,8 @@ packages/
   contracts/      Schemas and the API definition shared by both apps
   ui/             shadcn components and the Tailwind theme
   form/           Form hook and its components: TanStack Form, validated by Effect schemas
-  oxlint-plugin/  Lint rules: no relative imports, module boundaries
+  oxlint-plugin/  Lint rules: no relative imports, module boundaries, no sql.unsafe outside migrations
+docs/adr/         Architecture decisions
 ```
 
 The architecture and its rules are described in [AGENTS.md](AGENTS.md), which is written for coding agents and people alike.
@@ -72,4 +77,4 @@ The architecture and its rules are described in [AGENTS.md](AGENTS.md), which is
 
 1. Replace the `@quack` scope and the `quack` names with your own.
 2. Replace the `todos` example context everywhere (`packages/contracts/src/todos`, `apps/server/src/modules/todos`, `apps/web/src/features/todos`).
-3. Swap the in-memory repository for a real one by providing another Layer in the module's `index.ts`.
+3. Swap the in-memory repository for a real one by providing another Layer in `apps/server/src/main.ts`.
