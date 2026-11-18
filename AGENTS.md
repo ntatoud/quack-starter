@@ -67,7 +67,7 @@ apps/server/src/
     http/            Handlers of the context's HttpApiGroup (*-handlers.ts)
     testing/         What the tests share: the suite of each port, test doubles
     index.ts         The module's Layer: handlers + use cases + the adapters that are not storage
-  database/          The Postgres client and the Migrator (database.ts), the check of the migrations (migration-files.ts)
+  database/          The Postgres client and the Migrator (database.ts), the check of the migrations (migration-files.ts), the rollback (rollback.ts, run by rollback-main.ts)
     migrations/      The migrations of every module, in one order
   server.ts          Routes, HTTP server
   main.ts            Entrypoint: chooses the storage, provides the database
