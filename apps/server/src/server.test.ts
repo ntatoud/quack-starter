@@ -2,7 +2,7 @@ import { ConfigProvider, Layer } from "effect";
 import { HttpRouter, HttpServer } from "effect/http";
 import { afterAll, beforeAll, describe, expect, it } from "vite-plus/test";
 
-import { devUsers } from "#/modules/identity/application/user-seed.ts";
+import { devUsers } from "#/modules/identity/application/identity-seed.ts";
 import { SessionStoreMemory } from "#/modules/identity/infrastructure/session-store-memory.ts";
 import { UserRepositoryMemory } from "#/modules/identity/infrastructure/user-repository-memory.ts";
 import { TodoRepositoryMemory } from "#/modules/todos/infrastructure/todo-repository-memory.ts";
@@ -321,8 +321,6 @@ describe("server routes, with the dev Users seeded", () => {
   let seeded: ReturnType<typeof makeSeeded>;
   let cookie = "";
 
-  // `toWebHandler` builds at once, and the seed hashes every dev User with argon2: built here, it
-  // does not run beside the other tests of the file.
   beforeAll(async () => {
     seeded = makeSeeded();
     const signedIn = await seeded.handler(
@@ -343,7 +341,7 @@ describe("server routes, with the dev Users seeded", () => {
   it("answers /api/users to an Admin, sorted as the query asks, and with 400 when the query is out of bounds", async () => {
     const firstPage = await usersAt("");
     expect(firstPage.status).toBe(200);
-    expect(await firstPage.json()).toMatchObject({ total: devUsers(new Date()).length });
+    expect(await firstPage.json()).toMatchObject({ total: devUsers().length });
     const outOfBounds = await Promise.all(
       ["?pageSize=0", "?pageSize=101", "?pageSize=2.5", "?page=0", "?orderBy=id", "?dir=up"].map(
         usersAt,
