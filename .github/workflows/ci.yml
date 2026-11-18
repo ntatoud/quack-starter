@@ -50,8 +50,10 @@ jobs:
       fail-fast: false
       matrix:
         shard:
-          - { name: web, filter: "@quack/web" }
-          - { name: others, filter: "!@quack/web" }
+          - { name: web, filter: "--filter @quack/web" }
+          # Every package but the web app and the root, whose own `test` runs every package again. A
+          # package added later lands here.
+          - { name: others, filter: "--filter '!@quack/web' --filter '!@quack/monorepo'" }
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
@@ -59,7 +61,7 @@ jobs:
           task-cache-key: test-${{ matrix.shard.name }}
           chromium: true
       - name: Test
-        run: vp run --filter '${{ matrix.shard.filter }}' --cache test
+        run: vp run ${{ matrix.shard.filter }} --cache test
 
   build:
     name: Build
