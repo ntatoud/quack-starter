@@ -103,7 +103,7 @@ To add a context: add its schemas and `*-api.ts` to `packages/contracts` and its
 
 ## Server: the database
 
-The server stores its data in PostgreSQL, through `effect/sql` and `@effect/sql-pg`, with no ORM or query builder (`docs/adr/0001-postgres-through-effect-sql-templates.md`). In dev, `compose.yaml` at the repo root runs it: `docker compose up -d`, on `127.0.0.1:54320`, one container that every worktree shares (`name: quack`), its data in the `quack-postgres` volume. `.env.example` points `DATABASE_URL` at it.
+The server stores its data in PostgreSQL, through `effect/sql` and `@effect/sql-pg`, with no ORM or query builder (`docs/adr/0001-postgres-through-effect-sql-templates.md`). In dev, `compose.yaml` at the repo root runs it, on `127.0.0.1:54320`, one container that every worktree shares (`name: quack`), its data in the `quack-postgres` volume. The `dev` script of the server goes through `src/dev/with-dev-database.ts` before the server starts: it runs `docker compose up -d --wait`, fails with `DockerNotRunning` when Docker does not run (`PostgresDidNotStart` when Docker runs but Compose fails), creates the shared database `quack` when missing, and starts the server with `DATABASE_URL` pointing at it. A `DATABASE_URL` already set (shell or `.env`) wins: the launcher uses it as given and derives nothing. The server never creates a database.
 
 `DatabaseConfig` (`config.ts`) holds `DATABASE_URL`, required and `Redacted` (SSL in the URL: `?sslmode=require`), and `DATABASE_MAX_CONNECTIONS`, 10 when unset. It is apart from `ServerConfig`, so the tests, which read `ServerConfig` and have no database, need no `DATABASE_URL`.
 
