@@ -1,10 +1,10 @@
 import { NodeCrypto } from "@effect/platform-node";
-import { DateTime, Effect, Layer } from "effect";
+import { Effect, Layer } from "effect";
 
 import { ServerConfig } from "#/config.ts";
 
 import { Identity } from "#/modules/identity/application/identity.ts";
-import { devUsers, UserSeed } from "#/modules/identity/application/user-seed.ts";
+import { IdentitySeed } from "#/modules/identity/application/identity-seed.ts";
 import { Users } from "#/modules/identity/application/users.ts";
 import { AuthenticationMiddleware } from "#/modules/identity/http/authentication-middleware.ts";
 import { RequireRoleMiddleware } from "#/modules/identity/http/require-role-middleware.ts";
@@ -14,10 +14,12 @@ import { UsersHandlers } from "#/modules/identity/http/users-handlers.ts";
 import { AttemptLimiterMemory } from "#/modules/identity/infrastructure/attempt-limiter-memory.ts";
 import { PasswordHasherArgon2 } from "#/modules/identity/infrastructure/password-hasher-argon2.ts";
 
+export { IdentitySeed };
+
 const DevUserSeed = Layer.unwrap(
   Effect.gen(function* () {
     const { seedUsers } = yield* ServerConfig;
-    return seedUsers ? UserSeed(devUsers(DateTime.toDateUtc(yield* DateTime.now))) : Layer.empty;
+    return seedUsers ? IdentitySeed : Layer.empty;
   }),
 );
 
