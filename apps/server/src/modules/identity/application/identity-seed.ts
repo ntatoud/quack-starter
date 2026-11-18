@@ -9,7 +9,7 @@ import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
 /** Every seeded date is before it, so a seed gives the same Users whatever day it runs. */
 export const seedDate = new Date("2026-06-01T00:00:00Z");
 
-/** The argon2id hash of `devPassword`, computed once: hashing it for each of the 102 Users took seconds. */
+/** The argon2id hash of `devPassword`, a constant so that seeding hashes nothing. */
 export const devPasswordHash =
   "$argon2id$v=19$m=19456,t=2,p=1$KRL24AiOiRziOzszWPAFpA$0Zrm21ZkbUE8ObVN5MYqUcIG/xABGETqXdzX4X9v0Xs";
 
@@ -98,7 +98,6 @@ const randomUsers = (faker: Faker, count: number): ReadonlyArray<User> => {
   return users;
 };
 
-/** Each of them signs in with `devPassword`. */
 export const devUsers = (): ReadonlyArray<User> => {
   const faker = new Faker({ locale: [en, base] });
   faker.seed(1);
