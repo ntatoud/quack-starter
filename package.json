@@ -10,6 +10,7 @@
     "build": "vp run --filter './apps/*' --cache build",
     "typecheck": "vp run -r --cache typecheck",
     "typecheck:ci": "vp run -r --cache typecheck:ci",
+    "db:rollback": "pnpm --filter @quack/server db:rollback",
     "test": "vp run -r --cache test",
     "check": "vp check",
     "lint": "vp lint --report-unused-disable-directives",
