@@ -26,6 +26,7 @@ export default defineConfig(({ mode }) => {
     test: {
       allowOnly: !process.env.CI,
       retry: 0,
+      sequence: { shuffle: true },
       projects: [
         {
           extends: true,
@@ -37,6 +38,8 @@ export default defineConfig(({ mode }) => {
             name: "browser",
             include: ["src/**/*.test.tsx"],
             setupFiles: ["src/testing/setup.ts"],
+            // Only one page of a browser has the focus: the keystrokes of a file running in parallel go to another.
+            fileParallelism: false,
             browser: {
               enabled: true,
               provider: playwright(),
