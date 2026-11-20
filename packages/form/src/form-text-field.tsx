@@ -1,8 +1,7 @@
-import { FieldError } from "@quack/ui/components/field";
 import { Input } from "@quack/ui/components/input";
 import type { ComponentProps } from "react";
 
-import { textSize } from "#/size.ts";
+import { FieldControlError } from "#/field-control-error.tsx";
 import { useFieldControl } from "#/use-field-control.ts";
 
 export function FormTextField(
@@ -19,7 +18,8 @@ export function FormTextField(
     | "aria-describedby"
   >,
 ) {
-  const { field, id, size, errorId, invalid, errors } = useFieldControl();
+  const control = useFieldControl();
+  const { field, id, size, invalid, describedBy } = control;
 
   return (
     <>
@@ -32,12 +32,9 @@ export function FormTextField(
         onChange={(event) => field.handleChange(event.target.value)}
         onBlur={field.handleBlur}
         aria-invalid={invalid}
-        aria-describedby={invalid ? errorId : undefined}
+        aria-describedby={describedBy}
       />
-      {invalid && (
-        // Not an alert: the input describes itself with the error, and an alert would interrupt typing.
-        <FieldError id={errorId} role={undefined} className={textSize[size]} errors={errors} />
-      )}
+      <FieldControlError control={control} />
     </>
   );
 }
