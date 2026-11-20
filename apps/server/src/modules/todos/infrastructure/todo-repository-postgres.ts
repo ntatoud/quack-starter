@@ -1,6 +1,6 @@
 import { UserId } from "@quack/contracts/identity/user";
 import { Todo, TodoId } from "@quack/contracts/todos/todo";
-import { Effect, Layer, Schema, SchemaTransformation } from "effect";
+import { Effect, Layer, Option, Schema, SchemaTransformation } from "effect";
 import { SqlClient, SqlSchema } from "effect/sql";
 
 import { TodoRepository } from "#/modules/todos/domain/todo-repository.ts";
@@ -19,6 +19,9 @@ const TodoRow = Schema.Struct({
 );
 
 const OwnedTodo = Schema.Struct({ ownerId: UserId, id: TodoId });
+
+// The column is a uuid: Postgres refuses any other id, which no Todo can have.
+const isStorableId = Schema.is(Schema.String.check(Schema.isUUID()));
 
 export const TodoRepositoryPostgres = Layer.effect(
   TodoRepository,
@@ -45,8 +48,7 @@ export const TodoRepositoryPostgres = Layer.effect(
         sql`INSERT INTO todos ${sql.insert(todo)}
             ON CONFLICT (id) DO UPDATE SET
               title = excluded.title,
-              completed = excluded.completed,
-              created_at = excluded.created_at
+              completed = excluded.completed
             WHERE todos.owner_id = excluded.owner_id`,
     });
 
@@ -63,14 +65,18 @@ export const TodoRepositoryPostgres = Layer.effect(
         findAll(ownerId).pipe(Effect.orDie),
       ),
       findById: Effect.fn("TodoRepository.findById")((ownerId, id) =>
-        findById({ ownerId, id }).pipe(Effect.orDie),
+        isStorableId(id)
+          ? findById({ ownerId, id }).pipe(Effect.orDie)
+          : Effect.succeed(Option.none()),
       ),
       save: Effect.fn("TodoRepository.save")((todo) => save(todo).pipe(Effect.orDie)),
       remove: Effect.fn("TodoRepository.remove")((ownerId, id) =>
-        remove({ ownerId, id }).pipe(
-          Effect.map((removed) => removed.length > 0),
-          Effect.orDie,
-        ),
+        isStorableId(id)
+          ? remove({ ownerId, id }).pipe(
+              Effect.map((removed) => removed.length > 0),
+              Effect.orDie,
+            )
+          : Effect.succeed(false),
       ),
     });
   }),

@@ -1,6 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
 import { UserId } from "@quack/contracts/identity/user";
-import { Todo, TodoTitle } from "@quack/contracts/todos/todo";
+import { Todo, TodoId, TodoTitle } from "@quack/contracts/todos/todo";
 import { DateTime, Effect, type Layer, Option } from "effect";
 
 import { TodoRepository } from "#/modules/todos/domain/todo-repository.ts";
@@ -116,6 +116,16 @@ export const todoRepositorySuite = (layer: Layer.Layer<TodoRepository>) => {
 
         assert.isFalse(yield* repository.remove(yield* anOwner, todo.id));
         assert.deepStrictEqual(yield* repository.findById(owner, todo.id), Option.some(todo));
+      }));
+
+    test("finds and removes nothing for an id it did not give", () =>
+      Effect.gen(function* () {
+        const repository = yield* TodoRepository;
+        const owner = yield* anOwner;
+        const id = TodoId.make("not-an-id");
+
+        assert.isTrue(Option.isNone(yield* repository.findById(owner, id)));
+        assert.isFalse(yield* repository.remove(owner, id));
       }));
 
     test("removes nothing for an unknown id and says so", () =>
