@@ -11,7 +11,7 @@ import { HttpClientRequest, HttpServer } from "effect/http";
 import { HttpApiMiddleware, HttpApiTest } from "effect/http-api";
 
 import { TodosModule } from "#/modules/todos/index.ts";
-import { TodoRepositoryMemory } from "#/modules/todos/infrastructure/todo-repository-memory.ts";
+import { TodoRepositoryMemory } from "#/modules/todos/testing/todo-repository-memory.ts";
 
 const ada = new User({
   id: UserId.make("ada"),

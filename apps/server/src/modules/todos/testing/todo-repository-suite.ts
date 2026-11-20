@@ -52,23 +52,24 @@ export const todoRepositorySuite = (layer: Layer.Layer<TodoRepository>) => {
       Effect.gen(function* () {
         const repository = yield* TodoRepository;
         const owner = yield* anOwner;
-        const idOf = (suffix: string) => TodoId.make(`${owner}-${suffix}`);
+        const [one, other] = [yield* repository.nextId, yield* repository.nextId];
+        const [lower, higher] = one < other ? [one, other] : [other, one];
         const last = aTodo({
-          id: idOf("a"),
+          id: yield* repository.nextId,
           ownerId: owner,
           createdAt: at("2026-03-01T00:00:00Z"),
         });
         const first = aTodo({
-          id: idOf("b"),
+          id: lower,
           ownerId: owner,
           createdAt: at("2026-01-01T00:00:00Z"),
         });
         const second = aTodo({
-          id: idOf("c"),
+          id: higher,
           ownerId: owner,
           createdAt: at("2026-01-01T00:00:00Z"),
         });
-        const otherOwners = aTodo({ id: idOf("d"), ownerId: yield* anOwner });
+        const otherOwners = aTodo({ id: yield* repository.nextId, ownerId: yield* anOwner });
 
         yield* Effect.forEach([last, second, otherOwners, first], repository.save);
 
@@ -115,6 +116,16 @@ export const todoRepositorySuite = (layer: Layer.Layer<TodoRepository>) => {
 
         assert.isFalse(yield* repository.remove(yield* anOwner, todo.id));
         assert.deepStrictEqual(yield* repository.findById(owner, todo.id), Option.some(todo));
+      }));
+
+    test("finds and removes nothing for an id it did not give", () =>
+      Effect.gen(function* () {
+        const repository = yield* TodoRepository;
+        const owner = yield* anOwner;
+        const id = TodoId.make("not-an-id");
+
+        assert.isTrue(Option.isNone(yield* repository.findById(owner, id)));
+        assert.isFalse(yield* repository.remove(owner, id));
       }));
 
     test("removes nothing for an unknown id and says so", () =>
