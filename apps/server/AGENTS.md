@@ -1,0 +1,39 @@
+# Server
+
+Effect HTTP API, one folder per bounded context in `src/modules/`. Before changing sign-in, sign-up, Sessions, the `AttemptLimiter`, or the seed, read `docs/identity.md`.
+
+## Modules
+
+To add a context, copy `modules/todos`:
+
+1. Add its schemas and `*-api.ts` to `packages/contracts`, and its group to `api.ts`.
+2. Write `domain/` (behavior, ports), `application/` (use cases), `infrastructure/` (adapters), `http/` (handlers), `testing/` (port suites, test doubles). Lint tells what each layer may import (`quack/module-boundaries`).
+3. Export from `index.ts` the module without its storage (`TodosModule` requires `TodoRepository`) and its Postgres adapters apart (`TodosPostgres`).
+4. Add the module to `server.ts`, before `IdentityModule`, and its storage to `main.ts`.
+
+- A module reaches another one through its `index.ts`, and identity through the contract (`CurrentUser`, `UserId`).
+- Only a handler reads `CurrentUser`. It passes the Owner to the use case as `ownerId`, and the repository filters by it: another Owner's data is not found (404), so the API never tells that it exists.
+- A server variable goes in `ServerConfig` (`config.ts`), or `DatabaseConfig` for the database, and in `.env.example`.
+- `/health` touches no database, so an outage of Postgres does not get every server restarted.
+
+## Database
+
+Plain `sql` templates, no ORM (`docs/adr/0001-postgres-through-effect-sql-templates.md`). Which database a worktree uses: README.
+
+- An adapter copies `modules/todos/infrastructure/todo-repository-postgres.ts`: one `sql` template per port method, decoded by `SqlSchema` through a row schema private to the adapter.
+- Columns are snake_case and rows arrive in camelCase: write `${sql("createdAt")}`.
+- A `SqlError` is a defect (`Effect.orDie`), except a `UniqueViolation`, mapped to the domain's error by the name of its constraint. So name every constraint: `CONSTRAINT users_email_key UNIQUE (email)`.
+
+Migrations (`docs/adr/0002-typescript-migrations-applied-at-startup.md`) live in `database/migrations/`, for every module:
+
+- Edit a migration until it is merged; after that, add a new one.
+- A `down` that cannot honestly undo (data dropped) fails with a message saying why.
+- Dev loop: the server applies the migration at startup, `pnpm db:rollback` reverts it, edit, restart.
+- `pnpm db:seed` resets the database to the seed. On the shared `quack` database, that wipes it for every worktree.
+
+## Tests
+
+- A storage port states its promises as one suite in `testing/` that takes an adapter's Layer (`todoRepositorySuite(layer)`), run from each adapter's test file. Its memory adapter is a test double, in `testing/` too.
+- Test handlers through `HttpApiTest`, with no server. It builds the routes of the whole `Api`, so the test Layer provides every middleware the `Api` declares: copy `modules/todos/http/todos-handlers.test.ts`.
+- A client that keeps cookies: `makeBrowser` in `modules/identity/http/identity-handlers.test.ts`.
+- Test on the assembled `Routes` (`server.test.ts`) what `HttpApiTest` cannot see: the docs, CORS, an endpoint that reads the cookie without declaring `Authentication` (`signOut`), and anything that reads `X-Forwarded-For`.

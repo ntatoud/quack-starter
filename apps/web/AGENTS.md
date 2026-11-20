@@ -1,0 +1,37 @@
+# Web
+
+TanStack Start app. It depends on `@quack/contracts`, never on the server.
+
+## Routes and pages
+
+- A route file in `routes/` declares its route (`createFileRoute`, `beforeLoad`, `head`, `validateSearch`) and names its components. Every component lives in `features/<context>/`, the page included, and reads the router with `useNavigate()` and `useRouteContext({ from })`. A component no feature owns that needs the router goes in `components/`.
+- Every route sets its title in `head`: `pageTitle("Todos")`, segments from the most specific (`features/layout/page-title.ts`).
+- Validate a route's search with an Effect schema: `validateSearch: Schema.toStandardSchemaV1(SignInSearch)`.
+- Pages of every Current User go under `routes/_authenticated/app/`, pages of Admins only under `routes/_authenticated/admin/`, with their components in the `admin/` folder of their feature. Add the page to the sidebar of its root (`features/layout`).
+- A page renders its own top bar, `PageHeader`: copy `features/todos/todos-page.tsx`.
+- Pages for visitors only go under `routes/_guest/` and redirect a Current User in their `beforeLoad`.
+- Read a `redirect` search param through `redirectTarget` (`features/identity/redirect-target.ts`): it comes from a link anyone can write.
+- A link that looks like a button is a `ButtonLink` (`components/button-link.tsx`).
+- `src/routeTree.gen.ts` is generated: commit it as generated.
+
+## Data
+
+- Call the API with the query options of `api` (`lib/api.ts`): `useQuery(api.todos.list.queryOptions())`, `useMutation(api.todos.create.mutationOptions())`.
+- Render a query through `matchQuery(query, { Pending, Error, Success })` (`@quack/ui-state/query`). Anything else that loads answers a `UiState`, matched with `UiState.match`.
+- Load data in the browser: in the server render, the API client has no cookie. The one exception is the Current User, which every route gets as `context.currentUser` (`null` for a visitor, never under `_authenticated`).
+- After a call that changes who the Current User is, call `useSetCurrentUser()` with the User, or `null` after a sign-out.
+- A call that fails with `Unauthenticated` needs no handling where it is made: `router.tsx` leads to the sign-in page.
+- A web server variable goes in `env/server.ts`, without a `VITE_` prefix. Vite does not load it from `.env`: pass it by name in `vite.config.ts`, as `API_URL` is.
+
+## Tables
+
+A table keeps its whole state in the URL, and the API sorts, filters, and pages it. Copy `features/users/admin/users-list.tsx` and the `validateSearch` of its route.
+
+## Forms
+
+Build a form with `useAppForm` from `@quack/form/use-app-form`: copy `features/todos/todos-form.tsx`.
+
+- Validation does not transform the values, so decode them in `onSubmit` with the schema given to `schemaFormOptions`.
+- When the request of `onSubmit` fails, throw `new SubmitFailed(message)`. Any other error thrown is reported as a bug.
+- A control without a `field.Label` takes an `aria-label`.
+- Test a form in the browser with `fetch` stubbed (`features/todos/todos-form.test.tsx`), asserting what a user or assistive tech gets: focus, accessible name and description, the live region.
