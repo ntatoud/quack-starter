@@ -11,7 +11,7 @@ import { page } from "vite-plus/test/browser";
 import { render } from "vitest-browser-react";
 
 import { currentUserQueryOptions } from "#/features/identity/current-user.ts";
-import { ProfileForm } from "#/features/users/profile-form.tsx";
+import { ProfileForm } from "#/features/profile/profile-form.tsx";
 
 const ada: typeof User.Encoded = {
   id: "user-1",

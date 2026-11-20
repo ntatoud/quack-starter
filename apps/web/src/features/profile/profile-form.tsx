@@ -14,9 +14,9 @@ import {
   SettingsRowControl,
   SettingsRowText,
 } from "@quack/ui/components/settings-card";
-import { countryOptions } from "#/features/users/countries.ts";
-import { ProfileDraft, profileDraftOf } from "#/features/users/profile-draft.ts";
-import { teamLabel } from "#/features/users/team-label.ts";
+import { countryOptions } from "#/features/profile/countries.ts";
+import { ProfileDraft, profileDraftOf } from "#/features/profile/profile-draft.ts";
+import { teamLabel } from "#/features/profile/team-label.ts";
 import { UserAvatar } from "#/features/users/user-avatar.tsx";
 import { api } from "#/lib/api.ts";
 

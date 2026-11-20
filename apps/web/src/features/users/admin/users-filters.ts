@@ -2,7 +2,7 @@ import { Team } from "@quack/contracts/identity/profile";
 import { selectFilter } from "@quack/ui/components/data-table/filters/select-filter";
 
 import type { UsersSearch } from "#/features/users/admin/users-search.ts";
-import { teamLabel } from "#/features/users/team-label.ts";
+import { teamLabel } from "#/features/profile/team-label.ts";
 
 type UsersFilterKey = "status" | "role" | "team";
 

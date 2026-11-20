@@ -1,7 +1,7 @@
 import { useRouteContext } from "@tanstack/react-router";
 
 import { PageHeader } from "#/features/layout/page-header.tsx";
-import { ProfileForm } from "#/features/users/profile-form.tsx";
+import { ProfileForm } from "#/features/profile/profile-form.tsx";
 
 export function ProfileSettingsPage() {
   const { currentUser } = useRouteContext({ from: "/_authenticated/app/settings/profile" });
