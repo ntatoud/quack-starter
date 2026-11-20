@@ -1,8 +1,9 @@
-import { rightSidebar } from "#/features/preferences/layout-preferences.ts";
-import { definePreferences } from "#/features/preferences/preference.ts";
+import { Schema } from "effect";
+
+import { definePreference, definePreferences } from "#/features/preferences/preference.ts";
 
 export const Preferences = definePreferences({
-  "right-sidebar": rightSidebar,
+  "right-sidebar": definePreference(Schema.Boolean, false),
 });
 
 export type PreferenceValues = typeof Preferences.Values.Type;
