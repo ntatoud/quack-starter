@@ -25,7 +25,7 @@ Whether a User can sign in: `active`, `invited` (added, but has not chosen a pas
 _Avoid_: State, enabled, banned
 
 **Profile**:
-What a User tells about themself: their first and last name, avatar, job title, team, country, and tags. A User who just signed up has none.
+What a User tells about themself: their first and last name, avatar, job title, team, and country. Only the first and last name are required. A User who just signed up has none.
 _Avoid_: Account, details, metadata
 
 **Admin**:

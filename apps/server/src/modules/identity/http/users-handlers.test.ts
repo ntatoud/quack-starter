@@ -51,7 +51,6 @@ const userOf = (
             jobTitle: "",
             team: profile.team,
             country: CountryCode.make(profile.country),
-            tags: [],
           }),
   });
 

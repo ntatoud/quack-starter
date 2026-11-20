@@ -13,17 +13,6 @@ export const seedDate = new Date("2026-06-01T00:00:00Z");
 export const devPasswordHash =
   "$argon2id$v=19$m=19456,t=2,p=1$KRL24AiOiRziOzszWPAFpA$0Zrm21ZkbUE8ObVN5MYqUcIG/xABGETqXdzX4X9v0Xs";
 
-const tags = [
-  "beta",
-  "vip",
-  "early-adopter",
-  "mentor",
-  "on-call",
-  "remote",
-  "part-time",
-  "contractor",
-];
-
 const dayMillis = 24 * 60 * 60 * 1000;
 
 const daysBeforeSeed = (days: number) =>
@@ -45,7 +34,6 @@ const devAccount = (faker: Faker, email: string, role: Role, firstName: string):
       jobTitle: role === "admin" ? "Administrator" : "Member",
       team: "operations",
       country: CountryCode.make("FR"),
-      tags: [],
     }),
   });
 
@@ -92,7 +80,6 @@ const randomUsers = (faker: Faker, count: number): ReadonlyArray<User> => {
               jobTitle: faker.person.jobTitle(),
               team: faker.helpers.arrayElement(Team.literals),
               country: CountryCode.make(faker.location.countryCode("alpha-2")),
-              tags: faker.helpers.arrayElements(tags, { min: 0, max: 3 }),
             }),
       }),
     );
