@@ -12,8 +12,7 @@ export function TodosPage() {
 
   return (
     <>
-      <PageHeader>
-        <h1 className="text-sm font-medium">Todos</h1>
+      <PageHeader crumbs={[{ label: "Todos" }]}>
         {all.length > 0 && (
           <span className="ml-auto text-sm text-muted-foreground">{remaining} left</span>
         )}

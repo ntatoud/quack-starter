@@ -1,10 +1,3 @@
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@quack/ui/components/breadcrumb";
 import { useRouteContext } from "@tanstack/react-router";
 
 import { PageHeader } from "#/features/layout/page-header.tsx";
@@ -15,19 +8,7 @@ export function ProfileSettingsPage() {
 
   return (
     <>
-      <PageHeader>
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>Settings</BreadcrumbItem>
-            <BreadcrumbSeparator>/</BreadcrumbSeparator>
-            <BreadcrumbItem>
-              <h1>
-                <BreadcrumbPage className="font-medium">Profile</BreadcrumbPage>
-              </h1>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-      </PageHeader>
+      <PageHeader crumbs={[{ label: "Settings" }, { label: "Profile" }]} back />
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-6">
         <ProfileForm currentUser={currentUser} />
       </div>
