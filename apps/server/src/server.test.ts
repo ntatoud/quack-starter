@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { devUsers } from "#/modules/identity/application/identity-seed.ts";
 import { IdentitySeed } from "#/modules/identity/index.ts";
-import { SessionStoreMemory } from "#/modules/identity/infrastructure/session-store-memory.ts";
+import { SessionStoreMemory } from "#/modules/identity/testing/session-store-memory.ts";
 import { UserRepositoryMemory } from "#/modules/identity/testing/user-repository-memory.ts";
 import { TodoRepositoryMemory } from "#/modules/todos/testing/todo-repository-memory.ts";
 import { Routes } from "#/server.ts";

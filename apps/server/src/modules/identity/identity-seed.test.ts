@@ -14,7 +14,7 @@ import { PasswordHasher } from "#/modules/identity/domain/password-hasher.ts";
 import { IdentitySeed } from "#/modules/identity/index.ts";
 import { AttemptLimiterMemory } from "#/modules/identity/infrastructure/attempt-limiter-memory.ts";
 import { PasswordHasherArgon2 } from "#/modules/identity/infrastructure/password-hasher-argon2.ts";
-import { SessionStoreMemory } from "#/modules/identity/infrastructure/session-store-memory.ts";
+import { SessionStoreMemory } from "#/modules/identity/testing/session-store-memory.ts";
 import { UserRepositoryMemory } from "#/modules/identity/testing/user-repository-memory.ts";
 
 const password = Schema.decodeSync(Password)(devPassword);
