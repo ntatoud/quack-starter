@@ -4,7 +4,11 @@ import { Authentication, CurrentUser } from "@quack/contracts/identity/authentic
 import { Forbidden, Unauthenticated } from "@quack/contracts/identity/identity-errors";
 import { CountryCode, Profile, type Team } from "@quack/contracts/identity/profile";
 import { Email, type Role, User, UserId, type UserStatus } from "@quack/contracts/identity/user";
-import { UserNotFound } from "@quack/contracts/users/user-errors";
+import {
+  CannotChangeOwnAccess,
+  UserInvited,
+  UserNotFound,
+} from "@quack/contracts/users/user-errors";
 import type { UserOrder } from "@quack/contracts/users/users-api";
 import { Effect, Layer, Redacted } from "effect";
 import { HttpClientRequest, HttpServer } from "effect/http";
@@ -126,7 +130,7 @@ const clientOf = (user: User | undefined) =>
 
 const UsersLayer = UsersHandlers.pipe(
   Layer.provide(Users.layer),
-  Layer.provide(Layer.provideMerge(SeededUsers, UserRepositoryMemory)),
+  Layer.provideMerge(Layer.provideMerge(SeededUsers, UserRepositoryMemory)),
   Layer.provideMerge(RequireRoleMiddleware),
   Layer.provideMerge(AuthenticationByUserId),
 );
@@ -391,6 +395,128 @@ layer(Layer.mergeAll(UsersLayer, HttpServer.layerServices))("UsersApi", (it) => 
 
       assert.deepStrictEqual(error, new Unauthenticated());
       assert.strictEqual(response.status, 401);
+    }),
+  );
+});
+
+// Each test changes a User of its own, which the repository keeps apart from the seeded ones.
+const ownUser = (name: string, status: UserStatus = "active") =>
+  Effect.gen(function* () {
+    const user = userOf(name, { status, createdOn: 6, lastSignInOn: null, profile: null });
+    yield* (yield* UserRepository).create(user, "no password");
+    return user;
+  });
+
+// Apart from the list: these tests change Users, whom the list counts and sorts.
+layer(Layer.mergeAll(UsersLayer, HttpServer.layerServices))("UsersApi changes", (it) => {
+  it.effect("suspends an active User, and reactivates them", () =>
+    Effect.gen(function* () {
+      const client = yield* clientOf(grace);
+      const target = yield* ownUser("suspend-me");
+      const params = { id: target.id };
+
+      const suspended = yield* client.users.update({ params, payload: { status: "suspended" } });
+      const stored = yield* client.users.get({ params });
+      const reactivated = yield* client.users.update({ params, payload: { status: "active" } });
+
+      assert.strictEqual(suspended.status, "suspended");
+      assert.strictEqual(stored.status, "suspended");
+      assert.strictEqual(reactivated.status, "active");
+    }),
+  );
+
+  it.effect("changes the Role of a User, and nothing else", () =>
+    Effect.gen(function* () {
+      const client = yield* clientOf(grace);
+      const target = yield* ownUser("promote-me");
+
+      const user = yield* client.users.update({
+        params: { id: target.id },
+        payload: { role: "admin" },
+      });
+
+      assert.deepStrictEqual(user, new User({ ...target, role: "admin" }));
+    }),
+  );
+
+  it.effect("refuses to change the status of an invited User, 409, and changes nothing", () =>
+    Effect.gen(function* () {
+      const client = yield* clientOf(grace);
+      const target = yield* ownUser("invited-one", "invited");
+      const params = { id: target.id };
+
+      const error = yield* client.users
+        .update({ params, payload: { role: "admin", status: "suspended" } })
+        .pipe(Effect.flip);
+      const response = yield* client.users.update({
+        params,
+        payload: { status: "active" },
+        responseMode: "response-only",
+      });
+
+      assert.deepStrictEqual(error, new UserInvited({ id: target.id }));
+      assert.strictEqual(response.status, 409);
+      assert.deepStrictEqual(yield* client.users.get({ params }), target);
+    }),
+  );
+
+  it.effect("changes the Role of an invited User", () =>
+    Effect.gen(function* () {
+      const client = yield* clientOf(grace);
+      const target = yield* ownUser("invited-admin", "invited");
+
+      const user = yield* client.users.update({
+        params: { id: target.id },
+        payload: { role: "admin" },
+      });
+
+      assert.strictEqual(user.role, "admin");
+    }),
+  );
+
+  it.effect("refuses an admin a change of their own access, 403", () =>
+    Effect.gen(function* () {
+      const client = yield* clientOf(grace);
+      const params = { id: grace.id };
+
+      const error = yield* client.users
+        .update({ params, payload: { status: "suspended" } })
+        .pipe(Effect.flip);
+      const response = yield* client.users.update({
+        params,
+        payload: { role: "user" },
+        responseMode: "response-only",
+      });
+
+      assert.deepStrictEqual(error, new CannotChangeOwnAccess());
+      assert.strictEqual(response.status, 403);
+      assert.deepStrictEqual(yield* client.users.get({ params }), grace);
+    }),
+  );
+
+  it.effect("answers UserNotFound, 404, for a change to an id no User has", () =>
+    Effect.gen(function* () {
+      const client = yield* clientOf(grace);
+      const id = UserId.make("nobody");
+
+      const error = yield* client.users
+        .update({ params: { id }, payload: { role: "admin" } })
+        .pipe(Effect.flip);
+
+      assert.deepStrictEqual(error, new UserNotFound({ id }));
+    }),
+  );
+
+  it.effect("refuses a user every change with Forbidden, 403", () =>
+    Effect.gen(function* () {
+      const client = yield* clientOf(ada);
+      const target = yield* ownUser("not-by-ada");
+
+      const error = yield* client.users
+        .update({ params: { id: target.id }, payload: { status: "suspended" } })
+        .pipe(Effect.flip);
+
+      assert.deepStrictEqual(error, new Forbidden());
     }),
   );
 });
