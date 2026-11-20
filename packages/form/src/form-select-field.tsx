@@ -9,7 +9,7 @@ import { cn } from "@quack/ui/lib/utils";
 
 import { choiceOf, chosen } from "#/choice.ts";
 import type { FieldOption } from "#/field-option.ts";
-import { controlHeight, textSize } from "#/size.ts";
+import { textSize } from "#/size.ts";
 import { FieldControlError } from "#/field-control-error.tsx";
 import { useFieldControl } from "#/use-field-control.ts";
 
@@ -39,7 +39,8 @@ export function FormSelectField({
         <SelectTrigger
           id={id}
           name={field.name}
-          className={cn("w-full", controlHeight[size], textSize[size])}
+          size={size}
+          className={cn("w-full", textSize[size])}
           aria-invalid={invalid}
           aria-describedby={describedBy}
         >

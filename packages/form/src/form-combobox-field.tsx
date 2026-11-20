@@ -6,11 +6,9 @@ import {
   ComboboxItem,
   ComboboxList,
 } from "@quack/ui/components/combobox";
-import { cn } from "@quack/ui/lib/utils";
 
 import { choiceOf, chosen } from "#/choice.ts";
 import type { FieldOption } from "#/field-option.ts";
-import { controlHeight, textSize } from "#/size.ts";
 import { FieldControlError } from "#/field-control-error.tsx";
 import { useFieldControl } from "#/use-field-control.ts";
 
@@ -43,7 +41,8 @@ export function FormComboboxField({
           name={field.name}
           placeholder={placeholder}
           showClear={clearable && field.state.value !== ""}
-          className={cn("w-full", controlHeight[size], textSize[size])}
+          size={size}
+          className="w-full"
           onBlur={field.handleBlur}
           aria-invalid={invalid}
           aria-describedby={describedBy}

@@ -50,13 +50,15 @@ function ComboboxInput({
   disabled = false,
   showTrigger = true,
   showClear = false,
+  size = "md",
   ...props
-}: ComboboxPrimitive.Input.Props & {
+}: Omit<ComboboxPrimitive.Input.Props, "size"> & {
   showTrigger?: boolean;
   showClear?: boolean;
+  size?: NonNullable<React.ComponentProps<typeof InputGroup>["size"]>;
 }) {
   return (
-    <InputGroup className={cn("w-auto", className)}>
+    <InputGroup size={size} className={cn("w-auto", className)}>
       <ComboboxPrimitive.Input render={<InputGroupInput disabled={disabled} />} {...props} />
       <InputGroupAddon align="inline-end">
         {showTrigger && (
