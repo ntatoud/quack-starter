@@ -1,5 +1,5 @@
 import { UserId } from "@quack/contracts/identity/user";
-import { Effect, Layer, Schema } from "effect";
+import { Effect, Layer, Schema, Struct } from "effect";
 import { SqlClient, SqlSchema } from "effect/sql";
 
 import { SessionStore } from "#/modules/identity/domain/session-store.ts";
@@ -21,7 +21,7 @@ export const SessionStorePostgres = Layer.effect(
     });
 
     const extend = SqlSchema.void({
-      Request: SessionRow.mapFields(({ userId: _, ...fields }) => fields),
+      Request: SessionRow.mapFields(Struct.pick(["tokenHash", "expiresAt"])),
       execute: ({ tokenHash, expiresAt }) =>
         sql`UPDATE sessions SET expires_at = ${expiresAt} WHERE token_hash = ${tokenHash}`,
     });
