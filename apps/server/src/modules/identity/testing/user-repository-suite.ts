@@ -271,6 +271,24 @@ export const userRepositorySuite = (layer: Layer.Layer<UserRepository>) => {
         }
       }));
 
+    test("sorts by Status in the alphabetical order of its names", () =>
+      Effect.gen(function* () {
+        const mark = yield* aMark;
+        const suspended = yield* aUser(mark, "a", { status: "suspended" });
+        const active = yield* aUser(mark, "b", { status: "active" });
+        const invited = yield* aUser(mark, "c", { status: "invited" });
+        yield* created(suspended, active, invited);
+
+        assert.deepStrictEqual(
+          (yield* listed({ search: mark, orderBy: "status" })).emails,
+          emailsOf(active, invited, suspended),
+        );
+        assert.deepStrictEqual(
+          (yield* listed({ search: mark, orderBy: "status", dir: "desc" })).emails,
+          emailsOf(suspended, invited, active),
+        );
+      }));
+
     test("sorts by name, last name first, those with no Profile last in either direction", () =>
       Effect.gen(function* () {
         const mark = yield* aMark;
