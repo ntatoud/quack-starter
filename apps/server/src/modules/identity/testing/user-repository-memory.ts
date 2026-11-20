@@ -23,6 +23,7 @@ const sortKeys: Record<UserOrder, (user: User) => SortKey> = {
   country: (user) => user.profile?.country ?? null,
   createdAt: (user) => millisOf(user.createdAt),
   lastSignInAt: (user) => millisOf(user.lastSignInAt),
+  onboardedAt: (user) => millisOf(user.onboardedAt),
 };
 
 const fullName = ({ profile }: User) =>
@@ -59,7 +60,7 @@ export const UserRepositoryMemory = Layer.sync(UserRepository, () => {
           Option.flatMapNullishOr((id) => users.get(id)),
         ),
       ),
-    findAll: ({ page, pageSize, orderBy, dir, search = "", status, role, team }) =>
+    findAll: ({ page, pageSize, orderBy, dir, search = "", status, role, team, onboarded }) =>
       Effect.sync(() => {
         const offset = (page - 1) * pageSize;
         const sign = dir === "asc" ? 1 : -1;
@@ -70,7 +71,8 @@ export const UserRepositoryMemory = Layer.sync(UserRepository, () => {
               (user.email.includes(search) || fullName(user).includes(search)) &&
               keeps(status, user.status) &&
               keeps(role, user.role) &&
-              keeps(team, user.profile?.team),
+              keeps(team, user.profile?.team) &&
+              keeps(onboarded, user.onboardedAt !== null),
           )
           .map((user) => ({ user, key: keyOf(user) }))
           .toSorted(

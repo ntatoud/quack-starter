@@ -2,11 +2,10 @@ import { assert, describe, it } from "@effect/vitest";
 import { CountryCode, Profile, type Team } from "@quack/contracts/identity/profile";
 import { Email, type Role, User, type UserStatus } from "@quack/contracts/identity/user";
 import type { UserListQuery } from "@quack/contracts/users/users-api";
-import { DateTime, Effect, type Layer, Option, Result } from "effect";
+import { Effect, type Layer, Option, Result } from "effect";
 
 import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
-
-const day = (n: number) => DateTime.makeUnsafe(`2026-01-${String(n).padStart(2, "0")}T00:00:00Z`);
+import { day, dayOrNull } from "#/modules/identity/testing/days.ts";
 
 // An adapter that persists keeps the Users of the tests before, so each test marks its own and searches for the mark.
 const aMark = Effect.sync(() => crypto.randomUUID().slice(0, 8));
@@ -15,6 +14,7 @@ interface UserFields {
   readonly role?: Role;
   readonly status?: UserStatus;
   readonly lastSignInOn?: number | null;
+  readonly onboardedOn?: number | null;
   readonly profile?: {
     readonly firstName: string;
     readonly lastName: string;
@@ -26,7 +26,13 @@ interface UserFields {
 const aUser = (
   mark: string,
   name: string,
-  { role = "user", status = "active", lastSignInOn = null, profile = null }: UserFields = {},
+  {
+    role = "user",
+    status = "active",
+    lastSignInOn = null,
+    onboardedOn = null,
+    profile = null,
+  }: UserFields = {},
 ) =>
   Effect.gen(function* () {
     const repository = yield* UserRepository;
@@ -36,8 +42,8 @@ const aUser = (
       role,
       status,
       createdAt: day(1),
-      lastSignInAt: lastSignInOn === null ? null : day(lastSignInOn),
-      onboardedAt: null,
+      lastSignInAt: dayOrNull(lastSignInOn),
+      onboardedAt: dayOrNull(onboardedOn),
       profile:
         profile === null
           ? null
@@ -226,6 +232,41 @@ export const userRepositorySuite = (layer: Layer.Layer<UserRepository>) => {
         assert.deepStrictEqual(
           (yield* listed({ search: mark, orderBy: "lastSignInAt", dir: "desc" })).emails,
           emailsOf(lateA, lateB, early, neverC, neverD),
+        );
+      }));
+
+    test("sorts by the date of onboarding, the Users not yet onboarded last", () =>
+      Effect.gen(function* () {
+        const mark = yield* aMark;
+        const early = yield* aUser(mark, "early", { onboardedOn: 2 });
+        const late = yield* aUser(mark, "late", { onboardedOn: 8 });
+        const notYet = yield* aUser(mark, "not-yet");
+        yield* created(notYet, late, early);
+
+        assert.deepStrictEqual(
+          (yield* listed({ search: mark, orderBy: "onboardedAt", dir: "asc" })).emails,
+          emailsOf(early, late, notYet),
+        );
+        assert.deepStrictEqual(
+          (yield* listed({ search: mark, orderBy: "onboardedAt", dir: "desc" })).emails,
+          emailsOf(late, early, notYet),
+        );
+      }));
+
+    test("lists the Users onboarded, or those not yet", () =>
+      Effect.gen(function* () {
+        const mark = yield* aMark;
+        const onboarded = yield* aUser(mark, "onboarded", { onboardedOn: 2 });
+        const notYet = yield* aUser(mark, "not-yet");
+        yield* created(onboarded, notYet);
+
+        assert.deepStrictEqual(
+          (yield* listed({ search: mark, onboarded: true })).emails,
+          emailsOf(onboarded),
+        );
+        assert.deepStrictEqual(
+          (yield* listed({ search: mark, onboarded: false })).emails,
+          emailsOf(notYet),
         );
       }));
 

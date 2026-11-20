@@ -19,6 +19,7 @@ describe("UserListQuery", () => {
     expect(decode({ orderBy: "role", dir: "desc" })._tag).toBe("Some");
     expect(decode({ orderBy: "status" })._tag).toBe("Some");
     expect(decode({ orderBy: "lastSignInAt" })._tag).toBe("Some");
+    expect(decode({ orderBy: "onboardedAt" })._tag).toBe("Some");
     expect(decode({ orderBy: "passwordHash" })._tag).toBe("None");
     expect(decode({ orderBy: "name" })._tag).toBe("Some");
     expect(decode({ orderBy: "country" })._tag).toBe("Some");
@@ -36,12 +37,14 @@ describe("UserListQuery", () => {
     expect(decode({ search: "a".repeat(255) })._tag).toBe("None");
   });
 
-  it("filters by a Role, a status, and a team, nothing else", () => {
+  it("filters by a Role, a status, a team, and whether onboarded, nothing else", () => {
     expect(Schema.decodeSync(UserListQuery)({ role: "admin" }).role).toBe("admin");
     expect(Schema.decodeSync(UserListQuery)({ status: "suspended" }).status).toBe("suspended");
     expect(decode({ role: "owner" })._tag).toBe("None");
     expect(decode({ status: "deleted" })._tag).toBe("None");
     expect(Schema.decodeSync(UserListQuery)({ team: "sales" }).team).toBe("sales");
     expect(decode({ team: "Sales" })._tag).toBe("None");
+    expect(Schema.decodeSync(UserListQuery)({ onboarded: false }).onboarded).toBe(false);
+    expect(decode({ onboarded: "maybe" })._tag).toBe("None");
   });
 });

@@ -16,6 +16,7 @@ export const usersQueryOptions = ({ state, page, pageSize, sorting }: UsersTable
         ...(state.status === undefined ? {} : { status: state.status }),
         ...(state.role === undefined ? {} : { role: state.role }),
         ...(state.team === undefined ? {} : { team: state.team }),
+        ...(state.onboarded === undefined ? {} : { onboarded: state.onboarded }),
       },
     },
     placeholderData: keepPreviousData,

@@ -1,3 +1,4 @@
+import { booleanFilter } from "@quack/ui/components/data-table/filters/boolean-filter";
 import { selectFilter } from "@quack/ui/components/data-table/filters/select-filter";
 
 import type { UsersSearch } from "#/features/users/admin/users-search.ts";
@@ -32,4 +33,5 @@ export const usersFilters = {
   status: selectFilter({ title: "Status", options: usersFilterOptions.status }),
   role: selectFilter({ title: "Role", options: usersFilterOptions.role }),
   team: selectFilter({ title: "Team", options: usersFilterOptions.team }),
+  onboarded: booleanFilter({ title: "Onboarded" }),
 };

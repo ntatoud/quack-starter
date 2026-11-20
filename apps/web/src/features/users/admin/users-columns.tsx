@@ -70,6 +70,8 @@ export const usersColumns = (now: Date): ReadonlyArray<DataTableColumnFor<User, 
   {
     id: "onboardedAt",
     title: "Onboarded",
+    sortable: true,
+    filter: "onboarded",
     cell: ({ row }) => <OnboardedCell date={row.original.onboardedAt} />,
   },
   {
