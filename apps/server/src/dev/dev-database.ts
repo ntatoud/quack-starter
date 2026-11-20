@@ -2,7 +2,7 @@ import * as Path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { PgClient } from "@effect/sql-pg";
-import { ConfigProvider, Effect, Redacted, Schema, String } from "effect";
+import { Effect, Redacted, Schema, String } from "effect";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
 import { SqlClient } from "effect/sql/SqlClient";
 
@@ -137,8 +137,7 @@ const onServer = (database: string) =>
 
 const checkMigrationsRecorded = Effect.fn("checkMigrationsRecorded")(
   function* (database: string, migrations: ReadonlyArray<string>) {
-    const migrated = yield* migrationsTableExists;
-    const recorded = migrated ? yield* appliedMigrations : [];
+    const recorded = (yield* migrationsTableExists) ? yield* appliedMigrations : [];
     const { behind, diverged } = checkRecorded({ migrations, recorded });
     if (diverged.length > 0) {
       return yield* new MigrationsDiverged({ database, divergences: diverged });
@@ -150,10 +149,15 @@ const checkMigrationsRecorded = Effect.fn("checkMigrationsRecorded")(
           .join(", ")}. Rebase the branch on the default branch to catch up.`,
       );
     }
-    return { migrated };
   },
   (effect, database) => effect.pipe(onServer(database), Effect.scoped),
 );
+
+const recordsNoMigration = (database: string) =>
+  Effect.gen(function* () {
+    if (!(yield* migrationsTableExists)) return true;
+    return (yield* appliedMigrations).length === 0;
+  }).pipe(onServer(database), Effect.scoped);
 
 const createDatabaseIfMissing = (name: string) =>
   Effect.gen(function* () {
@@ -173,19 +177,18 @@ const createDatabaseIfMissing = (name: string) =>
 
 export const devDatabaseUrl = Effect.fn("devDatabaseUrl")(function* (
   env: Readonly<Record<string, string | undefined>>,
+  { seed }: { readonly seed: boolean },
 ) {
   const given = env["DATABASE_URL"];
   if (given !== undefined && given !== "") return given;
   yield* startPostgres;
   const { name, migrations } = yield* chooseDatabase(env);
   yield* createDatabaseIfMissing(name);
-  const { migrated } = yield* checkMigrationsRecorded(name, migrations);
+  yield* checkMigrationsRecorded(name, migrations);
   const url = `${serverUrl}/${name}`;
-  // A database never migrated was just created, or its first seed failed: either way it is empty.
-  if (!migrated) {
-    yield* seedDatabase.pipe(
-      Effect.provide(ConfigProvider.layer(ConfigProvider.fromUnknown({ DATABASE_URL: url }))),
-    );
+  // Just created, or rolled back to 0: either way it holds no data to keep.
+  if (seed && (yield* recordsNoMigration(name))) {
+    yield* seedDatabase({ url: Redacted.make(url), maxConnections: 1 });
   }
   return url;
 });

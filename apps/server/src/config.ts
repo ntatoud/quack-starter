@@ -25,3 +25,5 @@ export const DatabaseConfig = Config.all({
     "DATABASE_MAX_CONNECTIONS",
   ).pipe(Config.withDefault(10)),
 });
+
+export type DatabaseSettings = Config.Success<typeof DatabaseConfig>;

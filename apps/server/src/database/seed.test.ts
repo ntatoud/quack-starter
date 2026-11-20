@@ -1,5 +1,5 @@
 import { assert, describe, it } from "@effect/vitest";
-import { ConfigProvider, Effect } from "effect";
+import { Effect, Redacted } from "effect";
 
 import { isLocalDatabaseUrl, NotLocalDatabase, seedDatabase } from "#/database/seed.ts";
 
@@ -24,21 +24,18 @@ describe("seedDatabase", () => {
     "refuses a database that is not local, with its password masked, connecting to nothing",
     () =>
       Effect.gen(function* () {
-        const error = yield* Effect.flip(seedDatabase);
+        const error = yield* Effect.flip(
+          seedDatabase({
+            url: Redacted.make("postgres://quack:s3cret@db.example:5432/quack"),
+            maxConnections: 1,
+          }),
+        );
 
         assert.instanceOf(error, NotLocalDatabase);
         assert.strictEqual(
           error.message,
           "pnpm db:seed resets the database, so it runs on localhost or 127.0.0.1 only, not on postgres://quack:***@db.example:5432/quack.",
         );
-      }).pipe(
-        Effect.provide(
-          ConfigProvider.layer(
-            ConfigProvider.fromUnknown({
-              DATABASE_URL: "postgres://quack:s3cret@db.example:5432/quack",
-            }),
-          ),
-        ),
-      ),
+      }),
   );
 });

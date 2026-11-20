@@ -29,7 +29,10 @@ describe("devDatabaseUrl", () => {
   it.effect("answers a DATABASE_URL set by hand as given, with no Docker", () => {
     const docker = spawnerAnswering(() => 0);
     return Effect.gen(function* () {
-      const url = yield* devDatabaseUrl({ DATABASE_URL: "postgres://me:pw@db.example/mine" });
+      const url = yield* devDatabaseUrl(
+        { DATABASE_URL: "postgres://me:pw@db.example/mine" },
+        { seed: true },
+      );
 
       assert.strictEqual(url, "postgres://me:pw@db.example/mine");
       assert.deepStrictEqual(docker.ran, []);
@@ -39,7 +42,7 @@ describe("devDatabaseUrl", () => {
   it.effect("fails with a message to start Docker when Docker does not run", () => {
     const docker = spawnerAnswering(() => 1);
     return Effect.gen(function* () {
-      const error = yield* Effect.flip(devDatabaseUrl({}));
+      const error = yield* Effect.flip(devDatabaseUrl({}, { seed: true }));
 
       assert.instanceOf(error, DockerNotRunning);
       assert.match(error.message, /start Docker/);
@@ -49,7 +52,7 @@ describe("devDatabaseUrl", () => {
   it.effect("fails with the exit code of docker compose when Docker runs", () => {
     const docker = spawnerAnswering((line) => (line.startsWith("docker compose") ? 17 : 0));
     return Effect.gen(function* () {
-      const error = yield* Effect.flip(devDatabaseUrl({}));
+      const error = yield* Effect.flip(devDatabaseUrl({}, { seed: true }));
 
       assert.deepStrictEqual(error, new PostgresDidNotStart({ exitCode: 17 }));
     }).pipe(Effect.provide(docker.layer));

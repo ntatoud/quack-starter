@@ -1,11 +1,10 @@
 import { Effect, Layer, Redacted, Schema } from "effect";
 import { SqlClient, SqlSchema } from "effect/sql";
 
-import { DatabaseConfig } from "#/config.ts";
-import { Database, withoutPassword } from "#/database/database.ts";
+import type { DatabaseSettings } from "#/config.ts";
+import { databaseAt, withoutPassword } from "#/database/database.ts";
+import { MIGRATIONS_TABLE } from "#/database/rollback.ts";
 import { IdentityPostgres, IdentitySeed } from "#/modules/identity/index.ts";
-
-const MIGRATIONS_TABLE = "effect_sql_migrations";
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
 
@@ -39,7 +38,7 @@ const truncateTables = Effect.gen(function* () {
       sql`SELECT tablename FROM pg_tables WHERE schemaname = current_schema() AND tablename <> ${MIGRATIONS_TABLE}`,
   })(undefined);
   if (tables.length === 0) return;
-  yield* sql`TRUNCATE ${sql.csv(tables.map(({ tablename }) => sql`${sql(tablename)}`))} CASCADE`;
+  yield* sql`TRUNCATE ${sql.csv(tables.map(({ tablename }) => sql`${sql(tablename)}`))} RESTART IDENTITY CASCADE`;
 });
 
 const reset = Effect.gen(function* () {
@@ -49,10 +48,10 @@ const reset = Effect.gen(function* () {
   );
 });
 
-export const seedDatabase = Effect.gen(function* () {
-  const url = Redacted.value((yield* DatabaseConfig).url);
+export const seedDatabase = Effect.fn("seedDatabase")(function* (config: DatabaseSettings) {
+  const url = Redacted.value(config.url);
   if (!isLocalDatabaseUrl(url)) {
     return yield* new NotLocalDatabase({ url: withoutPassword(url) });
   }
-  yield* reset.pipe(Effect.provide(IdentityPostgres.pipe(Layer.provideMerge(Database))));
+  yield* reset.pipe(Effect.provide(IdentityPostgres.pipe(Layer.provideMerge(databaseAt(config)))));
 });
