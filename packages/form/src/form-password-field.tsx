@@ -1,4 +1,3 @@
-import { FieldError } from "@quack/ui/components/field";
 import {
   InputGroup,
   InputGroupAddon,
@@ -8,7 +7,7 @@ import {
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { type ComponentProps, useState } from "react";
 
-import { textSize } from "#/size.ts";
+import { FieldControlError } from "#/field-control-error.tsx";
 import { useFieldControl } from "#/use-field-control.ts";
 
 /** The toggle keeps its name, "Show password", and says whether the password shows by being pressed. */
@@ -26,7 +25,8 @@ export function FormPasswordField(
     | "aria-describedby"
   >,
 ) {
-  const { field, id, size, errorId, invalid, errors } = useFieldControl();
+  const control = useFieldControl();
+  const { field, id, size, invalid, describedBy } = control;
   const [visible, setVisible] = useState(false);
   const Icon = visible ? EyeOffIcon : EyeIcon;
 
@@ -42,7 +42,7 @@ export function FormPasswordField(
           onChange={(event) => field.handleChange(event.target.value)}
           onBlur={field.handleBlur}
           aria-invalid={invalid}
-          aria-describedby={invalid ? errorId : undefined}
+          aria-describedby={describedBy}
         />
         <InputGroupAddon align="inline-end">
           <InputGroupButton
@@ -57,10 +57,7 @@ export function FormPasswordField(
           </InputGroupButton>
         </InputGroupAddon>
       </InputGroup>
-      {invalid && (
-        // Not an alert: the input describes itself with the error, and an alert would interrupt typing.
-        <FieldError id={errorId} role={undefined} className={textSize[size]} errors={errors} />
-      )}
+      <FieldControlError control={control} />
     </>
   );
 }

@@ -1,0 +1,65 @@
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from "@quack/ui/components/combobox";
+import { cn } from "@quack/ui/lib/utils";
+
+import { choiceOf, chosen } from "#/choice.ts";
+import type { FieldOption } from "#/field-option.ts";
+import { controlHeight, textSize } from "#/size.ts";
+import { FieldControlError } from "#/field-control-error.tsx";
+import { useFieldControl } from "#/use-field-control.ts";
+
+export function FormComboboxField({
+  options,
+  placeholder,
+  empty = "Nothing found.",
+  clearable = false,
+}: {
+  options: ReadonlyArray<FieldOption>;
+  placeholder?: string;
+  empty?: string;
+  /** Shows a button that empties the field, for a field that may stay empty. */
+  clearable?: boolean;
+}) {
+  const control = useFieldControl();
+  const { field, id, size, invalid, describedBy } = control;
+  const labels = new Map(options.map((option) => [option.value, option.label]));
+
+  return (
+    <>
+      <Combobox
+        items={options.map((option) => option.value)}
+        itemToStringLabel={(value: string) => labels.get(value) ?? value}
+        value={chosen(field.state.value)}
+        onValueChange={(value: string | null) => field.handleChange(choiceOf(value))}
+      >
+        <ComboboxInput
+          id={id}
+          name={field.name}
+          placeholder={placeholder}
+          showClear={clearable && field.state.value !== ""}
+          className={cn("w-full", controlHeight[size], textSize[size])}
+          onBlur={field.handleBlur}
+          aria-invalid={invalid}
+          aria-describedby={describedBy}
+        />
+        <ComboboxContent>
+          <ComboboxEmpty>{empty}</ComboboxEmpty>
+          <ComboboxList>
+            {(value: string) => (
+              <ComboboxItem key={value} value={value}>
+                {labels.get(value) ?? value}
+              </ComboboxItem>
+            )}
+          </ComboboxList>
+        </ComboboxContent>
+      </Combobox>
+      <FieldControlError control={control} />
+    </>
+  );
+}
