@@ -1,12 +1,13 @@
 import { Schema, SchemaTransformation } from "effect";
-import { HttpApiEndpoint, HttpApiGroup } from "effect/http-api";
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from "effect/http-api";
 
 import { Authentication } from "#/identity/authentication.ts";
 import { RequireRole } from "#/identity/require-role.ts";
 import { Team } from "#/identity/profile.ts";
-import { Role, User, UserStatus } from "#/identity/user.ts";
+import { Role, User, UserId, UserStatus } from "#/identity/user.ts";
 import { Paginated, PaginationQuery } from "#/pagination/paginated.ts";
 import { sortingFields } from "#/sorting/sorting.ts";
+import { UserNotFound } from "#/users/user-errors.ts";
 
 export class UserList extends Schema.Class<UserList, { readonly brand: unique symbol }>("UserList")(
   Paginated(User).fields,
@@ -43,11 +44,18 @@ export const UserListQuery = Schema.Struct({
 });
 export type UserListQuery = typeof UserListQuery.Type;
 
+const NotFound = UserNotFound.pipe(HttpApiSchema.status(404));
+
 export class UsersApi extends HttpApiGroup.make("users")
   .add(
     HttpApiEndpoint.get("list", "/", {
       query: UserListQuery,
       success: UserList,
+    }),
+    HttpApiEndpoint.get("get", "/:id", {
+      params: { id: UserId },
+      success: User,
+      error: NotFound,
     }),
   )
   .middleware(RequireRole("admin"))

@@ -1,6 +1,7 @@
 import { Unauthenticated } from "@quack/contracts/identity/identity-errors";
 import type { Profile } from "@quack/contracts/identity/profile";
 import type { User, UserId } from "@quack/contracts/identity/user";
+import { UserNotFound } from "@quack/contracts/users/user-errors";
 import { UserList, type UserListQuery } from "@quack/contracts/users/users-api";
 import { Context, Effect, Layer, Option } from "effect";
 
@@ -11,6 +12,7 @@ export class Users extends Context.Service<
   Users,
   {
     list(query: UserListQuery): Effect.Effect<UserList>;
+    get(id: UserId): Effect.Effect<User, UserNotFound>;
     updateProfile(id: UserId, profile: Profile): Effect.Effect<User, Unauthenticated>;
   }
 >()("@quack/server/identity/Users") {
@@ -22,6 +24,13 @@ export class Users extends Context.Service<
       return Users.of({
         list: Effect.fn("Users.list")(function* (query) {
           return new UserList(yield* repository.findAll(query));
+        }),
+        get: Effect.fn("Users.get")(function* (id) {
+          const found = yield* repository.findById(id);
+          if (Option.isNone(found)) {
+            return yield* new UserNotFound({ id });
+          }
+          return found.value;
         }),
         updateProfile: Effect.fn("Users.updateProfile")(function* (id, profile) {
           // Read again rather than taken from the Current User: the write must not bring back what changed since the request was authenticated.
