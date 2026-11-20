@@ -1,9 +1,14 @@
+import * as Path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { PgClient } from "@effect/sql-pg";
-import { Effect, Redacted, Schema } from "effect";
+import { Effect, Redacted, Schema, String } from "effect";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
 import { SqlClient } from "effect/sql/SqlClient";
+
+import { migrationFileNames, migrationsDirectory } from "#/database/migration-files.ts";
+import { appliedMigrations, migrationsTableExists } from "#/database/rollback.ts";
+import { checkRecorded, databaseFor, Divergence, sharedDatabase } from "#/dev/database-choice.ts";
 
 export class DockerNotRunning extends Schema.TaggedError<
   DockerNotRunning,
@@ -23,9 +28,30 @@ export class PostgresDidNotStart extends Schema.TaggedError<
   }
 }
 
-const composeFile = fileURLToPath(new URL("../../../../compose.yaml", import.meta.url));
+export class MigrationsDiverged extends Schema.TaggedError<
+  MigrationsDiverged,
+  { readonly brand: unique symbol }
+>()("MigrationsDiverged", {
+  database: Schema.String,
+  divergences: Schema.Array(Divergence),
+}) {
+  override get message() {
+    const clashes = this.divergences
+      .map(
+        ({ id, recorded, file }) =>
+          `migration ${id} is recorded as ${recorded}, the branch has ${file}`,
+      )
+      .join("; ");
+    const way =
+      this.database === sharedDatabase
+        ? "renumber the branch's migrations after those of the default branch, or set DEV_DATABASE=own"
+        : `drop the database ${this.database}, which the launcher then creates again empty`;
+    return `The database ${this.database} and this branch have diverged: ${clashes}. To start, ${way}.`;
+  }
+}
 
-const sharedDatabase = "quack";
+const repoRoot = fileURLToPath(new URL("../../../../", import.meta.url));
+const composeFile = Path.join(repoRoot, "compose.yaml");
 const serverUrl = "postgres://quack:quack@127.0.0.1:54320";
 
 const commandNotFound = ChildProcessSpawner.ExitCode(127);
@@ -52,6 +78,80 @@ const startPostgres = Effect.gen(function* () {
     : new DockerNotRunning();
 });
 
+const git = (args: ReadonlyArray<string>) =>
+  Effect.flatMap(ChildProcessSpawner.ChildProcessSpawner, (spawner) =>
+    spawner.lines(ChildProcess.make("git", ["-C", repoRoot, ...args], { stderr: "ignore" })),
+  ).pipe(
+    Effect.map((lines) => lines.filter((line) => line !== "")),
+    Effect.orElseSucceed((): ReadonlyArray<string> => []),
+  );
+
+const worktreeBranch = Effect.map(
+  git(["symbolic-ref", "--short", "-q", "HEAD"]),
+  (lines) => lines[0] ?? Path.basename(repoRoot),
+);
+
+const defaultBranchMigrations = Effect.gen(function* () {
+  const known = yield* git(["rev-parse", "--verify", "-q", "origin/HEAD"]);
+  if (known.length === 0) {
+    yield* Effect.logWarning(
+      "origin/HEAD is not known, so every migration counts as new: run git remote set-head origin --auto",
+    );
+    return [];
+  }
+  return yield* git([
+    "ls-tree",
+    "--name-only",
+    `origin/HEAD:${Path.relative(repoRoot, migrationsDirectory)}`,
+  ]);
+});
+
+const branchMigrations = Effect.promise(() => migrationFileNames(migrationsDirectory));
+
+const chooseDatabase = Effect.fn("chooseDatabase")(function* (
+  env: Readonly<Record<string, string | undefined>>,
+) {
+  const migrations = yield* branchMigrations;
+  const name = databaseFor({
+    devDatabase: env["DEV_DATABASE"],
+    branch: yield* worktreeBranch,
+    migrations,
+    defaultMigrations: yield* defaultBranchMigrations,
+  });
+  yield* Effect.logInfo(
+    name === sharedDatabase
+      ? `Using the shared database ${name}`
+      : `Using the database ${name} of this worktree: its branch adds migrations, or DEV_DATABASE=own`,
+  );
+  return { name, migrations };
+});
+
+const onServer = (database: string) =>
+  Effect.provide(
+    PgClient.layer({
+      url: Redacted.make(`${serverUrl}/${database}`),
+      transformResultNames: String.snakeToCamel,
+    }),
+  );
+
+const checkMigrationsRecorded = Effect.fn("checkMigrationsRecorded")(
+  function* (database: string, migrations: ReadonlyArray<string>) {
+    const recorded = (yield* migrationsTableExists) ? yield* appliedMigrations : [];
+    const { behind, diverged } = checkRecorded({ migrations, recorded });
+    if (diverged.length > 0) {
+      return yield* new MigrationsDiverged({ database, divergences: diverged });
+    }
+    if (behind.length > 0) {
+      yield* Effect.logWarning(
+        `The database ${database} records migrations this branch lacks: ${behind
+          .map(({ id, name }) => `${id}_${name}`)
+          .join(", ")}. Rebase the branch on the default branch to catch up.`,
+      );
+    }
+  },
+  (effect, database) => effect.pipe(onServer(database), Effect.scoped),
+);
+
 const createDatabaseIfMissing = (name: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient;
@@ -66,10 +166,7 @@ const createDatabaseIfMissing = (name: string) =>
         Effect.flatMap(exists, (created) => (created ? Effect.void : Effect.fail(error))),
       ),
     );
-  }).pipe(
-    Effect.provide(PgClient.layer({ url: Redacted.make(`${serverUrl}/postgres`) })),
-    Effect.scoped,
-  );
+  }).pipe(onServer("postgres"), Effect.scoped);
 
 export const devDatabaseUrl = Effect.fn("devDatabaseUrl")(function* (
   env: Readonly<Record<string, string | undefined>>,
@@ -77,6 +174,8 @@ export const devDatabaseUrl = Effect.fn("devDatabaseUrl")(function* (
   const given = env["DATABASE_URL"];
   if (given !== undefined && given !== "") return given;
   yield* startPostgres;
-  yield* createDatabaseIfMissing(sharedDatabase);
-  return `${serverUrl}/${sharedDatabase}`;
+  const { name, migrations } = yield* chooseDatabase(env);
+  yield* createDatabaseIfMissing(name);
+  yield* checkMigrationsRecorded(name, migrations);
+  return `${serverUrl}/${name}`;
 });
