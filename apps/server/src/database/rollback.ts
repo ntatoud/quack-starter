@@ -3,7 +3,7 @@ import { SqlClient, SqlSchema } from "effect/sql";
 
 import { loadMigrationFiles, type MigrationFile } from "#/database/migration-files.ts";
 
-const MIGRATIONS_TABLE = "effect_sql_migrations";
+export const MIGRATIONS_TABLE = "effect_sql_migrations";
 
 export class RollbackFailed extends Schema.TaggedError<
   RollbackFailed,

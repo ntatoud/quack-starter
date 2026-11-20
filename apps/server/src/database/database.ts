@@ -4,7 +4,7 @@ import { Effect, Layer, Redacted, Schema, String } from "effect";
 import { SqlClient } from "effect/sql";
 import { isSqlError, type SqlError } from "effect/sql/SqlError";
 
-import { DatabaseConfig } from "#/config.ts";
+import { DatabaseConfig, type DatabaseSettings } from "#/config.ts";
 import { migrationsDirectory } from "#/database/migration-files.ts";
 
 export class DatabaseUnreachable extends Schema.TaggedError<
@@ -35,7 +35,7 @@ const unreachable = (url: Redacted.Redacted, cause: SqlError) =>
     ? new DatabaseUnreachable({ url: withoutPassword(Redacted.value(url)), cause })
     : cause;
 
-const connection = Effect.map(DatabaseConfig, ({ url, maxConnections }) => ({
+const connectionTo = ({ url, maxConnections }: DatabaseSettings) => ({
   url,
   client: PgClient.layer({
     url,
@@ -43,25 +43,29 @@ const connection = Effect.map(DatabaseConfig, ({ url, maxConnections }) => ({
     transformQueryNames: String.camelToSnake,
     transformResultNames: String.snakeToCamel,
   }),
-}));
+});
+
+const connection = Effect.map(DatabaseConfig, connectionTo);
 
 const Migrations = PgMigrator.layer({ loader: PgMigrator.fromFileSystem(migrationsDirectory) });
 
-export const Database = Layer.unwrap(
-  Effect.map(connection, ({ url, client }) =>
-    Migrations.pipe(
-      Layer.provideMerge(client),
-      // A failing Layer that provides the client's services, as `catchTag` keeps only what both provide.
-      Layer.catchTag("SqlError", (cause) =>
-        Layer.effectContext<
-          PgClient.PgClient | SqlClient.SqlClient,
-          DatabaseUnreachable | SqlError,
-          never
-        >(Effect.fail(unreachable(url, cause))),
-      ),
+export const databaseAt = (config: DatabaseSettings) => {
+  const { url, client } = connectionTo(config);
+  return Migrations.pipe(
+    Layer.provideMerge(client),
+    // A failing Layer that provides the client's services, as `catchTag` keeps only what both provide.
+    Layer.catchTag("SqlError", (cause) =>
+      Layer.effectContext<
+        PgClient.PgClient | SqlClient.SqlClient,
+        DatabaseUnreachable | SqlError,
+        never
+      >(Effect.fail(unreachable(url, cause))),
     ),
-  ),
-).pipe(Layer.provide(NodeServices.layer));
+    Layer.provide(NodeServices.layer),
+  );
+};
+
+export const Database = Layer.unwrap(Effect.map(DatabaseConfig, databaseAt));
 
 export const withDatabase = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
   Effect.flatMap(connection, ({ url, client }) =>

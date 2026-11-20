@@ -8,6 +8,7 @@ import { SqlClient } from "effect/sql/SqlClient";
 
 import { migrationFileNames, migrationsDirectory } from "#/database/migration-files.ts";
 import { appliedMigrations, migrationsTableExists } from "#/database/rollback.ts";
+import { seedDatabase } from "#/database/seed.ts";
 import { checkRecorded, databaseFor, Divergence, sharedDatabase } from "#/dev/database-choice.ts";
 
 export class DockerNotRunning extends Schema.TaggedError<
@@ -152,6 +153,12 @@ const checkMigrationsRecorded = Effect.fn("checkMigrationsRecorded")(
   (effect, database) => effect.pipe(onServer(database), Effect.scoped),
 );
 
+const recordsNoMigration = (database: string) =>
+  Effect.gen(function* () {
+    if (!(yield* migrationsTableExists)) return true;
+    return (yield* appliedMigrations).length === 0;
+  }).pipe(onServer(database), Effect.scoped);
+
 const createDatabaseIfMissing = (name: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient;
@@ -170,6 +177,7 @@ const createDatabaseIfMissing = (name: string) =>
 
 export const devDatabaseUrl = Effect.fn("devDatabaseUrl")(function* (
   env: Readonly<Record<string, string | undefined>>,
+  { seed }: { readonly seed: boolean },
 ) {
   const given = env["DATABASE_URL"];
   if (given !== undefined && given !== "") return given;
@@ -177,5 +185,10 @@ export const devDatabaseUrl = Effect.fn("devDatabaseUrl")(function* (
   const { name, migrations } = yield* chooseDatabase(env);
   yield* createDatabaseIfMissing(name);
   yield* checkMigrationsRecorded(name, migrations);
-  return `${serverUrl}/${name}`;
+  const url = `${serverUrl}/${name}`;
+  // Just created, or rolled back to 0: either way it holds no data to keep.
+  if (seed && (yield* recordsNoMigration(name))) {
+    yield* seedDatabase({ url: Redacted.make(url), maxConnections: 1 });
+  }
+  return url;
 });
