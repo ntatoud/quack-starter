@@ -5,6 +5,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { appendResponseHeader, getRequestHeader, getRequestIP } from "@tanstack/react-start/server";
 import { Schema } from "effect";
 
+import { preferencesQueryKey } from "#/features/preferences/preferences-store.ts";
 import { fetchCurrentUser } from "#/features/identity/fetch-current-user.server.ts";
 import { serverEnv } from "#/env/server.ts";
 
@@ -26,10 +27,10 @@ export const currentUserQueryOptions = queryOptions({
   queryFn: () => getCurrentUser(),
 });
 
-/** Drops every other query: they hold the data of the User before. */
+/** Drops the queries of the User before; the Preferences stay, since they belong to the device. */
 export const setCurrentUserData = (queryClient: QueryClient, user: typeof User.Encoded | null) => {
-  const [currentUserKey] = currentUserQueryOptions.queryKey;
-  queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== currentUserKey });
+  const kept = new Set<unknown>([currentUserQueryOptions.queryKey[0], preferencesQueryKey[0]]);
+  queryClient.removeQueries({ predicate: (query) => !kept.has(query.queryKey[0]) });
   queryClient.setQueryData(currentUserQueryOptions.queryKey, user);
 };
 

@@ -32,6 +32,11 @@ _Avoid_: Account, details, metadata
 What a User goes through after signing up, before reaching the app: they give their name, which creates their Profile. A User is onboarded once they have completed it, the date it records.
 _Avoid_: Setup, welcome, wizard
 
+**Preference**:
+How the app looks on a device, such as the side of the sidebar, whoever is signed in on it. Each one has a default, which a device where it was never changed gets.
+A User changes them in the settings, next to their Profile.
+_Avoid_: Customization, option
+
 **Admin**:
 A User whose Role is `admin`. Only an Admin sees the list of Users; any other Current User is forbidden from it.
 _Avoid_: Superuser, staff
