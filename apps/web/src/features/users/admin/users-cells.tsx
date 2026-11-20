@@ -1,4 +1,4 @@
-import type { User, UserStatus } from "@quack/contracts/identity/user";
+import type { Role, User, UserStatus } from "@quack/contracts/identity/user";
 import { Badge } from "@quack/ui/components/badge";
 import { DateTime } from "effect";
 
@@ -36,6 +36,10 @@ export function StatusBadge({ status }: { status: UserStatus }) {
     case "suspended":
       return <Badge variant="destructive">{label}</Badge>;
   }
+}
+
+export function RoleBadge({ role }: { role: Role }) {
+  return role === "admin" ? <Badge>Admin</Badge> : <Badge variant="secondary">User</Badge>;
 }
 
 const regionNames = new Intl.DisplayNames(["en"], { type: "region" });

@@ -1,0 +1,131 @@
+import { UserId } from "@quack/contracts/identity/user";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRouter,
+  RouterProvider,
+} from "@tanstack/react-router";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
+import { page } from "vite-plus/test/browser";
+import { render } from "vitest-browser-react";
+
+import { UserDetails } from "#/features/users/admin/user-details.tsx";
+
+const ada = {
+  id: "user-ada",
+  email: "ada@quack.dev",
+  role: "admin",
+  status: "suspended",
+  createdAt: "2026-01-01T00:00:00.000Z",
+  lastSignInAt: null,
+  onboardedAt: "2026-01-02T00:00:00.000Z",
+  profile: {
+    firstName: "Ada",
+    lastName: "Lovelace",
+    avatarUrl: null,
+    jobTitle: "Analyst",
+    team: "engineering",
+    country: "GB",
+  },
+};
+
+// The API client keeps the `fetch` it first saw, so one stub serves every test and each test sets its response.
+let respond: (request: Request) => Response | Promise<Response>;
+const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) =>
+  respond(new Request(input, init)),
+);
+vi.stubGlobal("fetch", fetch);
+
+const setup = async (id: string, response: typeof respond) => {
+  respond = response;
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const router = createRouter({
+    routeTree: createRootRoute({
+      component: () => <UserDetails id={UserId.make(id)} />,
+    }),
+    history: createMemoryHistory({ initialEntries: ["/"] }),
+  });
+  await render(
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>,
+  );
+};
+
+const detailOf = (term: string) =>
+  page.getByRole("term").filter({ hasText: term }).element().nextElementSibling?.textContent;
+
+const terms = () =>
+  page
+    .getByRole("term")
+    .elements()
+    .map((term) => term.textContent);
+
+afterEach(() => {
+  fetch.mockClear();
+});
+
+describe("UserDetails", () => {
+  it("asks the API for the User of the id", async () => {
+    await setup("user-ada", () => Response.json(ada));
+
+    await expect.element(page.getByRole("heading", { name: "Ada Lovelace" })).toBeVisible();
+    expect(new URL(String(fetch.mock.calls[0]?.[0])).pathname).toBe("/api/users/user-ada");
+  });
+
+  it("shows who the User is once, then their Profile and their activity", async () => {
+    await setup("user-ada", () => Response.json(ada));
+
+    await expect.element(page.getByRole("heading", { name: "Ada Lovelace" })).toBeVisible();
+    expect(page.getByText("ada@quack.dev").elements()).toHaveLength(1);
+    expect(page.getByText("Suspended", { exact: true }).elements()).toHaveLength(1);
+    expect(page.getByText("Admin", { exact: true }).elements()).toHaveLength(1);
+    expect(terms()).toEqual([
+      "Team",
+      "Job title",
+      "Country",
+      "Created",
+      "Onboarded",
+      "Last sign-in",
+    ]);
+    expect(detailOf("Job title")).toBe("Analyst");
+    expect(detailOf("Team")).toBe("Engineering");
+    expect(detailOf("Country")).toContain("United Kingdom");
+    expect(detailOf("Created")).toBe("Jan 1, 2026");
+    expect(detailOf("Onboarded")).toBe("Jan 2, 2026");
+    expect(detailOf("Last sign-in")).toBe("Never");
+  });
+
+  it("says a User who has not onboarded has no Profile yet", async () => {
+    await setup("user-ada", () => Response.json({ ...ada, profile: null, onboardedAt: null }));
+
+    await expect.element(page.getByText(/No profile yet/)).toBeVisible();
+    expect(detailOf("Onboarded")).toBe("Not yet");
+    await expect.element(page.getByRole("heading", { name: "ada@quack.dev" })).toBeVisible();
+    expect(page.getByRole("term").filter({ hasText: "Team" }).elements()).toHaveLength(0);
+  });
+
+  it("says no User has an id the API does not know, and links to the list", async () => {
+    await setup("nobody", () =>
+      Response.json({ _tag: "UserNotFound", id: "nobody" }, { status: 404 }),
+    );
+
+    await expect.element(page.getByRole("alert").getByText("No such user")).toBeVisible();
+    await expect
+      .element(page.getByRole("link", { name: "See every user" }))
+      .toHaveAttribute("href", "/admin/users");
+  });
+
+  it("offers to try again when the User cannot be loaded, and loads them on the retry", async () => {
+    await setup("user-ada", () => new Response(null, { status: 500 }));
+    await expect
+      .element(page.getByRole("alert").getByText("Could not load the user"))
+      .toBeVisible();
+
+    respond = () => Response.json(ada);
+    await page.getByRole("button", { name: "Try again" }).click();
+
+    await expect.element(page.getByRole("heading", { name: "Ada Lovelace" })).toBeVisible();
+  });
+});
