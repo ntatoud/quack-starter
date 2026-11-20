@@ -2,12 +2,13 @@ import * as Path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { PgClient } from "@effect/sql-pg";
-import { Effect, Redacted, Schema, String } from "effect";
+import { ConfigProvider, Effect, Redacted, Schema, String } from "effect";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
 import { SqlClient } from "effect/sql/SqlClient";
 
 import { migrationFileNames, migrationsDirectory } from "#/database/migration-files.ts";
 import { appliedMigrations, migrationsTableExists } from "#/database/rollback.ts";
+import { seedDatabase } from "#/database/seed.ts";
 import { checkRecorded, databaseFor, Divergence, sharedDatabase } from "#/dev/database-choice.ts";
 
 export class DockerNotRunning extends Schema.TaggedError<
@@ -136,7 +137,8 @@ const onServer = (database: string) =>
 
 const checkMigrationsRecorded = Effect.fn("checkMigrationsRecorded")(
   function* (database: string, migrations: ReadonlyArray<string>) {
-    const recorded = (yield* migrationsTableExists) ? yield* appliedMigrations : [];
+    const migrated = yield* migrationsTableExists;
+    const recorded = migrated ? yield* appliedMigrations : [];
     const { behind, diverged } = checkRecorded({ migrations, recorded });
     if (diverged.length > 0) {
       return yield* new MigrationsDiverged({ database, divergences: diverged });
@@ -148,6 +150,7 @@ const checkMigrationsRecorded = Effect.fn("checkMigrationsRecorded")(
           .join(", ")}. Rebase the branch on the default branch to catch up.`,
       );
     }
+    return { migrated };
   },
   (effect, database) => effect.pipe(onServer(database), Effect.scoped),
 );
@@ -176,6 +179,13 @@ export const devDatabaseUrl = Effect.fn("devDatabaseUrl")(function* (
   yield* startPostgres;
   const { name, migrations } = yield* chooseDatabase(env);
   yield* createDatabaseIfMissing(name);
-  yield* checkMigrationsRecorded(name, migrations);
-  return `${serverUrl}/${name}`;
+  const { migrated } = yield* checkMigrationsRecorded(name, migrations);
+  const url = `${serverUrl}/${name}`;
+  // A database never migrated was just created, or its first seed failed: either way it is empty.
+  if (!migrated) {
+    yield* seedDatabase.pipe(
+      Effect.provide(ConfigProvider.layer(ConfigProvider.fromUnknown({ DATABASE_URL: url }))),
+    );
+  }
+  return url;
 });

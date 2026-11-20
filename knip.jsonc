@@ -10,7 +10,11 @@
     "apps/server": {
       // Run through with-dev-database.ts, which knip does not read as an entry.
       // The Migrator loads the migrations from their folder, not through an import.
-      "entry": ["src/database/rollback-main.ts", "src/database/migrations/*.ts"],
+      "entry": [
+        "src/database/rollback-main.ts",
+        "src/database/seed-main.ts",
+        "src/database/migrations/*.ts",
+      ],
     },
     "apps/web": {
       "entry": ["src/routes/**/*.tsx"],

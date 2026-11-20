@@ -11,6 +11,7 @@
     "typecheck": "effect-tsgo tsc --noEmit",
     "typecheck:ci": "effect-tsgo tsrs --noEmit",
     "db:rollback": "node --env-file-if-exists=../../.env src/dev/with-dev-database.ts node --env-file-if-exists=../../.env src/database/rollback-main.ts",
+    "db:seed": "node --env-file-if-exists=../../.env src/dev/with-dev-database.ts node --env-file-if-exists=../../.env src/database/seed-main.ts",
     "test": "vp test run"
   },
   "dependencies": {
