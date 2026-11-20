@@ -12,7 +12,7 @@ import { describe, expect, it } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 import { render } from "vitest-browser-react";
 
-import { SettingsLayout } from "#/features/layout/settings-layout.tsx";
+import { SettingsLayout } from "#/features/settings/settings-layout.tsx";
 import type { PreferenceValues } from "#/features/preferences/preferences.ts";
 import { testProviders } from "#/testing/test-providers.tsx";
 
