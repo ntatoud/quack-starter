@@ -38,8 +38,9 @@ export function DataTableColumnHeader({
 )) {
   // Read when the menu closes: the filter takes the focus, not the header.
   const filtering = React.useRef(false);
-  // The ghost button's padding is pulled back, so its label lines up with the cells under it.
-  const edge = align === "end" ? "-me-2.5" : "-ms-2.5";
+  // The ghost button's padding is pulled back, so its label lines up with the cells under it, and it takes the
+  // text size of a plain header, which a small button would shrink.
+  const buttonClassName = cn("text-sm", align === "end" ? "-me-2.5" : "-ms-2.5");
   const hintId = React.useId();
 
   if (onSort === undefined)
@@ -49,7 +50,7 @@ export function DataTableColumnHeader({
         data-slot="data-table-column-header"
         variant="ghost"
         size="sm"
-        className={edge}
+        className={buttonClassName}
         aria-describedby={hintId}
         onClick={onFilter}
       >
@@ -78,7 +79,12 @@ export function DataTableColumnHeader({
     >
       <DropdownMenuTrigger
         render={
-          <Button data-slot="data-table-column-header" variant="ghost" size="sm" className={edge} />
+          <Button
+            data-slot="data-table-column-header"
+            variant="ghost"
+            size="sm"
+            className={buttonClassName}
+          />
         }
       >
         {/* Over a column of numbers, the icon comes first: the title then lines up with the figures. */}
