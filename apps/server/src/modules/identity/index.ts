@@ -1,7 +1,5 @@
 import { NodeCrypto } from "@effect/platform-node";
-import { Effect, Layer } from "effect";
-
-import { ServerConfig } from "#/config.ts";
+import { Layer } from "effect";
 
 import { Identity } from "#/modules/identity/application/identity.ts";
 import { IdentitySeed } from "#/modules/identity/application/identity-seed.ts";
@@ -13,19 +11,15 @@ import { SessionCookie } from "#/modules/identity/http/session-cookie.ts";
 import { UsersHandlers } from "#/modules/identity/http/users-handlers.ts";
 import { AttemptLimiterMemory } from "#/modules/identity/infrastructure/attempt-limiter-memory.ts";
 import { PasswordHasherArgon2 } from "#/modules/identity/infrastructure/password-hasher-argon2.ts";
+import { UserRepositoryPostgres } from "#/modules/identity/infrastructure/user-repository-postgres.ts";
 
 export { IdentitySeed };
 
-const DevUserSeed = Layer.unwrap(
-  Effect.gen(function* () {
-    const { seedUsers } = yield* ServerConfig;
-    return seedUsers ? IdentitySeed : Layer.empty;
-  }),
-);
+export const IdentityPostgres = UserRepositoryPostgres;
 
 export const IdentityModule = Layer.mergeAll(IdentityHandlers, UsersHandlers).pipe(
   Layer.provideMerge([AuthenticationMiddleware, RequireRoleMiddleware]),
-  Layer.provide([Identity.layer, Users.layer, SessionCookie.layer, DevUserSeed]),
+  Layer.provide([Identity.layer, Users.layer, SessionCookie.layer]),
   Layer.provide([PasswordHasherArgon2, AttemptLimiterMemory]),
   Layer.provide([NodeCrypto.layerSecureRandom, NodeCrypto.layerDigest, NodeCrypto.layerKdf]),
 );

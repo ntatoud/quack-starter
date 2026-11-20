@@ -13,7 +13,7 @@ import { Users } from "#/modules/identity/application/users.ts";
 import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
 import { RequireRoleMiddleware } from "#/modules/identity/http/require-role-middleware.ts";
 import { UsersHandlers } from "#/modules/identity/http/users-handlers.ts";
-import { UserRepositoryMemory } from "#/modules/identity/infrastructure/user-repository-memory.ts";
+import { UserRepositoryMemory } from "#/modules/identity/testing/user-repository-memory.ts";
 
 const day = (n: number) => DateTime.makeUnsafe(`2026-01-${String(n).padStart(2, "0")}T00:00:00Z`);
 

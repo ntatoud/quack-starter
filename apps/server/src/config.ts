@@ -11,7 +11,6 @@ const attemptLimit = (name: string, limit: number, window: Duration.Duration) =>
 export const ServerConfig = Config.all({
   port: Config.Port("PORT").pipe(Config.withDefault(3001)),
   cookieSecure: Config.Boolean("COOKIE_SECURE").pipe(Config.withDefault(true)),
-  seedUsers: Config.Boolean("SEED_USERS").pipe(Config.withDefault(false)),
   attemptLimits: Config.all({
     signInFailuresPerEmail: attemptLimit("SIGN_IN_FAILURES_PER_EMAIL", 5, Duration.minutes(15)),
     signInFailuresPerIp: attemptLimit("SIGN_IN_FAILURES_PER_IP", 20, Duration.minutes(15)),
