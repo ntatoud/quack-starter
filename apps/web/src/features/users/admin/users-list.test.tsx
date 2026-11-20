@@ -532,9 +532,9 @@ describe("UsersList", () => {
   });
 
   it("hides the button once every filter is shown", async () => {
-    await setup(usersOn, "/admin/users?status=active&role=user&team=design");
+    await setup(usersOn, "/admin/users?status=active&role=user&team=design&onboarded=true");
 
-    await expect.element(page.getByRole("button", { name: "Team: Design" })).toBeVisible();
+    await expect.element(page.getByRole("button", { name: "Onboarded: Yes" })).toBeVisible();
     expect(page.getByRole("button", { name: "Add filter" }).elements()).toHaveLength(0);
   });
 
@@ -555,18 +555,20 @@ describe("UsersList", () => {
     await expect.element(other.getByRole("cell", { name: "Not yet" })).toBeVisible();
   });
 
-  it("sorts by the last sign-in from its header", async () => {
+  it.each([
+    { title: "Last sign-in", orderBy: "lastSignInAt" },
+    { title: "Onboarded", orderBy: "onboardedAt" },
+    { title: "Created", orderBy: "createdAt" },
+  ])("sorts by the date $title from its header", async ({ title, orderBy }) => {
     const { router } = await setup(usersOn);
     await expect.element(page.getByText("user-1@quack.dev")).toBeVisible();
 
-    await page.getByRole("button", { name: "Last sign-in", exact: true }).click();
+    await page.getByRole("button", { name: title, exact: true }).click();
     await page.getByRole("menuitemradio", { name: "Descending" }).click();
 
-    await expect
-      .poll(() => router.state.location.search)
-      .toEqual({ orderBy: "lastSignInAt", dir: "desc" });
-    await expect.poll(() => sortOf("Last sign-in")).toBe("descending");
-    expect(lastQuery().get("orderBy")).toBe("lastSignInAt");
+    await expect.poll(() => router.state.location.search).toEqual({ orderBy, dir: "desc" });
+    await expect.poll(() => sortOf(title)).toBe("descending");
+    expect(lastQuery().get("orderBy")).toBe(orderBy);
   });
 
   it("offers no filter from the header of a column that has none", async () => {
@@ -596,6 +598,19 @@ describe("UsersList", () => {
     await expect.element(page.getByRole("button", { name: "Team: Design" })).toBeVisible();
     expect(lastQuery().get("status")).toBe("suspended");
     expect(lastQuery().get("team")).toBe("design");
+  });
+
+  it("filters the Users not yet onboarded from the header, and keeps it in the URL", async () => {
+    const { router } = await setup(usersOn);
+    await expect.element(page.getByText("user-1@quack.dev")).toBeVisible();
+
+    await page.getByRole("button", { name: "Onboarded", exact: true }).click();
+    await page.getByRole("menuitem", { name: "Filter" }).click();
+    await page.getByRole("menuitemradio", { name: "No" }).click();
+
+    await expect.poll(() => router.state.location.search).toEqual({ onboarded: false });
+    await expect.element(page.getByRole("button", { name: "Onboarded: No" })).toBeVisible();
+    expect(lastQuery().get("onboarded")).toBe("false");
   });
 
   it("filters by name from its header in the search", async () => {

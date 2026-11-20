@@ -2,6 +2,7 @@ import { Team } from "@quack/contracts/identity/profile";
 import { Role, UserStatus } from "@quack/contracts/identity/user";
 import { defaultPageSize } from "@quack/contracts/pagination/paginated";
 import { UserOrder } from "@quack/contracts/users/users-api";
+import { Schema } from "effect";
 
 import {
   type DataTableSearch,
@@ -15,6 +16,6 @@ export const defaultUsersSorting = { column: "email", direction: "asc" } as cons
 export const UsersSearch = dataTableSearchSchema({
   columns: UserOrder.literals,
   pageSizes: usersPageSizes,
-  filters: { status: UserStatus, role: Role, team: Team },
+  filters: { status: UserStatus, role: Role, team: Team, onboarded: Schema.Boolean },
 });
 export type UsersSearch = DataTableSearch<typeof UsersSearch>;

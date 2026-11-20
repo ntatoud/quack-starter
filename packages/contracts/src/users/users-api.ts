@@ -21,6 +21,7 @@ export const UserOrder = Schema.Literals([
   "team",
   "country",
   "createdAt",
+  "onboardedAt",
   "lastSignInAt",
 ]);
 export type UserOrder = typeof UserOrder.Type;
@@ -37,6 +38,7 @@ export const UserListQuery = Schema.Struct({
   status: Schema.optionalKey(UserStatus),
   role: Schema.optionalKey(Role),
   team: Schema.optionalKey(Team),
+  onboarded: Schema.optionalKey(Schema.Boolean),
   ...sortingFields(UserOrder.literals, "email"),
 });
 export type UserListQuery = typeof UserListQuery.Type;

@@ -5,17 +5,16 @@ import { Forbidden, Unauthenticated } from "@quack/contracts/identity/identity-e
 import { CountryCode, Profile, type Team } from "@quack/contracts/identity/profile";
 import { Email, type Role, User, UserId, type UserStatus } from "@quack/contracts/identity/user";
 import type { UserOrder } from "@quack/contracts/users/users-api";
-import { DateTime, Effect, Layer, Redacted } from "effect";
+import { Effect, Layer, Redacted } from "effect";
 import { HttpClientRequest, HttpServer } from "effect/http";
 import { HttpApiMiddleware, HttpApiTest } from "effect/http-api";
 
 import { Users } from "#/modules/identity/application/users.ts";
 import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
+import { day, dayOrNull } from "#/modules/identity/testing/days.ts";
 import { RequireRoleMiddleware } from "#/modules/identity/http/require-role-middleware.ts";
 import { UsersHandlers } from "#/modules/identity/http/users-handlers.ts";
 import { UserRepositoryMemory } from "#/modules/identity/testing/user-repository-memory.ts";
-
-const day = (n: number) => DateTime.makeUnsafe(`2026-01-${String(n).padStart(2, "0")}T00:00:00Z`);
 
 const userOf = (
   name: string,
@@ -24,12 +23,14 @@ const userOf = (
     status = "active",
     createdOn,
     lastSignInOn,
+    onboardedOn = null,
     profile,
   }: {
     role?: Role;
     status?: UserStatus;
     createdOn: number;
     lastSignInOn: number | null;
+    onboardedOn?: number | null;
     profile: { lastName: string; team: Team; country: string } | null;
   },
 ) =>
@@ -39,8 +40,8 @@ const userOf = (
     role,
     status,
     createdAt: day(createdOn),
-    lastSignInAt: lastSignInOn === null ? null : day(lastSignInOn),
-    onboardedAt: null,
+    lastSignInAt: dayOrNull(lastSignInOn),
+    onboardedAt: dayOrNull(onboardedOn),
     profile:
       profile === null
         ? null
@@ -58,11 +59,13 @@ const grace = userOf("grace", {
   role: "admin",
   createdOn: 1,
   lastSignInOn: 10,
+  onboardedOn: 1,
   profile: { lastName: "Hopper", team: "engineering", country: "US" },
 });
 const ada = userOf("ada", {
   createdOn: 2,
   lastSignInOn: 9,
+  onboardedOn: 3,
   profile: { lastName: "Lovelace", team: "product", country: "GB" },
 });
 const linus = userOf("linus", {
@@ -308,6 +311,19 @@ layer(Layer.mergeAll(UsersLayer, HttpServer.layerServices))("UsersApi", (it) => 
       assert.deepStrictEqual(yield* emailsWhere({ status: "active", team: "engineering" }), [
         grace.email,
       ]);
+    }),
+  );
+
+  it.effect("keeps the Users onboarded, or those not yet", () =>
+    Effect.gen(function* () {
+      const client = yield* clientOf(grace);
+      const emailsWhere = (onboarded: boolean) =>
+        client.users
+          .list({ query: { ...firstPage, onboarded } })
+          .pipe(Effect.map(({ items }) => items.map(({ email }) => email)));
+
+      assert.deepStrictEqual(yield* emailsWhere(true), emailsOf(ada, grace));
+      assert.deepStrictEqual(yield* emailsWhere(false), emailsOf(barbara, edsger, linus));
     }),
   );
 

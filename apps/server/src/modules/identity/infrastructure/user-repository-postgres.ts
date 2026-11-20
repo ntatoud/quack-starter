@@ -48,6 +48,7 @@ export const UserRepositoryPostgres = Layer.effect(
       country: [sql`country`],
       createdAt: [sql`created_at`],
       lastSignInAt: [sql`last_sign_in_at`],
+      onboardedAt: [sql`onboarded_at`],
     };
 
     const selectUser = (condition: Fragment) =>
@@ -69,7 +70,7 @@ export const UserRepositoryPostgres = Layer.effect(
     const list = SqlSchema.findOne({
       Request: Schema.toType(UserListQuery),
       Result: UserList,
-      execute: ({ page, pageSize, orderBy, dir, search = "", status, role, team }) => {
+      execute: ({ page, pageSize, orderBy, dir, search = "", status, role, team, onboarded }) => {
         const pattern = `%${escapeLike(search)}%`;
         const filters = [
           ...(search === ""
@@ -78,6 +79,9 @@ export const UserRepositoryPostgres = Layer.effect(
           ...(status === undefined ? [] : [sql`status = ${status}`]),
           ...(role === undefined ? [] : [sql`role = ${role}`]),
           ...(team === undefined ? [] : [sql`team = ${team}`]),
+          ...(onboarded === undefined
+            ? []
+            : [onboarded ? sql`onboarded_at IS NOT NULL` : sql`onboarded_at IS NULL`]),
         ];
         const direction = dir === "asc" ? sql`ASC` : sql`DESC`;
         const order = sql.csv([
