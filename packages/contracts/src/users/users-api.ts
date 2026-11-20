@@ -7,7 +7,12 @@ import { Team } from "#/identity/profile.ts";
 import { Role, User, UserId, UserStatus } from "#/identity/user.ts";
 import { Paginated, PaginationQuery } from "#/pagination/paginated.ts";
 import { sortingFields } from "#/sorting/sorting.ts";
-import { CannotChangeOwnAccess, UserInvited, UserNotFound } from "#/users/user-errors.ts";
+import {
+  CannotChangeOwnAccess,
+  CannotDeleteSelf,
+  UserInvited,
+  UserNotFound,
+} from "#/users/user-errors.ts";
 
 export class UserList extends Schema.Class<UserList, { readonly brand: unique symbol }>("UserList")(
   Paginated(User).fields,
@@ -46,6 +51,7 @@ export type UserListQuery = typeof UserListQuery.Type;
 
 const NotFound = UserNotFound.pipe(HttpApiSchema.status(404));
 const OwnAccess = CannotChangeOwnAccess.pipe(HttpApiSchema.status(403));
+const DeleteSelf = CannotDeleteSelf.pipe(HttpApiSchema.status(403));
 const Invited = UserInvited.pipe(HttpApiSchema.status(409));
 
 /** What an Admin changes on a User, a field or more. `invited` is no choice: the User leaves it by choosing a password. */
@@ -72,6 +78,11 @@ export class UsersApi extends HttpApiGroup.make("users")
       payload: UserChanges,
       success: User,
       error: [NotFound, OwnAccess, Invited],
+    }),
+    HttpApiEndpoint.delete("remove", "/:id", {
+      params: { id: UserId },
+      success: HttpApiSchema.NoContent,
+      error: [NotFound, DeleteSelf],
     }),
   )
   .middleware(RequireRole("admin"))

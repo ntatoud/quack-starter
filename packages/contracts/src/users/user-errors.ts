@@ -15,6 +15,12 @@ export class CannotChangeOwnAccess extends Schema.TaggedError<
   { readonly brand: unique symbol }
 >()("CannotChangeOwnAccess", {}) {}
 
+/** An Admin cannot delete themself: the last Admin could leave none. */
+export class CannotDeleteSelf extends Schema.TaggedError<
+  CannotDeleteSelf,
+  { readonly brand: unique symbol }
+>()("CannotDeleteSelf", {}) {}
+
 /** An invited User has not chosen a password yet: they cannot sign in, so their status has nothing to change. */
 export class UserInvited extends Schema.TaggedError<
   UserInvited,

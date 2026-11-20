@@ -6,6 +6,7 @@ import { CountryCode, Profile, type Team } from "@quack/contracts/identity/profi
 import { Email, type Role, User, UserId, type UserStatus } from "@quack/contracts/identity/user";
 import {
   CannotChangeOwnAccess,
+  CannotDeleteSelf,
   UserInvited,
   UserNotFound,
 } from "@quack/contracts/users/user-errors";
@@ -515,6 +516,56 @@ layer(Layer.mergeAll(UsersLayer, HttpServer.layerServices))("UsersApi changes", 
       const error = yield* client.users
         .update({ params: { id: target.id }, payload: { status: "suspended" } })
         .pipe(Effect.flip);
+
+      assert.deepStrictEqual(error, new Forbidden());
+    }),
+  );
+
+  it.effect("deletes a User, who is then found no more", () =>
+    Effect.gen(function* () {
+      const client = yield* clientOf(grace);
+      const target = yield* ownUser("delete-me");
+      const params = { id: target.id };
+
+      const response = yield* client.users.remove({ params, responseMode: "response-only" });
+      const error = yield* client.users.get({ params }).pipe(Effect.flip);
+
+      assert.strictEqual(response.status, 204);
+      assert.deepStrictEqual(error, new UserNotFound({ id: target.id }));
+    }),
+  );
+
+  it.effect("refuses an admin to delete themself, 403, and deletes nothing", () =>
+    Effect.gen(function* () {
+      const client = yield* clientOf(grace);
+      const params = { id: grace.id };
+
+      const error = yield* client.users.remove({ params }).pipe(Effect.flip);
+      const response = yield* client.users.remove({ params, responseMode: "response-only" });
+
+      assert.deepStrictEqual(error, new CannotDeleteSelf());
+      assert.strictEqual(response.status, 403);
+      assert.deepStrictEqual(yield* client.users.get({ params }), grace);
+    }),
+  );
+
+  it.effect("answers UserNotFound, 404, to delete an id no User has", () =>
+    Effect.gen(function* () {
+      const client = yield* clientOf(grace);
+      const id = UserId.make("nobody");
+
+      const error = yield* client.users.remove({ params: { id } }).pipe(Effect.flip);
+
+      assert.deepStrictEqual(error, new UserNotFound({ id }));
+    }),
+  );
+
+  it.effect("refuses a user to delete anyone with Forbidden, 403", () =>
+    Effect.gen(function* () {
+      const client = yield* clientOf(ada);
+      const target = yield* ownUser("not-deleted-by-ada");
+
+      const error = yield* client.users.remove({ params: { id: target.id } }).pipe(Effect.flip);
 
       assert.deepStrictEqual(error, new Forbidden());
     }),

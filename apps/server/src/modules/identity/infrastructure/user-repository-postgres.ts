@@ -14,6 +14,9 @@ const UserList = Schema.Struct({ items: Schema.Array(User), total: Schema.Int })
 // An id that is no uuid finds no User: Postgres would refuse to compare it with the column, and fail the request.
 const isStorableId = Schema.is(Schema.String.check(Schema.isUUID()));
 
+const byStorableId = <A, E>(id: UserId, query: Effect.Effect<A, E>, none: A): Effect.Effect<A> =>
+  isStorableId(id) ? Effect.orDie(query) : Effect.succeed(none);
+
 const escapeLike = (text: string) => text.replaceAll(/[\\%_]/g, "\\$&");
 
 export const UserRepositoryPostgres = Layer.effect(
@@ -150,6 +153,13 @@ export const UserRepositoryPostgres = Layer.effect(
             ${profileWrite(user)}`,
     });
 
+    // The Profile, the Todos, and the Sessions of the User go with them (`ON DELETE CASCADE`).
+    const remove = SqlSchema.findAll({
+      Request: UserId,
+      Result: Schema.Struct({ id: UserId }),
+      execute: (id) => sql`DELETE FROM users WHERE id = ${id} RETURNING id`,
+    });
+
     return UserRepository.of({
       nextId: Effect.sync(() => UserId.make(crypto.randomUUID())),
       create: Effect.fn("UserRepository.create")(function* (user, passwordHash) {
@@ -165,13 +175,15 @@ export const UserRepositoryPostgres = Layer.effect(
         );
       }),
       update: Effect.fn("UserRepository.update")((user) => update(user).pipe(Effect.orDie)),
+      remove: Effect.fn("UserRepository.remove")((id) =>
+        byStorableId(id, remove(id).pipe(Effect.map((removed) => removed.length > 0)), false),
+      ),
       findById: Effect.fn("UserRepository.findById")((id) =>
-        isStorableId(id)
-          ? findById(id).pipe(
-              Effect.map((found) => found.pipe(Option.map(({ user }) => user))),
-              Effect.orDie,
-            )
-          : Effect.succeedNone,
+        byStorableId(
+          id,
+          findById(id).pipe(Effect.map((found) => found.pipe(Option.map(({ user }) => user)))),
+          Option.none(),
+        ),
       ),
       findByEmail: Effect.fn("UserRepository.findByEmail")((email) =>
         findByEmail(email).pipe(Effect.orDie),

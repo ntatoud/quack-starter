@@ -3,6 +3,7 @@ import type { Profile } from "@quack/contracts/identity/profile";
 import { User, type UserId } from "@quack/contracts/identity/user";
 import {
   CannotChangeOwnAccess,
+  CannotDeleteSelf,
   UserInvited,
   UserNotFound,
 } from "@quack/contracts/users/user-errors";
@@ -23,6 +24,8 @@ export class Users extends Context.Service<
       changes: UserChanges,
       by: UserId,
     ): Effect.Effect<User, UserNotFound | CannotChangeOwnAccess | UserInvited>;
+    /** `by` is the Admin who asks. */
+    remove(id: UserId, by: UserId): Effect.Effect<void, UserNotFound | CannotDeleteSelf>;
     updateProfile(id: UserId, profile: Profile): Effect.Effect<User, Unauthenticated>;
   }
 >()("@quack/server/identity/Users") {
@@ -52,6 +55,11 @@ export class Users extends Context.Service<
           const user = new User({ ...found.value, ...changes });
           yield* repository.update(user);
           return user;
+        }),
+        remove: Effect.fn("Users.remove")(function* (id, by) {
+          if (id === by) return yield* new CannotDeleteSelf();
+          const removed = yield* repository.remove(id);
+          if (!removed) return yield* new UserNotFound({ id });
         }),
         updateProfile: Effect.fn("Users.updateProfile")(function* (id, profile) {
           // Read again rather than taken from the Current User: the write must not bring back what changed since the request was authenticated.
