@@ -8,12 +8,12 @@ import { usePreference, useSetPreference } from "#/features/preferences/use-pref
 import { testProviders } from "#/testing/test-providers.tsx";
 
 function RightSidebar() {
-  const rightSidebar = usePreference("right-sidebar");
+  const isRightSidebar = usePreference("right-sidebar");
   const setPreference = useSetPreference();
 
   return (
-    <button type="button" onClick={() => setPreference("right-sidebar", !rightSidebar)}>
-      {rightSidebar ? "On the right" : "On the left"}
+    <button type="button" onClick={() => setPreference("right-sidebar", !isRightSidebar)}>
+      {isRightSidebar ? "On the right" : "On the left"}
     </button>
   );
 }

@@ -85,9 +85,9 @@ describe("SettingsLayout", () => {
 
   it.each([false, true])(
     "puts its menu on the left of the section, level with its top, right sidebar %s",
-    async (rightSidebar) => {
+    async (isRightSidebar) => {
       const { navBox, sectionBox } = await setup("/app/settings/profile", {
-        "right-sidebar": rightSidebar,
+        "right-sidebar": isRightSidebar,
       });
 
       await expect.poll(() => navBox().left < sectionBox().left).toBe(true);

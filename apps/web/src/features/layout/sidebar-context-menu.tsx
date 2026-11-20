@@ -12,7 +12,7 @@ import { usePreference, useSetPreference } from "#/features/preferences/use-pref
 
 /** The content of the sidebar, whose empty space opens a menu of the Preferences of the sidebar. */
 export function SidebarContentWithMenu({ children }: { children: ReactNode }) {
-  const rightSidebar = usePreference("right-sidebar");
+  const isRightSidebar = usePreference("right-sidebar");
   const setPreference = useSetPreference();
 
   return (
@@ -30,9 +30,9 @@ export function SidebarContentWithMenu({ children }: { children: ReactNode }) {
         {children}
       </ContextMenuTrigger>
       <ContextMenuContent>
-        <ContextMenuItem onClick={() => setPreference("right-sidebar", !rightSidebar)}>
-          {rightSidebar ? <PanelLeftIcon /> : <PanelRightIcon />}
-          {rightSidebar ? "Move left" : "Move right"}
+        <ContextMenuItem onClick={() => setPreference("right-sidebar", !isRightSidebar)}>
+          {isRightSidebar ? <PanelLeftIcon /> : <PanelRightIcon />}
+          {isRightSidebar ? "Move left" : "Move right"}
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>

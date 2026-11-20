@@ -24,7 +24,7 @@ const setup = async (preferences: Partial<PreferenceValues> = {}) => {
   return {
     applied: () => queryClient.getQueryData(preferencesQueryOptions(preferencesStore).queryKey),
     stored: () => preferencesStore.read(),
-    rightSidebar: page.getByRole("switch", { name: "Right sidebar" }),
+    rightSidebarSwitch: page.getByRole("switch", { name: "Right sidebar" }),
   };
 };
 
@@ -32,14 +32,14 @@ describe("PreferencesForm", () => {
   it("starts from the Preferences of the device: the sidebar on the left by default", async () => {
     const form = await setup();
 
-    await expect.element(form.rightSidebar).not.toBeChecked();
-    await expect.element(form.rightSidebar).toHaveAccessibleDescription(/on this device/);
+    await expect.element(form.rightSidebarSwitch).not.toBeChecked();
+    await expect.element(form.rightSidebarSwitch).toHaveAccessibleDescription(/on this device/);
   });
 
   it("keeps and applies a change as soon as it is made, with no button and no request", async () => {
     const form = await setup();
 
-    await form.rightSidebar.click();
+    await form.rightSidebarSwitch.click();
 
     const right = { ...Preferences.defaults, "right-sidebar": true };
     await expect.poll(form.applied).toEqual(right);
@@ -47,7 +47,7 @@ describe("PreferencesForm", () => {
     expect(page.getByRole("button", { name: "Save" }).elements()).toEqual([]);
     expect(fetch).not.toHaveBeenCalled();
 
-    await form.rightSidebar.click();
+    await form.rightSidebarSwitch.click();
 
     await expect.poll(form.applied).toEqual(Preferences.defaults);
     expect(form.stored()).toEqual(Preferences.defaults);

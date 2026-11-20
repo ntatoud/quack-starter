@@ -25,7 +25,7 @@ import { UserAvatar } from "#/features/users/user-avatar.tsx";
 export function UserMenu({ currentUser }: { currentUser: typeof User.Encoded }) {
   const { isMobile } = useSidebar();
   const signOut = useSignOut();
-  const rightSidebar = usePreference("right-sidebar");
+  const isRightSidebar = usePreference("right-sidebar");
 
   return (
     <SidebarMenu>
@@ -44,7 +44,7 @@ export function UserMenu({ currentUser }: { currentUser: typeof User.Encoded }) 
             <ChevronsUpDownIcon className="ml-auto" />
           </DropdownMenuTrigger>
           <DropdownMenuContent
-            side={isMobile ? "bottom" : rightSidebar ? "left" : "right"}
+            side={isMobile ? "bottom" : isRightSidebar ? "left" : "right"}
             align="end"
             sideOffset={4}
             className="w-(--anchor-width) min-w-56 rounded-lg"
