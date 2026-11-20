@@ -6,7 +6,8 @@
     "./globals.css": "./src/styles/globals.css",
     "./lib/*": "./src/lib/*.ts",
     "./hooks/*": "./src/hooks/*.ts",
-    "./components/*": "./src/components/*.tsx"
+    "./components/*": "./src/components/*.tsx",
+    "./testing/*": "./src/testing/*.ts"
   },
   "scripts": {
     "typecheck": "effect-tsgo tsc --noEmit",
@@ -17,6 +18,7 @@
     "@base-ui/react": "1.9.0",
     "@fontsource-variable/geist": "5.3.0",
     "@tanstack/react-table": "catalog:",
+    "@tanstack/react-virtual": "3.14.26",
     "class-variance-authority": "0.7.1",
     "cn": "0.5.2",
     "lucide-react": "catalog:",

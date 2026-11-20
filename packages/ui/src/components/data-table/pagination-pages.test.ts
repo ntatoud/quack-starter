@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { pageCount, pagesAround } from "#/components/page-pagination.tsx";
+import { pageCount, pagesAround } from "@quack/ui/components/data-table/pagination";
 
 describe("pagesAround", () => {
   it("shows every page when there are few", () => {
@@ -25,5 +25,13 @@ describe("pageCount", () => {
     expect(pageCount(41, 20)).toBe(3);
     expect(pageCount(40, 20)).toBe(2);
     expect(pageCount(0, 20)).toBe(1);
+  });
+});
+
+describe("pageCount", () => {
+  it("counts one page for no rows, or a total that is not a number", () => {
+    expect(pageCount(0, 10)).toBe(1);
+    expect(pageCount(Number.NaN, 10)).toBe(1);
+    expect(pageCount(45, 10)).toBe(5);
   });
 });

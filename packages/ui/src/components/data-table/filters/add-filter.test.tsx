@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
-import { render } from "vitest-browser-react";
 
-import { DataTableAddFilter } from "@quack/ui/components/data-table-add-filter";
+import { DataTableAddFilter } from "@quack/ui/components/data-table/filters/add-filter";
+
+import { render } from "vitest-browser-react";
 
 const filters = [
   { key: "status", title: "Status" },

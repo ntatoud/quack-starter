@@ -1,22 +1,23 @@
-import { defaultPageSize } from "@quack/contracts/pagination/paginated";
 import { keepPreviousData } from "@tanstack/react-query";
 
-import type { UsersQuery } from "#/features/users/admin/users-search.ts";
+import type { UsersTable } from "#/features/users/admin/users-table.ts";
 import { api } from "#/lib/api.ts";
 
-export const usersQueryOptions = ({ page, search, status, role, team, orderBy, dir }: UsersQuery) =>
-  api.users.list.queryOptions({
+export const usersQueryOptions = ({ state, page, pageSize, sorting }: UsersTable) => {
+  const search = state.q?.trim() ?? "";
+  return api.users.list.queryOptions({
     input: {
       query: {
         page,
-        pageSize: defaultPageSize,
-        orderBy,
-        dir,
+        pageSize,
+        orderBy: sorting.column,
+        dir: sorting.direction,
         ...(search === "" ? {} : { search }),
-        ...(status === undefined ? {} : { status }),
-        ...(role === undefined ? {} : { role }),
-        ...(team === undefined ? {} : { team }),
+        ...(state.status === undefined ? {} : { status: state.status }),
+        ...(state.role === undefined ? {} : { role: state.role }),
+        ...(state.team === undefined ? {} : { team: state.team }),
       },
     },
     placeholderData: keepPreviousData,
   });
+};
