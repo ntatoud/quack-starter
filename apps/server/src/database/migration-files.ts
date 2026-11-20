@@ -6,7 +6,17 @@ import { Array, Effect, Order } from "effect";
 
 export const migrationsDirectory = Path.join(import.meta.dirname, "migrations");
 
-const NAME = /^(\d{4})_[a-z0-9]+(?:_[a-z0-9]+)*\.ts$/;
+const NAME = /^(\d{4})_([a-z0-9]+(?:_[a-z0-9]+)*)\.ts$/;
+
+export const parseMigrationFileName = (
+  file: string,
+): { readonly id: number; readonly name: string } | undefined => {
+  const [, id, name] = NAME.exec(file) ?? [];
+  return id === undefined || name === undefined ? undefined : { id: Number(id), name };
+};
+
+export const migrationFileNames = async (directory: string): Promise<ReadonlyArray<string>> =>
+  (await Fs.readdir(directory)).filter((name) => !name.startsWith("."));
 
 export interface MigrationFile {
   readonly name: string;
@@ -16,7 +26,7 @@ export interface MigrationFile {
 export const loadMigrationFiles = async (
   directory: string,
 ): Promise<ReadonlyArray<MigrationFile>> => {
-  const names = (await Fs.readdir(directory)).filter((name) => !name.startsWith("."));
+  const names = await migrationFileNames(directory);
   return Promise.all(
     names.map(async (name) => ({
       name,

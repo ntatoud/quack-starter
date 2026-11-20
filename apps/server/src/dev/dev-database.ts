@@ -1,4 +1,3 @@
-import * as Fs from "node:fs/promises";
 import * as Path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -7,9 +6,9 @@ import { Effect, Redacted, Schema, String } from "effect";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
 import { SqlClient } from "effect/sql/SqlClient";
 
-import { migrationsDirectory } from "#/database/migration-files.ts";
+import { migrationFileNames, migrationsDirectory } from "#/database/migration-files.ts";
 import { appliedMigrations, migrationsTableExists } from "#/database/rollback.ts";
-import { checkRecorded, databaseFor, sharedDatabase } from "#/dev/database-choice.ts";
+import { checkRecorded, databaseFor, Divergence, sharedDatabase } from "#/dev/database-choice.ts";
 
 export class DockerNotRunning extends Schema.TaggedError<
   DockerNotRunning,
@@ -34,9 +33,7 @@ export class MigrationsDiverged extends Schema.TaggedError<
   { readonly brand: unique symbol }
 >()("MigrationsDiverged", {
   database: Schema.String,
-  divergences: Schema.Array(
-    Schema.Struct({ id: Schema.Int, recorded: Schema.String, file: Schema.String }),
-  ),
+  divergences: Schema.Array(Divergence),
 }) {
   override get message() {
     const clashes = this.divergences
@@ -109,9 +106,7 @@ const defaultBranchMigrations = Effect.gen(function* () {
   ]);
 });
 
-const branchMigrations = Effect.promise(() => Fs.readdir(migrationsDirectory)).pipe(
-  Effect.map((names) => names.filter((name) => !name.startsWith("."))),
-);
+const branchMigrations = Effect.promise(() => migrationFileNames(migrationsDirectory));
 
 const chooseDatabase = Effect.fn("chooseDatabase")(function* (
   env: Readonly<Record<string, string | undefined>>,

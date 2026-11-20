@@ -1,3 +1,6 @@
+import { Schema } from "effect";
+
+import { parseMigrationFileName } from "#/database/migration-files.ts";
 import type { AppliedMigration } from "#/database/rollback.ts";
 
 const MAX_IDENTIFIER_LENGTH = 63;
@@ -27,13 +30,11 @@ export const databaseFor = ({
   return devDatabase === "own" || addsMigrations ? ownDatabaseName(branch) : sharedDatabase;
 };
 
-export interface Divergence {
-  readonly id: number;
-  readonly recorded: string;
-  readonly file: string;
-}
-
-const FILE = /^(\d+)_(.+)\.ts$/;
+export const Divergence = Schema.Struct({
+  id: Schema.Int,
+  recorded: Schema.String,
+  file: Schema.String,
+});
 
 export const checkRecorded = ({
   migrations,
@@ -43,11 +44,11 @@ export const checkRecorded = ({
   readonly recorded: ReadonlyArray<AppliedMigration>;
 }): {
   readonly behind: ReadonlyArray<AppliedMigration>;
-  readonly diverged: ReadonlyArray<Divergence>;
+  readonly diverged: ReadonlyArray<typeof Divergence.Type>;
 } => {
   const files = migrations.flatMap((file) => {
-    const match = FILE.exec(file);
-    return match?.[1] === undefined ? [] : [{ id: Number(match[1]), name: match[2], file }];
+    const parsed = parseMigrationFileName(file);
+    return parsed === undefined ? [] : [{ ...parsed, file }];
   });
   return {
     behind: recorded.filter(({ id }) => !files.some((file) => file.id === id)),
