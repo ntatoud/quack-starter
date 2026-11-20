@@ -52,9 +52,6 @@ export function ProfileForm({ currentUser }: { currentUser: typeof User.Encoded 
               <field.Root>
                 <SettingsRowText>
                   <field.Label>First name</field.Label>
-                  <field.Description>
-                    Shown with your last name wherever you appear.
-                  </field.Description>
                 </SettingsRowText>
                 <SettingsRowControl>
                   <field.Text autoComplete="given-name" />
@@ -67,7 +64,6 @@ export function ProfileForm({ currentUser }: { currentUser: typeof User.Encoded 
               <field.Root>
                 <SettingsRowText>
                   <field.Label>Last name</field.Label>
-                  <field.Description>Lists of Users are sorted by it.</field.Description>
                 </SettingsRowText>
                 <SettingsRowControl>
                   <field.Text autoComplete="family-name" />
@@ -104,7 +100,6 @@ export function ProfileForm({ currentUser }: { currentUser: typeof User.Encoded 
               <field.Root>
                 <SettingsRowText>
                   <field.Label>Job title</field.Label>
-                  <field.Description>Optional. What you do, in a few words.</field.Description>
                 </SettingsRowText>
                 <SettingsRowControl>
                   <field.Text autoComplete="organization-title" />
@@ -117,7 +112,6 @@ export function ProfileForm({ currentUser }: { currentUser: typeof User.Encoded 
               <field.Root>
                 <SettingsRowText>
                   <field.Label>Team</field.Label>
-                  <field.Description>Optional. The team you belong to.</field.Description>
                 </SettingsRowText>
                 <SettingsRowControl>
                   <field.Select
@@ -134,7 +128,6 @@ export function ProfileForm({ currentUser }: { currentUser: typeof User.Encoded 
               <field.Root>
                 <SettingsRowText>
                   <field.Label>Country</field.Label>
-                  <field.Description>Optional. Where you work from.</field.Description>
                 </SettingsRowText>
                 <SettingsRowControl>
                   <field.Combobox
