@@ -26,7 +26,7 @@ export function SignUpPage() {
         <SignUpForm
           onSignedUp={async (user) => {
             await setCurrentUser(user);
-            await navigate({ to: "/" });
+            await navigate({ to: "/app" });
           }}
         />
         <p className="mt-4 text-sm text-muted-foreground">

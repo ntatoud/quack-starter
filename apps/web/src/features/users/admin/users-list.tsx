@@ -25,7 +25,7 @@ import { UsersTable } from "#/features/users/admin/users-table.tsx";
 const hiddenByDefault: ReadonlySet<HideableUsersColumn> = new Set(["jobTitle", "tags", "verified"]);
 
 export function UsersList({ urlSearch }: { urlSearch: UsersSearch }) {
-  const navigate = useNavigate({ from: "/users" });
+  const navigate = useNavigate({ from: "/admin/users" });
   const query = usersQueryOf(urlSearch);
   const [searchInput, setSearchInput] = useState<HTMLInputElement | null>(null);
   const filters = useAddedFilters((key: UsersFilterKey) => urlSearch[key] !== undefined);

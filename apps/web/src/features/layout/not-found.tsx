@@ -5,10 +5,13 @@ import {
   EmptyHeader,
   EmptyTitle,
 } from "@quack/ui/components/empty";
+import { useLocation } from "@tanstack/react-router";
 
 import { ButtonLink } from "#/components/button-link.tsx";
 
 export function NotFound() {
+  const inAdmin = useLocation({ select: ({ pathname }) => /^\/admin(\/|$)/.test(pathname) });
+
   return (
     <Empty className="min-h-svh">
       <EmptyHeader>
@@ -18,7 +21,7 @@ export function NotFound() {
         <EmptyDescription>This page does not exist.</EmptyDescription>
       </EmptyHeader>
       <EmptyContent>
-        <ButtonLink to="/" variant="outline" size="sm">
+        <ButtonLink to={inAdmin ? "/admin" : "/app"} variant="outline" size="sm">
           Back home
         </ButtonLink>
       </EmptyContent>

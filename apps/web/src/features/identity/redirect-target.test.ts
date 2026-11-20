@@ -3,9 +3,9 @@ import { describe, expect, it } from "vite-plus/test";
 import { redirectTarget } from "#/features/identity/redirect-target.ts";
 
 describe("redirectTarget", () => {
-  it("leads to / when the sign-in page has no redirect", () => {
-    expect(redirectTarget(undefined)).toBe("/");
-    expect(redirectTarget("")).toBe("/");
+  it("leads to /app when the sign-in page has no redirect", () => {
+    expect(redirectTarget(undefined)).toBe("/app");
+    expect(redirectTarget("")).toBe("/app");
   });
 
   it("keeps a path of the app, with its search and hash", () => {
@@ -44,7 +44,7 @@ describe("redirectTarget", () => {
     ["a relative path", "todos"],
     ["a path relative to the current one", "../todos"],
     ["a search alone", "?redirect=/todos"],
-  ])("leads to / for %s", (_what, redirect) => {
-    expect(redirectTarget(redirect)).toBe("/");
+  ])("leads to /app for %s", (_what, redirect) => {
+    expect(redirectTarget(redirect)).toBe("/app");
   });
 });

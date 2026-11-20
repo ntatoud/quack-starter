@@ -89,7 +89,7 @@ const currentPages = () =>
 
 const setup = async (
   response: typeof respond,
-  url = "/users",
+  url = "/admin/users",
   size: { width?: number; height?: number } = {},
 ) => {
   respond = response;
@@ -97,7 +97,7 @@ const setup = async (
   const rootRoute = createRootRoute();
   const usersRoute = createRoute({
     getParentRoute: () => rootRoute,
-    path: "/users",
+    path: "/admin/users",
     validateSearch: Schema.toStandardSchemaV1(UsersSearch),
     component: function Users() {
       return (
@@ -180,7 +180,7 @@ describe("UsersList", () => {
   });
 
   it("keeps the rest of the search when it changes page", async () => {
-    const { router } = await setup(usersOn, "/users?page=2&q=duck");
+    const { router } = await setup(usersOn, "/admin/users?page=2&q=duck");
     await expect.element(page.getByText(`user-${total}@quack.dev`)).toBeVisible();
 
     await pagination().getByRole("link", { name: "Page 1" }).click();
@@ -190,7 +190,7 @@ describe("UsersList", () => {
   });
 
   it("asks the API for the page of the URL", async () => {
-    await setup(usersOn, "/users?page=2");
+    await setup(usersOn, "/admin/users?page=2");
 
     await expect.element(page.getByText(`user-${total}@quack.dev`)).toBeVisible();
     await expect.element(page.getByText("Page 2 of 2")).toBeVisible();
@@ -234,7 +234,7 @@ describe("UsersList", () => {
   });
 
   it("shows the first page for a page that is not a page number", async () => {
-    await setup(usersOn, "/users?page=abc");
+    await setup(usersOn, "/admin/users?page=abc");
 
     await expect.element(page.getByText("user-1@quack.dev")).toBeVisible();
     await expect.element(page.getByText("Page 1 of 2")).toBeVisible();
@@ -242,7 +242,7 @@ describe("UsersList", () => {
   });
 
   it("marks the first page current when the URL names it", async () => {
-    await setup(usersOn, "/users?page=1");
+    await setup(usersOn, "/admin/users?page=1");
 
     await expect.element(page.getByText("user-1@quack.dev")).toBeVisible();
     expect(currentPages()).toEqual(["Page 1"]);
@@ -260,7 +260,7 @@ describe("UsersList", () => {
   });
 
   it("keeps the focus in the pagination when Previous leads to the first page", async () => {
-    await setup(usersOn, "/users?page=2");
+    await setup(usersOn, "/admin/users?page=2");
     await expect.element(page.getByText(`user-${total}@quack.dev`)).toBeVisible();
 
     previous().element().focus();
@@ -271,7 +271,7 @@ describe("UsersList", () => {
   });
 
   it("leaves the focus on Previous when it stays enabled, from a page past the last", async () => {
-    await setup(usersOn, "/users?page=9");
+    await setup(usersOn, "/admin/users?page=9");
     await expect.element(page.getByText("No users on this page")).toBeVisible();
 
     previous().element().focus();
@@ -283,7 +283,7 @@ describe("UsersList", () => {
 
   it("scrolls its rows under the header and above the footer when its height is bounded", async () => {
     const height = 400;
-    await setup(usersOn, "/users", { height });
+    await setup(usersOn, "/admin/users", { height });
     await expect.element(page.getByText("user-1@quack.dev")).toBeVisible();
 
     const scroller = scrollerOfTable();
@@ -299,7 +299,7 @@ describe("UsersList", () => {
 
   it("stacks the footer when the table is narrow, whatever the width of the window", async () => {
     await page.viewport(1280, 800);
-    await setup(ninePages, "/users?page=5", { width: 470 });
+    await setup(ninePages, "/admin/users?page=5", { width: 470 });
     await expect.element(next()).toBeVisible();
 
     const footer = footerOfTable();
@@ -310,7 +310,7 @@ describe("UsersList", () => {
 
   it("puts the footer on one row when the table is wide", async () => {
     await page.viewport(1280, 800);
-    await setup(ninePages, "/users?page=5", { width: 900 });
+    await setup(ninePages, "/admin/users?page=5", { width: 900 });
     await expect.element(next()).toBeVisible();
 
     const summary = page.getByText("Page 5 of 9").element().getBoundingClientRect();
@@ -321,7 +321,7 @@ describe("UsersList", () => {
 
   it("fits the pagination in the width of a phone", async () => {
     await page.viewport(375, 667);
-    await setup(ninePages, "/users?page=5");
+    await setup(ninePages, "/admin/users?page=5");
 
     await expect.element(next()).toBeVisible();
     const footer = footerOfTable();
@@ -332,11 +332,11 @@ describe("UsersList", () => {
   it("leads back to the first page from a page past the last", async () => {
     await setup(
       (request) => (pageOf(request) === 1 ? usersOn(request) : Response.json({ items: [], total })),
-      "/users?page=9",
+      "/admin/users?page=9",
     );
 
     await expect.element(page.getByText("No users on this page")).toBeVisible();
-    await expect.element(previous()).toHaveAttribute("href", "/users?page=2");
+    await expect.element(previous()).toHaveAttribute("href", "/admin/users?page=2");
     await page.getByRole("link", { name: "Go to the first page" }).click();
 
     await expect.element(page.getByText("user-1@quack.dev")).toBeVisible();
@@ -356,7 +356,7 @@ describe("UsersList", () => {
   });
 
   it("asks the API once the typing pauses, from the first page, and keeps the search in the URL", async () => {
-    const { router } = await setup(usersOn, "/users?page=2");
+    const { router } = await setup(usersOn, "/admin/users?page=2");
     await expect.element(page.getByText(`user-${total}@quack.dev`)).toBeVisible();
     fetch.mockClear();
     respond = () => Response.json({ items: [user(7)], total: 1 });
@@ -387,7 +387,7 @@ describe("UsersList", () => {
   });
 
   it("drops the search from the URL once the field is cleared", async () => {
-    const { router } = await setup(usersOn, "/users?q=duck");
+    const { router } = await setup(usersOn, "/admin/users?q=duck");
     await expect.element(page.getByRole("searchbox")).toHaveValue("duck");
 
     await userEvent.clear(page.getByRole("searchbox"));
@@ -396,7 +396,7 @@ describe("UsersList", () => {
   });
 
   it("says no user matches a search that finds none", async () => {
-    await setup(() => Response.json({ items: [], total: 0 }), "/users?q=duck");
+    await setup(() => Response.json({ items: [], total: 0 }), "/admin/users?q=duck");
 
     await expect.element(page.getByText("No users match “duck”")).toBeVisible();
     expect(page.getByRole("link", { name: "Go to the first page" }).elements()).toHaveLength(0);
@@ -405,16 +405,16 @@ describe("UsersList", () => {
   it("keeps the search when it leads back to the first page", async () => {
     await setup(
       (request) => (pageOf(request) === 1 ? usersOn(request) : Response.json({ items: [], total })),
-      "/users?page=9&q=user",
+      "/admin/users?page=9&q=user",
     );
 
     await expect
       .element(page.getByRole("link", { name: "Go to the first page" }))
-      .toHaveAttribute("href", "/users?q=user");
+      .toHaveAttribute("href", "/admin/users?q=user");
   });
 
   it("sorts by a column from its header, from the first page, and keeps the order in the URL", async () => {
-    const { router } = await setup(usersOn, "/users?page=2");
+    const { router } = await setup(usersOn, "/admin/users?page=2");
     await expect.element(page.getByText(`user-${total}@quack.dev`)).toBeVisible();
     await expect.poll(() => sortOf("Email")).toBe("ascending");
     fetch.mockClear();
@@ -431,7 +431,7 @@ describe("UsersList", () => {
   });
 
   it("marks the order of its column in the menu of its header", async () => {
-    await setup(usersOn, "/users?orderBy=role&dir=desc");
+    await setup(usersOn, "/admin/users?orderBy=role&dir=desc");
 
     await page.getByRole("button", { name: "Role", exact: true }).click();
 
@@ -444,7 +444,7 @@ describe("UsersList", () => {
   });
 
   it("leaves the default order out of the URL", async () => {
-    const { router } = await setup(usersOn, "/users?orderBy=role&dir=desc&q=user");
+    const { router } = await setup(usersOn, "/admin/users?orderBy=role&dir=desc&q=user");
     await expect.poll(() => sortOf("Role")).toBe("descending");
 
     await page.getByRole("button", { name: "Email", exact: true }).click();
@@ -455,7 +455,7 @@ describe("UsersList", () => {
   });
 
   it("asks the API for the default order and every Role when the URL names neither", async () => {
-    await setup(usersOn, "/users?orderBy=id&dir=up&role=owner");
+    await setup(usersOn, "/admin/users?orderBy=id&dir=up&role=owner");
 
     await expect.element(page.getByText("user-1@quack.dev")).toBeVisible();
     expect(queryOf().get("orderBy")).toBe("email");
@@ -464,7 +464,7 @@ describe("UsersList", () => {
   });
 
   it("adds a filter on the Role from its header, and keeps the Role chosen in the URL", async () => {
-    const { router } = await setup(usersOn, "/users?page=2");
+    const { router } = await setup(usersOn, "/admin/users?page=2");
     await expect.element(page.getByText(`user-${total}@quack.dev`)).toBeVisible();
     fetch.mockClear();
     respond = () => Response.json({ items: [user(1, "admin")], total: 1 });
@@ -492,7 +492,7 @@ describe("UsersList", () => {
   });
 
   it("removes the Role filter, and hands the focus to the search", async () => {
-    const { router } = await setup(usersOn, "/users?role=admin&q=user");
+    const { router } = await setup(usersOn, "/admin/users?role=admin&q=user");
 
     await page.getByRole("button", { name: "Remove the Role filter" }).click();
 
@@ -513,7 +513,7 @@ describe("UsersList", () => {
   });
 
   it("says no user has the Role of a filter that finds none", async () => {
-    await setup(() => Response.json({ items: [], total: 0 }), "/users?role=admin");
+    await setup(() => Response.json({ items: [], total: 0 }), "/admin/users?role=admin");
 
     await expect.element(page.getByText("No users have the Role Admin")).toBeVisible();
   });
@@ -534,7 +534,7 @@ describe("UsersList", () => {
   });
 
   it("selects the search from the Email column, so typing replaces it", async () => {
-    await setup(usersOn, "/users?q=duck");
+    await setup(usersOn, "/admin/users?q=duck");
 
     await page.getByRole("button", { name: "Email", exact: true }).click();
     await page.getByRole("menuitem", { name: "Filter" }).click();
@@ -558,7 +558,7 @@ describe("UsersList", () => {
   });
 
   it("hides the button once every filter is shown", async () => {
-    await setup(usersOn, "/users?status=active&role=user&team=design");
+    await setup(usersOn, "/admin/users?status=active&role=user&team=design");
 
     await expect.element(page.getByRole("button", { name: "Team: Design" })).toBeVisible();
     expect(page.getByRole("button", { name: "Add filter" }).elements()).toHaveLength(0);
@@ -642,13 +642,16 @@ describe("UsersList", () => {
   });
 
   it("says no user matches the filters when none does", async () => {
-    await setup(() => Response.json({ items: [], total: 0 }), "/users?status=invited&team=sales");
+    await setup(
+      () => Response.json({ items: [], total: 0 }),
+      "/admin/users?status=invited&team=sales",
+    );
 
     await expect.element(page.getByText("No users match these filters")).toBeVisible();
   });
 
   it("asks the API for every status and team when the URL names neither", async () => {
-    await setup(usersOn, "/users?status=deleted&team=Sales");
+    await setup(usersOn, "/admin/users?status=deleted&team=Sales");
 
     await expect.element(page.getByText("user-1@quack.dev")).toBeVisible();
     expect(queryOf().has("status")).toBe(false);

@@ -1,7 +1,6 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
 import { signInLocation } from "#/features/identity/redirect-target.ts";
-import { AppLayout } from "#/features/layout/app-layout.tsx";
 import { readSidebarOpen } from "#/features/layout/sidebar-open.ts";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -11,5 +10,4 @@ export const Route = createFileRoute("/_authenticated")({
     }
     return { currentUser: context.currentUser, sidebarOpen: readSidebarOpen() };
   },
-  component: AppLayout,
 });
