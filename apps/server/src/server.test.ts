@@ -150,7 +150,7 @@ describe("server routes", () => {
       status: "active",
       createdAt: expect.any(String),
       lastSignInAt: user.createdAt,
-      emailVerifiedAt: null,
+      onboardedAt: null,
       profile: null,
     });
 

@@ -6,9 +6,9 @@ import {
   CountryCell,
   DateCell,
   NameCell,
+  OnboardedCell,
   StatusBadge,
   TimeAgoCell,
-  VerifiedCell,
 } from "#/features/users/admin/users-cells.tsx";
 import { labelOf } from "#/features/users/admin/users-filters.ts";
 import type { UsersSearch } from "#/features/users/admin/users-search.ts";
@@ -68,9 +68,9 @@ export const usersColumns = (now: Date): ReadonlyArray<DataTableColumnFor<User, 
       original.profile?.country == null ? null : <CountryCell code={original.profile.country} />,
   },
   {
-    id: "verified",
-    title: "Verified",
-    cell: ({ row }) => <VerifiedCell verifiedAt={row.original.emailVerifiedAt} />,
+    id: "onboardedAt",
+    title: "Onboarded",
+    cell: ({ row }) => <OnboardedCell date={row.original.onboardedAt} />,
   },
   {
     id: "createdAt",

@@ -37,7 +37,7 @@ const aUser = (
       status,
       createdAt: day(1),
       lastSignInAt: lastSignInOn === null ? null : day(lastSignInOn),
-      emailVerifiedAt: null,
+      onboardedAt: null,
       profile:
         profile === null
           ? null

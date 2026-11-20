@@ -42,7 +42,8 @@ export class User extends Schema.Class<User, { readonly brand: unique symbol }>(
   status: UserStatus,
   createdAt: Schema.DateTimeUtcFromString,
   lastSignInAt: Schema.NullOr(Schema.DateTimeUtcFromString),
-  emailVerifiedAt: Schema.NullOr(Schema.DateTimeUtcFromString),
+  /** `null` until the User completes the onboarding. Only then do they reach the app. */
+  onboardedAt: Schema.NullOr(Schema.DateTimeUtcFromString),
   /** `null` until the User fills it in: a sign-up asks for an email and a password only. */
   profile: Schema.NullOr(Profile),
 }) {}

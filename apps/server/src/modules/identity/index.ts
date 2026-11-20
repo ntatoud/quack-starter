@@ -2,6 +2,7 @@ import { NodeCrypto } from "@effect/platform-node";
 import { Layer } from "effect";
 
 import { Identity } from "#/modules/identity/application/identity.ts";
+import { Onboarding } from "#/modules/identity/application/onboarding.ts";
 import { IdentitySeed } from "#/modules/identity/application/identity-seed.ts";
 import { Users } from "#/modules/identity/application/users.ts";
 import { AuthenticationMiddleware } from "#/modules/identity/http/authentication-middleware.ts";
@@ -20,7 +21,7 @@ export const IdentityPostgres = Layer.mergeAll(UserRepositoryPostgres, SessionSt
 
 export const IdentityModule = Layer.mergeAll(IdentityHandlers, UsersHandlers).pipe(
   Layer.provideMerge([AuthenticationMiddleware, RequireRoleMiddleware]),
-  Layer.provide([Identity.layer, Users.layer, SessionCookie.layer]),
+  Layer.provide([Identity.layer, Users.layer, Onboarding.layer, SessionCookie.layer]),
   Layer.provide([PasswordHasherArgon2, AttemptLimiterMemory]),
   Layer.provide([NodeCrypto.layerSecureRandom, NodeCrypto.layerDigest, NodeCrypto.layerKdf]),
 );

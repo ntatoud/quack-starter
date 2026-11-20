@@ -12,6 +12,12 @@ The rules of `modules/identity` that its code does not show on its own. The dura
 - Only a User whose Status lets them (`canSignIn` in `domain/user.ts`) signs in. Another one gets `InvalidCredentials` after the check of their password, so the refusal tells nothing to whoever does not know it, and their Session ends at its next request.
 - A sign-in records `lastSignInAt`.
 
+## Onboarding
+
+- A User is onboarded once `onboardedAt` is set, whatever their Profile: a Profile filled in for them does not spare them the onboarding.
+- `completeOnboarding` sets the name of the Profile, creating it with nothing else filled in, and records `onboardedAt` (`onboarded` in `domain/user.ts`). A second one changes the name and keeps the first date.
+- Only the web app holds a User who is not onboarded back; the API answers them as any other.
+
 ## AttemptLimiter
 
 Slows down the guessing of passwords (port: `domain/attempt-limiter.ts`). The use cases `signIn` and `signUp` call it with the client's address, which the handler reads in `X-Forwarded-For`; there is no HTTP middleware for it.
@@ -24,4 +30,4 @@ Slows down the guessing of passwords (port: `domain/attempt-limiter.ts`). The us
 
 ## Seed
 
-`IdentitySeed` (`application/identity-seed.ts`) creates the Users of `devUsers()` through `UserRepository.create` and logs their credentials. It gives the same Users at every run (ids from a seeded faker, dates spread over the two years before the fixed `seedDate`, every Status, some with no Profile or never signed in), so the data is in a known state. Every seeded User has the hash `devPasswordHash`, computed once from the dev password, so seeding hashes nothing; a test checks it still verifies. The `user` and `admin` accounts are in `@quack/contracts/identity/dev-accounts`, which the sign-in page reads for its one-click sign-in in dev.
+`IdentitySeed` (`application/identity-seed.ts`) creates the Users of `devUsers()` through `UserRepository.create` and logs their credentials. It gives the same Users at every run (ids from a seeded faker, dates spread over the two years before the fixed `seedDate`, every Status, some with no Profile or never signed in; onboarded when they have a Profile and signed in), so the data is in a known state. Every seeded User has the hash `devPasswordHash`, computed once from the dev password, so seeding hashes nothing; a test checks it still verifies. The `user` and `admin` accounts are in `@quack/contracts/identity/dev-accounts`, which the sign-in page reads for its one-click sign-in in dev.
