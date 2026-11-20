@@ -18,8 +18,9 @@ import { UserRepositoryMemory } from "#/modules/identity/infrastructure/user-rep
 
 const password = Redacted.make("correct horse battery staple");
 
-/** Each test that reaches a limit takes an address of its own. */
-const ip = "203.0.113.1";
+/** Another address at each call, so no limit is reached but by the tests of the limits, at addresses of their own. */
+let addresses = 0;
+const anAddress = () => `2001:db8::${(addresses += 1).toString(16)}`;
 
 const sha256Hex = (text: string) => createHash("sha256").update(text).digest("hex");
 
@@ -57,8 +58,8 @@ layer(IdentityLayer)("Identity", (it) => {
     Effect.gen(function* () {
       const identity = yield* Identity;
 
-      const first = yield* identity.signUp(Email.make("ada@example.com"), password, ip);
-      const second = yield* identity.signUp(Email.make("grace@example.com"), password, ip);
+      const first = yield* identity.signUp(Email.make("ada@example.com"), password, anAddress());
+      const second = yield* identity.signUp(Email.make("grace@example.com"), password, anAddress());
 
       // 32 bytes are 43 characters of base64url, which has no padding.
       assert.match(Redacted.value(first.session.token), /^[A-Za-z0-9_-]{43}$/);
@@ -77,7 +78,7 @@ layer(IdentityLayer)("Identity", (it) => {
       const { user, session } = yield* identity.signUp(
         Email.make("linus@example.com"),
         password,
-        ip,
+        anAddress(),
       );
       const token = Redacted.value(session.token);
 
@@ -93,7 +94,11 @@ layer(IdentityLayer)("Identity", (it) => {
       const store = yield* SessionStore;
 
       const now = yield* DateTime.now;
-      const { session } = yield* identity.signUp(Email.make("margaret@example.com"), password, ip);
+      const { session } = yield* identity.signUp(
+        Email.make("margaret@example.com"),
+        password,
+        anAddress(),
+      );
 
       const thirtyDays = DateTime.add(now, { days: 30 });
       assert.deepStrictEqual(session.expiresAt, thirtyDays);
@@ -107,14 +112,20 @@ layer(IdentityLayer)("Identity", (it) => {
     () =>
       Effect.gen(function* () {
         const identity = yield* Identity;
-        yield* identity.signUp(Email.make("grace.h@example.com"), password, ip);
+        yield* identity.signUp(Email.make("grace.h@example.com"), password, anAddress());
 
         const before = hasherWork.count;
         yield* identity
-          .signIn(Email.make("grace.h@example.com"), Redacted.make("not the password of grace"), ip)
+          .signIn(
+            Email.make("grace.h@example.com"),
+            Redacted.make("not the password of grace"),
+            anAddress(),
+          )
           .pipe(Effect.flip);
         const forWrongPassword = hasherWork.count - before;
-        yield* identity.signIn(Email.make("nobody@example.com"), password, ip).pipe(Effect.flip);
+        yield* identity
+          .signIn(Email.make("nobody@example.com"), password, anAddress())
+          .pipe(Effect.flip);
         const forUnknownEmail = hasherWork.count - before - forWrongPassword;
 
         assert.strictEqual(forWrongPassword, 1);
@@ -164,7 +175,11 @@ layer(IdentityLayer)("Identity", (it) => {
     Effect.gen(function* () {
       const identity = yield* Identity;
       const store = yield* SessionStore;
-      const { session } = yield* identity.signUp(Email.make("radia@example.com"), password, ip);
+      const { session } = yield* identity.signUp(
+        Email.make("radia@example.com"),
+        password,
+        anAddress(),
+      );
 
       yield* identity.signOut(session.token);
 
@@ -179,7 +194,11 @@ layer(IdentityLayer)("Identity", (it) => {
     Effect.gen(function* () {
       const identity = yield* Identity;
       const store = yield* SessionStore;
-      const { session } = yield* identity.signUp(Email.make("lynn@example.com"), password, ip);
+      const { session } = yield* identity.signUp(
+        Email.make("lynn@example.com"),
+        password,
+        anAddress(),
+      );
       const tokenHash = sha256Hex(Redacted.value(session.token));
       yield* TestClock.adjust("30 days");
       assert.isTrue(Option.isSome(yield* store.findByTokenHash(tokenHash)));
@@ -195,7 +214,11 @@ layer(IdentityLayer)("Identity", (it) => {
     Effect.gen(function* () {
       const identity = yield* Identity;
       const store = yield* SessionStore;
-      const { session } = yield* identity.signUp(Email.make("adele@example.com"), password, ip);
+      const { session } = yield* identity.signUp(
+        Email.make("adele@example.com"),
+        password,
+        anAddress(),
+      );
       const tokenHash = sha256Hex(Redacted.value(session.token));
       yield* identity.signOut(session.token);
 
@@ -221,11 +244,11 @@ layer(IdentityLayer)("Identity", (it) => {
       const email = Email.make("katherine@example.com");
       const signedUpAt = yield* DateTime.now;
 
-      const { user } = yield* identity.signUp(email, password, ip);
+      const { user } = yield* identity.signUp(email, password, anAddress());
       assert.deepStrictEqual(user.lastSignInAt, signedUpAt);
       assert.deepStrictEqual(user.createdAt, signedUpAt);
       yield* TestClock.adjust("1 hour");
-      const signedIn = yield* identity.signIn(email, password, ip);
+      const signedIn = yield* identity.signIn(email, password, anAddress());
 
       const signedInAt = DateTime.addDuration(signedUpAt, "1 hour");
       assert.deepStrictEqual(signedIn.user.lastSignInAt, signedInAt);
@@ -242,11 +265,11 @@ layer(IdentityLayer)("Identity", (it) => {
         const identity = yield* Identity;
         const users = yield* UserRepository;
         const email = Email.make(`${status}@example.com`);
-        const { user } = yield* identity.signUp(email, password, ip);
+        const { user } = yield* identity.signUp(email, password, anAddress());
         yield* users.update(new User({ ...user, status }));
 
         const before = hasherWork.count;
-        const error = yield* identity.signIn(email, password, ip).pipe(Effect.flip);
+        const error = yield* identity.signIn(email, password, anAddress()).pipe(Effect.flip);
 
         assert.strictEqual(error._tag, "InvalidCredentials");
         assert.strictEqual(hasherWork.count - before, 1);
@@ -261,7 +284,7 @@ layer(IdentityLayer)("Identity", (it) => {
       const { user, session } = yield* identity.signUp(
         Email.make("barbara@example.com"),
         password,
-        ip,
+        anAddress(),
       );
       yield* users.update(new User({ ...user, status: "suspended" }));
 
