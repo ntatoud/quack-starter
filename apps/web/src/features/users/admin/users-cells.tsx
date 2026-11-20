@@ -1,31 +1,21 @@
 import type { Profile } from "@quack/contracts/identity/profile";
 import type { User, UserStatus } from "@quack/contracts/identity/user";
-import { Avatar, AvatarFallback, AvatarImage } from "@quack/ui/components/avatar";
 import { Badge } from "@quack/ui/components/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@quack/ui/components/tooltip";
 import { DateTime } from "effect";
 import { CircleCheckIcon } from "lucide-react";
 
 import { labelOf } from "#/features/users/admin/users-filters.ts";
+import { UserAvatar } from "#/features/users/user-avatar.tsx";
 
 const fullName = (profile: Profile) => `${profile.firstName} ${profile.lastName}`;
-
-const initials = ({ email, profile }: User) =>
-  profile === null
-    ? email.slice(0, 1).toUpperCase()
-    : `${profile.firstName.slice(0, 1)}${profile.lastName.slice(0, 1)}`.toUpperCase();
 
 export function NameCell({ user }: { user: User }) {
   const { profile } = user;
 
   return (
     <div className="flex min-w-40 items-center gap-3">
-      <Avatar size="sm">
-        {profile?.avatarUrl != null && <AvatarImage src={profile.avatarUrl} alt="" />}
-        <AvatarFallback aria-hidden="true" className="text-xs">
-          {initials(user)}
-        </AvatarFallback>
-      </Avatar>
+      <UserAvatar user={user} size="sm" />
       {profile === null ? (
         <span className="text-muted-foreground">No profile</span>
       ) : (

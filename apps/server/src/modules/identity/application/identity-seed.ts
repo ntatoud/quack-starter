@@ -86,7 +86,9 @@ const randomUsers = (faker: Faker, count: number): ReadonlyArray<User> => {
           : new Profile({
               firstName,
               lastName,
-              avatarUrl: faker.datatype.boolean({ probability: 0.6 }) ? faker.image.avatar() : null,
+              avatarUrl: faker.datatype.boolean({ probability: 0.6 })
+                ? faker.image.personPortrait()
+                : null,
               jobTitle: faker.person.jobTitle(),
               team: faker.helpers.arrayElement(Team.literals),
               country: CountryCode.make(faker.location.countryCode("alpha-2")),

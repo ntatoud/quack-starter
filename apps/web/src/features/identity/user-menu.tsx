@@ -1,5 +1,4 @@
 import type { User } from "@quack/contracts/identity/user";
-import { Avatar, AvatarFallback } from "@quack/ui/components/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,6 +19,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { ChevronsUpDownIcon, LogOutIcon } from "lucide-react";
 
 import { useSetCurrentUser } from "#/features/identity/current-user.ts";
+import { UserAvatar } from "#/features/users/user-avatar.tsx";
 import { api } from "#/lib/api.ts";
 
 export function UserMenu({ currentUser }: { currentUser: typeof User.Encoded }) {
@@ -42,28 +42,26 @@ export function UserMenu({ currentUser }: { currentUser: typeof User.Encoded }) 
           <DropdownMenuTrigger
             render={
               <SidebarMenuButton
-                tooltip={currentUser.email}
-                className="p-1 group-data-[collapsible=icon]:p-1! data-popup-open:bg-sidebar-accent data-popup-open:text-sidebar-accent-foreground"
+                size="lg"
+                tooltip={displayName(currentUser)}
+                className="data-popup-open:bg-sidebar-accent data-popup-open:text-sidebar-accent-foreground"
               />
             }
           >
-            <Avatar size="sm" className="rounded-md after:rounded-md">
-              <AvatarFallback aria-hidden="true" className="rounded-md">
-                {initial(currentUser.email)}
-              </AvatarFallback>
-            </Avatar>
-            <span className="min-w-0 flex-1 truncate text-left text-sm">{currentUser.email}</span>
-            <ChevronsUpDownIcon className="mr-1 ml-auto" />
+            <UserIdentity currentUser={currentUser} />
+            <ChevronsUpDownIcon className="ml-auto" />
           </DropdownMenuTrigger>
           <DropdownMenuContent
             side={isMobile ? "bottom" : "right"}
             align="end"
             sideOffset={4}
-            className="w-(--anchor-width) min-w-56"
+            className="w-(--anchor-width) min-w-56 rounded-lg"
           >
             <DropdownMenuGroup>
-              <DropdownMenuLabel className="truncate">
-                Signed in as <span className="text-foreground">{currentUser.email}</span>
+              <DropdownMenuLabel className="p-0 font-normal">
+                <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm text-foreground">
+                  <UserIdentity currentUser={currentUser} />
+                </div>
               </DropdownMenuLabel>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
@@ -88,4 +86,20 @@ export function UserMenu({ currentUser }: { currentUser: typeof User.Encoded }) 
   );
 }
 
-const initial = (email: string) => (Array.from(email)[0] ?? "").toUpperCase();
+function UserIdentity({ currentUser }: { currentUser: typeof User.Encoded }) {
+  const name = displayName(currentUser);
+  return (
+    <>
+      <UserAvatar user={currentUser} className="rounded-lg after:rounded-lg" />
+      <div className="grid flex-1 text-left text-sm leading-tight">
+        <span className="truncate font-medium">{name}</span>
+        {name !== currentUser.email && (
+          <span className="truncate text-xs">{currentUser.email}</span>
+        )}
+      </div>
+    </>
+  );
+}
+
+const displayName = ({ email, profile }: typeof User.Encoded) =>
+  profile ? `${profile.firstName} ${profile.lastName}` : email;
