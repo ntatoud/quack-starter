@@ -7,6 +7,10 @@
     "@effect/language-service",
   ],
   "workspaces": {
+    "apps/server": {
+      // Run through with-dev-database.ts, which knip does not read as an entry.
+      "entry": ["src/database/rollback-main.ts"],
+    },
     "apps/web": {
       "entry": ["src/routes/**/*.tsx"],
     },
