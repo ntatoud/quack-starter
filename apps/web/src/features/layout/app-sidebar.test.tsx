@@ -20,4 +20,14 @@ describe("AppSidebar", () => {
     await expect.element(page.getByRole("link", { name: "Todos" })).toBeVisible();
     expect(page.getByRole("link", { name: "Administration" }).elements()).toEqual([]);
   });
+
+  it("links to the settings from the menu of the Current User", async () => {
+    await renderSidebar(AppSidebar, "user");
+
+    await page.getByRole("button", { name: "someone@quack.dev" }).click();
+
+    await expect
+      .element(page.getByRole("menuitem", { name: "Settings" }))
+      .toHaveAttribute("href", "/app/settings/profile");
+  });
 });

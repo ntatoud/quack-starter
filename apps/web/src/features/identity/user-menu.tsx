@@ -14,7 +14,8 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@quack/ui/components/sidebar";
-import { ChevronsUpDownIcon, LogOutIcon } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { ChevronsUpDownIcon, LogOutIcon, SettingsIcon } from "lucide-react";
 
 import { useSignOut } from "#/features/identity/use-sign-out.ts";
 import { fullName } from "#/features/users/full-name.ts";
@@ -52,6 +53,13 @@ export function UserMenu({ currentUser }: { currentUser: typeof User.Encoded }) 
                   <UserIdentity currentUser={currentUser} />
                 </div>
               </DropdownMenuLabel>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuItem render={<Link to="/app/settings/profile" />}>
+                <SettingsIcon />
+                Settings
+              </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             {/* Stays open on click, so a failed sign-out is said where it was asked. */}

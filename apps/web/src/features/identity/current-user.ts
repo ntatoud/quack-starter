@@ -42,3 +42,14 @@ export const useSetCurrentUser = () => {
     await router.invalidate();
   };
 };
+
+/** After a change to the Current User's own data: the other queries stay, since they belong to the same User. */
+export const useUpdateCurrentUser = () => {
+  const queryClient = useQueryClient();
+  const router = useRouter();
+
+  return async (user: User) => {
+    queryClient.setQueryData(currentUserQueryOptions.queryKey, encodeUser(user));
+    await router.invalidate();
+  };
+};

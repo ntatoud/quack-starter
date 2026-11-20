@@ -1,7 +1,7 @@
-import { Team } from "@quack/contracts/identity/profile";
 import { selectFilter } from "@quack/ui/components/data-table/filters/select-filter";
 
 import type { UsersSearch } from "#/features/users/admin/users-search.ts";
+import { teamOptions } from "#/features/identity/team-options.ts";
 
 type UsersFilterKey = "status" | "role" | "team";
 
@@ -20,10 +20,7 @@ const usersFilterOptions: {
     { value: "admin", label: "Admin" },
     { value: "user", label: "User" },
   ],
-  team: Team.literals.map((value) => ({
-    value,
-    label: value.slice(0, 1).toUpperCase() + value.slice(1),
-  })),
+  team: teamOptions,
 };
 
 export const labelOf = <Key extends UsersFilterKey>(

@@ -7,7 +7,6 @@ import {
 } from "@quack/ui/components/select";
 import { cn } from "@quack/ui/lib/utils";
 
-import { choiceOf, chosen } from "#/choice.ts";
 import type { FieldOption } from "#/field-option.ts";
 import { textSize } from "#/size.ts";
 import { FieldControlError } from "#/field-control-error.tsx";
@@ -31,8 +30,9 @@ export function FormSelectField({
     <>
       <Select
         items={noneLabel === undefined ? options : [{ value: null, label: noneLabel }, ...options]}
-        value={chosen(field.state.value)}
-        onValueChange={(value: string | null) => field.handleChange(choiceOf(value))}
+        // Base UI calls `null` the value the field holds as `""`: nothing chosen.
+        value={field.state.value === "" ? null : field.state.value}
+        onValueChange={(value: string | null) => field.handleChange(value ?? "")}
         // The trigger loses the focus to the list it opens: the field is touched when the list closes.
         onOpenChange={(open) => open || field.handleBlur()}
       >
