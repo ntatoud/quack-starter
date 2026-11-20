@@ -8,7 +8,7 @@ export function ProfileSettingsPage() {
 
   return (
     <>
-      <PageHeader crumbs={[{ label: "Settings" }, { label: "Profile" }]} back />
+      <PageHeader title="Profile" trail={[{ label: "Settings" }]} back />
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-6">
         <ProfileForm currentUser={currentUser} />
       </div>

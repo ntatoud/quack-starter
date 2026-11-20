@@ -12,7 +12,7 @@ export function UsersPage() {
 
   return (
     <div className="flex h-svh flex-col">
-      <PageHeader crumbs={[{ label: "Users" }]}>
+      <PageHeader title="Users">
         {users.data !== undefined && (
           <span className="ml-auto text-sm text-muted-foreground">
             {users.data.total} {table.isFiltered ? "found" : "in all"}

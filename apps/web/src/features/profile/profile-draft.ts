@@ -1,4 +1,10 @@
-import { CountryCode, PersonName, type Profile, Team } from "@quack/contracts/identity/profile";
+import {
+  CountryCode,
+  JobTitle,
+  PersonName,
+  type Profile,
+  Team,
+} from "@quack/contracts/identity/profile";
 import { Schema, SchemaTransformation } from "effect";
 
 const EmptyAsNull = Schema.String.pipe(
@@ -15,13 +21,7 @@ const EmptyAsNull = Schema.String.pipe(
 export const ProfileDraft = Schema.Struct({
   firstName: Schema.Trim.pipe(Schema.decodeTo(PersonName)),
   lastName: Schema.Trim.pipe(Schema.decodeTo(PersonName)),
-  jobTitle: Schema.Trim.pipe(
-    Schema.decodeTo(
-      Schema.Trimmed.check(
-        Schema.isMaxLength(100, { message: "Job title must be at most 100 characters" }),
-      ),
-    ),
-  ),
+  jobTitle: Schema.Trim.pipe(Schema.decodeTo(JobTitle)),
   team: EmptyAsNull.pipe(Schema.decodeTo(Schema.NullOr(Team))),
   country: EmptyAsNull.pipe(Schema.decodeTo(Schema.NullOr(CountryCode))),
   avatarUrl: Schema.Trim.pipe(Schema.decodeTo(EmptyAsNull)),

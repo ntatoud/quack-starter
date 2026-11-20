@@ -5,7 +5,6 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuLinkItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@quack/ui/components/dropdown-menu";
@@ -57,10 +56,10 @@ export function UserMenu({ currentUser }: { currentUser: typeof User.Encoded }) 
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuLinkItem closeOnClick render={<Link to="/app/settings/profile" />}>
+              <DropdownMenuItem render={<Link to="/app/settings/profile" />}>
                 <SettingsIcon />
                 Settings
-              </DropdownMenuLinkItem>
+              </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             {/* Stays open on click, so a failed sign-out is said where it was asked. */}

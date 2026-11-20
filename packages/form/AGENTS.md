@@ -9,4 +9,4 @@ To add a control:
 3. Register it in `use-app-form.ts` under the short name, which `field.` or `form.` prefixes: `FormTextField` is `field.Text`.
 4. Test it in the browser with `vitest-browser-react` and the locators of `vite-plus/test/browser` (`src/form-submit-button.test.tsx`).
 
-A control that picks among options (`field.Select` for a few, `field.Combobox` for many, searched by their label) holds `""` until one is chosen, which Base UI calls `null` (`choice.ts`). The schema decodes `""` to the literal, or to `null` for a field that may stay empty; `noneLabel` or `clearable` then lets the user empty it again (`src/testing/color-form.tsx`).
+A control that picks among options (`field.Select` for a few, `field.Combobox` for many, searched by their label) holds `""` until one is chosen, which Base UI calls `null`. The schema decodes `""` to the literal, or to `null` for a field that may stay empty; `noneLabel` or `clearable` then lets the user empty it again (`src/testing/color-form.tsx`).

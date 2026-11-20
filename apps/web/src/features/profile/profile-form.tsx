@@ -1,28 +1,29 @@
-import { Profile, Team } from "@quack/contracts/identity/profile";
+import { countryCodes, Profile } from "@quack/contracts/identity/profile";
 import { User } from "@quack/contracts/identity/user";
 import { schemaFormOptions } from "@quack/form/schema-form-options";
 import { SubmitFailed } from "@quack/form/submit-failed";
 import { useAppForm } from "@quack/form/use-app-form";
+import {
+  SettingsCard,
+  SettingsCardFooter,
+  SettingsRowControl,
+  SettingsRowText,
+} from "@quack/ui/components/settings-card";
 import { useMutation } from "@tanstack/react-query";
 import { Schema } from "effect";
 
 import { useUpdateCurrentUser } from "#/features/identity/current-user.ts";
-import {
-  SettingsCard,
-  SettingsCardFooter,
-  settingsRow,
-  SettingsRowControl,
-  SettingsRowText,
-} from "@quack/ui/components/settings-card";
-import { countryOptions } from "#/features/profile/countries.ts";
 import { ProfileDraft, profileDraftOf } from "#/features/profile/profile-draft.ts";
-import { teamLabel } from "#/features/profile/team-label.ts";
+import { teamOptions } from "#/features/identity/team-options.ts";
 import { UserAvatar } from "#/features/users/user-avatar.tsx";
 import { api } from "#/lib/api.ts";
 
 const decodeProfileDraft = Schema.decodeSync(ProfileDraft);
 const encodeUser = Schema.encodeSync(User);
-const teamOptions = Team.literals.map((team) => ({ value: team, label: teamLabel(team) }));
+const regionNames = new Intl.DisplayNames(["en"], { type: "region" });
+const countryOptions = countryCodes
+  .map((code) => ({ value: code, label: regionNames.of(code) ?? code }))
+  .toSorted((a, b) => a.label.localeCompare(b.label, "en"));
 
 export function ProfileForm({ currentUser }: { currentUser: typeof User.Encoded }) {
   const updateCurrentUser = useUpdateCurrentUser();
@@ -48,7 +49,7 @@ export function ProfileForm({ currentUser }: { currentUser: typeof User.Encoded 
         <SettingsCard>
           <form.AppField name="firstName">
             {(field) => (
-              <field.Root className={settingsRow}>
+              <field.Root>
                 <SettingsRowText>
                   <field.Label>First name</field.Label>
                   <field.Description>
@@ -63,7 +64,7 @@ export function ProfileForm({ currentUser }: { currentUser: typeof User.Encoded 
           </form.AppField>
           <form.AppField name="lastName">
             {(field) => (
-              <field.Root className={settingsRow}>
+              <field.Root>
                 <SettingsRowText>
                   <field.Label>Last name</field.Label>
                   <field.Description>Lists of Users are sorted by it.</field.Description>
@@ -76,7 +77,7 @@ export function ProfileForm({ currentUser }: { currentUser: typeof User.Encoded 
           </form.AppField>
           <form.AppField name="avatarUrl">
             {(field) => (
-              <field.Root className={settingsRow}>
+              <field.Root>
                 <SettingsRowText>
                   <field.Label>Avatar</field.Label>
                   <field.Description>
@@ -100,7 +101,7 @@ export function ProfileForm({ currentUser }: { currentUser: typeof User.Encoded 
           </form.AppField>
           <form.AppField name="jobTitle">
             {(field) => (
-              <field.Root className={settingsRow}>
+              <field.Root>
                 <SettingsRowText>
                   <field.Label>Job title</field.Label>
                   <field.Description>Optional. What you do, in a few words.</field.Description>
@@ -113,7 +114,7 @@ export function ProfileForm({ currentUser }: { currentUser: typeof User.Encoded 
           </form.AppField>
           <form.AppField name="team">
             {(field) => (
-              <field.Root className={settingsRow}>
+              <field.Root>
                 <SettingsRowText>
                   <field.Label>Team</field.Label>
                   <field.Description>Optional. The team you belong to.</field.Description>
@@ -130,7 +131,7 @@ export function ProfileForm({ currentUser }: { currentUser: typeof User.Encoded 
           </form.AppField>
           <form.AppField name="country">
             {(field) => (
-              <field.Root className={settingsRow}>
+              <field.Root>
                 <SettingsRowText>
                   <field.Label>Country</field.Label>
                   <field.Description>Optional. Where you work from.</field.Description>

@@ -28,18 +28,23 @@ const renderAt = async (path: string) => {
     createRoute({
       getParentRoute: () => rootRoute,
       path: "/app",
-      component: () => <PageHeader crumbs={[{ label: "Todos" }]} />,
+      component: () => <PageHeader title="Todos" />,
     }),
     createRoute({
       getParentRoute: () => rootRoute,
       path: "/admin/users",
-      component: () => <PageHeader crumbs={[{ label: "Users" }]} />,
+      component: () => <PageHeader title="Users" />,
     }),
     createRoute({
       getParentRoute: () => rootRoute,
       path: "/app/settings/profile",
+      component: () => <PageHeader title="Profile" trail={[{ label: "Settings" }]} back />,
+    }),
+    createRoute({
+      getParentRoute: () => rootRoute,
+      path: "/admin/users/details",
       component: () => (
-        <PageHeader crumbs={[{ label: "Settings", to: "/app" }, { label: "Profile" }]} back />
+        <PageHeader title="Details" trail={[{ label: "Users", to: "/admin/users" }]} />
       ),
     }),
   ];
@@ -52,7 +57,7 @@ const renderAt = async (path: string) => {
 };
 
 describe("PageHeader", () => {
-  it("titles the page with its only crumb, without a breadcrumb", async () => {
+  it("titles the page without a breadcrumb when no page leads to it", async () => {
     await renderAt("/app");
 
     await expect.element(page.getByRole("heading", { level: 1, name: "Todos" })).toBeVisible();
@@ -60,16 +65,24 @@ describe("PageHeader", () => {
     expect(page.getByRole("button", { name: "Back" }).elements()).toEqual([]);
   });
 
-  it("leads to the page through its breadcrumb, the page last as its title", async () => {
+  it("puts the title of the page after its trail, as a heading that is no link", async () => {
     await renderAt("/app/settings/profile");
 
     const breadcrumb = page.getByRole("navigation", { name: "breadcrumb" });
+    await expect.element(breadcrumb.getByText("Settings")).toBeVisible();
+    expect(breadcrumb.getByRole("link").elements()).toEqual([]);
+    const title = breadcrumb.getByRole("heading", { level: 1, name: "Profile" });
+    await expect.element(title).toHaveAttribute("aria-current", "page");
+    expect(title.getByRole("link").elements()).toEqual([]);
+  });
+
+  it("links a page of the trail that has a link", async () => {
+    await renderAt("/admin/users/details");
+
+    const breadcrumb = page.getByRole("navigation", { name: "breadcrumb" });
     await expect
-      .element(breadcrumb.getByRole("link", { name: "Settings" }))
-      .toHaveAttribute("href", "/app");
-    await expect
-      .element(breadcrumb.getByRole("heading", { level: 1, name: "Profile" }))
-      .toBeVisible();
+      .element(breadcrumb.getByRole("link", { name: "Users" }))
+      .toHaveAttribute("href", "/admin/users");
   });
 
   it("goes back to the page before", async () => {

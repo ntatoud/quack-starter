@@ -12,7 +12,7 @@ export function TodosPage() {
 
   return (
     <>
-      <PageHeader crumbs={[{ label: "Todos" }]}>
+      <PageHeader title="Todos">
         {all.length > 0 && (
           <span className="ml-auto text-sm text-muted-foreground">{remaining} left</span>
         )}

@@ -278,11 +278,15 @@ export const PersonName = Schema.Trimmed.check(
   Schema.isMaxLength(100, { message: "Name must be at most 100 characters" }),
 );
 
+export const JobTitle = Schema.Trimmed.check(
+  Schema.isMaxLength(100, { message: "Job title must be at most 100 characters" }),
+);
+
 export class Profile extends Schema.Class<Profile, { readonly brand: unique symbol }>("Profile")({
   firstName: PersonName,
   lastName: PersonName,
   avatarUrl: Schema.NullOr(Schema.String),
-  jobTitle: Schema.Trimmed.check(Schema.isMaxLength(100)),
+  jobTitle: JobTitle,
   team: Schema.NullOr(Team),
   country: Schema.NullOr(CountryCode),
 }) {}

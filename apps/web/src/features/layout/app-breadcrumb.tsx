@@ -3,28 +3,30 @@ import {
   BreadcrumbItem,
   BreadcrumbLink,
   BreadcrumbList,
-  BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@quack/ui/components/breadcrumb";
+import { cn } from "@quack/ui/lib/utils";
 import { Link, type LinkProps } from "@tanstack/react-router";
 import { Fragment } from "react";
 
 export type Crumb = { readonly label: string; readonly to?: LinkProps["to"] };
 
-/** The way to the page, the page last: its title, the `h1` of the page. */
-export type Crumbs = readonly [...ReadonlyArray<Crumb>, Crumb];
-
 const titleClassName = "text-sm font-medium";
 
-export function AppBreadcrumb({ crumbs }: { crumbs: Crumbs }) {
-  const above = crumbs.slice(0, -1);
-  const page = crumbs.at(-1);
-  if (above.length === 0) return <h1 className={titleClassName}>{page?.label}</h1>;
+/** The title of the page, its `h1`, after the `trail` of pages that lead to it. */
+export function AppBreadcrumb({
+  title,
+  trail,
+}: {
+  title: string;
+  trail?: ReadonlyArray<Crumb> | undefined;
+}) {
+  if (trail === undefined || trail.length === 0) return <h1 className={titleClassName}>{title}</h1>;
 
   return (
     <Breadcrumb>
       <BreadcrumbList>
-        {above.map((crumb) => (
+        {trail.map((crumb) => (
           <Fragment key={crumb.label}>
             <BreadcrumbItem>
               {crumb.to === undefined ? (
@@ -37,8 +39,9 @@ export function AppBreadcrumb({ crumbs }: { crumbs: Crumbs }) {
           </Fragment>
         ))}
         <BreadcrumbItem>
-          <h1>
-            <BreadcrumbPage className={titleClassName}>{page?.label}</BreadcrumbPage>
+          {/* Not shadcn's BreadcrumbPage: its role of a disabled link would be read inside the heading. */}
+          <h1 aria-current="page" className={cn(titleClassName, "text-foreground")}>
+            {title}
           </h1>
         </BreadcrumbItem>
       </BreadcrumbList>

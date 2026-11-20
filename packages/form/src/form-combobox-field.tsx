@@ -7,7 +7,6 @@ import {
   ComboboxList,
 } from "@quack/ui/components/combobox";
 
-import { choiceOf, chosen } from "#/choice.ts";
 import type { FieldOption } from "#/field-option.ts";
 import { FieldControlError } from "#/field-control-error.tsx";
 import { useFieldControl } from "#/use-field-control.ts";
@@ -33,8 +32,9 @@ export function FormComboboxField({
       <Combobox
         items={options.map((option) => option.value)}
         itemToStringLabel={(value: string) => labels.get(value) ?? value}
-        value={chosen(field.state.value)}
-        onValueChange={(value: string | null) => field.handleChange(choiceOf(value))}
+        // Base UI calls `null` the value the field holds as `""`: nothing chosen.
+        value={field.state.value === "" ? null : field.state.value}
+        onValueChange={(value: string | null) => field.handleChange(value ?? "")}
       >
         <ComboboxInput
           id={id}
