@@ -4,10 +4,16 @@ import { createRouter } from "@tanstack/react-router";
 
 import { setCurrentUserData } from "#/features/identity/current-user.ts";
 import { signInLocation } from "#/features/identity/redirect-target.ts";
+import { cookiePreferencesStore } from "#/features/preferences/cookie-preferences-store.ts";
+import {
+  type PreferencesStore,
+  PreferencesStoreContext,
+} from "#/features/preferences/preferences-store.ts";
 import { routeTree } from "#/routeTree.gen.ts";
 
 export interface RouterContext {
   readonly queryClient: QueryClient;
+  readonly preferencesStore: PreferencesStore;
 }
 
 // A call without a Session would fail again: retrying only delays the sign-in page.
@@ -34,11 +40,13 @@ export function getRouter() {
 
   const router = createRouter({
     routeTree,
-    context: { queryClient },
+    context: { queryClient, preferencesStore: cookiePreferencesStore },
     scrollRestoration: true,
     defaultPreload: "intent",
     Wrap: ({ children }) => (
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      <QueryClientProvider client={queryClient}>
+        <PreferencesStoreContext value={cookiePreferencesStore}>{children}</PreferencesStoreContext>
+      </QueryClientProvider>
     ),
   });
 

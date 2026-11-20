@@ -1,13 +1,13 @@
 import type { Role } from "@quack/contracts/identity/user";
-import { QueryClient } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter } from "@tanstack/react-router";
 import { describe, expect, it } from "vite-plus/test";
 
 import { currentUserQueryOptions } from "#/features/identity/current-user.ts";
 import { routeTree } from "#/routeTree.gen.ts";
+import { testProviders } from "#/testing/test-providers.tsx";
 
 const landingOf = async (path: string, who: Role | "visitor") => {
-  const queryClient = new QueryClient();
+  const { queryClient, preferencesStore } = testProviders();
   queryClient.setQueryData(
     currentUserQueryOptions.queryKey,
     who === "visitor"
@@ -25,7 +25,7 @@ const landingOf = async (path: string, who: Role | "visitor") => {
   );
   const router = createRouter({
     routeTree,
-    context: { queryClient },
+    context: { queryClient, preferencesStore },
     history: createMemoryHistory({ initialEntries: [path] }),
   });
   await router.load();
