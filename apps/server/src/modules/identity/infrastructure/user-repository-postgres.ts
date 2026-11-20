@@ -26,7 +26,7 @@ export const UserRepositoryPostgres = Layer.effect(
       'status', status,
       'created_at', created_at,
       'last_sign_in_at', last_sign_in_at,
-      'email_verified_at', email_verified_at,
+      'onboarded_at', onboarded_at,
       'profile', CASE WHEN user_id IS NULL THEN NULL ELSE jsonb_build_object(
         'first_name', first_name,
         'last_name', last_name,
@@ -119,9 +119,9 @@ export const UserRepositoryPostgres = Layer.effect(
       execute: ({ user, passwordHash }) =>
         sql`WITH written AS (
               INSERT INTO users
-                (id, email, password_hash, role, status, created_at, last_sign_in_at, email_verified_at)
+                (id, email, password_hash, role, status, created_at, last_sign_in_at, onboarded_at)
               VALUES (${user.id}, ${user.email}, ${passwordHash}, ${user.role}, ${user.status},
-                ${user.createdAt}, ${user.lastSignInAt}, ${user.emailVerifiedAt})
+                ${user.createdAt}, ${user.lastSignInAt}, ${user.onboardedAt})
               RETURNING id
             )
             ${profileWrite(user)}`,
@@ -136,7 +136,7 @@ export const UserRepositoryPostgres = Layer.effect(
                 status = ${user.status},
                 created_at = ${user.createdAt},
                 last_sign_in_at = ${user.lastSignInAt},
-                email_verified_at = ${user.emailVerifiedAt}
+                onboarded_at = ${user.onboardedAt}
               WHERE id = ${user.id}
               RETURNING id
             )

@@ -40,7 +40,7 @@ const userOf = (
     status,
     createdAt: day(createdOn),
     lastSignInAt: lastSignInOn === null ? null : day(lastSignInOn),
-    emailVerifiedAt: null,
+    onboardedAt: null,
     profile:
       profile === null
         ? null

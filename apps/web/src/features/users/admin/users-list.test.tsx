@@ -27,7 +27,7 @@ const user = (n: number, role: Role = "user") => ({
   status: "active",
   createdAt: "2026-01-01T00:00:00.000Z",
   lastSignInAt: null,
-  emailVerifiedAt: null,
+  onboardedAt: null,
   profile: null,
 });
 
@@ -58,7 +58,7 @@ const ada = {
   ...user(1),
   email: "ada@quack.dev",
   status: "suspended",
-  emailVerifiedAt: "2026-01-02T00:00:00.000Z",
+  onboardedAt: "2026-01-02T00:00:00.000Z",
   profile: {
     firstName: "Ada",
     lastName: "Lovelace",
@@ -548,11 +548,11 @@ describe("UsersList", () => {
     await expect.element(row.getByRole("cell", { name: "Analyst" })).toBeVisible();
     await expect.element(row.getByRole("cell", { name: "United Kingdom" })).toBeVisible();
     await expect.element(row.getByRole("cell", { name: "Never" })).toBeVisible();
-    await expect.element(row.getByRole("img", { name: "Verified" })).toBeVisible();
     await expect.element(row.getByRole("cell", { name: "Jan 1, 2026" })).toBeVisible();
+    await expect.element(row.getByRole("cell", { name: "Jan 2, 2026" })).toBeVisible();
     const other = page.getByRole("row").filter({ hasText: "user-2@quack.dev" });
     await expect.element(other.getByRole("cell", { name: "No profile" })).toBeVisible();
-    await expect.element(other.getByText("Not verified")).toBeInTheDocument();
+    await expect.element(other.getByRole("cell", { name: "Not yet" })).toBeVisible();
   });
 
   it("sorts by the last sign-in from its header", async () => {

@@ -14,7 +14,7 @@ export default Effect.gen(function* () {
       status user_status NOT NULL,
       created_at timestamptz NOT NULL,
       last_sign_in_at timestamptz,
-      email_verified_at timestamptz
+      onboarded_at timestamptz
     )
   `;
 });

@@ -20,7 +20,7 @@ const ada = new User({
   status: "active",
   createdAt: DateTime.makeUnsafe("2026-01-01T00:00:00Z"),
   lastSignInAt: null,
-  emailVerifiedAt: null,
+  onboardedAt: null,
   profile: null,
 });
 const grace = new User({
@@ -30,7 +30,7 @@ const grace = new User({
   status: "active",
   createdAt: DateTime.makeUnsafe("2026-01-01T00:00:00Z"),
   lastSignInAt: null,
-  emailVerifiedAt: null,
+  onboardedAt: null,
   profile: null,
 });
 const users: ReadonlyArray<User> = [ada, grace];

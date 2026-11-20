@@ -14,27 +14,15 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@quack/ui/components/sidebar";
-import { useMutation } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
 import { ChevronsUpDownIcon, LogOutIcon } from "lucide-react";
 
-import { useSetCurrentUser } from "#/features/identity/current-user.ts";
+import { useSignOut } from "#/features/identity/use-sign-out.ts";
 import { fullName } from "#/features/users/full-name.ts";
 import { UserAvatar } from "#/features/users/user-avatar.tsx";
-import { api } from "#/lib/api.ts";
 
-export function UserMenu({ currentUser }: { currentUser: typeof User.Encoded }) {
+export function UserMenu({ currentUser }: { currentUser: User }) {
   const { isMobile } = useSidebar();
-  const setCurrentUser = useSetCurrentUser();
-  const navigate = useNavigate();
-  const signOut = useMutation(
-    api.identity.signOut.mutationOptions({
-      onSuccess: async () => {
-        await setCurrentUser(null);
-        await navigate({ to: "/sign-in" });
-      },
-    }),
-  );
+  const signOut = useSignOut();
 
   return (
     <SidebarMenu>
@@ -87,7 +75,7 @@ export function UserMenu({ currentUser }: { currentUser: typeof User.Encoded }) 
   );
 }
 
-function UserIdentity({ currentUser }: { currentUser: typeof User.Encoded }) {
+function UserIdentity({ currentUser }: { currentUser: User }) {
   const { email, profile } = currentUser;
   return (
     <>
@@ -100,5 +88,4 @@ function UserIdentity({ currentUser }: { currentUser: typeof User.Encoded }) {
   );
 }
 
-const displayName = ({ email, profile }: typeof User.Encoded) =>
-  profile ? fullName(profile) : email;
+const displayName = ({ email, profile }: User) => (profile ? fullName(profile) : email);

@@ -1,10 +1,12 @@
 import { assert, describe, effect, layer } from "@effect/vitest";
 import { Api } from "@quack/contracts/api";
 import { Authentication } from "@quack/contracts/identity/authentication";
+import { OnboardingPayload } from "@quack/contracts/identity/identity-api";
 import { CountryCode, Profile } from "@quack/contracts/identity/profile";
 import { type Email, type Password, User } from "@quack/contracts/identity/user";
 import {
   Clock,
+  DateTime,
   ConfigProvider,
   Duration,
   Effect,
@@ -13,6 +15,7 @@ import {
   Option,
   Redacted,
   Ref,
+  Schema,
 } from "effect";
 import { Cookies, HttpClientRequest, type HttpClientResponse, HttpServer } from "effect/http";
 import { HttpApiMiddleware, HttpApiTest } from "effect/http-api";
@@ -26,6 +29,11 @@ import { UserRepositoryMemory } from "#/modules/identity/testing/user-repository
 const maxAge = Duration.toSeconds(sessionLifetime);
 
 const password = Redacted.make("correct horse battery staple");
+
+const nameOfAda = Schema.decodeSync(OnboardingPayload)({
+  firstName: " Ada ",
+  lastName: "Lovelace",
+});
 
 /** The email as typed, not normalized: the server must normalize it. */
 const asTyped = (email: string) => email as Email;
@@ -90,6 +98,8 @@ const makeBrowser = Effect.gen(function* () {
     session: Effect.map(Ref.get(jar), (cookies) => Cookies.getValue(cookies, "session")),
     me: client.identity.me(),
     updateProfile: (profile: Profile) => client.identity.updateProfile({ payload: profile }),
+    completeOnboarding: (payload: OnboardingPayload) =>
+      client.identity.completeOnboarding({ payload }),
     meResponse: Effect.gen(function* () {
       const response = yield* client.identity.me({ responseMode: "response-only" });
       return { status: response.status, setCookie: yield* keepCookies(response) };
@@ -134,9 +144,9 @@ layer(withConfig({ SIGN_UPS_PER_IP: "1000" }))("IdentityApi", (it) => {
       assert.deepStrictEqual(Object.keys(user).toSorted(), [
         "createdAt",
         "email",
-        "emailVerifiedAt",
         "id",
         "lastSignInAt",
+        "onboardedAt",
         "profile",
         "role",
         "status",
@@ -200,9 +210,9 @@ layer(withConfig({ SIGN_UPS_PER_IP: "1000" }))("IdentityApi", (it) => {
         assert.deepStrictEqual(Object.keys(signedIn.user).toSorted(), [
           "createdAt",
           "email",
-          "emailVerifiedAt",
           "id",
           "lastSignInAt",
+          "onboardedAt",
           "profile",
           "role",
           "status",
@@ -314,6 +324,68 @@ layer(withConfig({ SIGN_UPS_PER_IP: "1000" }))("IdentityApi", (it) => {
 
       assert.strictEqual(status, 204);
       assertCookieCleared(setCookie);
+    }),
+  );
+
+  it.effect("signs a visitor up as a User who has not completed the onboarding", () =>
+    Effect.gen(function* () {
+      const { user } = yield* (yield* makeBrowser).signUp(asTyped("new.ada@example.com"));
+
+      assert.isNull(user.onboardedAt);
+      assert.isNull(user.profile);
+    }),
+  );
+
+  it.effect(
+    "completes the onboarding: the name makes the Profile, nothing else filled in, and the date is set",
+    () =>
+      Effect.gen(function* () {
+        const browser = yield* makeBrowser;
+        const { user } = yield* browser.signUp(asTyped("ada.onboarding@example.com"));
+        const now = yield* DateTime.now;
+
+        const onboarded = yield* browser.completeOnboarding(nameOfAda);
+
+        assert.deepStrictEqual(
+          onboarded,
+          new User({
+            ...user,
+            onboardedAt: now,
+            profile: new Profile({
+              firstName: "Ada",
+              lastName: "Lovelace",
+              jobTitle: "",
+              team: null,
+              country: null,
+              avatarUrl: null,
+            }),
+          }),
+        );
+        assert.deepStrictEqual(yield* browser.me, onboarded);
+      }),
+  );
+
+  it.effect("completes the onboarding again: changes the name, keeps the first date", () =>
+    Effect.gen(function* () {
+      const browser = yield* makeBrowser;
+      yield* browser.signUp(asTyped("ada.twice@example.com"));
+      const first = yield* browser.completeOnboarding(nameOfAda);
+      yield* TestClock.adjust("1 hour");
+
+      const again = yield* browser.completeOnboarding({ ...nameOfAda, lastName: "Byron" });
+
+      assert.strictEqual(again.profile?.lastName, "Byron");
+      assert.deepStrictEqual(again.onboardedAt, first.onboardedAt);
+    }),
+  );
+
+  it.effect("fails completeOnboarding with Unauthenticated without a Session", () =>
+    Effect.gen(function* () {
+      const browser = yield* makeBrowser;
+
+      const error = yield* browser.completeOnboarding(nameOfAda).pipe(Effect.flip);
+
+      assert.strictEqual(error._tag, "Unauthenticated");
     }),
   );
 

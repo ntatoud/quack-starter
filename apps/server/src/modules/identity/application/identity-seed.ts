@@ -15,6 +15,8 @@ export const devPasswordHash =
 
 const dayMillis = 24 * 60 * 60 * 1000;
 
+const onboardingMillis = 5 * 60 * 1000;
+
 const daysBeforeSeed = (days: number) =>
   DateTime.fromDateUnsafe(new Date(seedDate.getTime() - days * dayMillis));
 
@@ -26,7 +28,7 @@ const devAccount = (faker: Faker, email: string, role: Role, firstName: string):
     status: "active",
     createdAt: daysBeforeSeed(400),
     lastSignInAt: daysBeforeSeed(1),
-    emailVerifiedAt: daysBeforeSeed(400),
+    onboardedAt: daysBeforeSeed(400),
     profile: new Profile({
       firstName,
       lastName: "Quack",
@@ -52,35 +54,37 @@ const randomUsers = (faker: Faker, count: number): ReadonlyArray<User> => {
       { weight: 8, value: "suspended" },
     ]);
     const createdAt = faker.date.past({ years: 2, refDate: seedDate });
+    const id = UserId.make(faker.string.uuid());
+    const lastSignInAt =
+      status === "invited"
+        ? null
+        : DateTime.fromDateUnsafe(faker.date.between({ from: createdAt, to: seedDate }));
+    const profile = faker.datatype.boolean({ probability: 0.1 })
+      ? null
+      : new Profile({
+          firstName,
+          lastName,
+          avatarUrl: faker.datatype.boolean({ probability: 0.6 })
+            ? faker.image.personPortrait({ size: 128 })
+            : null,
+          jobTitle: faker.person.jobTitle(),
+          team: faker.helpers.arrayElement(Team.literals),
+          country: CountryCode.make(faker.location.countryCode("alpha-2")),
+        });
     users.push(
       new User({
-        id: UserId.make(faker.string.uuid()),
+        id,
         email: Schema.decodeSync(Email)(email),
         role: "user",
         status,
         createdAt: DateTime.fromDateUnsafe(createdAt),
-        lastSignInAt:
-          status === "invited"
+        lastSignInAt,
+        // Onboarded minutes after signing up, by a constant: a draw of faker would change every User after it.
+        onboardedAt:
+          profile === null || lastSignInAt === null
             ? null
-            : DateTime.fromDateUnsafe(faker.date.between({ from: createdAt, to: seedDate })),
-        emailVerifiedAt:
-          status === "invited" || faker.datatype.boolean({ probability: 0.15 })
-            ? null
-            : DateTime.fromDateUnsafe(
-                new Date(createdAt.getTime() + faker.number.int({ min: 60_000, max: dayMillis })),
-              ),
-        profile: faker.datatype.boolean({ probability: 0.1 })
-          ? null
-          : new Profile({
-              firstName,
-              lastName,
-              avatarUrl: faker.datatype.boolean({ probability: 0.6 })
-                ? faker.image.personPortrait({ size: 128 })
-                : null,
-              jobTitle: faker.person.jobTitle(),
-              team: faker.helpers.arrayElement(Team.literals),
-              country: CountryCode.make(faker.location.countryCode("alpha-2")),
-            }),
+            : DateTime.fromDateUnsafe(new Date(createdAt.getTime() + onboardingMillis)),
+        profile,
       }),
     );
   }

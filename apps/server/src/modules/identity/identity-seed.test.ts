@@ -117,6 +117,15 @@ describe("devUsers", () => {
     }
   });
 
+  it("gives an onboarding date to the Users with a Profile who signed in, and to them only", () => {
+    for (const { profile, lastSignInAt, onboardedAt, createdAt } of devUsers()) {
+      assert.strictEqual(onboardedAt !== null, profile !== null && lastSignInAt !== null);
+      if (onboardedAt !== null) {
+        assert.isAtLeast(DateTime.toEpochMillis(onboardedAt), DateTime.toEpochMillis(createdAt));
+      }
+    }
+  });
+
   it("gives a Profile to most Users, not all", () => {
     const seeded = devUsers();
     const withProfile = seeded.filter(({ profile }) => profile !== null);

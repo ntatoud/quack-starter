@@ -19,7 +19,7 @@ describe("UserListQuery", () => {
     expect(decode({ orderBy: "role", dir: "desc" })._tag).toBe("Some");
     expect(decode({ orderBy: "status" })._tag).toBe("Some");
     expect(decode({ orderBy: "lastSignInAt" })._tag).toBe("Some");
-    expect(decode({ orderBy: "emailVerifiedAt" })._tag).toBe("None");
+    expect(decode({ orderBy: "passwordHash" })._tag).toBe("None");
     expect(decode({ orderBy: "name" })._tag).toBe("Some");
     expect(decode({ orderBy: "country" })._tag).toBe("Some");
     expect(decode({ orderBy: "jobTitle" })._tag).toBe("None");

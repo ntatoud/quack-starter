@@ -4,7 +4,7 @@ import { TooltipProvider } from "@quack/ui/components/tooltip";
 import { Outlet, useRouteContext } from "@tanstack/react-router";
 import type { ComponentType } from "react";
 
-export type SidebarProps = { readonly currentUser: typeof User.Encoded };
+export type SidebarProps = { readonly currentUser: User };
 
 export function SidebarLayout({ sidebar: Sidebar }: { sidebar: ComponentType<SidebarProps> }) {
   const { currentUser, sidebarOpen } = useRouteContext({ from: "/_authenticated" });

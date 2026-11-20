@@ -28,6 +28,10 @@ _Avoid_: State, enabled, banned
 What a User tells about themself: their first and last name, avatar, job title, team, and country. Only the first and last name are required. A User who just signed up has none.
 _Avoid_: Account, details, metadata
 
+**Onboarding**:
+What a User goes through after signing up, before reaching the app: they give their name, which creates their Profile. A User is onboarded once they have completed it, the date it records.
+_Avoid_: Setup, welcome, wizard
+
 **Admin**:
 A User whose Role is `admin`. Only an Admin sees the list of Users; any other Current User is forbidden from it.
 _Avoid_: Superuser, staff

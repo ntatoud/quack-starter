@@ -1,7 +1,6 @@
 import type { User, UserStatus } from "@quack/contracts/identity/user";
 import { Badge } from "@quack/ui/components/badge";
 import { DateTime } from "effect";
-import { CircleCheckIcon } from "lucide-react";
 
 import { labelOf } from "#/features/users/admin/users-filters.ts";
 import { fullName } from "#/features/users/full-name.ts";
@@ -54,17 +53,6 @@ export function CountryCell({ code }: { code: string }) {
   );
 }
 
-export function VerifiedCell({ verifiedAt }: { verifiedAt: DateTime.Utc | null }) {
-  return verifiedAt === null ? (
-    <span className="text-muted-foreground">
-      <span aria-hidden="true">–</span>
-      <span className="sr-only">Not verified</span>
-    </span>
-  ) : (
-    <CircleCheckIcon role="img" aria-label="Verified" className="size-4 text-emerald-600" />
-  );
-}
-
 const dateFormat = new Intl.DateTimeFormat("en", { dateStyle: "medium" });
 const dateTimeFormat = new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" });
 const relativeFormat = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
@@ -93,6 +81,14 @@ export function DateCell({ date }: { date: DateTime.Utc }) {
     <time dateTime={value.toISOString()} className="whitespace-nowrap">
       {dateFormat.format(value)}
     </time>
+  );
+}
+
+export function OnboardedCell({ date }: { date: DateTime.Utc | null }) {
+  return date === null ? (
+    <span className="text-muted-foreground">Not yet</span>
+  ) : (
+    <DateCell date={date} />
   );
 }
 

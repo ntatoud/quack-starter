@@ -41,7 +41,7 @@ const ada = {
   status: "active",
   createdAt: "2026-01-01T00:00:00.000Z",
   lastSignInAt: null,
-  emailVerifiedAt: null,
+  onboardedAt: "2026-01-01T00:00:00.000Z",
   profile: null,
 };
 
