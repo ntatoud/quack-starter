@@ -16,12 +16,14 @@ export const SignUpPayload = Schema.Struct({ email: Email, password: Password })
 /** A password no User can have is refused before it is checked. */
 export const SignInPayload = Schema.Struct({ email: Email, password: Password });
 
-const typed = Schema.String.pipe(Schema.decodeTo(Schema.String, SchemaTransformation.trim()));
+/** Trims what was typed, then decodes it with `schema`, whose `Schema.Trimmed` would only refuse the spaces. */
+const trimmed = <S extends Schema.Codec<string, string>>(schema: S) =>
+  Schema.String.pipe(Schema.decodeTo(schema, SchemaTransformation.trim()));
 
 /** What the onboarding asks for: the fields a Profile requires. */
 export const OnboardingPayload = Schema.Struct({
-  firstName: typed.pipe(Schema.decodeTo(PersonName)),
-  lastName: typed.pipe(Schema.decodeTo(PersonName)),
+  firstName: trimmed(PersonName),
+  lastName: trimmed(PersonName),
 });
 export type OnboardingPayload = typeof OnboardingPayload.Type;
 
