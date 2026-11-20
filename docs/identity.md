@@ -14,7 +14,7 @@ The rules of `modules/identity` that its code does not show on its own. The dura
 
 ## Onboarding
 
-- A User is onboarded once `onboardedAt` is set (`user.isOnboarded`, a getter of the contract, never sent), whatever their Profile: a Profile filled in for them does not spare them the onboarding.
+- A User is onboarded once `onboardedAt` is set, whatever their Profile: a Profile filled in for them does not spare them the onboarding.
 - `completeOnboarding` sets the name of the Profile, creating it with nothing else filled in, and records `onboardedAt` (`onboarded` in `domain/user.ts`). A second one changes the name and keeps the first date.
 - Only the web app holds a User who is not onboarded back; the API answers them as any other.
 

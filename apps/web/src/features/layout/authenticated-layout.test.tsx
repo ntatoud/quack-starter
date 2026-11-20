@@ -1,4 +1,3 @@
-import { User } from "@quack/contracts/identity/user";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
@@ -7,7 +6,6 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router";
-import { Schema } from "effect";
 import { describe, expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 import { render } from "vitest-browser-react";
@@ -55,9 +53,7 @@ const setup = async (currentUser: typeof newcomer | typeof onboarded | typeof no
     getParentRoute: () => rootRoute,
     id: "_authenticated",
     beforeLoad: () => ({
-      currentUser: Schema.decodeSync(User)(
-        queryClient.getQueryData(currentUserQueryOptions.queryKey) ?? newcomer,
-      ),
+      currentUser: queryClient.getQueryData(currentUserQueryOptions.queryKey) ?? newcomer,
     }),
     component: AuthenticatedLayout,
   });

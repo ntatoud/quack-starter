@@ -1,6 +1,4 @@
-import { User } from "@quack/contracts/identity/user";
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { Schema } from "effect";
 
 import { AuthenticatedLayout } from "#/features/layout/authenticated-layout.tsx";
 import { signInLocation } from "#/features/identity/redirect-target.ts";
@@ -11,10 +9,7 @@ export const Route = createFileRoute("/_authenticated")({
     if (context.currentUser === null) {
       throw redirect(signInLocation(location.href));
     }
-    return {
-      currentUser: Schema.decodeSync(User)(context.currentUser),
-      sidebarOpen: readSidebarOpen(),
-    };
+    return { currentUser: context.currentUser, sidebarOpen: readSidebarOpen() };
   },
   component: AuthenticatedLayout,
 });

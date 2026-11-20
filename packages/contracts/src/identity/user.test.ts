@@ -1,7 +1,7 @@
 import { Redacted, Schema } from "effect";
 import { describe, expect, it } from "vite-plus/test";
 
-import { Email, Password, Role, User } from "#/identity/user.ts";
+import { Email, Password, Role } from "#/identity/user.ts";
 
 describe("Email", () => {
   const decode = Schema.decodeUnknownOption(Email);
@@ -59,29 +59,5 @@ describe("Role", () => {
     expect(decode("admin")._tag).toBe("Some");
     expect(decode("Admin")._tag).toBe("None");
     expect(decode("owner")._tag).toBe("None");
-  });
-});
-
-describe("User", () => {
-  const encoded = {
-    id: "user-1",
-    email: "ada@example.com",
-    role: "user",
-    status: "active",
-    createdAt: "2026-01-01T00:00:00.000Z",
-    lastSignInAt: null,
-    onboardedAt: null,
-    profile: null,
-  } as const;
-
-  it("is onboarded once it has an onboarding date", () => {
-    expect(Schema.decodeSync(User)(encoded).isOnboarded).toBe(false);
-    expect(
-      Schema.decodeSync(User)({ ...encoded, onboardedAt: "2026-01-01T00:05:00.000Z" }).isOnboarded,
-    ).toBe(true);
-  });
-
-  it("sends the date only: isOnboarded is derived on each side", () => {
-    expect(Schema.encodeSync(User)(Schema.decodeSync(User)(encoded))).toEqual(encoded);
   });
 });

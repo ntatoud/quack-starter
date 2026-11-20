@@ -46,8 +46,4 @@ export class User extends Schema.Class<User, { readonly brand: unique symbol }>(
   onboardedAt: Schema.NullOr(Schema.DateTimeUtcFromString),
   /** `null` until the User fills it in: a sign-up asks for an email and a password only. */
   profile: Schema.NullOr(Profile),
-}) {
-  get isOnboarded(): boolean {
-    return this.onboardedAt !== null;
-  }
-}
+}) {}

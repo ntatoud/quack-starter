@@ -20,7 +20,7 @@ import { useSignOut } from "#/features/identity/use-sign-out.ts";
 import { fullName } from "#/features/users/full-name.ts";
 import { UserAvatar } from "#/features/users/user-avatar.tsx";
 
-export function UserMenu({ currentUser }: { currentUser: User }) {
+export function UserMenu({ currentUser }: { currentUser: typeof User.Encoded }) {
   const { isMobile } = useSidebar();
   const signOut = useSignOut();
 
@@ -75,7 +75,7 @@ export function UserMenu({ currentUser }: { currentUser: User }) {
   );
 }
 
-function UserIdentity({ currentUser }: { currentUser: User }) {
+function UserIdentity({ currentUser }: { currentUser: typeof User.Encoded }) {
   const { email, profile } = currentUser;
   return (
     <>
@@ -88,4 +88,5 @@ function UserIdentity({ currentUser }: { currentUser: User }) {
   );
 }
 
-const displayName = ({ email, profile }: User) => (profile ? fullName(profile) : email);
+const displayName = ({ email, profile }: typeof User.Encoded) =>
+  profile ? fullName(profile) : email;

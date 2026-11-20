@@ -10,7 +10,7 @@ export function AuthenticatedLayout() {
   return (
     <>
       <Outlet />
-      {!currentUser.isOnboarded && (
+      {currentUser.onboardedAt === null && (
         <OnboardingDialog email={currentUser.email} onOnboarded={setCurrentUser} />
       )}
     </>

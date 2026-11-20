@@ -9,7 +9,7 @@ TanStack Start app. It depends on `@quack/contracts`, never on the server.
 - Validate a route's search with an Effect schema: `validateSearch: Schema.toStandardSchemaV1(SignInSearch)`.
 - Pages of every Current User go under `routes/_authenticated/app/`, pages of Admins only under `routes/_authenticated/admin/`, with their components in the `admin/` folder of their feature. Add the page to the sidebar of its root (`features/layout`).
 - A page renders its own top bar, `PageHeader`: copy `features/todos/todos-page.tsx`.
-- While the Current User is not onboarded (`currentUser.isOnboarded`), `AuthenticatedLayout` covers every page under `_authenticated` with `OnboardingDialog`, which cannot be closed (`features/onboarding`).
+- While the Current User is not onboarded (`currentUser.onboardedAt === null`), `AuthenticatedLayout` covers every page under `_authenticated` with `OnboardingDialog`, which cannot be closed (`features/onboarding`).
 - Pages for visitors only go under `routes/_guest/` and redirect a Current User in their `beforeLoad`.
 - Read a `redirect` search param through `redirectTarget` (`features/identity/redirect-target.ts`): it comes from a link anyone can write.
 - A link that looks like a button is a `ButtonLink` (`components/button-link.tsx`).
@@ -19,8 +19,7 @@ TanStack Start app. It depends on `@quack/contracts`, never on the server.
 
 - Call the API with the query options of `api` (`lib/api.ts`): `useQuery(api.todos.list.queryOptions())`, `useMutation(api.todos.create.mutationOptions())`.
 - Render a query through `matchQuery(query, { Pending, Error, Success })` (`@quack/ui-state/query`). Anything else that loads answers a `UiState`, matched with `UiState.match`.
-- Load data in the browser: in the server render, the API client has no cookie. The one exception is the Current User, which every route gets as `context.currentUser` (`null` for a visitor, never under `_authenticated`). It is the encoded User, as the query cache keeps it; `_authenticated` decodes it, so below it `context.currentUser` is a `User`, its getters included.
-- The context of a `beforeLoad` crosses from the server render to the browser. A class instance in it needs a serialization adapter, registered in `src/start.ts` (`features/identity/user-serialization.ts`).
+- Load data in the browser: in the server render, the API client has no cookie. The one exception is the Current User, which every route gets as `context.currentUser` (`null` for a visitor, never under `_authenticated`).
 - After a call that changes who the Current User is, call `useSetCurrentUser()` with the User, or `null` after a sign-out.
 - A call that fails with `Unauthenticated` needs no handling where it is made: `router.tsx` leads to the sign-in page.
 - A web server variable goes in `env/server.ts`, without a `VITE_` prefix. Vite does not load it from `.env`: pass it by name in `vite.config.ts`, as `API_URL` is.
