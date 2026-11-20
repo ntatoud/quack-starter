@@ -51,19 +51,19 @@ export const UserRepositoryPostgres = Layer.effect(
       lastSignInAt: [sql`last_sign_in_at`],
     };
 
-    const userWhere = (condition: Fragment) =>
+    const selectUser = (condition: Fragment) =>
       sql`SELECT ${userJson} AS user, password_hash FROM ${usersWithProfiles} WHERE ${condition}`;
 
     const findById = SqlSchema.findOneOption({
       Request: UserId,
       Result: UserWithHash,
-      execute: (id) => userWhere(sql`id = ${id}`),
+      execute: (id) => selectUser(sql`id = ${id}`),
     });
 
     const findByEmail = SqlSchema.findOneOption({
       Request: Email,
       Result: UserWithHash,
-      execute: (email) => userWhere(sql`email = ${email}`),
+      execute: (email) => selectUser(sql`email = ${email}`),
     });
 
     // The total comes from every matching row, so a page past the last one still has it.
