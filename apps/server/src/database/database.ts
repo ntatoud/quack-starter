@@ -1,7 +1,7 @@
 import { NodeServices } from "@effect/platform-node";
 import { PgClient, PgMigrator } from "@effect/sql-pg";
 import { Effect, Layer, Redacted, Schema, String } from "effect";
-import type { SqlError } from "effect/sql/SqlError";
+import { isSqlError, type SqlError } from "effect/sql/SqlError";
 
 import { DatabaseConfig } from "#/config.ts";
 import { migrationsDirectory } from "#/database/migration-files.ts";
@@ -29,28 +29,38 @@ export const withoutPassword = (url: string): string => {
 const refusesConnection = (error: SqlError) =>
   error.reason._tag === "ConnectionError" || error.reason._tag === "AuthenticationError";
 
+const unreachable = (url: Redacted.Redacted, cause: SqlError) =>
+  refusesConnection(cause)
+    ? new DatabaseUnreachable({ url: withoutPassword(Redacted.value(url)), cause })
+    : cause;
+
+const connection = Effect.map(DatabaseConfig, ({ url, maxConnections }) => ({
+  url,
+  client: PgClient.layer({
+    url,
+    maxConnections,
+    transformQueryNames: String.camelToSnake,
+    transformResultNames: String.snakeToCamel,
+  }),
+}));
+
 const Migrations = PgMigrator.layer({ loader: PgMigrator.fromFileSystem(migrationsDirectory) });
 
 export const Database = Layer.unwrap(
-  Effect.gen(function* () {
-    const { url, maxConnections } = yield* DatabaseConfig;
-    const PgClientLayer = PgClient.layer({
-      url,
-      maxConnections,
-      transformQueryNames: String.camelToSnake,
-      transformResultNames: String.snakeToCamel,
-    });
-    return Migrations.pipe(
-      Layer.provideMerge(PgClientLayer),
+  Effect.map(connection, ({ url, client }) =>
+    Migrations.pipe(
+      Layer.provideMerge(client),
       Layer.catchTag("SqlError", (cause) =>
-        Layer.effectDiscard(
-          Effect.fail(
-            refusesConnection(cause)
-              ? new DatabaseUnreachable({ url: withoutPassword(Redacted.value(url)), cause })
-              : cause,
-          ),
-        ),
+        Layer.effectDiscard(Effect.fail(unreachable(url, cause))),
       ),
-    );
-  }),
+    ),
+  ),
 ).pipe(Layer.provide(NodeServices.layer));
+
+export const withDatabase = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
+  Effect.flatMap(connection, ({ url, client }) =>
+    effect.pipe(
+      Effect.provide(client),
+      Effect.mapError((error) => (isSqlError(error) ? unreachable(url, error) : error)),
+    ),
+  );

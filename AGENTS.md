@@ -8,15 +8,16 @@ The words of the domain (User, Session, Current User, Todo, Owner) are defined i
 
 Run from the repo root. `vp` is Vite+, the task runner, linter, formatter, and test runner.
 
-| Command             | What it does                                      |
-| ------------------- | ------------------------------------------------- |
-| `pnpm dev`          | Web and server under portless (see below)         |
-| `pnpm check`        | Format check + lint (`pnpm fmt` fixes formatting) |
-| `pnpm typecheck`    | `tsc` in every package, cached                    |
-| `pnpm typecheck:ci` | Same with `tsrs`, as CI runs it                   |
-| `pnpm test`         | Tests in every package, cached                    |
-| `pnpm knip`         | Unused files, exports, and dependencies           |
-| `pnpm build`        | Build the apps                                    |
+| Command             | What it does                                               |
+| ------------------- | ---------------------------------------------------------- |
+| `pnpm dev`          | Web and server under portless (see below)                  |
+| `pnpm check`        | Format check + lint (`pnpm fmt` fixes formatting)          |
+| `pnpm typecheck`    | `tsc` in every package, cached                             |
+| `pnpm typecheck:ci` | Same with `tsrs`, as CI runs it                            |
+| `pnpm test`         | Tests in every package, cached                             |
+| `pnpm knip`         | Unused files, exports, and dependencies                    |
+| `pnpm build`        | Build the apps                                             |
+| `pnpm db:rollback`  | Revert the latest migration (`--to <id>`: down to that id) |
 
 `pnpm dev` runs each app through `portless run --name <name>`: it listens on a free port, behind https://quack.localhost (web) and https://api.quack.localhost (server), prefixed by the branch in a git worktree (`https://<branch>.quack.localhost`). The proxy must already run (`portless proxy start`, see the README): `pnpm dev` has no terminal to ask for `sudo`. Find a URL with `pnpm exec portless get quack`. `PORTLESS=0 pnpm dev` skips portless: web on :3000, server on :3001.
 
@@ -66,7 +67,7 @@ apps/server/src/
     http/            Handlers of the context's HttpApiGroup (*-handlers.ts)
     testing/         What the tests share: the suite of each port, test doubles
     index.ts         The module's Layer: handlers + use cases + the adapters that are not storage
-  database/          The Postgres client and the Migrator (database.ts), the check of the migrations (migration-files.ts)
+  database/          The Postgres client and the Migrator (database.ts), the check of the migrations (migration-files.ts), the rollback (rollback.ts, run by rollback-main.ts)
     migrations/      The migrations of every module, in one order
   server.ts          Routes, HTTP server
   main.ts            Entrypoint: chooses the storage, provides the database
@@ -116,6 +117,8 @@ Migrations (`docs/adr/0002-typescript-migrations-applied-at-startup.md`):
 - `migration-files.test.ts` checks the ids and the exports, with no database.
 - They run at server startup, in every environment, in one transaction, under a lock that makes instances starting at once safe. Rolling back a production database also means deploying the old code, since startup migrates forward again.
 - A migration may be edited until it is merged; after that, a new migration changes the schema.
+- `pnpm db:rollback` reverts the latest applied migration: it runs the `down` of its file and deletes its row from `effect_sql_migrations`. `--to <id>` reverts every migration above that id, latest first (`--to 0`: all of them). It runs in one transaction, under the Migrator's lock (`database/rollback.ts`): a `down` that fails leaves the database and the table as they were, and the command exits non-zero with its message. It goes through `with-dev-database.ts` as `pnpm dev` does, so it reverts on the database the server uses.
+- The dev loop of a migration: the server applies it at startup, `pnpm db:rollback` reverts it, edit it, restart the server.
 - Name every constraint (`CONSTRAINT users_email_key UNIQUE (email)`): an adapter maps a `UniqueViolation` to a domain error by its name.
 
 Queries:
