@@ -5,6 +5,7 @@ import { HttpServerRequest } from "effect/http";
 import { HttpApiBuilder } from "effect/http-api";
 
 import { Identity } from "#/modules/identity/application/identity.ts";
+import { Users } from "#/modules/identity/application/users.ts";
 import { SessionCookie } from "#/modules/identity/http/session-cookie.ts";
 
 /** Trusted as is: the server is reached through the relay only, which replaces what the client sent. */
@@ -19,6 +20,7 @@ export const IdentityHandlers = HttpApiBuilder.group(
   Effect.fn(function* (handlers) {
     const identity = yield* Identity;
     const cookie = yield* SessionCookie;
+    const users = yield* Users;
 
     return handlers.handleAll({
       signUp: Effect.fn(function* ({ payload }) {
@@ -45,6 +47,10 @@ export const IdentityHandlers = HttpApiBuilder.group(
         yield* cookie.clear;
       }),
       me: () => Effect.service(CurrentUser),
+      updateProfile: Effect.fn(function* ({ payload }) {
+        const currentUser = yield* CurrentUser;
+        return yield* users.updateProfile(currentUser.id, payload);
+      }),
     });
   }),
 );

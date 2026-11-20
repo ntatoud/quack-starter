@@ -1,7 +1,8 @@
 import { assert, describe, effect, layer } from "@effect/vitest";
 import { Api } from "@quack/contracts/api";
 import { Authentication } from "@quack/contracts/identity/authentication";
-import type { Email, Password } from "@quack/contracts/identity/user";
+import { CountryCode, Profile } from "@quack/contracts/identity/profile";
+import { type Email, type Password, User } from "@quack/contracts/identity/user";
 import {
   Clock,
   ConfigProvider,
@@ -88,6 +89,7 @@ const makeBrowser = Effect.gen(function* () {
     signOut,
     session: Effect.map(Ref.get(jar), (cookies) => Cookies.getValue(cookies, "session")),
     me: client.identity.me(),
+    updateProfile: (profile: Profile) => client.identity.updateProfile({ payload: profile }),
     meResponse: Effect.gen(function* () {
       const response = yield* client.identity.me({ responseMode: "response-only" });
       return { status: response.status, setCookie: yield* keepCookies(response) };
@@ -95,6 +97,16 @@ const makeBrowser = Effect.gen(function* () {
     setCookie: (name: string, value: string) => Ref.update(jar, Cookies.setUnsafe(name, value)),
   };
 });
+
+const aProfile = (firstName: string) =>
+  new Profile({
+    firstName,
+    lastName: "Lovelace",
+    avatarUrl: null,
+    jobTitle: "Analyst",
+    team: "engineering",
+    country: CountryCode.make("GB"),
+  });
 
 const assertCookieCleared = (setCookie: ReadonlyArray<string>) => {
   assert.lengthOf(setCookie, 1);
@@ -310,6 +322,58 @@ layer(withConfig({ SIGN_UPS_PER_IP: "1000" }))("IdentityApi", (it) => {
       const browser = yield* makeBrowser;
 
       const error = yield* browser.me.pipe(Effect.flip);
+
+      assert.strictEqual(error._tag, "Unauthenticated");
+    }),
+  );
+
+  it.effect("updates the Profile of the Current User: me answers with it from then on", () =>
+    Effect.gen(function* () {
+      const browser = yield* makeBrowser;
+      const { user } = yield* browser.signUp(asTyped("augusta@example.com"));
+
+      const updated = yield* browser.updateProfile(aProfile("Ada"));
+
+      assert.deepStrictEqual(updated, new User({ ...user, profile: aProfile("Ada") }));
+      assert.deepStrictEqual(yield* browser.me, updated);
+    }),
+  );
+
+  it.effect("replaces the whole Profile at each update", () =>
+    Effect.gen(function* () {
+      const browser = yield* makeBrowser;
+      yield* browser.signUp(asTyped("byron@example.com"));
+      yield* browser.updateProfile(aProfile("Ada"));
+
+      yield* browser.updateProfile(
+        new Profile({ ...aProfile("Augusta"), team: null, country: null }),
+      );
+
+      assert.deepStrictEqual(
+        (yield* browser.me).profile,
+        new Profile({ ...aProfile("Augusta"), team: null, country: null }),
+      );
+    }),
+  );
+
+  it.effect("updates the Profile of the Current User only", () =>
+    Effect.gen(function* () {
+      const ada = yield* makeBrowser;
+      const charles = yield* makeBrowser;
+      yield* ada.signUp(asTyped("ada.king@example.com"));
+      yield* charles.signUp(asTyped("charles@example.com"));
+
+      yield* ada.updateProfile(aProfile("Ada"));
+
+      assert.isNull((yield* charles.me).profile);
+    }),
+  );
+
+  it.effect("fails updateProfile with Unauthenticated without a Session", () =>
+    Effect.gen(function* () {
+      const browser = yield* makeBrowser;
+
+      const error = yield* browser.updateProfile(aProfile("Ada")).pipe(Effect.flip);
 
       assert.strictEqual(error._tag, "Unauthenticated");
     }),
