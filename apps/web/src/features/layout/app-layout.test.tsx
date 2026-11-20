@@ -32,16 +32,20 @@ const setup = async (width: number) => {
         role: "admin" as const,
       },
     }),
+  });
+  const app = createRoute({
+    getParentRoute: () => authenticated,
+    path: "app",
     component: AppLayout,
   });
   const wide = createRoute({
-    getParentRoute: () => authenticated,
+    getParentRoute: () => app,
     path: "/",
     component: () => <DataTable columns={columns} data={[{ id: "1" }]} />,
   });
   const router = createRouter({
-    routeTree: rootRoute.addChildren([authenticated.addChildren([wide])]),
-    history: createMemoryHistory({ initialEntries: ["/"] }),
+    routeTree: rootRoute.addChildren([authenticated.addChildren([app.addChildren([wide])])]),
+    history: createMemoryHistory({ initialEntries: ["/app"] }),
   });
   await render(
     <QueryClientProvider client={new QueryClient()}>
