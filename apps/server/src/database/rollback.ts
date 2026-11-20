@@ -63,6 +63,26 @@ const reason = (cause: Cause.Cause<unknown>) => {
 
 const AppliedRow = Schema.Struct({ migrationId: Schema.Int, name: Schema.String });
 
+export const migrationsTableExists = Effect.gen(function* () {
+  const sql = yield* SqlClient.SqlClient;
+  const found = yield* SqlSchema.findAll({
+    Request: Schema.Void,
+    Result: Schema.Struct({ found: Schema.Int }),
+    execute: () => sql`SELECT 1 AS found WHERE to_regclass(${MIGRATIONS_TABLE}) IS NOT NULL`,
+  })(undefined);
+  return found.length > 0;
+});
+
+export const appliedMigrations = Effect.gen(function* () {
+  const sql = yield* SqlClient.SqlClient;
+  const rows = yield* SqlSchema.findAll({
+    Request: Schema.Void,
+    Result: AppliedRow,
+    execute: () => sql`SELECT migration_id, name FROM ${sql(MIGRATIONS_TABLE)}`,
+  })(undefined);
+  return rows.map(({ migrationId, name }): AppliedMigration => ({ id: migrationId, name }));
+});
+
 export const rollback = Effect.fn("rollback")(function* ({
   directory,
   to,
@@ -73,26 +93,12 @@ export const rollback = Effect.fn("rollback")(function* ({
   const sql = yield* SqlClient.SqlClient;
   const files = yield* Effect.promise(() => loadMigrationFiles(directory));
 
-  const tableExists = SqlSchema.findAll({
-    Request: Schema.Void,
-    Result: Schema.Struct({ found: Schema.Int }),
-    execute: () => sql`SELECT 1 AS found WHERE to_regclass(${MIGRATIONS_TABLE}) IS NOT NULL`,
-  });
-  const appliedMigrations = SqlSchema.findAll({
-    Request: Schema.Void,
-    Result: AppliedRow,
-    execute: () => sql`SELECT migration_id, name FROM ${sql(MIGRATIONS_TABLE)}`,
-  });
-
   return yield* sql.withTransaction(
     Effect.gen(function* () {
-      if ((yield* tableExists(undefined)).length === 0) return [];
+      if (!(yield* migrationsTableExists)) return [];
       // The lock the Migrator takes: a server starting meanwhile waits for the rollback to end.
       yield* sql`LOCK TABLE ${sql(MIGRATIONS_TABLE)} IN ACCESS EXCLUSIVE MODE`;
-      const applied = (yield* appliedMigrations(undefined)).map(({ migrationId, name }) => ({
-        id: migrationId,
-        name,
-      }));
+      const applied = yield* appliedMigrations;
       const steps = yield* Result.match(rollbackPlan({ applied, files, to }), {
         onSuccess: Effect.succeed,
         onFailure: (message) => Effect.fail(new RollbackFailed({ message })),
