@@ -2,7 +2,7 @@ import { SidebarTrigger } from "@quack/ui/components/sidebar";
 import type { ReactNode } from "react";
 
 import { AppBreadcrumb, type Crumbs } from "#/features/layout/app-breadcrumb.tsx";
-import { BackButton } from "#/features/layout/back-button.tsx";
+import { BackButton } from "#/components/back-button.tsx";
 
 /** The top bar of a page: its breadcrumb, a Back button when `back` is set, then `children`, such as a count. */
 export function PageHeader({
