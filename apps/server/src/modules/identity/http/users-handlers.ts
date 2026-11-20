@@ -12,6 +12,7 @@ export const UsersHandlers = HttpApiBuilder.group(
 
     return handlers.handleAll({
       list: ({ query }) => users.list(query),
+      get: ({ params }) => users.get(params.id),
     });
   }),
 );

@@ -4,6 +4,7 @@ import { Authentication, CurrentUser } from "@quack/contracts/identity/authentic
 import { Forbidden, Unauthenticated } from "@quack/contracts/identity/identity-errors";
 import { CountryCode, Profile, type Team } from "@quack/contracts/identity/profile";
 import { Email, type Role, User, UserId, type UserStatus } from "@quack/contracts/identity/user";
+import { UserNotFound } from "@quack/contracts/users/user-errors";
 import type { UserOrder } from "@quack/contracts/users/users-api";
 import { Effect, Layer, Redacted } from "effect";
 import { HttpClientRequest, HttpServer } from "effect/http";
@@ -324,6 +325,42 @@ layer(Layer.mergeAll(UsersLayer, HttpServer.layerServices))("UsersApi", (it) => 
 
       assert.deepStrictEqual(yield* emailsWhere(true), emailsOf(ada, grace));
       assert.deepStrictEqual(yield* emailsWhere(false), emailsOf(barbara, edsger, linus));
+    }),
+  );
+
+  it.effect("gives an admin a User by their id, with their Profile", () =>
+    Effect.gen(function* () {
+      const client = yield* clientOf(grace);
+
+      const user = yield* client.users.get({ params: { id: ada.id } });
+
+      assert.deepStrictEqual(user, ada);
+    }),
+  );
+
+  it.effect("answers UserNotFound, 404, for an id no User has", () =>
+    Effect.gen(function* () {
+      const client = yield* clientOf(grace);
+      const id = UserId.make("nobody");
+
+      const error = yield* client.users.get({ params: { id } }).pipe(Effect.flip);
+      const response = yield* client.users.get({ params: { id }, responseMode: "response-only" });
+
+      assert.deepStrictEqual(error, new UserNotFound({ id }));
+      assert.strictEqual(response.status, 404);
+    }),
+  );
+
+  it.effect("refuses a User to a user with Forbidden, 403", () =>
+    Effect.gen(function* () {
+      const client = yield* clientOf(ada);
+
+      const response = yield* client.users.get({
+        params: { id: grace.id },
+        responseMode: "response-only",
+      });
+
+      assert.strictEqual(response.status, 403);
     }),
   );
 
