@@ -108,8 +108,13 @@ const setup = async (
       );
     },
   });
+  const userRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/admin/users/$id",
+    component: () => <p>Details of the user</p>,
+  });
   const router = createRouter({
-    routeTree: rootRoute.addChildren([usersRoute]),
+    routeTree: rootRoute.addChildren([usersRoute, userRoute]),
     history: createMemoryHistory({ initialEntries: [url] }),
   });
   await render(
@@ -542,7 +547,7 @@ describe("UsersList", () => {
     await setup(() => Response.json({ items: [ada, user(2)], total: 2 }));
 
     const row = page.getByRole("row").filter({ hasText: "ada@quack.dev" });
-    await expect.element(row.getByRole("cell", { name: "Ada Lovelace" })).toBeVisible();
+    await expect.element(row.getByText("Ada Lovelace", { exact: true })).toBeVisible();
     await expect.element(row.getByRole("cell", { name: "Suspended" })).toBeVisible();
     await expect.element(row.getByRole("cell", { name: "Engineering" })).toBeVisible();
     await expect.element(row.getByRole("cell", { name: "Analyst" })).toBeVisible();
@@ -551,7 +556,7 @@ describe("UsersList", () => {
     await expect.element(row.getByRole("cell", { name: "Jan 1, 2026" })).toBeVisible();
     await expect.element(row.getByRole("cell", { name: "Jan 2, 2026" })).toBeVisible();
     const other = page.getByRole("row").filter({ hasText: "user-2@quack.dev" });
-    await expect.element(other.getByRole("cell", { name: "No profile" })).toBeVisible();
+    await expect.element(other.getByText("No profile")).toBeVisible();
     await expect.element(other.getByRole("cell", { name: "Not yet" })).toBeVisible();
   });
 
@@ -664,5 +669,28 @@ describe("UsersList", () => {
     await expect.poll(() => router.state.location.search).toEqual({ size: 50 });
     expect(lastQuery().get("pageSize")).toBe("50");
     expect(lastQuery().get("page")).toBe("1");
+  });
+
+  it("opens the page of a User clicked anywhere in their row", async () => {
+    const { router } = await setup(usersOn);
+    const row = page.getByRole("row").filter({ hasText: "user-2@quack.dev" });
+
+    // A cell, not its text: the link of the row covers the text, and takes the click.
+    await row.getByRole("cell").nth(1).click();
+
+    await expect.element(page.getByText("Details of the user")).toBeVisible();
+    expect(router.state.location.pathname).toBe("/admin/users/user-2");
+  });
+
+  it("makes each row a link to its User, named by the User", async () => {
+    await setup(() => Response.json({ items: [ada, user(2)], total: 2 }));
+
+    await expect
+      .element(page.getByRole("link", { name: "Ada Lovelace" }))
+      .toHaveAttribute("href", "/admin/users/user-1");
+    await expect
+      .element(page.getByRole("link", { name: "user-2@quack.dev" }))
+      .toHaveAttribute("href", "/admin/users/user-2");
+    expect(page.getByRole("table").getByRole("link").elements()).toHaveLength(2);
   });
 });

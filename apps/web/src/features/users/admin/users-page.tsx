@@ -7,7 +7,7 @@ import { UsersList } from "#/features/users/admin/users-list.tsx";
 import { useUsersTable } from "#/features/users/admin/users-table.ts";
 
 export function UsersPage() {
-  const table = useUsersTable(useSearch({ from: "/_authenticated/admin/users" }));
+  const table = useUsersTable(useSearch({ from: "/_authenticated/admin/users/" }));
   const users = useQuery(usersQueryOptions(table));
 
   return (

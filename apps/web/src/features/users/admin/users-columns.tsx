@@ -1,5 +1,4 @@
 import type { User } from "@quack/contracts/identity/user";
-import { Badge } from "@quack/ui/components/badge";
 import type { DataTableColumnFor } from "@quack/ui/components/data-table/data-table";
 
 import {
@@ -7,6 +6,7 @@ import {
   DateCell,
   NameCell,
   OnboardedCell,
+  RoleBadge,
   StatusBadge,
   TimeAgoCell,
 } from "#/features/users/admin/users-cells.tsx";
@@ -35,12 +35,7 @@ export const usersColumns = (now: Date): ReadonlyArray<DataTableColumnFor<User, 
     title: "Role",
     sortable: true,
     filter: "role",
-    cell: ({ row }) =>
-      row.original.role === "admin" ? (
-        <Badge>Admin</Badge>
-      ) : (
-        <Badge variant="secondary">User</Badge>
-      ),
+    cell: ({ row }) => <RoleBadge role={row.original.role} />,
   },
   {
     id: "team",

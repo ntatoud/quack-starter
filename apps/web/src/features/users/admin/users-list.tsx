@@ -11,13 +11,19 @@ import {
 import { DataTableToolbar } from "@quack/ui/components/data-table/toolbar";
 import { matchQuery } from "@quack/ui-state/query";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { Option } from "effect";
 import { useMemo, type ReactNode } from "react";
 
 import { usersColumns } from "#/features/users/admin/users-columns.tsx";
+import { userLabel } from "#/features/users/full-name.ts";
 import { usersQueryOptions } from "#/features/users/admin/users-query.ts";
 import { usersPageSizes } from "#/features/users/admin/users-search.ts";
 import type { UsersTable } from "#/features/users/admin/users-table.ts";
+
+const userLink = (user: User) => (
+  <Link to="/admin/users/$id" params={{ id: user.id }} aria-label={userLabel(user)} />
+);
 
 export function UsersList({ table }: { table: UsersTable }) {
   const users = useQuery(usersQueryOptions(table));
@@ -141,6 +147,7 @@ function UsersRows({
         label="Users"
         busy={busy}
         empty={empty}
+        rowLink={userLink}
         {...(total !== undefined && {
           footer: (
             <DataTablePagination

@@ -1,3 +1,4 @@
+import type { UserId } from "@quack/contracts/identity/user";
 import { keepPreviousData } from "@tanstack/react-query";
 
 import type { UsersTable } from "#/features/users/admin/users-table.ts";
@@ -22,3 +23,6 @@ export const usersQueryOptions = ({ state, page, pageSize, sorting }: UsersTable
     placeholderData: keepPreviousData,
   });
 };
+
+export const userQueryOptions = (id: UserId) =>
+  api.users.get.queryOptions({ input: { params: { id } } });
