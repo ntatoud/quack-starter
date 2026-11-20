@@ -1,6 +1,7 @@
 import { NodeServices } from "@effect/platform-node";
 import { PgClient, PgMigrator } from "@effect/sql-pg";
 import { Effect, Layer, Redacted, Schema, String } from "effect";
+import { SqlClient } from "effect/sql";
 import { isSqlError, type SqlError } from "effect/sql/SqlError";
 
 import { DatabaseConfig } from "#/config.ts";
@@ -50,8 +51,13 @@ export const Database = Layer.unwrap(
   Effect.map(connection, ({ url, client }) =>
     Migrations.pipe(
       Layer.provideMerge(client),
+      // A failing Layer that provides the client's services, as `catchTag` keeps only what both provide.
       Layer.catchTag("SqlError", (cause) =>
-        Layer.effectDiscard(Effect.fail(unreachable(url, cause))),
+        Layer.effectContext<
+          PgClient.PgClient | SqlClient.SqlClient,
+          DatabaseUnreachable | SqlError,
+          never
+        >(Effect.fail(unreachable(url, cause))),
       ),
     ),
   ),

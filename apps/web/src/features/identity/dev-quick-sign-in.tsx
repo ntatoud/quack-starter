@@ -43,7 +43,7 @@ export function DevQuickSignIn({
       </div>
       {signIn.isError && (
         <p role="alert" className="mt-2 text-sm text-destructive">
-          Could not sign in. Is the server seeded (SEED_USERS=true)?
+          Could not sign in. Are the dev accounts in the database?
         </p>
       )}
     </section>

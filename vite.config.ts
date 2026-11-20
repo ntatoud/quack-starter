@@ -66,6 +66,11 @@ export default defineConfig({
         files: ["apps/server/src/**"],
         rules: { "quack/no-sql-unsafe": "error" },
       },
+      {
+        // The Migrator reads a migration's id and name from its file name: <4-digit id>_<snake_case_name>.ts.
+        files: ["apps/server/src/database/migrations/**"],
+        rules: { "unicorn/filename-case": "off" },
+      },
     ],
   },
 });

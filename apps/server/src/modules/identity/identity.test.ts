@@ -14,7 +14,7 @@ import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
 import { AttemptLimiterMemory } from "#/modules/identity/infrastructure/attempt-limiter-memory.ts";
 import { PasswordHasherArgon2 } from "#/modules/identity/infrastructure/password-hasher-argon2.ts";
 import { SessionStoreMemory } from "#/modules/identity/infrastructure/session-store-memory.ts";
-import { UserRepositoryMemory } from "#/modules/identity/infrastructure/user-repository-memory.ts";
+import { UserRepositoryMemory } from "#/modules/identity/testing/user-repository-memory.ts";
 
 const password = Redacted.make("correct horse battery staple");
 

@@ -20,7 +20,7 @@ import { TestClock } from "effect/testing";
 import { sessionExtensionThreshold, sessionLifetime } from "#/modules/identity/domain/session.ts";
 import { IdentityModule } from "#/modules/identity/index.ts";
 import { SessionStoreMemory } from "#/modules/identity/infrastructure/session-store-memory.ts";
-import { UserRepositoryMemory } from "#/modules/identity/infrastructure/user-repository-memory.ts";
+import { UserRepositoryMemory } from "#/modules/identity/testing/user-repository-memory.ts";
 
 const maxAge = Duration.toSeconds(sessionLifetime);
 

@@ -1,10 +1,11 @@
-import { ConfigProvider, Layer } from "effect";
+import { Layer } from "effect";
 import { HttpRouter, HttpServer } from "effect/http";
 import { afterAll, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { devUsers } from "#/modules/identity/application/identity-seed.ts";
+import { IdentitySeed } from "#/modules/identity/index.ts";
 import { SessionStoreMemory } from "#/modules/identity/infrastructure/session-store-memory.ts";
-import { UserRepositoryMemory } from "#/modules/identity/infrastructure/user-repository-memory.ts";
+import { UserRepositoryMemory } from "#/modules/identity/testing/user-repository-memory.ts";
 import { TodoRepositoryMemory } from "#/modules/todos/infrastructure/todo-repository-memory.ts";
 import { Routes } from "#/server.ts";
 
@@ -311,9 +312,8 @@ describe("server routes", () => {
 
 const makeSeeded = () =>
   HttpRouter.toWebHandler(
-    Routes.pipe(
+    Layer.mergeAll(Routes, IdentitySeed).pipe(
       Layer.provide([HttpServer.layerServices, MemoryStorage]),
-      Layer.provide(ConfigProvider.layer(ConfigProvider.fromUnknown({ SEED_USERS: "true" }))),
     ),
   );
 

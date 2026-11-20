@@ -66,7 +66,7 @@ describe("DevQuickSignIn", () => {
           .elements()
           .map((alert) => alert.textContent),
       )
-      .toEqual(["Could not sign in. Is the server seeded (SEED_USERS=true)?"]);
+      .toEqual(["Could not sign in. Are the dev accounts in the database?"]);
     expect(signedIn).toEqual([]);
   });
 });
