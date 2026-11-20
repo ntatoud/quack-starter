@@ -1,6 +1,5 @@
 import {
   Sidebar,
-  SidebarContent,
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
@@ -17,7 +16,9 @@ import type { ReactNode } from "react";
 import { UserMenu } from "#/features/identity/user-menu.tsx";
 import type { LinkTarget } from "#/features/layout/sidebar-link.tsx";
 import { Logo } from "#/features/layout/logo.tsx";
+import { SidebarContentWithMenu } from "#/features/layout/sidebar-context-menu.tsx";
 import type { SidebarProps } from "#/features/layout/sidebar-layout.tsx";
+import { usePreference } from "#/features/preferences/use-preference.ts";
 
 export function SidebarFrame({
   currentUser,
@@ -26,9 +27,10 @@ export function SidebarFrame({
 }: SidebarProps & { home: LinkTarget; children: ReactNode }) {
   const { state, isMobile, setOpenMobile } = useSidebar();
   const collapsed = state === "collapsed" && !isMobile;
+  const side = usePreference("right-sidebar") ? "right" : "left";
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar side={side} collapsible="icon">
       <SidebarHeader className="flex-row items-center gap-2 overflow-hidden">
         <SidebarTrigger className="size-8 shrink-0" />
         <Link
@@ -41,7 +43,7 @@ export function SidebarFrame({
           <Logo />
         </Link>
       </SidebarHeader>
-      <SidebarContent>{children}</SidebarContent>
+      <SidebarContentWithMenu>{children}</SidebarContentWithMenu>
       <SidebarFooter>
         <UserMenu currentUser={currentUser} />
       </SidebarFooter>

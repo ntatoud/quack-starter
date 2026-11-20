@@ -9,6 +9,7 @@ import { FormLabel } from "#/form-label.tsx";
 import { FormPasswordField } from "#/form-password-field.tsx";
 import { FormSelectField } from "#/form-select-field.tsx";
 import { FormSubmitButton } from "#/form-submit-button.tsx";
+import { FormSwitchField } from "#/form-switch-field.tsx";
 import { FormTextField } from "#/form-text-field.tsx";
 
 export const { useAppForm } = createFormHook({
@@ -22,6 +23,7 @@ export const { useAppForm } = createFormHook({
     Password: FormPasswordField,
     Select: FormSelectField,
     Combobox: FormComboboxField,
+    Switch: FormSwitchField,
   },
   formComponents: { Root: Form, SubmitButton: FormSubmitButton },
 });

@@ -1,0 +1,42 @@
+import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@quack/ui/components/sidebar";
+import { Link, Outlet, useMatchRoute } from "@tanstack/react-router";
+import { SlidersHorizontalIcon, UserIcon } from "lucide-react";
+
+import { PageHeader } from "#/features/layout/page-header.tsx";
+
+const sections = [
+  { to: "/app/settings/profile", label: "Profile", icon: UserIcon },
+  { to: "/app/settings/preferences", label: "Preferences", icon: SlidersHorizontalIcon },
+] as const;
+
+/** The pages of the settings, a section each, with the menu of the sections on their left. */
+export function SettingsLayout() {
+  const matchRoute = useMatchRoute();
+  const current = sections.find(({ to }) => matchRoute({ to }) !== false);
+
+  return (
+    <>
+      <PageHeader title={current?.label ?? "Settings"} trail={[{ label: "Settings" }]} back />
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-6 md:flex-row md:gap-8">
+        <nav aria-label="Settings" className="md:w-48 md:shrink-0">
+          <SidebarMenu>
+            {sections.map(({ to, label, icon: Icon }) => (
+              <SidebarMenuItem key={to}>
+                <SidebarMenuButton
+                  render={<Link to={to} />}
+                  isActive={matchRoute({ to }) !== false}
+                >
+                  <Icon />
+                  <span>{label}</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </nav>
+        <div className="flex min-w-0 flex-1 flex-col gap-6">
+          <Outlet />
+        </div>
+      </div>
+    </>
+  );
+}
