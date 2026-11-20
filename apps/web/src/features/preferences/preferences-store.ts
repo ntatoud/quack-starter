@@ -3,7 +3,7 @@ import { createContext, useContext } from "react";
 
 import type { PreferenceValues } from "#/features/preferences/preferences.ts";
 
-/** Where the Preferences of this device are kept. `read` runs in the server render too. */
+/** `read` runs in the server render too; `write` runs in the browser only, on what a user does. */
 export interface PreferencesStore {
   read(): PreferenceValues;
   write(values: PreferenceValues): void;
@@ -17,10 +17,11 @@ export const usePreferencesStore = (): PreferencesStore => {
   return store;
 };
 
-/** Read once, then kept up to date by whoever writes the store. */
+export const preferencesQueryKey = ["preferences"] as const;
+
 export const preferencesQueryOptions = (store: PreferencesStore) =>
   queryOptions({
-    queryKey: ["preferences"],
+    queryKey: preferencesQueryKey,
     queryFn: () => store.read(),
     staleTime: Number.POSITIVE_INFINITY,
   });

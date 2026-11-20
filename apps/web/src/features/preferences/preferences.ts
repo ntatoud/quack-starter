@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 
-import { definePreference, definePreferences } from "#/features/preferences/preference.ts";
+import { definePreference, definePreferences } from "#/features/preferences/define-preference.ts";
 
 export const Preferences = definePreferences({
   "right-sidebar": definePreference(Schema.Boolean, false),

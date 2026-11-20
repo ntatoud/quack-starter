@@ -30,14 +30,9 @@ export const definePreferences = <const F extends PreferenceFields>(
   type Values = typeof Values.Type;
 
   return {
-    keys,
     Values,
     defaults: mapFields((p) => p.defaultValue) as Values,
-    /**
-     * The values of what a store kept, encoded. A value missing or that no longer decodes (a literal removed, a
-     * schema changed) is its default, and the others are kept.
-     */
-    resolve: (stored: unknown): Values => {
+    decodeWithDefaults: (stored: unknown): Values => {
       const record = Predicate.isObject(stored) ? (stored as Record<string, unknown>) : {};
       return mapFields(({ schema, defaultValue }, key) =>
         key in record

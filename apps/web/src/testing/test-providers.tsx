@@ -8,7 +8,6 @@ import {
 } from "#/features/preferences/preferences-store.ts";
 import { memoryPreferencesStore } from "#/testing/memory-preferences-store.ts";
 
-/** What the router gives every page: a `QueryClient`, and the Preferences of the device, already read. */
 export const testProviders = (preferences: Partial<PreferenceValues> = {}) => {
   const queryClient = new QueryClient();
   const preferencesStore = memoryPreferencesStore(preferences);

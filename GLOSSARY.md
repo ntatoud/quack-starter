@@ -34,7 +34,8 @@ _Avoid_: Setup, welcome, wizard
 
 **Preference**:
 How the app looks on a device, such as the side of the sidebar, whoever is signed in on it. Each one has a default, which a device where it was never changed gets.
-_Avoid_: Setting, customization, option
+A User changes them in the settings, next to their Profile.
+_Avoid_: Customization, option
 
 **Admin**:
 A User whose Role is `admin`. Only an Admin sees the list of Users; any other Current User is forbidden from it.
