@@ -1,5 +1,4 @@
 import { DataTable, type DataTableColumn } from "@quack/ui/components/data-table/data-table";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -12,6 +11,7 @@ import { page } from "vite-plus/test/browser";
 import { render } from "vitest-browser-react";
 
 import { AppLayout } from "#/features/layout/app-layout.tsx";
+import { testProviders } from "#/testing/test-providers.tsx";
 
 const columns: ReadonlyArray<DataTableColumn<{ id: string }>> = Array.from(
   { length: 12 },
@@ -47,10 +47,11 @@ const setup = async (width: number) => {
     routeTree: rootRoute.addChildren([authenticated.addChildren([app.addChildren([wide])])]),
     history: createMemoryHistory({ initialEntries: ["/app"] }),
   });
+  const { Providers } = testProviders();
   await render(
-    <QueryClientProvider client={new QueryClient()}>
+    <Providers>
       <RouterProvider router={router} />
-    </QueryClientProvider>,
+    </Providers>,
   );
 };
 

@@ -10,8 +10,8 @@ import { toMessage } from "#/messages.ts";
  * (its own id and `md` on its own), and its errors, shown once the field is touched; a submit touches every field.
  * `describedBy` names its `field.Description`, then its errors while they show.
  */
-export function useFieldControl() {
-  const field = useFieldContext<string>();
+export function useFieldControl<Value = string>() {
+  const field = useFieldContext<Value>();
   const meta = useStore(field.store, (state) => state.meta);
   const ownId = useId();
   const layout = useFormFieldLayout();

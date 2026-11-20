@@ -1,7 +1,6 @@
 import type { Role } from "@quack/contracts/identity/user";
 import { SidebarProvider } from "@quack/ui/components/sidebar";
 import { TooltipProvider } from "@quack/ui/components/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -13,8 +12,14 @@ import { page } from "vite-plus/test/browser";
 import { render } from "vitest-browser-react";
 
 import type { SidebarProps } from "#/features/layout/sidebar-layout.tsx";
+import type { PreferenceValues } from "#/features/preferences/preferences.ts";
+import { testProviders } from "#/testing/test-providers.tsx";
 
-export const renderSidebar = async (Sidebar: ComponentType<SidebarProps>, role: Role) => {
+export const renderSidebar = async (
+  Sidebar: ComponentType<SidebarProps>,
+  role: Role,
+  preferences: Partial<PreferenceValues> = {},
+) => {
   // Below the breakpoint of `useIsMobile`, the sidebar is a closed sheet.
   await page.viewport(1280, 800);
   const rootRoute = createRootRoute({
@@ -41,9 +46,12 @@ export const renderSidebar = async (Sidebar: ComponentType<SidebarProps>, role: 
     routeTree: rootRoute,
     history: createMemoryHistory({ initialEntries: ["/"] }),
   });
+  const providers = testProviders(preferences);
+  const { Providers } = providers;
   await render(
-    <QueryClientProvider client={new QueryClient()}>
+    <Providers>
       <RouterProvider router={router} />
-    </QueryClientProvider>,
+    </Providers>,
   );
+  return providers;
 };

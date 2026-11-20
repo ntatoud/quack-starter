@@ -28,6 +28,21 @@ describe("AppSidebar", () => {
 
     await expect
       .element(page.getByRole("menuitem", { name: "Settings" }))
-      .toHaveAttribute("href", "/app/settings/profile");
+      .toHaveAttribute("href", "/app/settings");
   });
+
+  it.each(["left", "right"] as const)(
+    "sits on the %s when the Current User prefers it",
+    async (side) => {
+      await renderSidebar(AppSidebar, "user", { "right-sidebar": side === "right" });
+
+      const edgeOf = () => {
+        const panel = document.querySelector("[data-slot=sidebar-container]");
+        if (!(panel instanceof HTMLElement)) throw new Error("No sidebar is drawn.");
+        const { left, right } = panel.getBoundingClientRect();
+        return side === "left" ? left : window.innerWidth - right;
+      };
+      await expect.poll(edgeOf).toBe(0);
+    },
+  );
 });

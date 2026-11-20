@@ -37,6 +37,7 @@ describe("the roots of the app", () => {
     ["/", "user", "/app"],
     ["/", "admin", "/app"],
     ["/app", "admin", "/app"],
+    ["/app/settings", "user", "/app/settings/profile"],
     ["/admin", "admin", "/admin/users"],
     ["/admin", "user", "/app"],
     ["/admin/users", "user", "/app"],
