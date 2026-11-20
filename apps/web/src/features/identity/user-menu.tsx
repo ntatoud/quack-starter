@@ -19,6 +19,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { ChevronsUpDownIcon, LogOutIcon } from "lucide-react";
 
 import { useSetCurrentUser } from "#/features/identity/current-user.ts";
+import { fullName } from "#/features/users/full-name.ts";
 import { UserAvatar } from "#/features/users/user-avatar.tsx";
 import { api } from "#/lib/api.ts";
 
@@ -87,19 +88,17 @@ export function UserMenu({ currentUser }: { currentUser: typeof User.Encoded }) 
 }
 
 function UserIdentity({ currentUser }: { currentUser: typeof User.Encoded }) {
-  const name = displayName(currentUser);
+  const { email, profile } = currentUser;
   return (
     <>
       <UserAvatar user={currentUser} className="rounded-lg after:rounded-lg" />
       <div className="grid flex-1 text-left text-sm leading-tight">
-        <span className="truncate font-medium">{name}</span>
-        {name !== currentUser.email && (
-          <span className="truncate text-xs">{currentUser.email}</span>
-        )}
+        <span className="truncate font-medium">{displayName(currentUser)}</span>
+        {profile && <span className="truncate text-xs">{email}</span>}
       </div>
     </>
   );
 }
 
 const displayName = ({ email, profile }: typeof User.Encoded) =>
-  profile ? `${profile.firstName} ${profile.lastName}` : email;
+  profile ? fullName(profile) : email;

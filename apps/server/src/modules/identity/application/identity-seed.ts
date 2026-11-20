@@ -87,7 +87,7 @@ const randomUsers = (faker: Faker, count: number): ReadonlyArray<User> => {
               firstName,
               lastName,
               avatarUrl: faker.datatype.boolean({ probability: 0.6 })
-                ? faker.image.personPortrait()
+                ? faker.image.personPortrait({ size: 128 })
                 : null,
               jobTitle: faker.person.jobTitle(),
               team: faker.helpers.arrayElement(Team.literals),

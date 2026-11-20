@@ -1,4 +1,3 @@
-import type { Profile } from "@quack/contracts/identity/profile";
 import type { User, UserStatus } from "@quack/contracts/identity/user";
 import { Badge } from "@quack/ui/components/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@quack/ui/components/tooltip";
@@ -6,9 +5,8 @@ import { DateTime } from "effect";
 import { CircleCheckIcon } from "lucide-react";
 
 import { labelOf } from "#/features/users/admin/users-filters.ts";
+import { fullName } from "#/features/users/full-name.ts";
 import { UserAvatar } from "#/features/users/user-avatar.tsx";
-
-const fullName = (profile: Profile) => `${profile.firstName} ${profile.lastName}`;
 
 export function NameCell({ user }: { user: User }) {
   const { profile } = user;
