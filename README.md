@@ -15,18 +15,17 @@ A starting point for TypeScript web applications.
 - Node.js 26 (see `.node-version`)
 - pnpm 12
 - [Vite+](https://viteplus.dev) (`vp`), which can also manage Node.js and pnpm for you
-- Docker (Docker Desktop or OrbStack), running: the server stores its data in PostgreSQL
+- Docker (Docker Desktop or OrbStack), running: the server stores its data in PostgreSQL, which `pnpm dev` starts
 
 ## Getting started
 
 ```sh
 pnpm install
 cp .env.example .env
-docker compose up -d
 pnpm dev
 ```
 
-`docker compose up -d` starts PostgreSQL from `compose.yaml`, on `127.0.0.1:54320`, the `DATABASE_URL` of `.env.example`. Every checkout shares this one container, and its data stays in the `quack-postgres` volume until `docker compose down -v`. The server brings the database's schema up to date at startup, and does not start when Postgres is unreachable.
+`pnpm dev` starts PostgreSQL from `compose.yaml` (`docker compose up -d --wait`), on `127.0.0.1:54320`, creates the database `quack` when missing, and starts the server on it. Every checkout shares this one container and this one database. A `DATABASE_URL` set in the shell or in `.env` wins: `pnpm dev` then starts no container and uses it as given. The server brings the database's schema up to date at startup, and does not start when Postgres is unreachable. `docker compose down -v` wipes every dev database: the data lives in the `quack-postgres` volume until then.
 
 `pnpm dev` runs both apps under [portless](https://portless.sh), so they take a free port each and several checkouts run side by side. The web app is at https://quack.localhost and the API at https://api.quack.localhost. In a git worktree, the branch prefixes both: https://my-branch.quack.localhost. The browser only calls the web app: it relays `/api` to the API, so both share one origin. API docs are served at https://quack.localhost/api/docs. The Users, Sessions, and Todos still live in memory: `pnpm dev` creates Users at each start, `admin@quack.dev` (an admin), `user@quack.dev` and 100 random ones (the same at every start), all with the password `quack-password`. In dev, the sign-in page signs in as `user@quack.dev` or `admin@quack.dev` in one click.
 
