@@ -7,7 +7,7 @@ import { Team } from "#/identity/profile.ts";
 import { Role, User, UserId, UserStatus } from "#/identity/user.ts";
 import { Paginated, PaginationQuery } from "#/pagination/paginated.ts";
 import { sortingFields } from "#/sorting/sorting.ts";
-import { UserNotFound } from "#/users/user-errors.ts";
+import { CannotChangeOwnAccess, UserInvited, UserNotFound } from "#/users/user-errors.ts";
 
 export class UserList extends Schema.Class<UserList, { readonly brand: unique symbol }>("UserList")(
   Paginated(User).fields,
@@ -45,6 +45,15 @@ export const UserListQuery = Schema.Struct({
 export type UserListQuery = typeof UserListQuery.Type;
 
 const NotFound = UserNotFound.pipe(HttpApiSchema.status(404));
+const OwnAccess = CannotChangeOwnAccess.pipe(HttpApiSchema.status(403));
+const Invited = UserInvited.pipe(HttpApiSchema.status(409));
+
+/** What an Admin changes on a User, a field or more. `invited` is no choice: the User leaves it by choosing a password. */
+export const UserChanges = Schema.Struct({
+  role: Schema.optionalKey(Role),
+  status: Schema.optionalKey(Schema.Literals(["active", "suspended"])),
+});
+export type UserChanges = typeof UserChanges.Type;
 
 export class UsersApi extends HttpApiGroup.make("users")
   .add(
@@ -56,6 +65,13 @@ export class UsersApi extends HttpApiGroup.make("users")
       params: { id: UserId },
       success: User,
       error: NotFound,
+    }),
+    /** Suspending ends the Sessions of the User at their next request. */
+    HttpApiEndpoint.patch("update", "/:id", {
+      params: { id: UserId },
+      payload: UserChanges,
+      success: User,
+      error: [NotFound, OwnAccess, Invited],
     }),
   )
   .middleware(RequireRole("admin"))
