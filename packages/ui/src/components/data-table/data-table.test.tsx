@@ -42,6 +42,12 @@ const regions = () => {
 const sortSaid = () => regions().sorting.textContent;
 const emptySaid = () => regions().empty.textContent;
 
+/** The text size of a column's header: its button's, or its own when it has none. */
+const headerSizeOf = (name: string) => {
+  const header = page.getByRole("columnheader", { name, exact: true }).element();
+  return getComputedStyle(header.querySelector("button") ?? header).fontSize;
+};
+
 const setup = async (columns: number, rows = 1) => {
   await render(
     <div className="flex h-75 w-100 flex-col">
@@ -147,6 +153,29 @@ describe("DataTable", () => {
       .click();
     expect(openFilter).toHaveBeenCalledWith("status");
     expect(page.getByRole("button", { name: "Note" }).elements()).toHaveLength(0);
+  });
+
+  it("writes the header of every column at one size: sorted, filtered, or neither", async () => {
+    const table: DataTableHeaders<"name", "status"> = {
+      sorting: { column: "name", direction: "asc" },
+      sortHeader: () => ({ sorted: "asc", onSort: () => {} }),
+      openFilter: () => {},
+    };
+    await render(
+      <DataTable
+        table={table}
+        columns={[
+          { id: "name", accessorKey: "name", title: "Name", sortable: true },
+          { id: "status", accessorKey: "status", title: "Status", filter: "status" },
+          { id: "note", accessorKey: "note", title: "Note" },
+        ]}
+        data={[{ name: "Ada", status: "active", note: "" }]}
+      />,
+    );
+    await expect.element(page.getByRole("table")).toBeVisible();
+
+    expect(headerSizeOf("Name")).toBe(headerSizeOf("Note"));
+    expect(headerSizeOf("Status")).toBe(headerSizeOf("Note"));
   });
 
   it("puts a group's header over its columns, a column outside it across both header rows, and a filter on the group", async () => {
