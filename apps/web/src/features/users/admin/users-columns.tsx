@@ -7,7 +7,6 @@ import {
   DateCell,
   NameCell,
   StatusBadge,
-  TagsCell,
   TimeAgoCell,
   VerifiedCell,
 } from "#/features/users/admin/users-cells.tsx";
@@ -49,7 +48,7 @@ export const usersColumns = (now: Date): ReadonlyArray<DataTableColumnFor<User, 
     sortable: true,
     filter: "team",
     cell: ({ row: { original } }) =>
-      original.profile === null ? null : labelOf("team", original.profile.team),
+      original.profile?.team == null ? null : labelOf("team", original.profile.team),
   },
   {
     id: "jobTitle",
@@ -66,13 +65,7 @@ export const usersColumns = (now: Date): ReadonlyArray<DataTableColumnFor<User, 
     title: "Country",
     sortable: true,
     cell: ({ row: { original } }) =>
-      original.profile === null ? null : <CountryCell code={original.profile.country} />,
-  },
-  {
-    id: "tags",
-    title: "Tags",
-    cell: ({ row: { original } }) =>
-      original.profile === null ? null : <TagsCell tags={original.profile.tags} />,
+      original.profile?.country == null ? null : <CountryCell code={original.profile.country} />,
   },
   {
     id: "verified",

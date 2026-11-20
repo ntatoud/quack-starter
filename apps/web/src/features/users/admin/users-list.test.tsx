@@ -66,7 +66,6 @@ const ada = {
     jobTitle: "Analyst",
     team: "engineering",
     country: "GB",
-    tags: ["beta", "vip", "mentor", "remote"],
   },
 };
 
@@ -551,7 +550,6 @@ describe("UsersList", () => {
     await expect.element(row.getByRole("cell", { name: "Never" })).toBeVisible();
     await expect.element(row.getByRole("img", { name: "Verified" })).toBeVisible();
     await expect.element(row.getByRole("cell", { name: "Jan 1, 2026" })).toBeVisible();
-    await expect.element(row.getByText("+2: mentor, remote")).toBeInTheDocument();
     const other = page.getByRole("row").filter({ hasText: "user-2@quack.dev" });
     await expect.element(other.getByRole("cell", { name: "No profile" })).toBeVisible();
     await expect.element(other.getByText("Not verified")).toBeInTheDocument();

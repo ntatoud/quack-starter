@@ -10,10 +10,9 @@ export default Effect.gen(function* () {
       first_name text NOT NULL,
       last_name text NOT NULL,
       job_title text NOT NULL,
-      team text NOT NULL,
-      country text NOT NULL,
-      avatar_url text,
-      tags text[] NOT NULL
+      team text,
+      country text,
+      avatar_url text
     )
   `;
 });

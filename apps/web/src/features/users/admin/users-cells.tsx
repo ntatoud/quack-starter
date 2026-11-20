@@ -1,6 +1,5 @@
 import type { User, UserStatus } from "@quack/contracts/identity/user";
 import { Badge } from "@quack/ui/components/badge";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@quack/ui/components/tooltip";
 import { DateTime } from "effect";
 import { CircleCheckIcon } from "lucide-react";
 
@@ -52,31 +51,6 @@ export function CountryCell({ code }: { code: string }) {
       <span aria-hidden="true">{flagOf(code)}</span>
       {regionNames.of(code) ?? code}
     </span>
-  );
-}
-
-const shownTags = 2;
-
-export function TagsCell({ tags }: { tags: ReadonlyArray<string> }) {
-  const rest = tags.slice(shownTags);
-
-  return (
-    <div className="flex items-center gap-1">
-      {tags.slice(0, shownTags).map((tag) => (
-        <Badge key={tag} variant="secondary">
-          {tag}
-        </Badge>
-      ))}
-      {rest.length > 0 && (
-        <Tooltip>
-          <TooltipTrigger render={<Badge variant="outline" tabIndex={0} />}>
-            +{rest.length}
-            <span className="sr-only">: {rest.join(", ")}</span>
-          </TooltipTrigger>
-          <TooltipContent>{rest.join(", ")}</TooltipContent>
-        </Tooltip>
-      )}
-    </div>
   );
 }
 

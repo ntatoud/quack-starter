@@ -18,7 +18,8 @@ interface UserFields {
   readonly profile?: {
     readonly firstName: string;
     readonly lastName: string;
-    readonly team: Team;
+    readonly team: Team | null;
+    readonly country?: CountryCode | null;
   } | null;
 }
 
@@ -41,11 +42,10 @@ const aUser = (
         profile === null
           ? null
           : new Profile({
+              country: CountryCode.make("FR"),
               ...profile,
               avatarUrl: null,
               jobTitle: "",
-              country: CountryCode.make("FR"),
-              tags: [],
             }),
     });
   });
@@ -227,6 +227,48 @@ export const userRepositorySuite = (layer: Layer.Layer<UserRepository>) => {
           (yield* listed({ search: mark, orderBy: "lastSignInAt", dir: "desc" })).emails,
           emailsOf(lateA, lateB, early, neverC, neverD),
         );
+      }));
+
+    test("keeps a Profile with no team and no country", () =>
+      Effect.gen(function* () {
+        const repository = yield* UserRepository;
+        const mark = yield* aMark;
+        const user = yield* aUser(mark, "ada", {
+          profile: { firstName: "Ada", lastName: "Lovelace", team: null, country: null },
+        });
+        yield* created(user);
+
+        assert.deepStrictEqual(yield* repository.findById(user.id), Option.some(user));
+      }));
+
+    test("sorts the Users with no team or no country last, in either direction", () =>
+      Effect.gen(function* () {
+        const mark = yield* aMark;
+        const design = yield* aUser(mark, "a", {
+          profile: { ...person("Ann", "A"), country: CountryCode.make("GB") },
+        });
+        const sales = yield* aUser(mark, "b", {
+          profile: { ...person("Bob", "B"), team: "sales", country: CountryCode.make("FR") },
+        });
+        const neither = yield* aUser(mark, "c", {
+          profile: { ...person("Cy", "C"), team: null, country: null },
+        });
+        yield* created(neither, sales, design);
+
+        for (const orderBy of ["team", "country"] as const) {
+          assert.deepStrictEqual(
+            (yield* listed({ search: mark, orderBy, dir: "asc" })).emails,
+            orderBy === "team"
+              ? emailsOf(design, sales, neither)
+              : emailsOf(sales, design, neither),
+          );
+          assert.deepStrictEqual(
+            (yield* listed({ search: mark, orderBy, dir: "desc" })).emails,
+            orderBy === "team"
+              ? emailsOf(sales, design, neither)
+              : emailsOf(design, sales, neither),
+          );
+        }
       }));
 
     test("sorts by name, last name first, those with no Profile last in either direction", () =>

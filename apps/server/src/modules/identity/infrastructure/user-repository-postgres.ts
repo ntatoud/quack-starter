@@ -33,8 +33,7 @@ export const UserRepositoryPostgres = Layer.effect(
         'avatar_url', avatar_url,
         'job_title', job_title,
         'team', team,
-        'country', country,
-        'tags', to_jsonb(tags)
+        'country', country
       ) END
     )`;
 
@@ -103,10 +102,9 @@ export const UserRepositoryPostgres = Layer.effect(
       user.profile === null
         ? sql`DELETE FROM user_profiles WHERE user_id IN (SELECT id FROM written)`
         : sql`INSERT INTO user_profiles
-                (user_id, first_name, last_name, avatar_url, job_title, team, country, tags)
+                (user_id, first_name, last_name, avatar_url, job_title, team, country)
               SELECT id, ${user.profile.firstName}, ${user.profile.lastName}, ${user.profile.avatarUrl},
-                ${user.profile.jobTitle}, ${user.profile.team}, ${user.profile.country},
-                ${user.profile.tags}::text[]
+                ${user.profile.jobTitle}, ${user.profile.team}, ${user.profile.country}
               FROM written
               ON CONFLICT (user_id) DO UPDATE SET
                 first_name = excluded.first_name,
@@ -114,8 +112,7 @@ export const UserRepositoryPostgres = Layer.effect(
                 avatar_url = excluded.avatar_url,
                 job_title = excluded.job_title,
                 team = excluded.team,
-                country = excluded.country,
-                tags = excluded.tags`;
+                country = excluded.country`;
 
     const insert = SqlSchema.void({
       Request: UserWithHash,
