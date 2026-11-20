@@ -1,4 +1,16 @@
 import type { User, UserId } from "@quack/contracts/identity/user";
+import type { UserChanges } from "@quack/contracts/users/users-api";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@quack/ui/components/alert-dialog";
 import { Button } from "@quack/ui/components/button";
 import {
   Empty,
@@ -10,10 +22,11 @@ import {
 import { SettingsCard } from "@quack/ui/components/settings-card";
 import { Skeleton } from "@quack/ui/components/skeleton";
 import { matchQuery } from "@quack/ui-state/query";
-import { useQuery } from "@tanstack/react-query";
-import type { ReactNode } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { type ReactNode, useState } from "react";
 
 import { ButtonLink } from "#/components/button-link.tsx";
+import { invalidateUsers } from "#/features/users/admin/invalidate-users.ts";
 import { userQueryOptions } from "#/features/users/admin/users-query.ts";
 import {
   CountryCell,
@@ -26,8 +39,10 @@ import {
 import { labelOf } from "#/features/users/admin/users-filters.ts";
 import { userLabel } from "#/features/users/full-name.ts";
 import { UserAvatar } from "#/features/users/user-avatar.tsx";
+import { api } from "#/lib/api.ts";
 
-export function UserDetails({ id }: { id: UserId }) {
+/** `canChange` is false on the Admin's own page: they cannot change their own access. */
+export function UserDetails({ id, canChange }: { id: UserId; canChange: boolean }) {
   const user = useQuery(userQueryOptions(id));
 
   return matchQuery(user, {
@@ -78,11 +93,13 @@ export function UserDetails({ id }: { id: UserId }) {
         </Empty>
       ),
     // Relative dates count from when the User was fetched, so the render stays pure.
-    Success: ({ data }) => <UserOverview user={data} now={new Date(user.dataUpdatedAt)} />,
+    Success: ({ data }) => (
+      <UserOverview user={data} now={new Date(user.dataUpdatedAt)} canChange={canChange} />
+    ),
   });
 }
 
-function UserOverview({ user, now }: { user: User; now: Date }) {
+function UserOverview({ user, now, canChange }: { user: User; now: Date; canChange: boolean }) {
   const { profile } = user;
 
   return (
@@ -99,6 +116,7 @@ function UserOverview({ user, now }: { user: User; now: Date }) {
             <RoleBadge role={user.role} />
           </div>
         </div>
+        {canChange && <UserActions user={user} />}
       </section>
       <Facts title="Profile">
         {profile === null ? (
@@ -127,6 +145,130 @@ function UserOverview({ user, now }: { user: User; now: Date }) {
         </Fact>
       </Facts>
     </>
+  );
+}
+
+type Confirmed = "promote" | "suspend";
+
+function UserActions({ user }: { user: User }) {
+  // One for every button: a new change clears the failure of the one before.
+  const change = useMutation(api.users.update.mutationOptions(invalidateUsers));
+  const [confirming, setConfirming] = useState<Confirmed | null>(null);
+  const apply = (payload: UserChanges) =>
+    change.mutate({ params: { id: user.id }, payload }, { onSuccess: () => setConfirming(null) });
+  const confirmed = (which: Confirmed) => ({
+    open: confirming === which,
+    onOpenChange: (open: boolean) => {
+      change.reset();
+      setConfirming(open ? which : null);
+    },
+    busy: change.isPending,
+    failed: change.isError,
+  });
+  const name = userLabel(user);
+  const atOnce = { variant: "outline", size: "sm", disabled: change.isPending } as const;
+
+  return (
+    <div className="flex flex-col gap-2 sm:items-end">
+      <div className="flex flex-wrap gap-2">
+        {user.role === "admin" ? (
+          <Button {...atOnce} onClick={() => apply({ role: "user" })}>
+            Remove admin
+          </Button>
+        ) : (
+          <ConfirmButton
+            label="Make admin"
+            title={`Make ${name} an admin?`}
+            description="They will see every user, and can suspend them or change their role."
+            {...confirmed("promote")}
+            onConfirm={() => apply({ role: "admin" })}
+          />
+        )}
+        {user.status === "active" && (
+          <ConfirmButton
+            label="Suspend"
+            title={`Suspend ${name}?`}
+            description="They are signed out at their next request, and cannot sign in until they are reactivated."
+            destructive
+            {...confirmed("suspend")}
+            onConfirm={() => apply({ status: "suspended" })}
+          />
+        )}
+        {user.status === "suspended" && (
+          <Button {...atOnce} onClick={() => apply({ status: "active" })}>
+            Reactivate
+          </Button>
+        )}
+      </div>
+      {/* A change confirmed in a dialog says it failed there. */}
+      <ChangeFailed shown={change.isError && confirming === null} />
+    </div>
+  );
+}
+
+function ChangeFailed({ shown }: { shown: boolean }) {
+  return (
+    <p role="alert" className="text-sm text-destructive empty:hidden">
+      {shown ? "Could not change the user. Try again." : ""}
+    </p>
+  );
+}
+
+/** Asks before `onConfirm`, and stays open until it succeeds: a failure is said in the dialog, which can be retried. */
+function ConfirmButton({
+  label,
+  title,
+  description,
+  destructive = false,
+  open,
+  onOpenChange,
+  busy,
+  failed,
+  onConfirm,
+}: {
+  label: string;
+  title: string;
+  description: string;
+  destructive?: boolean;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  busy: boolean;
+  failed: boolean;
+  onConfirm: () => void;
+}) {
+  return (
+    <AlertDialog
+      open={open}
+      onOpenChange={(next) => {
+        // Closing while the request runs would hide whether it succeeded.
+        if (!busy) onOpenChange(next);
+      }}
+    >
+      <AlertDialogTrigger
+        render={
+          <Button variant={destructive ? "destructive" : "outline"} size="sm" disabled={busy} />
+        }
+      >
+        {label}
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
+          <AlertDialogDescription>{description}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <ChangeFailed shown={failed} />
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            variant={destructive ? "destructive" : "default"}
+            disabled={busy}
+            onClick={onConfirm}
+          >
+            {label}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 

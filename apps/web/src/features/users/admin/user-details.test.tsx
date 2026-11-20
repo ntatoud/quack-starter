@@ -37,12 +37,12 @@ const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) =>
 );
 vi.stubGlobal("fetch", fetch);
 
-const setup = async (id: string, response: typeof respond) => {
+const setup = async (id: string, response: typeof respond, canChange = true) => {
   respond = response;
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const router = createRouter({
     routeTree: createRootRoute({
-      component: () => <UserDetails id={UserId.make(id)} />,
+      component: () => <UserDetails id={UserId.make(id)} canChange={canChange} />,
     }),
     history: createMemoryHistory({ initialEntries: ["/"] }),
   });
@@ -127,5 +127,125 @@ describe("UserDetails", () => {
     await page.getByRole("button", { name: "Try again" }).click();
 
     await expect.element(page.getByRole("heading", { name: "Ada Lovelace" })).toBeVisible();
+  });
+
+  it("suspends an active User, and shows them suspended", async () => {
+    const requests: Array<string> = [];
+    await setup("user-ada", (request) => {
+      requests.push(`${request.method} ${new URL(request.url).pathname}`);
+      const status = requests.includes("PATCH /api/users/user-ada") ? "suspended" : "active";
+      return Response.json({ ...ada, status });
+    });
+
+    await page.getByRole("button", { name: "Suspend" }).click();
+    const dialog = page.getByRole("alertdialog", { name: "Suspend Ada Lovelace?" });
+    await expect.element(dialog).toBeVisible();
+    expect(requests).not.toContain("PATCH /api/users/user-ada");
+    await dialog.getByRole("button", { name: "Suspend" }).click();
+
+    await expect.element(page.getByRole("button", { name: "Reactivate" })).toBeVisible();
+    expect(page.getByRole("alertdialog").elements()).toHaveLength(0);
+    expect(requests).toContain("PATCH /api/users/user-ada");
+    expect(page.getByText("Suspended", { exact: true }).elements()).toHaveLength(1);
+  });
+
+  it("makes an admin a user", async () => {
+    const bodies: Array<unknown> = [];
+    await setup("user-ada", async (request) => {
+      if (request.method === "PATCH") bodies.push(await request.json());
+      return Response.json({ ...ada, role: bodies.length > 0 ? "user" : "admin" });
+    });
+
+    await page.getByRole("button", { name: "Remove admin" }).click();
+
+    await expect.element(page.getByRole("button", { name: "Make admin" })).toBeVisible();
+    expect(bodies).toEqual([{ role: "user" }]);
+  });
+
+  it("offers neither to suspend nor to reactivate an invited User", async () => {
+    await setup("user-ada", () => Response.json({ ...ada, status: "invited" }));
+
+    await expect.element(page.getByRole("button", { name: "Remove admin" })).toBeVisible();
+    expect(page.getByRole("button", { name: /Suspend|Reactivate/ }).elements()).toHaveLength(0);
+  });
+
+  it("offers no change to the Admin looking at their own page", async () => {
+    await setup("user-ada", () => Response.json(ada), false);
+
+    await expect.element(page.getByRole("heading", { name: "Ada Lovelace" })).toBeVisible();
+    expect(page.getByRole("button").elements()).toHaveLength(0);
+  });
+
+  it("says so when a change fails", async () => {
+    await setup("user-ada", (request) =>
+      request.method === "GET" ? Response.json(ada) : new Response(null, { status: 500 }),
+    );
+
+    await page.getByRole("button", { name: "Reactivate" }).click();
+
+    await expect
+      .element(page.getByRole("alert").getByText("Could not change the user. Try again."))
+      .toBeVisible();
+  });
+
+  it("suspends nobody when the confirmation is cancelled", async () => {
+    await setup("user-ada", () => Response.json({ ...ada, status: "active" }));
+
+    await page.getByRole("button", { name: "Suspend" }).click();
+    await page.getByRole("button", { name: "Cancel" }).click();
+
+    await expect.element(page.getByRole("button", { name: "Suspend" })).toHaveFocus();
+    expect(fetch.mock.calls.map(([input, init]) => new Request(input, init).method)).toEqual([
+      "GET",
+    ]);
+  });
+
+  it("makes a user an admin once confirmed", async () => {
+    const bodies: Array<unknown> = [];
+    await setup("user-ada", async (request) => {
+      if (request.method === "PATCH") bodies.push(await request.json());
+      return Response.json({ ...ada, role: bodies.length > 0 ? "admin" : "user" });
+    });
+
+    await page.getByRole("button", { name: "Make admin" }).click();
+    const dialog = page.getByRole("alertdialog", { name: "Make Ada Lovelace an admin?" });
+    await dialog.getByRole("button", { name: "Make admin" }).click();
+
+    await expect.element(page.getByRole("button", { name: "Remove admin" })).toBeVisible();
+    expect(bodies).toEqual([{ role: "admin" }]);
+  });
+
+  it("keeps the confirmation open and says so when the suspension fails", async () => {
+    await setup("user-ada", (request) =>
+      request.method === "GET"
+        ? Response.json({ ...ada, status: "active" })
+        : new Response(null, { status: 500 }),
+    );
+
+    await page.getByRole("button", { name: "Suspend" }).click();
+    const dialog = page.getByRole("alertdialog");
+    await dialog.getByRole("button", { name: "Suspend" }).click();
+
+    await expect
+      .element(dialog.getByRole("alert").getByText(/Could not change the user/))
+      .toBeVisible();
+  });
+
+  it("stops saying a change failed once another one succeeds", async () => {
+    let fails = true;
+    await setup("user-ada", async (request) => {
+      if (request.method === "GET") return Response.json(ada);
+      if (fails) return new Response(null, { status: 500 });
+      return Response.json({ ...ada, ...(await request.json()) });
+    });
+    await page.getByRole("button", { name: "Remove admin" }).click();
+    await expect.element(page.getByText("Could not change the user. Try again.")).toBeVisible();
+
+    fails = false;
+    await page.getByRole("button", { name: "Reactivate" }).click();
+
+    await expect
+      .poll(() => page.getByText("Could not change the user. Try again.").elements())
+      .toHaveLength(0);
   });
 });
