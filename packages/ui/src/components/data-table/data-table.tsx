@@ -235,6 +235,12 @@ const selectColumn: ColumnDefOf<RowData> = {
 const interactive =
   "a, button, input, select, textarea, label, summary, [role=button], [role=link], [role=menuitem], [role=checkbox], [role=switch], [data-row-click-ignore]";
 
+const rowLinkSlot = "data-table-row-link";
+
+// The controls of a cell stay above the link that covers it, and keep their own action.
+const controlsAboveRowLink =
+  "[&_:is(button,input,select,textarea,label,summary,[role=button],[role=checkbox],[role=switch],[role=menuitem],a:not([data-slot=data-table-row-link]))]:relative [&_:is(button,input,select,textarea,label,summary,[role=button],[role=checkbox],[role=switch],[role=menuitem],a:not([data-slot=data-table-row-link]))]:z-2";
+
 const isOwnClick = (event: React.MouseEvent<HTMLElement>) => {
   const target = event.target as Element;
   if (!event.currentTarget.contains(target)) return false;
@@ -307,6 +313,7 @@ export function DataTable<
   label,
   virtual,
   onRowClick,
+  rowLink,
   selection,
   busy = false,
   className,
@@ -333,6 +340,19 @@ export function DataTable<
    * the arrow keys move between rows, and Enter opens one. The event tells a click with a modifier, to open a new tab.
    */
   onRowClick?: (row: TData, event: RowClickEvent) => void;
+  /**
+   * Makes each row a link, in place of `onRowClick`: the element it answers, such as a router's `<Link>`, covers every
+   * cell but the checkbox's, so a click anywhere in the row follows it as a link does (a new tab with a modifier or
+   * the middle button, from its menu). Its accessible name names the row: only the first cell's is read, the others
+   * are hidden from assistive tech. The rows take the focus and the arrow keys as with `onRowClick`; Enter follows the
+   * link. The text of a row cannot be selected.
+   */
+  rowLink?: (row: TData) => React.ReactElement<{
+    className?: string;
+    tabIndex?: number;
+    "aria-hidden"?: boolean;
+    "data-slot"?: string;
+  }>;
   /** True while other rows load: the rows shown fade, and assistive tech hears the table is busy. */
   busy?: boolean;
 } & (
@@ -358,6 +378,9 @@ export function DataTable<
   const hiddenKey = (headers?.hiddenColumns ?? []).join("\n");
   const pinnedKey = (headers?.pinnedColumns ?? []).join("\n");
   const selectable = selection !== undefined;
+  const opens = onRowClick !== undefined || rowLink !== undefined;
+  // The checkbox column comes first, and holds no link.
+  const firstLinkedIndex = selectable ? 1 : 0;
   // The last row ticked, from which Shift + click selects a range.
   const anchor = React.useRef<string | null>(null);
   // Columns declared once keep their identity, so the table does not rebuild them on every render. The checkboxes
@@ -646,22 +669,25 @@ export function DataTable<
       key={row.id}
       data-row-index={index}
       data-state={selected?.has(row.id) ? "selected" : undefined}
-      interactive={onRowClick !== undefined}
+      interactive={opens}
       {...(virtual === undefined && { ref: keepRowFocus })}
-      {...(onRowClick && {
+      {...(opens && {
         tabIndex: row.id === tabbableRow ? 0 : -1,
         // Said when the focus enters the rows, not again on every row it moves to.
         "aria-describedby": row.id === tabbableRow ? hintId : undefined,
         onFocus: (event: React.FocusEvent<HTMLTableRowElement>) => {
           if (event.target === event.currentTarget) setActiveRow(row.id);
         },
-        onClick: (event: React.MouseEvent<HTMLTableRowElement>) => {
-          if (isOwnClick(event)) onRowClick(row.original, event);
-        },
-        // The middle button clicks through `auxclick`: it opens the row too, the event telling where (a new tab).
-        onAuxClick: (event: React.MouseEvent<HTMLTableRowElement>) => {
-          if (event.button === 1 && isOwnClick(event)) onRowClick(row.original, event);
-        },
+        ...(onRowClick !== undefined &&
+          rowLink === undefined && {
+            onClick: (event: React.MouseEvent<HTMLTableRowElement>) => {
+              if (isOwnClick(event)) onRowClick(row.original, event);
+            },
+            // The middle button clicks through `auxclick`: it opens the row too, the event telling where (a new tab).
+            onAuxClick: (event: React.MouseEvent<HTMLTableRowElement>) => {
+              if (event.button === 1 && isOwnClick(event)) onRowClick(row.original, event);
+            },
+          }),
         onKeyDown: (event: React.KeyboardEvent<HTMLTableRowElement>) => {
           if (event.target !== event.currentTarget) return;
           // Alt and Ctrl with a key belong to the browser and the app; Cmd with an arrow goes to the end, as on macOS.
@@ -704,7 +730,13 @@ export function DataTable<
                 !selectionModel.selected.has(row.id),
                 event.shiftKey,
               );
-          } else if (event.key === "Enter" && !event.repeat) onRowClick(row.original, event);
+          } else if (event.key === "Enter" && !event.repeat) {
+            if (rowLink !== undefined)
+              event.currentTarget
+                .querySelector<HTMLAnchorElement>(`a[data-slot=${rowLinkSlot}]`)
+                ?.click();
+            else onRowClick?.(row.original, event);
+          }
         },
       })}
       {...(virtual !== undefined && {
@@ -714,13 +746,20 @@ export function DataTable<
         "aria-rowindex": headerGroups.length + index + 1,
       })}
     >
-      {row.getAllCells().map((cell) => {
+      {row.getAllCells().map((cell, cellIndex) => {
         const layout = layoutOf(cell.column.columnDef, cell.column.id);
         const pin = pinOf(cell.column.id);
+        const sticky = pin === undefined ? layout.sticky : "start";
+        const linked = rowLink !== undefined && cell.column.id !== selectColumnId;
         return (
           <TableCell
             key={cell.id}
-            sticky={pin === undefined ? layout.sticky : "start"}
+            sticky={sticky}
+            // The link covers the cell: a sticky cell already holds it, any other one is made to. `isolate` keeps the
+            // link of a cell scrolling under the pinned ones below them, and their checkboxes.
+            {...(linked && {
+              className: cn(sticky === false && "relative isolate", controlsAboveRowLink),
+            })}
             pinEdge={pin?.edge ?? false}
             {...(pin !== undefined && {
               style: {
@@ -735,6 +774,14 @@ export function DataTable<
             })}
           >
             <table.FlexRender cell={cell} />
+            {linked &&
+              React.cloneElement(rowLink(row.original), {
+                "data-slot": rowLinkSlot,
+                className: "absolute inset-0 z-1",
+                tabIndex: -1,
+                // Read once per row, in its first cell: the same link in every cell would be heard in every cell.
+                ...(cellIndex !== firstLinkedIndex && { "aria-hidden": true }),
+              })}
           </TableCell>
         );
       })}
@@ -918,7 +965,7 @@ export function DataTable<
           <ScrollBar orientation="horizontal" className="z-20 ps-(--held-start) pe-(--held-end)" />
           <ScrollAreaPrimitive.Corner />
         </ScrollAreaPrimitive.Root>
-        {onRowClick !== undefined && (
+        {opens && (
           <span id={hintId} hidden>
             {selectionModel === null
               ? "Enter opens a row; the arrow keys move between rows."
