@@ -1,6 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
 import { UserId } from "@quack/contracts/identity/user";
-import { Todo, TodoId, TodoTitle } from "@quack/contracts/todos/todo";
+import { Todo, TodoTitle } from "@quack/contracts/todos/todo";
 import { DateTime, Effect, type Layer, Option } from "effect";
 
 import { TodoRepository } from "#/modules/todos/domain/todo-repository.ts";
@@ -52,23 +52,24 @@ export const todoRepositorySuite = (layer: Layer.Layer<TodoRepository>) => {
       Effect.gen(function* () {
         const repository = yield* TodoRepository;
         const owner = yield* anOwner;
-        const idOf = (suffix: string) => TodoId.make(`${owner}-${suffix}`);
+        const [one, other] = [yield* repository.nextId, yield* repository.nextId];
+        const [lower, higher] = one < other ? [one, other] : [other, one];
         const last = aTodo({
-          id: idOf("a"),
+          id: yield* repository.nextId,
           ownerId: owner,
           createdAt: at("2026-03-01T00:00:00Z"),
         });
         const first = aTodo({
-          id: idOf("b"),
+          id: lower,
           ownerId: owner,
           createdAt: at("2026-01-01T00:00:00Z"),
         });
         const second = aTodo({
-          id: idOf("c"),
+          id: higher,
           ownerId: owner,
           createdAt: at("2026-01-01T00:00:00Z"),
         });
-        const otherOwners = aTodo({ id: idOf("d"), ownerId: yield* anOwner });
+        const otherOwners = aTodo({ id: yield* repository.nextId, ownerId: yield* anOwner });
 
         yield* Effect.forEach([last, second, otherOwners, first], repository.save);
 
