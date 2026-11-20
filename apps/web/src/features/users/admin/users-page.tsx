@@ -7,7 +7,7 @@ import { UsersList } from "#/features/users/admin/users-list.tsx";
 import { isFiltered, usersQueryOf } from "#/features/users/admin/users-search.ts";
 
 export function UsersPage() {
-  const urlSearch = useSearch({ from: "/_authenticated/_admin/users" });
+  const urlSearch = useSearch({ from: "/_authenticated/admin/users" });
   const query = usersQueryOf(urlSearch);
   const users = useQuery(usersQueryOptions(query));
 

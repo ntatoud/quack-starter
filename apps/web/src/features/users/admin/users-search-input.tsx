@@ -3,7 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import type { Ref } from "react";
 
 export function UsersSearchInput({ search, ref }: { search: string; ref: Ref<HTMLInputElement> }) {
-  const navigate = useNavigate({ from: "/users" });
+  const navigate = useNavigate({ from: "/admin/users" });
 
   return (
     <SearchInput

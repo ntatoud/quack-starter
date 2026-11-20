@@ -2,8 +2,8 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 
 import { isAdmin } from "#/features/identity/is-admin.ts";
 
-export const Route = createFileRoute("/_authenticated/_admin")({
+export const Route = createFileRoute("/_authenticated/admin")({
   beforeLoad: ({ context }) => {
-    if (!isAdmin(context.currentUser)) throw redirect({ to: "/" });
+    if (!isAdmin(context.currentUser)) throw redirect({ to: "/app" });
   },
 });

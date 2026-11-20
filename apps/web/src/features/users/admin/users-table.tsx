@@ -107,7 +107,7 @@ export function UsersTable({
               {total > 0 && (
                 <EmptyContent>
                   <ButtonLink
-                    to="/users"
+                    to="/admin/users"
                     search={({ page: _, ...rest }) => rest}
                     variant="outline"
                     size="sm"

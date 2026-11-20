@@ -32,7 +32,7 @@ export function AppSidebar({ currentUser }: { currentUser: typeof User.Encoded }
       <SidebarHeader className="flex-row items-center gap-2 overflow-hidden">
         <SidebarTrigger className="size-8 shrink-0" />
         <Link
-          to="/"
+          to="/app"
           aria-label="Quack, home"
           className="rounded-md px-1 transition-opacity duration-200 ease-out outline-hidden focus-visible:ring-2 focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:opacity-0"
           inert={collapsed}
@@ -47,8 +47,8 @@ export function AppSidebar({ currentUser }: { currentUser: typeof User.Encoded }
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton
-                  render={<Link to="/" onClick={closeOnMobile} />}
-                  isActive={matchRoute({ to: "/" }) !== false}
+                  render={<Link to="/app" onClick={closeOnMobile} />}
+                  isActive={matchRoute({ to: "/app" }) !== false}
                   tooltip="Todos"
                 >
                   <ListTodoIcon />
@@ -65,8 +65,8 @@ export function AppSidebar({ currentUser }: { currentUser: typeof User.Encoded }
               <SidebarMenu>
                 <SidebarMenuItem>
                   <SidebarMenuButton
-                    render={<Link to="/users" onClick={closeOnMobile} />}
-                    isActive={matchRoute({ to: "/users" }) !== false}
+                    render={<Link to="/admin/users" onClick={closeOnMobile} />}
+                    isActive={matchRoute({ to: "/admin/users" }) !== false}
                     tooltip="Users"
                   >
                     <UsersIcon />
