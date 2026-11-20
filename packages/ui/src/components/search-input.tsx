@@ -3,11 +3,6 @@ import { SearchIcon } from "lucide-react";
 
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@quack/ui/components/input-group";
 
-/**
- * Calls `onSearch` with the trimmed text once the typing pauses for `delay` ms, at once on Enter or when
- * the text is cleared, and never twice in a row with the same text.
- * Uncontrolled: give it a new `key` to replace its text.
- */
 const setRef = <T,>(ref: React.Ref<T> | undefined, value: T) => {
   if (typeof ref === "function") {
     const cleanup = ref(value);
@@ -19,6 +14,12 @@ const setRef = <T,>(ref: React.Ref<T> | undefined, value: T) => {
   };
 };
 
+/**
+ * Calls `onSearch` with the trimmed text once the typing pauses for `delay` ms, at once on Enter, on blur, or when
+ * the text is cleared, and never twice in a row with the same text.
+ * Uncontrolled: it shows a new `defaultValue` only when it is another search than the last it sent (Back, a reset),
+ * so the search it sent coming back does not replace what was typed since.
+ */
 function SearchInput({
   defaultValue = "",
   onSearch,
@@ -27,6 +28,7 @@ function SearchInput({
   className,
   onChange,
   onKeyDown,
+  onBlur,
   ref,
   ...props
 }: Omit<React.ComponentProps<typeof InputGroupInput>, "type" | "defaultValue" | "value" | "ref"> & {
@@ -38,6 +40,14 @@ function SearchInput({
 }) {
   const timer = React.useRef<ReturnType<typeof setTimeout>>(undefined);
   const searched = React.useRef(defaultValue.trim());
+  const input = React.useRef<HTMLInputElement | null>(null);
+
+  React.useLayoutEffect(() => {
+    if (defaultValue.trim() === searched.current) return;
+    clearTimeout(timer.current);
+    searched.current = defaultValue.trim();
+    if (input.current !== null) input.current.value = defaultValue;
+  }, [defaultValue]);
 
   const search = (text: string) => {
     clearTimeout(timer.current);
@@ -50,8 +60,9 @@ function SearchInput({
   // A search that is still waiting must not run once the input is gone. Stable while `ref` is, so React runs its
   // cleanup on unmount only, not on every render.
   const attach = React.useCallback(
-    (input: HTMLInputElement | null) => {
-      const detach = setRef(ref, input);
+    (node: HTMLInputElement | null) => {
+      input.current = node;
+      const detach = setRef(ref, node);
       return () => {
         clearTimeout(timer.current);
         detach();
@@ -79,6 +90,11 @@ function SearchInput({
         onKeyDown={(event) => {
           onKeyDown?.(event);
           if (event.key === "Enter") search(event.currentTarget.value);
+        }}
+        // A search still waiting runs when the input is left, so a click that follows (a reset, a link) acts on it.
+        onBlur={(event) => {
+          onBlur?.(event);
+          search(event.currentTarget.value);
         }}
         {...props}
       />

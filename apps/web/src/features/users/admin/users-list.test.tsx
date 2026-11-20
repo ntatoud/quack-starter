@@ -14,9 +14,11 @@ import { page, userEvent } from "vite-plus/test/browser";
 import { render } from "vitest-browser-react";
 
 import { TooltipProvider } from "@quack/ui/components/tooltip";
+import { elementOf } from "@quack/ui/testing/dom";
 
 import { UsersList } from "#/features/users/admin/users-list.tsx";
 import { UsersSearch } from "#/features/users/admin/users-search.ts";
+import { useUsersTable } from "#/features/users/admin/users-table.ts";
 
 const user = (n: number, role: Role = "user") => ({
   id: `user-${n}`,
@@ -47,11 +49,8 @@ const usersOn = (request: Request) =>
 const ninePages = () => Response.json({ items: firstPage, total: defaultPageSize * 9 });
 
 // The rows scroll sideways when the table is narrow; the footer must fit.
-const footerOfTable = () => {
-  const footer = pagination().element().closest("[data-slot=data-table-footer]");
-  if (!(footer instanceof HTMLElement)) throw new Error("The pagination is in no footer.");
-  return footer;
-};
+const footerOfTable = () =>
+  elementOf(HTMLElement, pagination().element().closest("[data-slot=data-table-footer]"));
 
 const lastQuery = () => new URL(String(fetch.mock.lastCall?.[0])).searchParams;
 
@@ -74,16 +73,17 @@ const ada = {
 const columnPicker = () => page.getByRole("button", { name: "Columns" });
 const headerOf = (title: string) => page.getByRole("table").getByText(title, { exact: true });
 
-const scrollerOfTable = () => {
-  const scroller = page.getByRole("table").element().closest("[data-slot=data-table-viewport]");
-  if (!(scroller instanceof HTMLElement)) throw new Error("The table scrolls in no viewport.");
-  return scroller;
-};
+const scrollerOfTable = () =>
+  elementOf(
+    HTMLElement,
+    page.getByRole("table").element().closest("[data-slot=data-table-viewport]"),
+  );
 
 const currentPages = () =>
   pagination()
     .getByRole("link")
     .elements()
+    .filter((link) => link.checkVisibility())
     .filter((link) => link.getAttribute("aria-current") === "page")
     .map((link) => link.getAttribute("aria-label"));
 
@@ -103,7 +103,7 @@ const setup = async (
       return (
         <TooltipProvider>
           <div style={{ ...size, display: "flex", flexDirection: "column" }}>
-            <UsersList urlSearch={usersRoute.useSearch()} />
+            <UsersList table={useUsersTable(usersRoute.useSearch())} />
           </div>
         </TooltipProvider>
       );
@@ -125,11 +125,12 @@ const said = () =>
   page
     .getByRole("status")
     .elements()
-    .map((status) => status.textContent);
+    .map((status) => status.textContent)
+    .filter((text) => text !== "");
 
 const pagination = () => page.getByRole("navigation", { name: "Pages of users" });
-const previous = () => pagination().getByRole("link", { name: "Go to previous page" });
-const next = () => pagination().getByRole("link", { name: "Go to next page" });
+const previous = () => pagination().getByRole("link", { name: "Previous" });
+const next = () => pagination().getByRole("link", { name: "Next" });
 
 const sortOf = (column: string) =>
   page
@@ -151,7 +152,7 @@ describe("UsersList", () => {
     const response = Promise.withResolvers<Response>();
     await setup(() => response.promise);
 
-    await expect.poll(said).toContain("Loading users…");
+    await expect.poll(said).toContain("Loading…");
     response.resolve(Response.json({ items: [], total: 0 }));
   });
 
@@ -226,11 +227,11 @@ describe("UsersList", () => {
     await expect.element(page.getByText("Page 2 of 2")).toBeVisible();
     await expect.element(page.getByText("user-1@quack.dev")).toBeVisible();
     expect(said()).toEqual([]);
-    const table = page.getByRole("table").element().closest("[aria-busy]");
-    expect(table?.getAttribute("aria-busy")).toBe("true");
+    const body = page.getByRole("table").element().querySelector("tbody");
+    expect(body?.getAttribute("aria-busy")).toBe("true");
     second.resolve(Response.json({ items: [user(total)], total }));
     await expect.element(page.getByText(`user-${total}@quack.dev`)).toBeVisible();
-    expect(table?.getAttribute("aria-busy")).toBe("false");
+    expect(body?.hasAttribute("aria-busy")).toBe(false);
   });
 
   it("shows the first page for a page that is not a page number", async () => {
@@ -268,17 +269,6 @@ describe("UsersList", () => {
 
     await expect.element(previous()).toHaveAttribute("aria-disabled", "true");
     await expect.element(pagination().getByRole("link", { name: "Page 1" })).toHaveFocus();
-  });
-
-  it("leaves the focus on Previous when it stays enabled, from a page past the last", async () => {
-    await setup(usersOn, "/admin/users?page=9");
-    await expect.element(page.getByText("No users on this page")).toBeVisible();
-
-    previous().element().focus();
-    await userEvent.keyboard("{Enter}");
-
-    await expect.element(page.getByText(`user-${total}@quack.dev`)).toBeVisible();
-    await expect.element(previous()).toHaveFocus();
   });
 
   it("scrolls its rows under the header and above the footer when its height is bounded", async () => {
@@ -329,17 +319,12 @@ describe("UsersList", () => {
     expect(next().element().getBoundingClientRect().right).toBeLessThanOrEqual(window.innerWidth);
   });
 
-  it("leads back to the first page from a page past the last", async () => {
-    await setup(
-      (request) => (pageOf(request) === 1 ? usersOn(request) : Response.json({ items: [], total })),
-      "/admin/users?page=9",
-    );
+  it("goes to the last page from a page past it, in place in the history", async () => {
+    const { router } = await setup(usersOn, "/admin/users?page=9");
 
-    await expect.element(page.getByText("No users on this page")).toBeVisible();
-    await expect.element(previous()).toHaveAttribute("href", "/admin/users?page=2");
-    await page.getByRole("link", { name: "Go to the first page" }).click();
-
-    await expect.element(page.getByText("user-1@quack.dev")).toBeVisible();
+    await expect.element(page.getByText(`user-${total}@quack.dev`)).toBeVisible();
+    expect(router.state.location.search).toEqual({ page: 2 });
+    expect(router.history.length).toBe(1);
   });
 
   it("offers to try again when the users cannot be loaded, and loads them on the retry", async () => {
@@ -350,7 +335,7 @@ describe("UsersList", () => {
       .toBeVisible();
 
     respond = usersOn;
-    await page.getByRole("button", { name: "Try again" }).click();
+    await page.getByRole("button", { name: "Retry" }).click();
 
     await expect.element(page.getByText("user-1@quack.dev")).toBeVisible();
   });
@@ -398,19 +383,7 @@ describe("UsersList", () => {
   it("says no user matches a search that finds none", async () => {
     await setup(() => Response.json({ items: [], total: 0 }), "/admin/users?q=duck");
 
-    await expect.element(page.getByText("No users match “duck”")).toBeVisible();
-    expect(page.getByRole("link", { name: "Go to the first page" }).elements()).toHaveLength(0);
-  });
-
-  it("keeps the search when it leads back to the first page", async () => {
-    await setup(
-      (request) => (pageOf(request) === 1 ? usersOn(request) : Response.json({ items: [], total })),
-      "/admin/users?page=9&q=user",
-    );
-
-    await expect
-      .element(page.getByRole("link", { name: "Go to the first page" }))
-      .toHaveAttribute("href", "/admin/users?q=user");
+    await expect.element(page.getByRole("table").getByText("No results for “duck”")).toBeVisible();
   });
 
   it("sorts by a column from its header, from the first page, and keeps the order in the URL", async () => {
@@ -515,7 +488,9 @@ describe("UsersList", () => {
   it("says no user has the Role of a filter that finds none", async () => {
     await setup(() => Response.json({ items: [], total: 0 }), "/admin/users?role=admin");
 
-    await expect.element(page.getByText("No users have the Role Admin")).toBeVisible();
+    await expect
+      .element(page.getByRole("table").getByText("No results", { exact: true }))
+      .toBeVisible();
   });
 
   it("hides a Role filter that loses its value when going back", async () => {
@@ -541,7 +516,7 @@ describe("UsersList", () => {
 
     const searchbox = page.getByRole("searchbox");
     await expect.element(searchbox).toHaveFocus();
-    const input = searchbox.element() as HTMLInputElement;
+    const input = elementOf(HTMLInputElement, searchbox.element());
     expect([input.selectionStart, input.selectionEnd]).toEqual([0, "duck".length]);
   });
 
@@ -566,11 +541,6 @@ describe("UsersList", () => {
 
   it("shows the Profile, the Status, and the dates of a User, and Never for one who never signed in", async () => {
     await setup(() => Response.json({ items: [ada, user(2)], total: 2 }));
-    await columnPicker().click();
-    await page.getByRole("menuitemcheckbox", { name: "Job title" }).click();
-    await page.getByRole("menuitemcheckbox", { name: "Tags" }).click();
-    await page.getByRole("menuitemcheckbox", { name: "Verified" }).click();
-    await userEvent.keyboard("{Escape}");
 
     const row = page.getByRole("row").filter({ hasText: "ada@quack.dev" });
     await expect.element(row.getByRole("cell", { name: "Ada Lovelace" })).toBeVisible();
@@ -647,7 +617,9 @@ describe("UsersList", () => {
       "/admin/users?status=invited&team=sales",
     );
 
-    await expect.element(page.getByText("No users match these filters")).toBeVisible();
+    await expect
+      .element(page.getByRole("table").getByText("No results", { exact: true }))
+      .toBeVisible();
   });
 
   it("asks the API for every status and team when the URL names neither", async () => {
@@ -658,17 +630,26 @@ describe("UsersList", () => {
     expect(queryOf().has("team")).toBe(false);
   });
 
-  it("starts with the job title, the tags, and the verified date hidden, and shows them from the column picker", async () => {
-    await setup(usersOn);
+  it("hides a column from the column picker, and keeps the columns hidden in the URL", async () => {
+    const { router } = await setup(usersOn);
     await expect.element(headerOf("Country")).toBeVisible();
-    expect(headerOf("Job title").elements()).toHaveLength(0);
 
     await columnPicker().click();
-    expect(page.getByRole("menuitemcheckbox", { name: "Email" }).elements()).toHaveLength(0);
-    await page.getByRole("menuitemcheckbox", { name: "Job title" }).click();
     await page.getByRole("menuitemcheckbox", { name: "Country" }).click();
 
-    await expect.element(headerOf("Job title")).toBeVisible();
     expect(headerOf("Country").elements()).toHaveLength(0);
+    await expect.poll(() => router.state.location.search).toEqual({ hidden: ["country"] });
+  });
+
+  it("asks the API for the page size chosen, from the first page", async () => {
+    const { router } = await setup(usersOn, "/admin/users?page=2");
+    await expect.element(page.getByText(`user-${total}@quack.dev`)).toBeVisible();
+
+    await page.getByRole("combobox", { name: "Rows per page" }).click();
+    await page.getByRole("option", { name: "50" }).click();
+
+    await expect.poll(() => router.state.location.search).toEqual({ size: 50 });
+    expect(lastQuery().get("pageSize")).toBe("50");
+    expect(lastQuery().get("page")).toBe("1");
   });
 });

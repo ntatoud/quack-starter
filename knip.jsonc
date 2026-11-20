@@ -21,7 +21,7 @@
     },
     "packages/ui": {
       // shadcn components are a library: every export is available to the apps.
-      "entry": ["src/components/*.tsx", "src/lib/*.ts"],
+      "entry": ["src/components/**/*.tsx", "src/lib/**/*.ts", "src/hooks/*.ts"],
     },
   },
 }

@@ -144,7 +144,7 @@ Queries:
 
 ```
 apps/web/src/
-  components/          Components that no feature owns and that need the router, which `@quack/ui` does not know (button-link.tsx)
+  components/          Components that no feature owns and that need the router, which `@quack/ui` does not know (button-link.tsx, the URL store of a table in data-table/)
   features/<context>/  Components, queries, and UI logic of one context; what only Admins use in admin/
   routes/              TanStack file routes: the route and its context only, no component
   lib/                 API client (api.ts), relay to the API (api-relay.ts)
@@ -166,7 +166,7 @@ apps/web/src/
 - A call of the API that fails with `Unauthenticated` needs no handling where it is made: the `QueryCache` and the `MutationCache` of the `QueryClient` (`router.tsx`) set the Current User to `null` and lead to `/sign-in?redirect=<the current page>`. Such a call is not retried. `signInLocation` (`features/identity/redirect-target.ts`) is that link, for the layout of the protected pages too.
 - A page for visitors only goes under `routes/_guest/` (`sign-in.tsx`, `sign-up.tsx`), whose layout `GuestLayout` (`features/layout/guest-layout.tsx`) centers its card, with no bar. Such a page redirects a Current User in its `beforeLoad`. The `redirect` of the sign-in page comes from a link anyone can write: read it through `redirectTarget` (`features/identity/redirect-target.ts`), which answers a path of the app or `/app`. Validate the search of a route with an Effect schema: `validateSearch: Schema.toStandardSchemaV1(SignInSearch)` (`features/identity/sign-in-search.ts`).
 - Link to a page with the look of a button through `ButtonLink` (`components/button-link.tsx`): the `to` of a `Link`, the `variant` and `size` of a `Button`.
-- A list that pages keeps its page in the URL: a `page` search validated by `PageSearch`, which answers 1 for anything else (`components/page-pagination.tsx`), the query with `placeholderData: keepPreviousData`, and the table `aria-busy` while the next page loads. Render it with `DataTable` and `PagePagination` (`components/page-pagination.tsx`) in its footer (`features/users/admin/users-table.tsx`): it links to the pages of the current route through `page`, keeps the rest of the search, and marks the current page from the validated `page`, not by the router. Its links are `ButtonLink`s, not `PaginationLink`, which gives its `<a>` the role of a button.
+- A table keeps its state in the URL: its page, page size, search, sorting, filters, and hidden and pinned columns. Validate the search of its route with `dataTableSearchSchema` (`components/data-table/search-schema.ts`), an Effect schema that replaces an invalid value with its default, and build the table with `useRouterDataTable` (`components/data-table/use-router-data-table.ts`), which navigates on every change and makes its pages links. Query the API from what it answers (`state`, `page`, `pageSize`, `sorting`) with `placeholderData: keepPreviousData`, and pass `busy` while the next page loads. Copy `features/users/admin/users-list.tsx`.
 - Render a query through `matchQuery(query, { Pending, Error, Success })` (`@quack/ui-state/query`), not with `isPending` and `data === undefined`: a state left without a case does not compile. A refetch that fails stays `Success`, with its `refreshError`. Anything else that loads (a mutation, an Effect run by hand) answers a `UiState` (`@quack/ui-state/ui-state`) and is matched with `UiState.match`, which asks a case for each state its type can hold, `Idle` included.
 - The `QueryClient` is in the router's context (`context.queryClient`), the same one the components use. No other data is loaded in the server render: the API client has no cookie there.
 - The forms of `/sign-in` and `/sign-up` say how long to wait when the API refuses with `TooManyAttempts`: `tooManyAttemptsMessage` (`features/identity/too-many-attempts-message.ts`).
@@ -177,9 +177,9 @@ apps/web/src/
 
 Add a component from `packages/ui`: `pnpm dlx shadcn@latest add <name>`. Import it as `@quack/ui/components/<name>`, and a hook as `@quack/ui/hooks/<name>`. Do not edit generated components to restyle one screen; pass `className` or compose.
 
-`DataTable` (`components/data-table.tsx`) is shadcn's data-table recipe on TanStack Table v9: `columns` (`DataTableColumn<T>`), `data`, `getRowId`, and slots for the empty state and the footer. It sorts, filters, and pages nothing itself: the API does.
+`DataTable` (`components/data-table/`) is TanStack Table v9 in parts: `useDataTable` (`hooks/use-data-table.ts`) holds the state of a table in a store (`useMemoryDataTableStore`, or the URL through the web app's `useRouterDataTable`), and `DataTable`, `DataTableToolbar`, `DataTablePagination`, `DataTableColumnVisibility`, and the filters (`selectFilter`, `multiSelectFilter`) take what it answers. A column with a `title` gets its header from the table, sorted when `sortable`, with a shortcut to its `filter`. The states of the body (`DataTableLoadingState`, `DataTableEmptyState`, `DataTableErrorState`) go in its `empty` slot. It sorts, filters, and pages nothing itself: the API does.
 
-`SearchInput` (`components/search-input.tsx`) calls `onSearch` with the trimmed text once the typing pauses (`delay`, 300 ms), at once on Enter or when the text is cleared, and never twice in a row with the same text. It holds its text itself: give it a new `key` to replace it.
+`SearchInput` (`components/search-input.tsx`) calls `onSearch` with the trimmed text once the typing pauses (`delay`, 300 ms), at once on Enter, on blur, or when the text is cleared, and never twice in a row with the same text. It holds its text itself, and shows a new `defaultValue` only when it is another search than the last it sent (Back, a reset).
 
 ## Form package
 
