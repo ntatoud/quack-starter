@@ -19,6 +19,10 @@
     "apps/web": {
       "entry": ["src/routes/**/*.tsx"],
     },
+    "packages/ui-sdk": {
+      // Installed ahead of its first component.
+      "ignoreDependencies": ["@ui-sdk/core", "@ui-sdk/react"],
+    },
     "packages/ui": {
       // shadcn components are a library: every export is available to the apps.
       "entry": ["src/components/**/*.tsx", "src/lib/**/*.ts", "src/hooks/*.ts"],

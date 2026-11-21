@@ -1,0 +1,12 @@
+{
+  "name": "@quack/ui-sdk",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@ui-sdk/core": "0.1.0-beta.13",
+    "@ui-sdk/react": "0.1.0-beta.13"
+  },
+  "peerDependencies": {
+    "react": "catalog:"
+  }
+}
