@@ -31,14 +31,17 @@ services:
       - "127.0.0.1:10250:1025"
       - "127.0.0.1:8025:8025"
 
-  # Opt-in, so `pnpm dev` does not start it: `docker compose --profile observability up -d`.
-  # Receives OTLP on 4318 and serves Grafana, with its traces and logs, on http://localhost:3300.
+  # Opt-in, started by `pnpm dev:telemetry` through `portless compose`, which routes its ports:
+  # Grafana, with the traces and the logs, at https://telemetry.quack.localhost, and OTLP at https://4318.telemetry.quack.localhost.
   otel-lgtm:
     image: grafana/otel-lgtm:0.41.1
     profiles: [observability]
+    labels:
+      portless.name: telemetry
+      portless.ports: "3000,4318"
     ports:
-      - "127.0.0.1:4318:4318"
-      - "127.0.0.1:3300:3000"
+      - "127.0.0.1::3000"
+      - "127.0.0.1::4318"
 
 volumes:
   quack-postgres:

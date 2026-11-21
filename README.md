@@ -55,29 +55,24 @@ AI Clients that only register through Dynamic Client Registration, such as Curso
 
 ## Logs and traces
 
-The server writes its logs to the console, readable in dev. In production, set `LOG_FORMAT=json` for one JSON line per entry. With `OTEL_EXPORTER_OTLP_ENDPOINT` set, it also sends its logs and traces over OTLP/HTTP to that collector, of any vendor (`docs/adr/0003-telemetry-through-effect-otlp-exporters.md`). To see them locally:
+The server writes its logs to the console, readable in dev. In production, set `LOG_FORMAT=json` for one JSON line per entry. With `OTEL_EXPORTER_OTLP_ENDPOINT` set, it also sends its logs and traces over OTLP/HTTP to that collector, of any vendor (`docs/adr/0003-telemetry-through-effect-otlp-exporters.md`).
 
-```sh
-docker compose --profile observability up -d   # Grafana on http://localhost:3300
-echo OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 >> .env
-pnpm dev
-```
-
-In Grafana, Explore shows the traces (Tempo) and the logs (Loki) of `quack-server`. Every checkout sends to this one container.
+`pnpm dev:telemetry` is `pnpm dev` with them: it starts Grafana's `otel-lgtm` container through `portless compose` and points the server at it. Grafana is at https://telemetry.quack.localhost, where Explore shows the traces (Tempo) and the logs (Loki) of `quack-server`; it receives OTLP at https://4318.telemetry.quack.localhost. Every checkout sends to this one container, which keeps running after `pnpm dev:telemetry` stops: `pnpm exec portless compose --profile observability down otel-lgtm` stops it.
 
 ## Commands
 
-| Command             | What it does                                        |
-| ------------------- | --------------------------------------------------- |
-| `pnpm dev`          | Run the web app and the server, under portless      |
-| `pnpm dev:emails`   | Preview the emails, under portless                  |
-| `pnpm check`        | Format check and lint                               |
-| `pnpm fmt`          | Format                                              |
-| `pnpm typecheck`    | Typecheck every package with `tsc`                  |
-| `pnpm typecheck:ci` | Typecheck every package with `tsrs`, as CI does     |
-| `pnpm test`         | Run the tests                                       |
-| `pnpm fallow`       | Find unused code, duplicates, and complex functions |
-| `pnpm build`        | Build the apps                                      |
+| Command              | What it does                                                    |
+| -------------------- | --------------------------------------------------------------- |
+| `pnpm dev`           | Run the web app and the server, under portless                  |
+| `pnpm dev:telemetry` | `pnpm dev`, with Grafana receiving the server's logs and traces |
+| `pnpm dev:emails`    | Preview the emails, under portless                              |
+| `pnpm check`         | Format check and lint                                           |
+| `pnpm fmt`           | Format                                                          |
+| `pnpm typecheck`     | Typecheck every package with `tsc`                              |
+| `pnpm typecheck:ci`  | Typecheck every package with `tsrs`, as CI does                 |
+| `pnpm test`          | Run the tests                                                   |
+| `pnpm fallow`        | Find unused code, duplicates, and complex functions             |
+| `pnpm build`         | Build the apps                                                  |
 
 Typecheck, test, and build are cached per package: a task whose inputs did not change is replayed.
 
