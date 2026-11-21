@@ -7,7 +7,7 @@ Read the guide of the part you change before you change it:
 - `apps/server/AGENTS.md`: the API, its modules, the database, the server's tests.
 - `apps/web/AGENTS.md`: routes, pages, calls to the API, tables, forms.
 - `packages/form/AGENTS.md`: a new control for `@quack/form`.
-- `packages/ui-sdk/AGENTS.md`: anything built on ui-sdk.
+- `packages/ui/AGENTS.md`: a component, built on ui-sdk.
 
 ## Commands
 
@@ -23,9 +23,8 @@ One package: `vp run --filter @quack/server test`. One file: `vp test run src/pa
 apps/server             Effect HTTP API (Node)
 apps/web                TanStack Start app
 packages/contracts      Schemas and the HttpApi definition, shared by the server and the web app
-packages/ui             shadcn components and the Tailwind theme
+packages/ui             Components built on ui-sdk, and the Tailwind theme
 packages/form           Form hook and its components: TanStack Form, validated by Effect schemas
-packages/ui-sdk         Components built on ui-sdk (@ui-sdk/react, @ui-sdk/core)
 packages/ui-state       UiState: what a screen shows while data loads, one case per state
 packages/effect-query   TanStack Query options from Effects
 packages/oxlint-plugin  Lint rules of this repo

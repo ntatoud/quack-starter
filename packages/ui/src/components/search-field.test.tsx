@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { render } from "vitest-browser-react";
 
-import { SearchField } from "#/search-field.tsx";
+import { SearchField } from "@quack/ui/components/search-field";
 
 const agent = createAgent();
 const searchbox = () => page.getByRole("searchbox", { name: "Search users" });
