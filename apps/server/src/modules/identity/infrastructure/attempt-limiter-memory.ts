@@ -51,7 +51,7 @@ export const AttemptLimiterMemory = Layer.effect(
         const slots = counters.map((counter) => {
           const slot = slotOf(counter);
 
-          return { ...slot, open: openWindow(slot.key, now) };
+          return { ...slot, counter, open: openWindow(slot.key, now) };
         });
 
         const waitMillis = Math.max(
@@ -62,6 +62,17 @@ export const AttemptLimiterMemory = Layer.effect(
         );
 
         if (waitMillis > 0) {
+          const reached = slots.filter(
+            ({ open, limit }) => open !== undefined && open.count >= limit,
+          );
+          const ip = counters.find((counter) => counter.limit !== "signInFailuresPerEmail");
+          // The address and never the email: the address is what an operator can block.
+          yield* Effect.logWarning("Attempt limit reached").pipe(
+            Effect.annotateLogs({
+              "attempt.limits": reached.map(({ counter }) => counter.limit).join(","),
+              ...(ip === undefined ? {} : { "client.address": ip.subject }),
+            }),
+          );
           // Rounded up: an attempt made `retryAfter` seconds later finds the window ended.
           return yield* new TooManyAttempts({ retryAfter: Math.ceil(waitMillis / 1000) });
         }

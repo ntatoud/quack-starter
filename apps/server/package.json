@@ -1,8 +1,10 @@
 {
   "name": "@quack/server",
+  "version": "0.0.0",
   "private": true,
   "type": "module",
   "imports": {
+    "#package.json": "./package.json",
     "#/*": "./src/*"
   },
   "scripts": {

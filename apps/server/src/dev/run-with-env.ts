@@ -2,6 +2,8 @@ import { NodeRuntime, NodeServices } from "@effect/platform-node";
 import { Effect } from "effect";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
 
+import { ConsoleLogger } from "#/observability.ts";
+
 /**
  * Runs the command `argv` names with `env` added to the process's own, on its terminal, and exits with its
  * exit code: the launchers of `package.json` chain such scripts, each adding the variables it derives.
@@ -25,4 +27,4 @@ export const runWithEnv = <E>(
         stderr: "inherit",
       }),
     );
-  }).pipe(Effect.provide(NodeServices.layer), NodeRuntime.runMain);
+  }).pipe(Effect.provide([NodeServices.layer, ConsoleLogger]), NodeRuntime.runMain);

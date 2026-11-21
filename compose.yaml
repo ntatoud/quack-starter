@@ -31,5 +31,14 @@ services:
       - "127.0.0.1:10250:1025"
       - "127.0.0.1:8025:8025"
 
+  # Opt-in, so `pnpm dev` does not start it: `docker compose --profile observability up -d`.
+  # Receives OTLP on 4318 and serves Grafana, with its traces and logs, on http://localhost:3300.
+  otel-lgtm:
+    image: grafana/otel-lgtm:0.41.1
+    profiles: [observability]
+    ports:
+      - "127.0.0.1:4318:4318"
+      - "127.0.0.1:3300:3000"
+
 volumes:
   quack-postgres:

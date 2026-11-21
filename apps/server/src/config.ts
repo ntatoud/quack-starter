@@ -52,3 +52,12 @@ export const MailConfig = {
   smtpUrl: Config.Redacted("SMTP_URL"),
   from: Config.NonEmptyString("MAIL_FROM"),
 };
+
+export const ObservabilityConfig = Config.all({
+  logFormat: Config.Literals(["pretty", "json"], "LOG_FORMAT").pipe(Config.withDefault("pretty")),
+  logLevel: Config.LogLevel("LOG_LEVEL").pipe(Config.withDefault("Info")),
+  otlpEndpoint: Config.option(Config.URL("OTEL_EXPORTER_OTLP_ENDPOINT")),
+  deploymentEnvironment: Config.String("DEPLOYMENT_ENVIRONMENT").pipe(
+    Config.withDefault("development"),
+  ),
+});
