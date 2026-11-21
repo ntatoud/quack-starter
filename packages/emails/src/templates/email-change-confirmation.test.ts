@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
+import { brand } from "#/brand.ts";
 import { emailChangeConfirmation } from "#/templates/email-change-confirmation.tsx";
 
 describe("emailChangeConfirmation", () => {
@@ -7,7 +8,7 @@ describe("emailChangeConfirmation", () => {
 
     const email = await emailChangeConfirmation({ url });
 
-    expect(email.subject).toBe("Confirm your new Quack email");
+    expect(email.subject).toBe(`Confirm your new ${brand.name} email`);
     expect(email.html).toContain(url);
     expect(email.text).toContain(url);
   });

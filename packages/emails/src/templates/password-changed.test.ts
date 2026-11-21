@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
+import { brand } from "#/brand.ts";
 import { passwordChanged } from "#/templates/password-changed.tsx";
 
 describe("passwordChanged", () => {
@@ -7,7 +8,7 @@ describe("passwordChanged", () => {
 
     const email = await passwordChanged({ resetUrl });
 
-    expect(email.subject).toBe("Your Quack password changed");
+    expect(email.subject).toBe(`Your ${brand.name} password changed`);
     expect(email.html).toContain(resetUrl);
     expect(email.text).toContain(resetUrl);
   });

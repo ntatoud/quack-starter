@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
+import { brand } from "#/brand.ts";
 import { passwordReset } from "#/templates/password-reset.tsx";
 
 describe("passwordReset", () => {
@@ -7,7 +8,7 @@ describe("passwordReset", () => {
 
     const email = await passwordReset({ url });
 
-    expect(email.subject).toBe("Reset your Quack password");
+    expect(email.subject).toBe(`Reset your ${brand.name} password`);
     expect(email.html).toContain(url);
     expect(email.text).toContain(url);
   });
