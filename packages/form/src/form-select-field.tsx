@@ -29,26 +29,29 @@ export function FormSelectField({
   return (
     <>
       <Select
-        items={noneLabel === undefined ? options : [{ value: null, label: noneLabel }, ...options]}
-        // Base UI calls `null` the value the field holds as `""`: nothing chosen.
-        value={field.state.value === "" ? null : field.state.value}
-        onValueChange={(value: string | null) => field.handleChange(value ?? "")}
+        items={
+          noneLabel === undefined ? [...options] : [{ value: "", label: noneLabel }, ...options]
+        }
+        // ui-sdk calls `null` the value of nothing chosen. With a none option the field's `""` is that option's value.
+        value={field.state.value === "" && noneLabel === undefined ? null : field.state.value}
+        onValueChange={(value) => field.handleChange(value ?? "")}
+        {...(placeholder === undefined ? {} : { placeholder })}
+        name={field.name}
         // The trigger loses the focus to the list it opens: the field is touched when the list closes.
         onOpenChange={(open) => open || field.handleBlur()}
       >
         <SelectTrigger
           id={id}
-          name={field.name}
           size={size}
           // As tall a text as an input next to it, which is 16px on a small screen.
           className={cn("w-full", textSize[size], "max-md:text-base")}
           aria-invalid={invalid}
           aria-describedby={describedBy}
         >
-          <SelectValue placeholder={placeholder} />
+          <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {noneLabel !== undefined && <SelectItem value={null}>{noneLabel}</SelectItem>}
+          {noneLabel !== undefined && <SelectItem value="">{noneLabel}</SelectItem>}
           {options.map((option) => (
             <SelectItem key={option.value} value={option.value}>
               {option.label}
