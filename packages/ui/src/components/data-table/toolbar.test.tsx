@@ -375,6 +375,7 @@ describe("DataTableToolbar", () => {
     const { last } = await setup();
 
     await addFilter("Amount");
+    await expect.element(page.getByRole("spinbutton", { name: "Minimum" })).toHaveFocus();
     await page.getByRole("spinbutton", { name: "Minimum" }).fill("10");
     await page.getByRole("button", { name: "Apply" }).click();
 

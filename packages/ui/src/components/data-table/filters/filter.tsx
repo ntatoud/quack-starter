@@ -1,5 +1,5 @@
 import { XIcon } from "lucide-react";
-import type * as React from "react";
+import * as React from "react";
 
 import { Button } from "@quack/ui/components/button";
 import { isEmptyValue } from "@quack/ui/lib/data-table/state";
@@ -71,8 +71,15 @@ export function DataTableFilterPopover({
   className?: string;
   children: React.ReactNode;
 }) {
+  // A popover rendered open takes no focus, and a filter just added mounts open: open it once mounted.
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => {
+    const frame = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
   return (
-    <Popover open={open} onOpenChange={onOpenChange}>
+    <Popover open={open && mounted} onOpenChange={onOpenChange}>
       <PopoverTrigger {...trigger} />
       <PopoverContent align="start" aria-label={`${title} filter`} className={className}>
         {children}
@@ -82,7 +89,7 @@ export function DataTableFilterPopover({
 }
 
 const triggerClassName =
-  "flex h-full min-w-0 cursor-pointer items-center gap-1 rounded-s-md ps-2.5 pe-1 outline-none hover:bg-foreground/5 focus-visible:ring-3 focus-visible:ring-ring/50 data-popup-open:bg-foreground/5";
+  "flex h-full min-w-0 cursor-pointer items-center gap-1 rounded-s-md ps-2.5 pe-1 outline-none hover:bg-foreground/5 focus-visible:ring-3 focus-visible:ring-ring/50 data-open:bg-foreground/5 data-popup-open:bg-foreground/5";
 
 /** A filter shown above a table: its title, what it holds, its editor, and a button to remove it. */
 export function DataTableFilterChip<Read, Write>({

@@ -33,7 +33,6 @@ export function DataTableAddFilter<Key extends string>({
       onOpenChangeComplete={(next) => {
         const key = chosen.current;
         if (next || key === null) return;
-        chosen.current = null;
         onAdd(key);
       }}
     >
