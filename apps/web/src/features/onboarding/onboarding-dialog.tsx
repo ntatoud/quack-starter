@@ -52,7 +52,9 @@ export function OnboardingDialog({
     <Dialog open onOpenChange={ignore} disablePointerDismissal>
       <DialogContent showCloseButton={false} className="gap-6 sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-xl font-semibold">Welcome to Quack</DialogTitle>
+          <DialogTitle className="text-xl font-semibold tracking-tight">
+            Welcome to Quack
+          </DialogTitle>
           <DialogDescription>What should we call you?</DialogDescription>
           <p className="text-xs text-muted-foreground">Signed in as {email}</p>
         </DialogHeader>
@@ -85,7 +87,7 @@ export function OnboardingDialog({
           <DialogFooter>
             <Button
               type="button"
-              variant="secondary"
+              variant="outline"
               disabled={signOut.isPending}
               onClick={() => signOut.mutate(undefined)}
             >

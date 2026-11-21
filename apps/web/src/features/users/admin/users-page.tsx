@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
 
+import { PageContent } from "#/features/layout/page-content.tsx";
 import { PageHeader } from "#/features/layout/page-header.tsx";
 import { usersQueryOptions } from "#/features/users/admin/users-query.ts";
 import { UsersList } from "#/features/users/admin/users-list.tsx";
@@ -14,14 +15,14 @@ export function UsersPage() {
     <div className="flex h-svh flex-col">
       <PageHeader title="Users">
         {users.data !== undefined && (
-          <span className="ml-auto text-sm text-muted-foreground">
+          <span className="shrink-0 text-sm text-muted-foreground tabular-nums">
             {users.data.total} {table.isFiltered ? "found" : "in all"}
           </span>
         )}
       </PageHeader>
-      <div className="flex min-h-0 flex-1 flex-col gap-4 p-6">
+      <PageContent className="min-h-0 flex-1">
         <UsersList table={table} />
-      </div>
+      </PageContent>
     </div>
   );
 }

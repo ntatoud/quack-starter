@@ -13,8 +13,8 @@ export function UserAvatar({ user, ...props }: UserAvatarProps) {
 
   return (
     <Avatar {...props}>
-      {avatarUrl && <AvatarImage src={avatarUrl} alt="" className="rounded-[inherit]" />}
-      <AvatarFallback aria-hidden="true" className="overflow-hidden rounded-[inherit]">
+      {avatarUrl && <AvatarImage src={avatarUrl} alt="" />}
+      <AvatarFallback aria-hidden="true" className="overflow-hidden">
         {/* `size-full!` beats the sidebar button, which sizes every svg inside it as an icon. */}
         <BoringAvatar
           name={user.id}

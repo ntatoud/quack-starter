@@ -339,7 +339,7 @@ describe("UsersList", () => {
       .toBeVisible();
 
     respond = usersOn;
-    await page.getByRole("button", { name: "Retry" }).click();
+    await page.getByRole("button", { name: "Try again" }).click();
 
     await expect.element(page.getByText("user-1@quack.dev")).toBeVisible();
   });

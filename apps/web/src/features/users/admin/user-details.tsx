@@ -19,7 +19,6 @@ import {
   EmptyHeader,
   EmptyTitle,
 } from "@quack/ui/components/empty";
-import { SettingsCard } from "@quack/ui/components/settings-card";
 import { Skeleton } from "@quack/ui/components/skeleton";
 import { matchQuery } from "@quack/ui-state/query";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -51,14 +50,22 @@ export function UserDetails({ id, canChange }: { id: UserId; canChange: boolean 
         <p role="status" className="sr-only">
           Loading the user…
         </p>
-        <div aria-hidden="true" className="flex items-center gap-4">
-          <Skeleton className="size-16 rounded-xl" />
-          <div className="flex flex-col gap-2">
-            <Skeleton className="h-5 w-40" />
-            <Skeleton className="h-4 w-56" />
+        {/* As tall as a User with a profile at every width, so the page does not jump when they arrive. */}
+        <div aria-hidden="true" className="flex flex-col gap-4 sm:flex-row sm:items-center">
+          <Skeleton className="size-16 rounded-full" />
+          <div className="flex flex-col gap-1">
+            <Skeleton className="h-7 w-40" />
+            <Skeleton className="h-5 w-56" />
+            <Skeleton className="mt-1 h-5 w-28" />
           </div>
+          {canChange && <Skeleton className="h-7 w-44 sm:hidden" />}
         </div>
-        <Skeleton aria-hidden="true" className="h-36 rounded-xl" />
+        {[0, 1].map((section) => (
+          <div key={section} aria-hidden="true" className="flex flex-col gap-2">
+            <Skeleton className="h-5 w-16" />
+            <Skeleton className="h-52 rounded-xl sm:h-34" />
+          </div>
+        ))}
       </>
     ),
     Error: ({ error }) =>
@@ -105,11 +112,12 @@ function UserOverview({ user, now, canChange }: { user: User; now: Date; canChan
   return (
     <>
       <section aria-label="Summary" className="flex flex-col gap-4 sm:flex-row sm:items-center">
-        <UserAvatar user={user} className="size-16 rounded-xl after:rounded-xl" />
+        <UserAvatar user={user} className="size-16" />
         <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <h2 className="truncate text-lg font-semibold">{userLabel(user)}</h2>
+          {/* Wrapped, not cut: for a User with no profile, their email is written nowhere else in full. */}
+          <h2 className="text-xl font-semibold tracking-tight wrap-anywhere">{userLabel(user)}</h2>
           {profile !== null && (
-            <p className="truncate text-sm text-muted-foreground">{user.email}</p>
+            <p className="text-sm wrap-anywhere text-muted-foreground">{user.email}</p>
           )}
           <div className="mt-1 flex gap-2">
             <StatusBadge status={user.status} />
@@ -120,9 +128,9 @@ function UserOverview({ user, now, canChange }: { user: User; now: Date; canChan
       </section>
       <Facts title="Profile">
         {profile === null ? (
-          <p className="px-5 py-4 text-sm text-muted-foreground">No profile yet.</p>
+          <p className="px-5 py-3 text-sm text-muted-foreground">No profile yet.</p>
         ) : (
-          <>
+          <FactList>
             <Fact term="Team">
               {profile.team === null ? <NoValue /> : labelOf("team", profile.team)}
             </Fact>
@@ -130,19 +138,21 @@ function UserOverview({ user, now, canChange }: { user: User; now: Date; canChan
             <Fact term="Country">
               {profile.country === null ? <NoValue /> : <CountryCell code={profile.country} />}
             </Fact>
-          </>
+          </FactList>
         )}
       </Facts>
       <Facts title="Activity">
-        <Fact term="Created">
-          <DateCell date={user.createdAt} />
-        </Fact>
-        <Fact term="Onboarded">
-          <OnboardedCell date={user.onboardedAt} />
-        </Fact>
-        <Fact term="Last sign-in">
-          <TimeAgoCell date={user.lastSignInAt} now={now} />
-        </Fact>
+        <FactList>
+          <Fact term="Created">
+            <DateCell date={user.createdAt} />
+          </Fact>
+          <Fact term="Onboarded">
+            <OnboardedCell date={user.onboardedAt} />
+          </Fact>
+          <Fact term="Last sign-in">
+            <TimeAgoCell date={user.lastSignInAt} now={now} />
+          </Fact>
+        </FactList>
       </Facts>
     </>
   );
@@ -274,23 +284,27 @@ function ConfirmButton({
 
 function Facts({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="flex flex-col gap-3">
+    <section className="flex flex-col gap-2">
       <h3 className="text-sm font-medium">{title}</h3>
-      <SettingsCard>{children}</SettingsCard>
+      <div className="rounded-xl border bg-card">{children}</div>
     </section>
   );
 }
 
-// `data-slot="field"` makes it a row of the card, as a `Field` of a form is.
+function FactList({ children }: { children: ReactNode }) {
+  return <dl className="divide-y text-sm">{children}</dl>;
+}
+
+// The term keeps a narrow column, so its value reads next to it however wide the card is.
 function Fact({ term, children }: { term: string; children: ReactNode }) {
   return (
-    <dl data-slot="field" className="text-sm">
+    <div className="grid gap-x-4 gap-y-1 px-5 py-3 sm:grid-cols-[10rem_minmax(0,1fr)]">
       <dt className="text-muted-foreground">{term}</dt>
-      <dd className="min-w-0 font-medium break-words">{children}</dd>
-    </dl>
+      <dd className="min-w-0 break-words">{children}</dd>
+    </div>
   );
 }
 
 function NoValue() {
-  return <span className="font-normal text-muted-foreground">None</span>;
+  return <span className="text-muted-foreground">None</span>;
 }

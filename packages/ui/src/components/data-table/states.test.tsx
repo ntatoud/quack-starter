@@ -64,7 +64,7 @@ describe("DataTableErrorState", () => {
     const screen = await render(<DataTableErrorState retry={retry} />);
     await expect.element(page.getByRole("alert")).toHaveTextContent("Something went wrong");
 
-    const button = page.getByRole("button", { name: "Retry" });
+    const button = page.getByRole("button", { name: "Try again" });
     await button.click();
     expect(retry).toHaveBeenCalledOnce();
     await expect.element(button).toHaveFocus();
@@ -76,10 +76,10 @@ describe("DataTableErrorState", () => {
 });
 
 describe("DataTableErrorState, failing again", () => {
-  it("reads the alert again, and leaves the focus on Retry", async () => {
+  it("reads the alert again, and leaves the focus on Try again", async () => {
     const retry = vi.fn();
     const screen = await render(<DataTableErrorState retry={retry} failure={1} />);
-    const button = page.getByRole("button", { name: "Retry" });
+    const button = page.getByRole("button", { name: "Try again" });
     await button.click();
     await expect.element(button).toHaveFocus();
     const alert = page.getByRole("alert").element();

@@ -3,7 +3,13 @@ import { type LinkProps, useCanGoBack, useNavigate, useRouter } from "@tanstack/
 import { ArrowLeftIcon } from "lucide-react";
 
 /** Back to the page before, or to `fallback` when the app was opened on this one. */
-export function BackButton({ fallback = "/app" }: { fallback?: LinkProps["to"] }) {
+export function BackButton({
+  fallback = "/app",
+  className,
+}: {
+  fallback?: LinkProps["to"];
+  className?: string;
+}) {
   const router = useRouter();
   const navigate = useNavigate();
   const canGoBack = useCanGoBack();
@@ -13,6 +19,7 @@ export function BackButton({ fallback = "/app" }: { fallback?: LinkProps["to"] }
       variant="ghost"
       size="icon-sm"
       aria-label="Back"
+      className={className}
       onClick={() => (canGoBack ? router.history.back() : void navigate({ to: fallback }))}
     >
       <ArrowLeftIcon aria-hidden />

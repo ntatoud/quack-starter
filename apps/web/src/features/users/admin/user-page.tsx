@@ -2,6 +2,7 @@ import { UserId } from "@quack/contracts/identity/user";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useRouteContext } from "@tanstack/react-router";
 
+import { PageContent } from "#/features/layout/page-content.tsx";
 import { PageHeader } from "#/features/layout/page-header.tsx";
 import { usePageTitle } from "#/features/layout/use-page-title.ts";
 import { UserDetails } from "#/features/users/admin/user-details.tsx";
@@ -22,9 +23,9 @@ export function UserPage() {
         trail={[{ label: "Users", to: "/admin/users" }]}
         back={{ fallback: "/admin/users" }}
       />
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-6">
+      <PageContent className="max-w-3xl gap-8">
         <UserDetails id={id} canChange={id !== currentUser.id} />
-      </div>
+      </PageContent>
     </>
   );
 }

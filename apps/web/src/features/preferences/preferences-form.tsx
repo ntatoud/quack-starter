@@ -32,7 +32,7 @@ export function PreferencesForm({ preferences }: { preferences: PreferenceValues
                     The sidebar of the app sits on the right of the window, on this device.
                   </field.Description>
                 </SettingsRowText>
-                <SettingsRowControl className="items-start sm:items-end">
+                <SettingsRowControl className="items-start @xl:items-end">
                   <field.Switch />
                 </SettingsRowControl>
               </field.Root>

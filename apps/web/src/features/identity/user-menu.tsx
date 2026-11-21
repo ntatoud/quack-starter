@@ -89,10 +89,10 @@ function UserIdentity({ currentUser }: { currentUser: typeof User.Encoded }) {
   const { email, profile } = currentUser;
   return (
     <>
-      <UserAvatar user={currentUser} className="rounded-lg after:rounded-lg" />
+      <UserAvatar user={currentUser} />
       <div className="grid flex-1 text-left text-sm leading-tight">
         <span className="truncate font-medium">{displayName(currentUser)}</span>
-        {profile && <span className="truncate text-xs">{email}</span>}
+        {profile && <span className="truncate text-xs text-muted-foreground">{email}</span>}
       </div>
     </>
   );

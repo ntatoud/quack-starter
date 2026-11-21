@@ -2,6 +2,7 @@ import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@quack/ui/compo
 import { Link, Outlet, useMatchRoute } from "@tanstack/react-router";
 import { SlidersHorizontalIcon, UserIcon } from "lucide-react";
 
+import { PageContent } from "#/features/layout/page-content.tsx";
 import { PageHeader } from "#/features/layout/page-header.tsx";
 
 const sections = [
@@ -17,7 +18,7 @@ export function SettingsLayout() {
   return (
     <>
       <PageHeader title={current?.label ?? "Settings"} trail={[{ label: "Settings" }]} back />
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-6 md:flex-row md:gap-8">
+      <PageContent className="max-w-4xl gap-6 md:flex-row md:gap-8">
         <nav aria-label="Settings" className="md:w-48 md:shrink-0">
           <SidebarMenu>
             {sections.map(({ to, label, icon: Icon }) => (
@@ -36,7 +37,7 @@ export function SettingsLayout() {
         <div className="flex min-w-0 flex-1 flex-col gap-6">
           <Outlet />
         </div>
-      </div>
+      </PageContent>
     </>
   );
 }

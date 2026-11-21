@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
+import { PageContent } from "#/features/layout/page-content.tsx";
 import { PageHeader } from "#/features/layout/page-header.tsx";
 import { TodosForm } from "#/features/todos/todos-form.tsx";
 import { TodosList } from "#/features/todos/todos-list.tsx";
@@ -14,13 +15,15 @@ export function TodosPage() {
     <>
       <PageHeader title="Todos">
         {all.length > 0 && (
-          <span className="ml-auto text-sm text-muted-foreground">{remaining} left</span>
+          <span className="shrink-0 text-sm text-muted-foreground tabular-nums">
+            {remaining} left
+          </span>
         )}
       </PageHeader>
-      <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
+      <PageContent className="max-w-2xl">
         <TodosForm />
         <TodosList />
-      </div>
+      </PageContent>
     </>
   );
 }
