@@ -1,4 +1,3 @@
-import { DirectionProvider } from "@base-ui/react/direction-provider";
 import { useEffect, useLayoutEffect, useState } from "react";
 import { describe, expect, it, onTestFinished, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
@@ -449,15 +448,13 @@ describe("DataTable inside a page that scrolls", () => {
 describe("DataTable right to left", () => {
   it("shades the edges by start and end, which flip as it scrolls to its far end", async () => {
     await render(
-      <DirectionProvider direction="rtl">
-        <div dir="rtl" className="flex h-75 w-100 flex-col">
-          {/* Whole-pixel widths: ui-sdk leaves a right-to-left view 1px short of its far end, as the layout rounds. */}
-          <DataTable
-            columns={columnsOf(8).map((column) => ({ ...column, size: 200 }))}
-            data={[{ id: "0" }]}
-          />
-        </div>
-      </DirectionProvider>,
+      <div dir="rtl" className="flex h-75 w-100 flex-col">
+        {/* Whole-pixel widths: ui-sdk leaves a right-to-left view 1px short of its far end, as the layout rounds. */}
+        <DataTable
+          columns={columnsOf(8).map((column) => ({ ...column, size: 200 }))}
+          data={[{ id: "0" }]}
+        />
+      </div>,
     );
     await expect.element(page.getByRole("table")).toBeVisible();
     const viewport = slot("scroll-area-viewport");
@@ -1094,15 +1091,13 @@ describe("DataTable with no row, in a large font", () => {
         document.documentElement.style.fontSize = "";
       });
       await render(
-        <DirectionProvider direction={direction}>
-          <div dir={direction} className="flex h-75 w-100 flex-col">
-            <DataTable
-              columns={[{ id: "name", header: "Name", cell: () => "" }]}
-              data={[]}
-              empty="Nothing matches the search, try another one"
-            />
-          </div>
-        </DirectionProvider>,
+        <div dir={direction} className="flex h-75 w-100 flex-col">
+          <DataTable
+            columns={[{ id: "name", header: "Name", cell: () => "" }]}
+            data={[]}
+            empty="Nothing matches the search, try another one"
+          />
+        </div>,
       );
       await expect.element(page.getByRole("cell").getByText(/Nothing matches/)).toBeVisible();
       const viewport = slot("scroll-area-viewport");

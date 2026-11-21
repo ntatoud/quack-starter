@@ -1,4 +1,3 @@
-import { DirectionProvider } from "@base-ui/react/direction-provider";
 import { describe, expect, it } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 
@@ -153,11 +152,9 @@ describe("DataTable pinned columns", () => {
 
   it("holds them at the right edge, right to left", async () => {
     await render(
-      <DirectionProvider direction="rtl">
-        <div dir="rtl">
-          <People initial={{ pinned: ["name"] }} />
-        </div>
-      </DirectionProvider>,
+      <div dir="rtl">
+        <People initial={{ pinned: ["name"] }} />
+      </div>,
     );
     await expect.element(header("Name")).toBeVisible();
     await expect
