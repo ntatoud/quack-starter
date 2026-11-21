@@ -50,7 +50,7 @@ export function FormPasswordField(
             aria-label="Show password"
             aria-controls={id}
             aria-pressed={visible}
-            disabled={props.disabled}
+            disabled={props.disabled ?? false}
             onClick={() => setVisible((shown) => !shown)}
           >
             <Icon aria-hidden />

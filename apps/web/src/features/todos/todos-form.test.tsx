@@ -145,7 +145,7 @@ describe("TodosForm", () => {
     (input.element() as HTMLInputElement).form?.requestSubmit();
     response.resolve(created("First"));
 
-    await expect.element(add).toHaveAttribute("aria-disabled", "false");
+    await expect.element(add).not.toHaveAttribute("aria-disabled");
     await expect.element(input).toHaveValue("First and more");
     expect(fetch).toHaveBeenCalledTimes(1);
   });
@@ -160,7 +160,7 @@ describe("TodosForm", () => {
     await userEvent.tab();
     response.resolve(created("First"));
 
-    await expect.element(add).toHaveAttribute("aria-disabled", "false");
+    await expect.element(add).not.toHaveAttribute("aria-disabled");
     expect(page.getByText("Title is required").elements()).toEqual([]);
     await expect.element(add).toHaveFocus();
   });

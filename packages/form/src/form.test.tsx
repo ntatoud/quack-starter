@@ -110,7 +110,7 @@ describe("form.Root", () => {
     await page.getByRole("textbox", { name: "Password" }).fill("a");
     response.resolve();
 
-    await expect.element(save).toHaveAttribute("aria-disabled", "false");
+    await expect.element(save).not.toHaveAttribute("aria-disabled");
     expect(said).toEqual([]);
     await expect.element(page.getByRole("textbox", { name: "Password" })).toHaveFocus();
   });
