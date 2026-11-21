@@ -22,8 +22,6 @@ import { api } from "#/lib/api.ts";
 const decodeOnboardingPayload = Schema.decodeSync(OnboardingPayload);
 const emptyOnboardingPayload: typeof OnboardingPayload.Encoded = { firstName: "", lastName: "" };
 
-const ignore = () => {};
-
 /** Cannot be closed: it leaves once the Current User is onboarded. */
 export function OnboardingDialog({
   email,
@@ -49,7 +47,7 @@ export function OnboardingDialog({
   });
 
   return (
-    <Dialog open onOpenChange={ignore} disablePointerDismissal>
+    <Dialog open dismissible={false}>
       <DialogContent showCloseButton={false} className="gap-6 sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold tracking-tight">
