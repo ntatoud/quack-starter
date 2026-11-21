@@ -12,12 +12,12 @@ import {
   UnknownValue,
 } from "@quack/ui/components/data-table/filters/options";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from "@quack/ui/components/dropdown-menu";
+  Menu,
+  MenuContent,
+  MenuRadioGroup,
+  MenuRadioItem,
+  MenuTrigger,
+} from "@quack/ui/components/menu";
 
 /** A filter that holds one of its options. It reads any text: the URL may hold a value the options lack. */
 export const selectFilter = <const Value extends string>({
@@ -38,24 +38,27 @@ export const selectFilter = <const Value extends string>({
     ),
   editor: ({ trigger, value, onValueChange, open, onOpenChange }) => (
     <>
-      <DropdownMenu open={open} onOpenChange={onOpenChange}>
-        <DropdownMenuTrigger {...trigger} />
-        <DropdownMenuContent className="w-auto min-w-32">
+      <Menu open={open} onOpenChange={onOpenChange}>
+        <MenuTrigger {...trigger} />
+        <MenuContent className="min-w-32">
           <OptionsStatusItems status={status} count={options.length} />
-          <DropdownMenuRadioGroup
+          <MenuRadioGroup
             value={value ?? null}
-            onValueChange={(next: Value) => onValueChange(next)}
+            onValueChange={(next) => {
+              const option = options.find((candidate) => candidate.value === next);
+              if (option !== undefined) onValueChange(option.value);
+            }}
           >
             {options.map((option) => (
-              <DropdownMenuRadioItem key={option.value} value={option.value} closeOnClick>
+              <MenuRadioItem key={option.value} value={option.value} closeOnSelect>
                 {option.label}
                 <OptionCount count={option.count} />
-              </DropdownMenuRadioItem>
+              </MenuRadioItem>
             ))}
-          </DropdownMenuRadioGroup>
+          </MenuRadioGroup>
           {value !== undefined && <ClearOptionsItem onClear={() => onValueChange(undefined)} />}
-        </DropdownMenuContent>
-      </DropdownMenu>
+        </MenuContent>
+      </Menu>
       <OptionsAnnouncement status={status} count={options.length} open={open} />
     </>
   ),

@@ -5,13 +5,13 @@ import * as React from "react";
 import { Button } from "@quack/ui/components/button";
 import type { DataTableColumn } from "@quack/ui/components/data-table/data-table";
 import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "@quack/ui/components/dropdown-menu";
+  Menu,
+  MenuCheckboxItem,
+  MenuContent,
+  MenuGroup,
+  MenuGroupLabel,
+  MenuTrigger,
+} from "@quack/ui/components/menu";
 
 type Toggle = {
   readonly id: string;
@@ -73,25 +73,26 @@ export function DataTableColumnVisibility<TData extends RowData>({
     return sent.current.visible;
   };
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
+    <Menu>
+      <MenuTrigger
         render={
           <Button data-slot="data-table-column-visibility" variant="secondary" size="default" />
         }
       >
         <Columns3Icon />
         Columns
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-auto min-w-44">
-        <DropdownMenuGroup>
-          <DropdownMenuLabel>Columns shown</DropdownMenuLabel>
+      </MenuTrigger>
+      <MenuContent align="end" className="min-w-44">
+        <MenuGroup>
+          <MenuGroupLabel>Columns shown</MenuGroupLabel>
           {toggles.map((toggle) => {
             const checked = !hidden.includes(toggle.id);
             const pinned = table.pinnedColumns?.includes(toggle.id) ?? false;
             const { setColumnPinned } = table;
             const visibility = (
-              <DropdownMenuCheckboxItem
+              <MenuCheckboxItem
                 indicator="checkbox"
+                value={toggle.id}
                 className="flex-1"
                 checked={checked}
                 disabled={checked && shown.length === 1}
@@ -113,7 +114,7 @@ export function DataTableColumnVisibility<TData extends RowData>({
                 }}
               >
                 {toggle.title}
-              </DropdownMenuCheckboxItem>
+              </MenuCheckboxItem>
             );
             if (setColumnPinned === undefined)
               return <React.Fragment key={toggle.id}>{visibility}</React.Fragment>;
@@ -122,23 +123,24 @@ export function DataTableColumnVisibility<TData extends RowData>({
               <div key={toggle.id} className="flex items-center gap-1">
                 {visibility}
                 {toggle.pinnable && (
-                  <DropdownMenuCheckboxItem
+                  <MenuCheckboxItem
                     indicator="none"
+                    value={`pin-${toggle.id}`}
                     checked={pinned}
-                    closeOnClick={false}
+                    closeOnSelect={false}
                     aria-label={`Pin ${toggle.title}`}
                     onCheckedChange={(next) => setColumnPinned(toggle.id, next)}
                   >
                     <PinIcon
                       className={pinned ? "fill-current text-foreground" : "text-muted-foreground"}
                     />
-                  </DropdownMenuCheckboxItem>
+                  </MenuCheckboxItem>
                 )}
               </div>
             );
           })}
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
+        </MenuGroup>
+      </MenuContent>
+    </Menu>
   );
 }

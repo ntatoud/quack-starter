@@ -1,12 +1,7 @@
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-} from "@quack/ui/components/context-menu";
+import { Menu, MenuContent, MenuItem, createMenuController } from "@quack/ui/components/menu";
 import { SidebarContent } from "@quack/ui/components/sidebar";
 import { PanelLeftIcon, PanelRightIcon } from "lucide-react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 import { usePreference, useSetPreference } from "#/features/preferences/use-preference.ts";
 
@@ -14,27 +9,27 @@ import { usePreference, useSetPreference } from "#/features/preferences/use-pref
 export function SidebarContentWithMenu({ children }: { children: ReactNode }) {
   const isRightSidebar = usePreference("right-sidebar");
   const setPreference = useSetPreference();
+  const [controller] = useState(() => createMenuController<unknown, string>());
 
   return (
-    <ContextMenu>
-      <ContextMenuTrigger
-        render={<SidebarContent />}
-        data-slot="sidebar-content"
+    <Menu controller={controller}>
+      <SidebarContent
         onContextMenu={(event) => {
-          // A link or a button keeps the menu of the browser: open in a new tab, copy the address.
-          if (event.target instanceof Element && event.target.closest("a, button")) {
-            event.preventBaseUIHandler();
-          }
+          // A link or a button keeps the menu of the browser (open in a new tab, copy the address), which a
+          // context trigger would replace: so the menu opens from here, where the target can be read.
+          if (event.target instanceof Element && event.target.closest("a, button")) return;
+          event.preventDefault();
+          void controller.open({ anchor: { x: event.clientX, y: event.clientY } });
         }}
       >
         {children}
-      </ContextMenuTrigger>
-      <ContextMenuContent>
-        <ContextMenuItem onClick={() => setPreference("right-sidebar", !isRightSidebar)}>
+      </SidebarContent>
+      <MenuContent align="start" alignOffset={4} side="right">
+        <MenuItem onSelect={() => setPreference("right-sidebar", !isRightSidebar)}>
           {isRightSidebar ? <PanelLeftIcon /> : <PanelRightIcon />}
           {isRightSidebar ? "Move left" : "Move right"}
-        </ContextMenuItem>
-      </ContextMenuContent>
-    </ContextMenu>
+        </MenuItem>
+      </MenuContent>
+    </Menu>
   );
 }

@@ -6,14 +6,14 @@ import { cn } from "@quack/ui/lib/utils";
 import { Button } from "@quack/ui/components/button";
 import type { SortDirection } from "@quack/ui/lib/data-table/state";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@quack/ui/components/dropdown-menu";
+  Menu,
+  MenuContent,
+  MenuItem,
+  MenuRadioGroup,
+  MenuRadioItem,
+  MenuSeparator,
+  MenuTrigger,
+} from "@quack/ui/components/menu";
 
 const sortIcons = { asc: ArrowUpIcon, desc: ArrowDownIcon } as const;
 
@@ -38,6 +38,7 @@ export function DataTableColumnHeader({
 )) {
   // Read when the menu closes: the filter takes the focus, not the header.
   const filtering = React.useRef(false);
+  const triggerRef = React.useRef<HTMLButtonElement>(null);
   // The ghost button's padding is pulled back, so its label lines up with the cells under it, and it takes the
   // text size of a plain header, which a small button would shrink.
   const buttonClassName = cn("text-sm", align === "end" ? "-me-2.5" : "-ms-2.5");
@@ -67,19 +68,19 @@ export function DataTableColumnHeader({
   const icon = <HeaderIcon className={cn(sorted === undefined && "text-muted-foreground")} />;
 
   return (
-    <DropdownMenu
+    <Menu
       onOpenChange={(next) => {
         if (next) filtering.current = false;
       }}
       onOpenChangeComplete={(next) => {
         if (next || !filtering.current) return;
-        filtering.current = false;
         onFilter?.();
       }}
     >
-      <DropdownMenuTrigger
+      <MenuTrigger
         render={
           <Button
+            ref={triggerRef}
             data-slot="data-table-column-header"
             variant="ghost"
             size="sm"
@@ -91,35 +92,35 @@ export function DataTableColumnHeader({
         {align === "end" && icon}
         {title}
         {align !== "end" && icon}
-      </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-auto min-w-36" finalFocus={() => !filtering.current}>
-        <DropdownMenuRadioGroup
-          value={sorted ?? null}
-          onValueChange={(direction: SortDirection) => onSort(direction)}
-        >
-          <DropdownMenuRadioItem value="asc" closeOnClick>
+      </MenuTrigger>
+      <MenuContent
+        className="min-w-36"
+        finalFocus={() => (filtering.current ? null : triggerRef.current)}
+      >
+        <MenuRadioGroup value={sorted ?? null} onValueChange={(direction) => onSort(direction)}>
+          <MenuRadioItem value="asc" closeOnSelect>
             <ArrowUpIcon className="text-muted-foreground" />
             Ascending
-          </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="desc" closeOnClick>
+          </MenuRadioItem>
+          <MenuRadioItem value="desc" closeOnSelect>
             <ArrowDownIcon className="text-muted-foreground" />
             Descending
-          </DropdownMenuRadioItem>
-        </DropdownMenuRadioGroup>
+          </MenuRadioItem>
+        </MenuRadioGroup>
         {onFilter !== undefined && (
           <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => {
+            <MenuSeparator />
+            <MenuItem
+              onSelect={() => {
                 filtering.current = true;
               }}
             >
               <ListFilterIcon className="text-muted-foreground" />
               Filter
-            </DropdownMenuItem>
+            </MenuItem>
           </>
         )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </MenuContent>
+    </Menu>
   );
 }
