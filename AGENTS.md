@@ -1,6 +1,6 @@
 # AGENTS.md
 
-A starter for TypeScript web apps: TanStack Start + shadcn on the front, Effect v4 on the back, in a pnpm + Vite+ (`vp`) monorepo. The words of the domain are defined in `GLOSSARY.md`: use them as defined.
+A starter for TypeScript web apps: TanStack Start + ui-sdk on the front, Effect v4 on the back, in a pnpm + Vite+ (`vp`) monorepo. The words of the domain are defined in `GLOSSARY.md`: use them as defined.
 
 Read the guide of the part you change before you change it:
 
@@ -32,7 +32,7 @@ packages/oxlint-plugin  Lint rules of this repo
 
 Packages import each other's TypeScript sources through `exports`, by file path, with no barrel and no build step: `@quack/contracts/todos/todo`, `@quack/ui/components/button`.
 
-Add a shadcn component with `pnpm dlx shadcn@latest add <name>` from `packages/ui`. Restyle it for one screen with `className` or composition, leaving the generated file as generated.
+A component of `packages/ui` is built on ui-sdk, and exposes its parts and props: to add one, follow `packages/ui/AGENTS.md`. Restyle it for one screen with `className` or composition.
 
 ## Contracts
 
