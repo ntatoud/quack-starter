@@ -8,6 +8,7 @@ import {
 import { Schema } from "effect";
 
 import { type PreferenceValues, Preferences } from "#/features/preferences/preferences.ts";
+import { themeOptions } from "#/features/preferences/theme-options.ts";
 import { useSetPreference } from "#/features/preferences/use-preference.ts";
 
 const encodePreferences = Schema.encodeSync(Preferences.Values);
@@ -34,6 +35,24 @@ export function PreferencesForm({ preferences }: { preferences: PreferenceValues
                 </SettingsRowText>
                 <SettingsRowControl className="items-start @xl:items-end">
                   <field.Switch />
+                </SettingsRowControl>
+              </field.Root>
+            )}
+          </form.AppField>
+          <form.AppField
+            name="theme"
+            listeners={{ onChange: ({ value }) => setPreference("theme", value) }}
+          >
+            {(field) => (
+              <field.Root>
+                <SettingsRowText>
+                  <field.Label>Theme</field.Label>
+                  <field.Description>
+                    Light or dark, on this device. System follows the operating system.
+                  </field.Description>
+                </SettingsRowText>
+                <SettingsRowControl>
+                  <field.Select options={themeOptions} />
                 </SettingsRowControl>
               </field.Root>
             )}

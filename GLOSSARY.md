@@ -33,7 +33,7 @@ What a User goes through after signing up, before reaching the app: they give th
 _Avoid_: Setup, welcome, wizard
 
 **Preference**:
-How the app looks on a device, such as the side of the sidebar, whoever is signed in on it. Each one has a default, which a device where it was never changed gets.
+How the app looks on a device, such as the side of the sidebar or the theme (light, dark, or that of the system), whoever is signed in on it. Each one has a default, which a device where it was never changed gets.
 A User changes them in the settings, next to their Profile.
 _Avoid_: Customization, option
 

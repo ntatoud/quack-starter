@@ -25,6 +25,7 @@ const setup = async (preferences: Partial<PreferenceValues> = {}) => {
     applied: () => queryClient.getQueryData(preferencesQueryOptions(preferencesStore).queryKey),
     stored: () => preferencesStore.read(),
     rightSidebarSwitch: page.getByRole("switch", { name: "Right sidebar" }),
+    themeSelect: page.getByRole("combobox", { name: "Theme" }),
   };
 };
 
@@ -51,5 +52,24 @@ describe("PreferencesForm", () => {
 
     await expect.poll(form.applied).toEqual(Preferences.defaults);
     expect(form.stored()).toEqual(Preferences.defaults);
+  });
+
+  it("follows the operating system's theme by default", async () => {
+    const form = await setup();
+
+    await expect.poll(() => form.themeSelect.element().textContent).toMatch(/^System/);
+    await expect.element(form.themeSelect).toHaveAccessibleDescription(/on this device/);
+  });
+
+  it("keeps and applies a theme as soon as it is chosen", async () => {
+    const form = await setup();
+
+    await form.themeSelect.click();
+    await page.getByRole("option", { name: "Dark" }).click();
+
+    const dark = { ...Preferences.defaults, theme: "dark" };
+    await expect.poll(form.applied).toEqual(dark);
+    expect(form.stored()).toEqual(dark);
+    expect(fetch).not.toHaveBeenCalled();
   });
 });
