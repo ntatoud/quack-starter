@@ -966,7 +966,7 @@ export function DataTable<
             data-slot="data-table-overflow-end"
             className="pointer-events-none absolute inset-y-0 end-(--held-end) z-20 w-6 from-shade to-transparent opacity-0 transition-opacity group-[[data-overflow-x]:not([data-at-x-end])]/scroll:opacity-100 motion-reduce:transition-none ltr:bg-linear-to-l rtl:bg-linear-to-r"
           />
-          {/* The track runs along the columns that scroll only, between those held at each end: a padding Base UI
+          {/* The track runs along the columns that scroll only, between those held at each end: a padding the scroll area
               counts when it sizes the thumb. */}
           <ScrollBar orientation="horizontal" className="z-20 ps-(--held-start) pe-(--held-end)" />
           <ScrollAreaCorner />
