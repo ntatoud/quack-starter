@@ -44,3 +44,11 @@ export const DatabaseConfig = Config.all({
 });
 
 export type DatabaseSettings = Config.Success<typeof DatabaseConfig>;
+
+// Links in a mail start from `ServerConfig.publicOrigin`, never from a request's Host or Origin: a forged one
+// would otherwise send a real token to the attacker's domain.
+export const MailConfig = {
+  // Redacted: the URL may carry the SMTP account's password.
+  smtpUrl: Config.Redacted("SMTP_URL"),
+  from: Config.NonEmptyString("MAIL_FROM"),
+};

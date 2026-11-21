@@ -6,6 +6,7 @@
     "apps/server/src/database/rollback-main.ts",
     "apps/server/src/database/seed-main.ts",
     "apps/server/src/dev/with-public-url.ts",
+    "apps/server/src/dev/with-dev-mail.ts",
     "apps/server/src/database/migrations/*.ts",
   ],
   // An error class or schema in the signature of an exported Effect is exported with it.
