@@ -53,6 +53,18 @@ Quack serves its API to AI Clients over MCP at `<PUBLIC_URL>/api/mcp`: https://q
 
 AI Clients that only register through Dynamic Client Registration, such as Cursor, cannot connect (ADR 0004).
 
+## Logs and traces
+
+The server writes its logs to the console, readable in dev. In production, set `LOG_FORMAT=json` for one JSON line per entry. With `OTEL_EXPORTER_OTLP_ENDPOINT` set, it also sends its logs and traces over OTLP/HTTP to that collector, of any vendor (`docs/adr/0003-telemetry-through-effect-otlp-exporters.md`). To see them locally:
+
+```sh
+docker compose --profile observability up -d   # Grafana on http://localhost:3300
+echo OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 >> .env
+pnpm dev
+```
+
+In Grafana, Explore shows the traces (Tempo) and the logs (Loki) of `quack-server`. Every checkout sends to this one container.
+
 ## Commands
 
 | Command             | What it does                                        |
