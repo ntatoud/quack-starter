@@ -1,6 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
 import { CountryCode, Profile, type Team } from "@quack/contracts/identity/profile";
-import { Email, type Role, User, type UserStatus } from "@quack/contracts/identity/user";
+import { Email, type Role, User, UserId, type UserStatus } from "@quack/contracts/identity/user";
 import type { UserListQuery } from "@quack/contracts/users/users-api";
 import { Effect, type Layer, Option, Result } from "effect";
 
@@ -103,6 +103,13 @@ export const userRepositorySuite = (layer: Layer.Layer<UserRepository>) => {
 
         assert.isTrue(Option.isNone(yield* repository.findById(unknown.id)));
         assert.isTrue(Option.isNone(yield* repository.findByEmail(unknown.email)));
+      }));
+
+    test("finds no User for an id it did not give", () =>
+      Effect.gen(function* () {
+        const repository = yield* UserRepository;
+
+        assert.isTrue(Option.isNone(yield* repository.findById(UserId.make("not-an-id"))));
       }));
 
     test("gives a new id each time", () =>
