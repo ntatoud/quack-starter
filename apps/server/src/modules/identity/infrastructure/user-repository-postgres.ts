@@ -11,6 +11,9 @@ const UserWithHash = Schema.Struct({ user: User, passwordHash: Schema.String });
 
 const UserList = Schema.Struct({ items: Schema.Array(User), total: Schema.Int });
 
+// An id that is no uuid finds no User: Postgres would refuse to compare it with the column, and fail the request.
+const isStorableId = Schema.is(Schema.String.check(Schema.isUUID()));
+
 const escapeLike = (text: string) => text.replaceAll(/[\\%_]/g, "\\$&");
 
 export const UserRepositoryPostgres = Layer.effect(
@@ -163,10 +166,12 @@ export const UserRepositoryPostgres = Layer.effect(
       }),
       update: Effect.fn("UserRepository.update")((user) => update(user).pipe(Effect.orDie)),
       findById: Effect.fn("UserRepository.findById")((id) =>
-        findById(id).pipe(
-          Effect.map((found) => found.pipe(Option.map(({ user }) => user))),
-          Effect.orDie,
-        ),
+        isStorableId(id)
+          ? findById(id).pipe(
+              Effect.map((found) => found.pipe(Option.map(({ user }) => user))),
+              Effect.orDie,
+            )
+          : Effect.succeedNone,
       ),
       findByEmail: Effect.fn("UserRepository.findByEmail")((email) =>
         findByEmail(email).pipe(Effect.orDie),
