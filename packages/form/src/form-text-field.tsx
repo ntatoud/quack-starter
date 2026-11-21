@@ -12,7 +12,8 @@ export function FormTextField(
     | "size"
     | "value"
     | "defaultValue"
-    | "onChange"
+    | "onValueChange"
+    | "controller"
     | "onBlur"
     | "aria-invalid"
     | "aria-describedby"
@@ -29,7 +30,7 @@ export function FormTextField(
         name={field.name}
         size={size}
         value={field.state.value}
-        onChange={(event) => field.handleChange(event.target.value)}
+        onValueChange={field.handleChange}
         onBlur={field.handleBlur}
         aria-invalid={invalid}
         aria-describedby={describedBy}

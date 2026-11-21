@@ -27,7 +27,7 @@ export const useRequiredFieldLayout = (part: string) => {
 export function FormField({
   size = "md",
   ...props
-}: { size?: Size } & Omit<ComponentProps<typeof Field>, "role" | "data-invalid">) {
+}: { size?: Size } & Omit<ComponentProps<typeof Field>, "role" | "name" | "invalid">) {
   const field = useFieldContext();
   const invalid = useStore(field.store, (state) => state.meta.isTouched && !state.meta.isValid);
   // Not the field name: two forms on one page may both have a `title`.
@@ -42,7 +42,7 @@ export function FormField({
   return (
     <FieldLayoutContext value={layout}>
       {/* One labelled control is not a group. */}
-      <Field {...props} role={undefined} data-invalid={invalid} />
+      <Field {...props} role={undefined} name={field.name} invalid={invalid} />
     </FieldLayoutContext>
   );
 }

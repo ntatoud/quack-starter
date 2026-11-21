@@ -1,8 +1,8 @@
-import { FieldError } from "@quack/ui/components/field";
 import { useStore } from "@tanstack/react-form";
 import { type ComponentProps, type FormEvent, useState } from "react";
 
 import { useFormContext } from "#/context.ts";
+import { ErrorMessages, ErrorText } from "#/field-control-error.tsx";
 import { type Message, toMessage } from "#/messages.ts";
 import { SubmitFailed } from "#/submit-failed.ts";
 
@@ -64,7 +64,11 @@ export function Form({
     // The schema validates, with its own messages, so the browser's validation is off.
     <form {...props} noValidate onSubmit={submit}>
       {children}
-      <FieldError role={undefined} errors={errors} />
+      {errors.length > 0 && (
+        <ErrorText>
+          <ErrorMessages errors={errors} />
+        </ErrorText>
+      )}
       <p role="status" className="sr-only">
         {announcement.text}
       </p>

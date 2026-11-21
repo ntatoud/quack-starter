@@ -5,7 +5,7 @@ TanStack Form with the repo's components, validated by Effect schemas. It import
 To add a control:
 
 1. Write it in its own file of `src`, named `FormXxx` so it is not taken for the `@quack/ui` component it wraps.
-2. Render the control and its errors (`FieldControlError`), not the label, as `FormTextField` does. Take the id, the size, `invalid`, and `describedBy` from `useFieldControl()`, wire them to the control (`aria-invalid`, `aria-describedby`, which names a `field.Description` before the errors), and set the control's `name` to the field's: after a submit that fails validation, `form.Root` focuses the first `aria-invalid` element and reads the errors of the field of that `name`.
+2. Render the control and its errors (`FieldControlError`, an `ErrorText` and not a ui-sdk `FieldError`, whose live region would say the error a second time after `form.Root`), not the label, as `FormTextField` does. Take the id, the size, `invalid`, and `describedBy` from `useFieldControl()`, wire them to the control (`aria-invalid`, `aria-describedby`, which names a `field.Description` before the errors), and set the control's `name` to the field's: after a submit that fails validation, `form.Root` focuses the first `aria-invalid` element and reads the errors of the field of that `name`.
 3. Register it in `use-app-form.ts` under the short name, which `field.` or `form.` prefixes: `FormTextField` is `field.Text`.
 4. Test it in the browser with `vitest-browser-react` and the locators of `vite-plus/test/browser` (`src/form-submit-button.test.tsx`).
 
