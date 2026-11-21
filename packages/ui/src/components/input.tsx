@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Input as InputPrimitive } from "@base-ui/react/input";
+import { Input as InputPrimitive } from "@ui-sdk/react/input";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "cn";
 
@@ -24,16 +24,12 @@ function Input({
   type,
   size = "md",
   ...props
-}: Omit<React.ComponentProps<"input">, "size"> & {
+}: Omit<React.ComponentProps<typeof InputPrimitive>, "size" | "className"> & {
   size?: NonNullable<VariantProps<typeof inputVariants>["size"]>;
+  className?: string | undefined;
 }) {
   return (
-    <InputPrimitive
-      type={type}
-      data-slot="input"
-      className={cn(inputVariants({ size, className }))}
-      {...props}
-    />
+    <InputPrimitive type={type} className={cn(inputVariants({ size, className }))} {...props} />
   );
 }
 

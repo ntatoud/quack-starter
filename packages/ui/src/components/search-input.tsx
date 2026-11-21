@@ -1,7 +1,13 @@
 import * as React from "react";
-import { SearchIcon } from "lucide-react";
+import { InputClear } from "@ui-sdk/react/input";
+import { SearchIcon, XIcon } from "lucide-react";
 
-import { InputGroup, InputGroupAddon, InputGroupInput } from "@quack/ui/components/input-group";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@quack/ui/components/input-group";
 
 const setRef = <T,>(ref: React.Ref<T> | undefined, value: T) => {
   if (typeof ref === "function") {
@@ -26,27 +32,32 @@ function SearchInput({
   delay = 300,
   size = "md",
   className,
-  onChange,
+  clearLabel = "Clear search",
+  onValueChange,
   onKeyDown,
   onBlur,
   ref,
   ...props
-}: Omit<React.ComponentProps<typeof InputGroupInput>, "type" | "defaultValue" | "value" | "ref"> & {
+}: Omit<
+  React.ComponentProps<typeof InputGroupInput>,
+  "type" | "defaultValue" | "value" | "controller" | "ref"
+> & {
   ref?: React.Ref<HTMLInputElement>;
   defaultValue?: string;
   onSearch: (search: string) => void;
   delay?: number;
   size?: React.ComponentProps<typeof InputGroup>["size"];
+  clearLabel?: string;
 }) {
   const timer = React.useRef<ReturnType<typeof setTimeout>>(undefined);
   const searched = React.useRef(defaultValue.trim());
-  const input = React.useRef<HTMLInputElement | null>(null);
+  const [value, setValue] = React.useState(defaultValue);
 
   React.useLayoutEffect(() => {
     if (defaultValue.trim() === searched.current) return;
     clearTimeout(timer.current);
     searched.current = defaultValue.trim();
-    if (input.current !== null) input.current.value = defaultValue;
+    setValue(defaultValue);
   }, [defaultValue]);
 
   const search = (text: string) => {
@@ -61,7 +72,6 @@ function SearchInput({
   // cleanup on unmount only, not on every render.
   const attach = React.useCallback(
     (node: HTMLInputElement | null) => {
-      input.current = node;
       const detach = setRef(ref, node);
       return () => {
         clearTimeout(timer.current);
@@ -74,15 +84,15 @@ function SearchInput({
   return (
     <InputGroup size={size} className={className}>
       <InputGroupAddon>
-        <SearchIcon />
+        <SearchIcon aria-hidden="true" />
       </InputGroupAddon>
       <InputGroupInput
         ref={attach}
         type="search"
-        defaultValue={defaultValue}
-        onChange={(event) => {
-          onChange?.(event);
-          const text = event.currentTarget.value;
+        value={value}
+        onValueChange={(text, details) => {
+          onValueChange?.(text, details);
+          setValue(text);
           clearTimeout(timer.current);
           if (text.trim() === "") search(text);
           else timer.current = setTimeout(() => search(text), delay);
@@ -96,8 +106,16 @@ function SearchInput({
           onBlur?.(event);
           search(event.currentTarget.value);
         }}
+        // The Clear button replaces the browser's own.
+        className="[&::-webkit-search-cancel-button]:appearance-none"
         {...props}
       />
+      <InputClear
+        render={<InputGroupButton size="icon-xs" className="mr-1" />}
+        aria-label={clearLabel}
+      >
+        <XIcon aria-hidden="true" />
+      </InputClear>
     </InputGroup>
   );
 }
