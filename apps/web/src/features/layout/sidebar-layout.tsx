@@ -1,6 +1,5 @@
 import type { User } from "@quack/contracts/identity/user";
 import { SidebarInset, SidebarProvider } from "@quack/ui/components/sidebar";
-import { TooltipProvider } from "@quack/ui/components/tooltip";
 import { Outlet, useRouteContext } from "@tanstack/react-router";
 import type { ComponentType } from "react";
 
@@ -14,16 +13,14 @@ export function SidebarLayout({ sidebar: Sidebar }: { sidebar: ComponentType<Sid
   const sidebar = <Sidebar currentUser={currentUser} />;
 
   return (
-    <TooltipProvider>
-      <SidebarProvider defaultOpen={sidebarOpen}>
-        {/* The sidebar keeps its room with a spacer in the flow: its place in the DOM says on which side. */}
-        {side === "left" && sidebar}
-        {/* A flex item is as wide as its content by default: a wide table would push the page past the window. */}
-        <SidebarInset className="min-w-0">
-          <Outlet />
-        </SidebarInset>
-        {side === "right" && sidebar}
-      </SidebarProvider>
-    </TooltipProvider>
+    <SidebarProvider defaultOpen={sidebarOpen}>
+      {/* The sidebar keeps its room with a spacer in the flow: its place in the DOM says on which side. */}
+      {side === "left" && sidebar}
+      {/* A flex item is as wide as its content by default: a wide table would push the page past the window. */}
+      <SidebarInset className="min-w-0">
+        <Outlet />
+      </SidebarInset>
+      {side === "right" && sidebar}
+    </SidebarProvider>
   );
 }

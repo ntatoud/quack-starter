@@ -1,6 +1,5 @@
 import type { Role } from "@quack/contracts/identity/user";
 import { SidebarProvider } from "@quack/ui/components/sidebar";
-import { TooltipProvider } from "@quack/ui/components/tooltip";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -24,22 +23,20 @@ export const renderSidebar = async (
   await page.viewport(1280, 800);
   const rootRoute = createRootRoute({
     component: () => (
-      <TooltipProvider>
-        <SidebarProvider>
-          <Sidebar
-            currentUser={{
-              id: "user-1",
-              email: "someone@quack.dev",
-              role,
-              status: "active",
-              createdAt: "2026-01-01T00:00:00.000Z",
-              lastSignInAt: null,
-              onboardedAt: "2026-01-01T00:00:00.000Z",
-              profile: null,
-            }}
-          />
-        </SidebarProvider>
-      </TooltipProvider>
+      <SidebarProvider>
+        <Sidebar
+          currentUser={{
+            id: "user-1",
+            email: "someone@quack.dev",
+            role,
+            status: "active",
+            createdAt: "2026-01-01T00:00:00.000Z",
+            lastSignInAt: null,
+            onboardedAt: "2026-01-01T00:00:00.000Z",
+            profile: null,
+          }}
+        />
+      </SidebarProvider>
     ),
   });
   const router = createRouter({
