@@ -1,0 +1,8 @@
+{
+  "extends": "../../tsconfig.react.json",
+  "compilerOptions": {
+    // The browser tests import the theme's stylesheet.
+    "types": ["vite-plus/client"]
+  },
+  "include": ["src", "vite.config.ts"]
+}
