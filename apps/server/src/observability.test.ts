@@ -78,7 +78,7 @@ const signUp = async (email: string) => {
 };
 
 const serverSpanOf = (path: string) =>
-  spans.find((span) => span.kind === "server" && span.attributes.get("url.path") === path);
+  spans.findLast((span) => span.kind === "server" && span.attributes.get("url.path") === path);
 
 describe("observability", () => {
   it("leaves the health check out of the spans and the request lines", async () => {
@@ -126,6 +126,7 @@ describe("observability", () => {
     );
     expect(line?.annotations).toMatchObject({
       "http.method": "GET",
+      "http.route": "/api/todos",
       "http.status": 500,
       trace_id: serverSpanOf("/api/todos")?.traceId,
     });

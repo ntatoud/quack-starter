@@ -33,6 +33,7 @@ services:
 
   # Opt-in, started by `pnpm dev:telemetry` through `portless compose`, which routes its ports:
   # Grafana, with the traces and the logs, at https://telemetry.quack.localhost, and OTLP at https://4318.telemetry.quack.localhost.
+  # Grafana opens on the dashboard of `observability/grafana`.
   otel-lgtm:
     image: grafana/otel-lgtm:0.41.1
     profiles: [observability]
@@ -42,6 +43,11 @@ services:
     ports:
       - "127.0.0.1::3000"
       - "127.0.0.1::4318"
+    environment:
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /otel-lgtm/quack-dashboards/quack-server.json
+    volumes:
+      - ./observability/grafana/dashboards.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/quack.yaml:ro
+      - ./observability/grafana:/otel-lgtm/quack-dashboards:ro
 
 volumes:
   quack-postgres:

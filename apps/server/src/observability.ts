@@ -35,6 +35,7 @@ export const requestLogger = <E, R>(
     const path = pathOf(request.url);
     if (path === healthPath) return yield* httpApp;
 
+    const span = yield* Effect.option(Effect.currentSpan);
     const respond = Effect.gen(function* () {
       const exit = yield* Effect.exit(httpApp);
       const [response, cause] = Exit.isSuccess(exit)
@@ -44,14 +45,18 @@ export const requestLogger = <E, R>(
         response.status >= 500 && Option.isSome(cause)
           ? Effect.logError("Sent HTTP response", cause.value)
           : Effect.logInfo("Sent HTTP response");
+      // The router puts the route on the request's span once it matched one: `/api/users/:id`, not each id.
+      const route = Option.flatMap(span, ({ attributes }) =>
+        Option.fromNullishOr(attributes.get("http.route")),
+      );
       yield* Effect.annotateLogs(line, {
         "http.method": request.method,
         "http.path": path,
         "http.status": response.status,
+        ...(Option.isSome(route) ? { "http.route": route.value } : {}),
       });
       return yield* exit;
     });
-    const span = yield* Effect.option(Effect.currentSpan);
     return yield* Option.isSome(span)
       ? Effect.annotateLogs(respond, "trace_id", span.value.traceId)
       : respond;

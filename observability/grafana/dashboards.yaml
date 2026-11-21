@@ -1,0 +1,9 @@
+# Loaded by the otel-lgtm container of compose.yaml: Grafana reads the dashboards of this folder at startup.
+apiVersion: 1
+
+providers:
+  - name: quack
+    type: file
+    allowUiUpdates: true
+    options:
+      path: /otel-lgtm/quack-dashboards
