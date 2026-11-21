@@ -129,10 +129,8 @@ export function SelectAllCheckbox() {
   const all = count > 0 && count === selectable.length;
   return (
     <Checkbox
-      data-slot="data-table-select-all"
       aria-label={allRows ? "Select all rows" : "Select all rows shown"}
-      checked={all}
-      indeterminate={count > 0 && !all}
+      checked={count > 0 && !all ? "indeterminate" : all}
       disabled={selectable.length === 0}
       onCheckedChange={() => {
         const next = new Set(selected);
@@ -160,7 +158,7 @@ export function SelectRowCheckbox({ rowId }: { rowId: string }) {
     // The change event of a checkbox does not tell whether Shift was held: the press does, before the change.
     <span
       className="flex"
-      // Read on the press, not the click: Base UI ticks the box through a click of its hidden input, without Shift.
+      // Read on the press, not the click: the box is ticked through a click of its hidden input, without Shift.
       onPointerDownCapture={(event) => {
         shift.current = event.shiftKey;
       }}
@@ -169,12 +167,11 @@ export function SelectRowCheckbox({ rowId }: { rowId: string }) {
       }}
     >
       <Checkbox
-        data-slot="data-table-select-row"
         aria-label={label(rowId) ?? "Select row"}
         checked={selected.has(rowId)}
         disabled={!canSelect}
         onCheckedChange={(checked) => {
-          selectRows(model, rowId, checked, shift.current);
+          selectRows(model, rowId, checked === true, shift.current);
           shift.current = false;
         }}
       />
