@@ -4,9 +4,10 @@
   "type": "module",
   "scripts": {
     "prepare": "vp config --no-agent",
-    "dev": "vp run -r --parallel dev",
+    "dev": "vp run --filter './apps/*' --parallel dev",
     "dev:web": "vp run --filter @quack/web dev",
     "dev:server": "vp run --filter @quack/server dev",
+    "dev:emails": "vp run --filter @quack/emails dev",
     "build": "vp run --filter './apps/*' --cache build",
     "typecheck": "vp run -r --cache typecheck",
     "typecheck:ci": "vp run -r --cache typecheck:ci",

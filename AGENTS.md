@@ -26,6 +26,7 @@ packages/brand          The brand: names, logo, icon, font, and colors of the th
 packages/contracts      Schemas and the HttpApi definition, shared by the server and the web app
 packages/ui             Components built on ui-sdk, and the Tailwind theme
 packages/form           Form hook and its components: TanStack Form, validated by Effect schemas
+packages/emails         The emails Quack sends, written with React Email: one render function per template
 packages/ui-state       UiState: what a screen shows while data loads, one case per state
 packages/effect-query   TanStack Query options from Effects
 packages/oxlint-plugin  Lint rules of this repo

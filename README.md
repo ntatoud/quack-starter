@@ -56,6 +56,7 @@ AI Clients that only register through Dynamic Client Registration, such as Curso
 | Command             | What it does                                        |
 | ------------------- | --------------------------------------------------- |
 | `pnpm dev`          | Run the web app and the server, under portless      |
+| `pnpm dev:emails`   | Preview the emails on http://localhost:3002         |
 | `pnpm check`        | Format check and lint                               |
 | `pnpm fmt`          | Format                                              |
 | `pnpm typecheck`    | Typecheck every package with `tsc`                  |
@@ -76,6 +77,7 @@ packages/
   contracts/      Schemas and the API definition shared by both apps
   ui/             ui-sdk components and the Tailwind theme
   form/           Form hook and its components: TanStack Form, validated by Effect schemas
+  emails/         The emails Quack sends, written with React Email
   oxlint-plugin/  Lint rules: no relative imports, module boundaries, no sql.unsafe outside migrations
 docs/adr/         Architecture decisions
 ```
