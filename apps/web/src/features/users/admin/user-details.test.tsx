@@ -51,6 +51,7 @@ const setup = async (id: string, response: typeof respond, canChange = true) => 
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
+  return { router };
 };
 
 const detailOf = (term: string) =>
@@ -247,5 +248,51 @@ describe("UserDetails", () => {
     await expect
       .poll(() => page.getByText("Could not change the user. Try again.").elements())
       .toHaveLength(0);
+  });
+
+  it("deletes a User once confirmed, and leads back to the Users table", async () => {
+    const requests: Array<string> = [];
+    const { router } = await setup("user-ada", (request) => {
+      requests.push(`${request.method} ${new URL(request.url).pathname}`);
+      return request.method === "DELETE" ? new Response(null, { status: 204 }) : Response.json(ada);
+    });
+
+    await page.getByRole("button", { name: "Delete" }).click();
+    const dialog = page.getByRole("alertdialog", { name: "Delete Ada Lovelace?" });
+    await expect.element(dialog.getByText(/cannot be undone/)).toBeVisible();
+    expect(requests).not.toContain("DELETE /api/users/user-ada");
+    await dialog.getByRole("button", { name: "Delete" }).click();
+
+    await expect.poll(() => router.state.location.pathname).toBe("/admin/users");
+    expect(requests).toContain("DELETE /api/users/user-ada");
+  });
+
+  it("keeps the User page and says so when the deletion fails", async () => {
+    await setup("user-ada", (request) =>
+      request.method === "DELETE" ? new Response(null, { status: 500 }) : Response.json(ada),
+    );
+
+    await page.getByRole("button", { name: "Delete" }).click();
+    const dialog = page.getByRole("alertdialog", { name: "Delete Ada Lovelace?" });
+    await dialog.getByRole("button", { name: "Delete" }).click();
+
+    await expect
+      .element(dialog.getByRole("alert").getByText("Could not delete the user. Try again."))
+      .toBeVisible();
+    // Behind the dialog, so out of the accessibility tree: found by its text.
+    expect(page.getByText("Ada Lovelace", { exact: true }).elements()).not.toHaveLength(0);
+  });
+
+  it("leads to the Users table when another Admin deleted the User first", async () => {
+    const { router } = await setup("user-ada", (request) =>
+      request.method === "DELETE"
+        ? Response.json({ _tag: "UserNotFound", id: "user-ada" }, { status: 404 })
+        : Response.json(ada),
+    );
+
+    await page.getByRole("button", { name: "Delete" }).click();
+    await page.getByRole("alertdialog").getByRole("button", { name: "Delete" }).click();
+
+    await expect.poll(() => router.state.location.pathname).toBe("/admin/users");
   });
 });

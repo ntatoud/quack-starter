@@ -141,6 +141,29 @@ export const userRepositorySuite = (layer: Layer.Layer<UserRepository>) => {
         assert.strictEqual((yield* listed({ search: mark })).total, 1);
       }));
 
+    test("removes a User and says so, and their email is free again", () =>
+      Effect.gen(function* () {
+        const repository = yield* UserRepository;
+        const user = yield* aUser(yield* aMark, "ada");
+        yield* created(user);
+
+        assert.isTrue(yield* repository.remove(user.id));
+
+        assert.isTrue(Option.isNone(yield* repository.findById(user.id)));
+        assert.isTrue(Option.isNone(yield* repository.findByEmail(user.email)));
+        yield* created(user);
+      }));
+
+    test("removes nothing for an id no User has, or one it did not give, and says so", () =>
+      Effect.gen(function* () {
+        const repository = yield* UserRepository;
+        const unknown = yield* aUser(yield* aMark, "nobody");
+
+        assert.isFalse(yield* repository.remove(unknown.id));
+        assert.isFalse(yield* repository.remove(UserId.make("not-an-id")));
+        assert.isTrue(Option.isNone(yield* repository.findById(UserId.make("not-an-id"))));
+      }));
+
     test("keeps the email and the password hash on update", () =>
       Effect.gen(function* () {
         const repository = yield* UserRepository;

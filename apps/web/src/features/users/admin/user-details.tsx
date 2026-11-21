@@ -26,6 +26,7 @@ import { type ReactNode, useState } from "react";
 
 import { ButtonLink } from "#/components/button-link.tsx";
 import { invalidateUsers } from "#/features/users/admin/invalidate-users.ts";
+import { useDeleteUser } from "#/features/users/admin/use-delete-user.ts";
 import { userQueryOptions } from "#/features/users/admin/users-query.ts";
 import {
   CountryCell,
@@ -158,25 +159,28 @@ function UserOverview({ user, now, canChange }: { user: User; now: Date; canChan
   );
 }
 
-type Confirmed = "promote" | "suspend";
+type Confirmed = "promote" | "suspend" | "delete";
 
 function UserActions({ user }: { user: User }) {
   // One for every button: a new change clears the failure of the one before.
   const change = useMutation(api.users.update.mutationOptions(invalidateUsers));
+  const remove = useDeleteUser(user.id);
+  const busy = change.isPending || remove.isPending;
   const [confirming, setConfirming] = useState<Confirmed | null>(null);
   const apply = (payload: UserChanges) =>
     change.mutate({ params: { id: user.id }, payload }, { onSuccess: () => setConfirming(null) });
-  const confirmed = (which: Confirmed) => ({
+  const confirmed = (which: Confirmed, { isError }: { isError: boolean }, failure: string) => ({
     open: confirming === which,
     onOpenChange: (open: boolean) => {
       change.reset();
+      remove.reset();
       setConfirming(open ? which : null);
     },
-    busy: change.isPending,
-    failed: change.isError,
+    busy,
+    failure: isError ? failure : undefined,
   });
   const name = userLabel(user);
-  const atOnce = { variant: "outline", size: "sm", disabled: change.isPending } as const;
+  const atOnce = { variant: "outline", size: "sm", disabled: busy } as const;
 
   return (
     <div className="flex flex-col gap-2 sm:items-end">
@@ -190,7 +194,7 @@ function UserActions({ user }: { user: User }) {
             label="Make admin"
             title={`Make ${name} an admin?`}
             description="They will see every user, and can suspend them or change their role."
-            {...confirmed("promote")}
+            {...confirmed("promote", change, changeFailed)}
             onConfirm={() => apply({ role: "admin" })}
           />
         )}
@@ -200,7 +204,7 @@ function UserActions({ user }: { user: User }) {
             title={`Suspend ${name}?`}
             description="They are signed out at their next request, and cannot sign in until they are reactivated."
             destructive
-            {...confirmed("suspend")}
+            {...confirmed("suspend", change, changeFailed)}
             onConfirm={() => apply({ status: "suspended" })}
           />
         )}
@@ -209,17 +213,27 @@ function UserActions({ user }: { user: User }) {
             Reactivate
           </Button>
         )}
+        <ConfirmButton
+          label="Delete"
+          title={`Delete ${name}?`}
+          description="Their profile, their todos, and their sessions go with them. This cannot be undone."
+          destructive
+          {...confirmed("delete", remove, "Could not delete the user. Try again.")}
+          onConfirm={() => remove.mutate({ params: { id: user.id } })}
+        />
       </div>
       {/* A change confirmed in a dialog says it failed there. */}
-      <ChangeFailed shown={change.isError && confirming === null} />
+      <Failure message={change.isError && confirming === null ? changeFailed : undefined} />
     </div>
   );
 }
 
-function ChangeFailed({ shown }: { shown: boolean }) {
+const changeFailed = "Could not change the user. Try again.";
+
+function Failure({ message }: { message: string | undefined }) {
   return (
     <p role="alert" className="text-sm text-destructive empty:hidden">
-      {shown ? "Could not change the user. Try again." : ""}
+      {message ?? ""}
     </p>
   );
 }
@@ -233,7 +247,7 @@ function ConfirmButton({
   open,
   onOpenChange,
   busy,
-  failed,
+  failure,
   onConfirm,
 }: {
   label: string;
@@ -243,7 +257,7 @@ function ConfirmButton({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   busy: boolean;
-  failed: boolean;
+  failure: string | undefined;
   onConfirm: () => void;
 }) {
   return (
@@ -266,7 +280,7 @@ function ConfirmButton({
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
-        <ChangeFailed shown={failed} />
+        <Failure message={failure} />
         <AlertDialogFooter>
           <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
           <AlertDialogAction

@@ -53,6 +53,13 @@ export const UserRepositoryMemory = Layer.sync(UserRepository, () => {
           users.set(user.id, { ...stored, user: new User({ ...user, email: stored.user.email }) });
         }
       }),
+    remove: (id) =>
+      Effect.sync(() => {
+        const stored = users.get(id);
+        if (stored === undefined) return false;
+        idsByEmail.delete(stored.user.email);
+        return users.delete(id);
+      }),
     findById: (id) => Effect.sync(() => Option.fromNullishOr(users.get(id)?.user)),
     findByEmail: (email) =>
       Effect.sync(() =>

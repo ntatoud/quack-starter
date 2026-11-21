@@ -18,6 +18,10 @@ export const UsersHandlers = HttpApiBuilder.group(
         const currentUser = yield* CurrentUser;
         return yield* users.update(params.id, payload, currentUser.id);
       }),
+      remove: Effect.fn(function* ({ params }) {
+        const currentUser = yield* CurrentUser;
+        yield* users.remove(params.id, currentUser.id);
+      }),
     });
   }),
 );
