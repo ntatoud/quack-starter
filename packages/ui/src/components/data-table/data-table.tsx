@@ -1,4 +1,3 @@
-import { ScrollArea as ScrollAreaPrimitive } from "@base-ui/react/scroll-area";
 import {
   type ColumnDef,
   type Row,
@@ -7,6 +6,12 @@ import {
   useTable,
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import {
+  ScrollArea as ScrollAreaPrimitive,
+  ScrollAreaContent,
+  ScrollAreaCorner,
+  ScrollAreaViewport,
+} from "@ui-sdk/react/scroll-area";
 import type { ComponentProps, ReactNode } from "react";
 import * as React from "react";
 
@@ -805,7 +810,7 @@ export function DataTable<
         {...props}
       >
         {/* The table's own variables sit here, not on its root, whose `style` is the app's (a height). */}
-        <ScrollAreaPrimitive.Root
+        <ScrollAreaPrimitive
           style={
             {
               "--header-height": `${size.height}px`,
@@ -819,16 +824,17 @@ export function DataTable<
           }
           className="group/scroll relative flex min-h-0 flex-1 flex-col"
         >
-          <ScrollAreaPrimitive.Viewport
+          <ScrollAreaViewport
             ref={viewport}
-            data-slot="data-table-viewport"
+            // Focusable by code whatever it holds: the focus of a row or an empty slot that goes lands here.
+            tabIndex={-1}
             // The horizontal scrollbar overlays the rows: its height (h-2.5) is kept free below the last one. No
             // rubber band at the edges: it would drag the sticky header off the rows, and a horizontal one would swipe
             // back in history. A table with nothing to scroll still lets the page scroll under the wheel.
-            className="size-full scroll-pt-(--header-height) overscroll-x-none outline-none focus-visible:ring-3 focus-visible:ring-ring/50 data-has-overflow-x:pb-2.5 data-has-overflow-y:overscroll-y-none"
+            className="size-full scroll-pt-(--header-height) overscroll-x-none outline-none focus-visible:ring-3 focus-visible:ring-ring/50 group-data-overflow-x/scroll:pb-2.5 data-overflow-y:overscroll-y-none"
           >
             {/* Watched for its size: rows that come or go (a search, a page) update the scrollbars and the shades. */}
-            <ScrollAreaPrimitive.Content>
+            <ScrollAreaContent>
               <Table
                 aria-label={label}
                 // Assistive tech counts the rows in the DOM: with only those in view there, it is told how many there are.
@@ -945,26 +951,26 @@ export function DataTable<
                   )}
                 </TableBody>
               </Table>
-            </ScrollAreaPrimitive.Content>
-          </ScrollAreaPrimitive.Viewport>
-          {/* The track starts below the header, a padding Base UI counts when it sizes the thumb. */}
+            </ScrollAreaContent>
+          </ScrollAreaViewport>
+          {/* The track starts below the header, a padding the thumb is sized without. */}
           <ScrollBar autoHide className="z-20 pt-(--header-height)" />
           {/* A scrollbar that shows on hover only says nothing of the columns past the edge: a shade does. */}
           <div
             aria-hidden="true"
             data-slot="data-table-overflow-start"
-            className="pointer-events-none absolute inset-y-0 start-(--held-start) z-20 w-6 from-shade to-transparent opacity-0 transition-opacity group-data-overflow-x-start/scroll:opacity-100 motion-reduce:transition-none ltr:bg-linear-to-r rtl:bg-linear-to-l"
+            className="pointer-events-none absolute inset-y-0 start-(--held-start) z-20 w-6 from-shade to-transparent opacity-0 transition-opacity group-[[data-overflow-x]:not([data-at-x-start])]/scroll:opacity-100 motion-reduce:transition-none ltr:bg-linear-to-r rtl:bg-linear-to-l"
           />
           <div
             aria-hidden="true"
             data-slot="data-table-overflow-end"
-            className="pointer-events-none absolute inset-y-0 end-(--held-end) z-20 w-6 from-shade to-transparent opacity-0 transition-opacity group-data-overflow-x-end/scroll:opacity-100 motion-reduce:transition-none ltr:bg-linear-to-l rtl:bg-linear-to-r"
+            className="pointer-events-none absolute inset-y-0 end-(--held-end) z-20 w-6 from-shade to-transparent opacity-0 transition-opacity group-[[data-overflow-x]:not([data-at-x-end])]/scroll:opacity-100 motion-reduce:transition-none ltr:bg-linear-to-l rtl:bg-linear-to-r"
           />
           {/* The track runs along the columns that scroll only, between those held at each end: a padding Base UI
               counts when it sizes the thumb. */}
           <ScrollBar orientation="horizontal" className="z-20 ps-(--held-start) pe-(--held-end)" />
-          <ScrollAreaPrimitive.Corner />
-        </ScrollAreaPrimitive.Root>
+          <ScrollAreaCorner />
+        </ScrollAreaPrimitive>
         {opens && (
           <span id={hintId} hidden>
             {selectionModel === null

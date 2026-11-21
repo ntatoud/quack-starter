@@ -111,7 +111,7 @@ function TableRow({
 // would show through it. Inside a scroll area named `group/scroll` (`DataTable`'s), it draws its edge only while
 // columns hide under it, on the side they come from.
 const stickyEnd =
-  "sticky end-0 z-1 w-px bg-surface ltr:group-data-overflow-x-end/scroll:shadow-edge-l rtl:group-data-overflow-x-end/scroll:shadow-edge-r";
+  "sticky end-0 z-1 w-px bg-surface ltr:group-[[data-overflow-x]:not([data-at-x-end])]/scroll:shadow-edge-l rtl:group-[[data-overflow-x]:not([data-at-x-end])]/scroll:shadow-edge-r";
 
 // A cell pinned at the start of its row, at `--pin-start` from it (the width of the cells pinned before it).
 const stickyStart = "sticky start-(--pin-start) z-1 bg-surface";
@@ -122,7 +122,7 @@ const rowBackgrounds =
 
 // The last cell pinned at the start draws its edge while columns hide under it.
 const pinEdgeShadow =
-  "ltr:group-data-overflow-x-start/scroll:shadow-edge-r rtl:group-data-overflow-x-start/scroll:shadow-edge-l";
+  "ltr:group-[[data-overflow-x]:not([data-at-x-start])]/scroll:shadow-edge-r rtl:group-[[data-overflow-x]:not([data-at-x-start])]/scroll:shadow-edge-l";
 
 const tableHeadVariants = cva(
   "h-10 px-3 text-start align-middle font-medium whitespace-nowrap text-foreground [&:has([role=checkbox])]:pe-0",

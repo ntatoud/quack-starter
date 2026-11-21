@@ -30,6 +30,12 @@ const columnsOf = (count: number): ReadonlyArray<DataTableColumn<{ id: string }>
     cell: () => "value",
   }));
 
+/** The root of the scroll area says whether the content reaches past an edge, and which one the view is at. */
+const hasOverflowX = (viewport: HTMLElement) =>
+  elementOf(HTMLElement, viewport.parentElement).hasAttribute("data-overflow-x");
+const pastEdge = (root: HTMLElement, edge: "start" | "end") =>
+  root.hasAttribute("data-overflow-x") && !root.hasAttribute(`data-at-x-${edge}`);
+
 /** The live regions of the table: the first says its sorting, the second what its empty slot shows. */
 const regions = () => {
   const found = [...slot("data-table").querySelectorAll<HTMLElement>("[role=status]")];
@@ -59,7 +65,7 @@ const setup = async (columns: number, rows = 1) => {
   );
   await expect.element(page.getByRole("table")).toBeVisible();
   return {
-    viewport: slot("data-table-viewport"),
+    viewport: slot("scroll-area-viewport"),
     shown: (name: "start" | "end") => getComputedStyle(slot(`data-table-overflow-${name}`)).opacity,
   };
 };
@@ -255,7 +261,7 @@ describe("DataTable", () => {
     );
     expect(page.getByRole("row").elements().length).toBeLessThan(50);
 
-    slot("data-table-viewport").scrollTop = slot("data-table-viewport").scrollHeight;
+    slot("scroll-area-viewport").scrollTop = slot("scroll-area-viewport").scrollHeight;
 
     const last = page.getByRole("row", { name: `Row ${rowCount - 1}` });
     await expect.element(last).toBeVisible();
@@ -431,7 +437,7 @@ describe("DataTable inside a page that scrolls", () => {
         <DataTable columns={columnsOf(2)} data={[{ id: "0" }]} />
       </div>,
     );
-    const viewport = slot("data-table-viewport");
+    const viewport = slot("scroll-area-viewport");
     document.scrollingElement?.scrollTo({ top: 0 });
 
     await userEvent.wheel(viewport, { delta: { y: 300 } });
@@ -445,18 +451,22 @@ describe("DataTable right to left", () => {
     await render(
       <DirectionProvider direction="rtl">
         <div dir="rtl" className="flex h-75 w-100 flex-col">
-          <DataTable columns={columnsOf(8)} data={[{ id: "0" }]} />
+          {/* Whole-pixel widths: ui-sdk leaves a right-to-left view 1px short of its far end, as the layout rounds. */}
+          <DataTable
+            columns={columnsOf(8).map((column) => ({ ...column, size: 200 }))}
+            data={[{ id: "0" }]}
+          />
         </div>
       </DirectionProvider>,
     );
     await expect.element(page.getByRole("table")).toBeVisible();
-    const viewport = slot("data-table-viewport");
+    const viewport = slot("scroll-area-viewport");
     const root = elementOf(HTMLElement, viewport.parentElement);
     const shown = (name: "start" | "end") =>
       getComputedStyle(slot(`data-table-overflow-${name}`)).opacity;
 
     await expect.poll(() => shown("end")).toBe("1");
-    expect(root.hasAttribute("data-overflow-x-start")).toBe(false);
+    expect(pastEdge(root, "start")).toBe(false);
     // The end of a right-to-left row is on the left, and its shade fades toward the right.
     const end = slot("data-table-overflow-end");
     expect(end.getBoundingClientRect().left).toBe(root.getBoundingClientRect().left);
@@ -468,8 +478,8 @@ describe("DataTable right to left", () => {
     };
     await expect.poll(() => (toEnd(), shown("start"))).toBe("1");
     await expect.poll(() => (toEnd(), shown("end"))).toBe("0");
-    expect(root.hasAttribute("data-overflow-x-start")).toBe(true);
-    expect(root.hasAttribute("data-overflow-x-end")).toBe(false);
+    expect(pastEdge(root, "start")).toBe(true);
+    expect(pastEdge(root, "end")).toBe(false);
   });
 });
 
@@ -483,7 +493,7 @@ describe("DataTable with no row", () => {
     // In the body: the table's live region says it too.
     const text = page.getByRole("rowgroup").last().getByText("Nothing here");
     await expect.element(text).toBeVisible();
-    const viewport = slot("data-table-viewport");
+    const viewport = slot("scroll-area-viewport");
     const inView = () => {
       const box = text.element().getBoundingClientRect();
       const frame = viewport.getBoundingClientRect();
@@ -598,7 +608,7 @@ describe("DataTable with useDataTable", () => {
       );
     }
     await render(<Table />);
-    const viewport = slot("data-table-viewport");
+    const viewport = slot("scroll-area-viewport");
     await expect.element(page.getByText("Row 1.0", { exact: true })).toBeVisible();
     viewport.scrollTop = 300;
     await expect.poll(() => viewport.scrollTop).toBeGreaterThan(0);
@@ -634,7 +644,7 @@ describe("DataTable with useDataTable", () => {
       );
     }
     await render(<Table />);
-    const viewport = slot("data-table-viewport");
+    const viewport = slot("scroll-area-viewport");
     viewport.scrollTop = 1000;
     await expect.poll(() => viewport.scrollTop).toBeGreaterThan(0);
     const before = viewport.scrollTop;
@@ -761,9 +771,9 @@ describe("DataTable details", () => {
       </div>,
     );
     await expect.element(page.getByRole("table")).toBeVisible();
-    const root = elementOf(HTMLElement, slot("data-table-viewport").parentElement);
+    const root = elementOf(HTMLElement, slot("scroll-area-viewport").parentElement);
 
-    await expect.poll(() => root.hasAttribute("data-overflow-x-end")).toBe(true);
+    await expect.poll(() => pastEdge(root, "end")).toBe(true);
     expect(slot("data-table").hasAttribute("data-sticky-end")).toBe(true);
     const held = document.querySelector("thead th[data-sticky=end]")?.getBoundingClientRect();
     await expect
@@ -788,7 +798,7 @@ describe("DataTable details", () => {
       </div>,
     );
     await expect
-      .poll(() => getComputedStyle(slot("data-table-viewport")).overscrollBehaviorY)
+      .poll(() => getComputedStyle(slot("scroll-area-viewport")).overscrollBehaviorY)
       .toBe("none");
 
     await screen.rerender(
@@ -797,7 +807,7 @@ describe("DataTable details", () => {
       </div>,
     );
     await expect
-      .poll(() => getComputedStyle(slot("data-table-viewport")).overscrollBehaviorY)
+      .poll(() => getComputedStyle(slot("scroll-area-viewport")).overscrollBehaviorY)
       .toBe("auto");
   });
 });
@@ -820,7 +830,7 @@ describe("DataTable virtual rows from the keyboard", () => {
     );
     const first = page.getByRole("row", { name: "Row 0", exact: true });
     await expect.element(first).toBeVisible();
-    return { viewport: slot("data-table-viewport"), first };
+    return { viewport: slot("scroll-area-viewport"), first };
   };
   const tabbable = () =>
     [...document.querySelectorAll<HTMLElement>("tr[data-row-index]")]
@@ -904,7 +914,7 @@ describe("DataTable rows under its sticky header", () => {
 
   it("keeps a row focused from the keyboard below the header, in a virtual table", async () => {
     await renderRows(true);
-    expect(getComputedStyle(slot("data-table-viewport")).scrollPaddingTop).toBe(
+    expect(getComputedStyle(slot("scroll-area-viewport")).scrollPaddingTop).toBe(
       `${document.querySelector("thead")?.getBoundingClientRect().height}px`,
     );
     await userEvent.keyboard("{End}");
@@ -956,7 +966,7 @@ describe("DataTable horizontal scroll", () => {
       </div>
     );
     const screen = await render(table(3));
-    const overflows = () => slot("data-table-viewport").hasAttribute("data-has-overflow-x");
+    const overflows = () => hasOverflowX(slot("scroll-area-viewport"));
     await expect.poll(overflows).toBe(true);
 
     await screen.rerender(table(0));
@@ -1095,10 +1105,10 @@ describe("DataTable with no row, in a large font", () => {
         </DirectionProvider>,
       );
       await expect.element(page.getByRole("cell").getByText(/Nothing matches/)).toBeVisible();
-      const viewport = slot("data-table-viewport");
+      const viewport = slot("scroll-area-viewport");
 
       await expect.poll(() => viewport.scrollWidth - viewport.clientWidth).toBeLessThanOrEqual(0);
-      expect(viewport.hasAttribute("data-has-overflow-x")).toBe(false);
+      expect(hasOverflowX(viewport)).toBe(false);
     },
   );
 });
@@ -1118,7 +1128,7 @@ describe("DataTable focus", () => {
 
     await screen.rerender(table(3));
 
-    await expect.poll(() => document.activeElement).toBe(slot("data-table-viewport"));
+    await expect.poll(() => document.activeElement).toBe(slot("scroll-area-viewport"));
   });
 
   it("keeps the last row of a virtual table in view once End reaches it", async () => {
@@ -1148,7 +1158,7 @@ describe("DataTable focus", () => {
       .poll(
         () =>
           last.element().getBoundingClientRect().bottom -
-          slot("data-table-viewport").getBoundingClientRect().bottom,
+          slot("scroll-area-viewport").getBoundingClientRect().bottom,
       )
       .toBeLessThanOrEqual(0.5);
   });
@@ -1170,7 +1180,7 @@ describe("DataTable sized by the app", () => {
     expect(slot("data-table").getBoundingClientRect().height).toBe(200);
     const header = document.querySelector("thead")?.getBoundingClientRect();
     await expect
-      .poll(() => getComputedStyle(slot("data-table-viewport")).scrollPaddingTop)
+      .poll(() => getComputedStyle(slot("scroll-area-viewport")).scrollPaddingTop)
       .toBe(`${header?.height}px`);
     const scrollbar = document.querySelector<HTMLElement>(
       "[data-slot=scroll-area-scrollbar][data-orientation=vertical]",
@@ -1204,7 +1214,7 @@ describe("DataTable scroll on other rows", () => {
       );
     }
     await render(<Table />);
-    const viewport = slot("data-table-viewport");
+    const viewport = slot("scroll-area-viewport");
     await expect.element(page.getByText("Row 1.0", { exact: true })).toBeVisible();
     viewport.scrollTop = 300;
     await expect.poll(() => viewport.scrollTop).toBeGreaterThan(0);
@@ -1403,7 +1413,7 @@ describe("DataTable rows, a page at a time", () => {
     await expect.element(first).toBeVisible();
     const row = elementOf(HTMLElement, first.element());
     row.focus();
-    const viewport = slot("data-table-viewport");
+    const viewport = slot("scroll-area-viewport");
     const header = document.querySelector("thead")?.getBoundingClientRect().height ?? 0;
     const shown = Math.floor((viewport.clientHeight - header) / row.offsetHeight);
     expect(shown).toBeGreaterThan(1);
@@ -1526,7 +1536,7 @@ describe("DataTable focus on rows that go", () => {
 
     await screen.rerender(table(["Ada", "Grace"]));
 
-    await expect.poll(() => document.activeElement).toBe(slot("data-table-viewport"));
+    await expect.poll(() => document.activeElement).toBe(slot("scroll-area-viewport"));
   });
 
   it("gives the focus to the scroll area when the row of a focused action is removed, rows that open nothing too", async () => {
@@ -1550,7 +1560,7 @@ describe("DataTable focus on rows that go", () => {
 
     await screen.rerender(table(["Ada", "Grace"]));
 
-    await expect.poll(() => document.activeElement).toBe(slot("data-table-viewport"));
+    await expect.poll(() => document.activeElement).toBe(slot("scroll-area-viewport"));
   });
 
   it("makes the first row the stop of the Tab key again on another page, rows keyed by their index", async () => {
@@ -1665,7 +1675,7 @@ describe("DataTable rows, a page at a time, in a table taller than the window", 
     await expect.element(first).toBeVisible();
     const row = elementOf(HTMLElement, first.element());
     row.focus();
-    const box = slot("data-table-viewport").getBoundingClientRect();
+    const box = slot("scroll-area-viewport").getBoundingClientRect();
     const header = document.querySelector("thead")?.getBoundingClientRect().height ?? 0;
     const shown = Math.floor(
       (Math.min(box.bottom, innerHeight) - Math.max(box.top + header, 0)) / row.offsetHeight,
@@ -1734,7 +1744,7 @@ describe("DataTable at phone width", () => {
     await expect.element(message).toBeVisible();
 
     const box = message.element().getBoundingClientRect();
-    const frame = slot("data-table-viewport").getBoundingClientRect();
+    const frame = slot("scroll-area-viewport").getBoundingClientRect();
     expect(box.left).toBeGreaterThanOrEqual(frame.left);
     expect(box.right).toBeLessThanOrEqual(frame.right);
     expect(box.right).toBeLessThanOrEqual(375);

@@ -150,7 +150,7 @@ describe("DataTable with rowLink", () => {
     const city = () => rowOf("Ada Lovelace").getByText("London").element().getBoundingClientRect();
     const nameRight = name.getBoundingClientRect().right;
 
-    slot("data-table-viewport").scrollLeft = 300;
+    slot("scroll-area-viewport").scrollLeft = 300;
 
     // The city slides under the pinned name: what is hit there is the name's cell, not the city's link.
     await expect.poll(() => city().left).toBeLessThan(nameRight);

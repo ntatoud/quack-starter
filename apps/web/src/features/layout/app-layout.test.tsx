@@ -63,7 +63,10 @@ describe("AppLayout", () => {
       await expect.element(page.getByRole("table")).toBeVisible();
 
       expect(document.documentElement.scrollWidth).toBe(window.innerWidth);
-      const viewport = page.getByRole("table").element().closest("[data-slot=data-table-viewport]");
+      const viewport = page
+        .getByRole("table")
+        .element()
+        .closest("[data-slot=scroll-area-viewport]");
       if (!(viewport instanceof HTMLElement)) throw new Error("The table scrolls in no viewport.");
       expect(viewport.scrollWidth).toBeGreaterThan(viewport.clientWidth);
       expect(viewport.getBoundingClientRect().right).toBeLessThanOrEqual(window.innerWidth);

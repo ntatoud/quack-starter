@@ -75,7 +75,7 @@ const headerOf = (title: string) => page.getByRole("table").getByText(title, { e
 const scrollerOfTable = () =>
   elementOf(
     HTMLElement,
-    page.getByRole("table").element().closest("[data-slot=data-table-viewport]"),
+    page.getByRole("table").element().closest("[data-slot=scroll-area-viewport]"),
   );
 
 const currentPages = () =>

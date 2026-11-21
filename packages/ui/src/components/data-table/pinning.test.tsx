@@ -89,7 +89,7 @@ const header = (name: string) =>
   elementOf(HTMLElement, page.getByRole("columnheader", { name, exact: true }).element());
 /** The headers of the first header row, in their order: the columns outside a group, and the groups. */
 const order = () => document.querySelectorAll("thead tr:first-child th");
-const viewport = () => slot("data-table-viewport");
+const viewport = () => slot("scroll-area-viewport");
 const state = () => page.getByRole("status", { name: "State" });
 const box = (name: string) => header(name).getBoundingClientRect();
 // The line a pinned cell draws on its end side: a horizontal inset shadow, unlike the line under the header.
