@@ -92,7 +92,7 @@ export function OptionsStatusItems({
         ) : (
           <DropdownMenuItem closeOnClick={false} onClick={status.error.retry}>
             <RotateCwIcon className="text-muted-foreground" />
-            Retry
+            Try again
           </DropdownMenuItem>
         )}
         {!empty && <DropdownMenuSeparator />}

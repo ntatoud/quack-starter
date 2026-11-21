@@ -86,7 +86,6 @@ export function ProfileForm({ currentUser }: { currentUser: typeof User.Encoded 
                       id: currentUser.id,
                       profile: { avatarUrl: field.state.value.trim() || null },
                     }}
-                    className="rounded-lg after:rounded-lg"
                   />
                   <div className="flex min-w-0 flex-1 flex-col gap-2">
                     <field.Text type="url" placeholder="https://" disabled />

@@ -8,12 +8,14 @@ TanStack Start app. It depends on `@quack/contracts`, never on the server.
 - Every route sets its title in `head`: `pageTitle("Todos")`, segments from the most specific (`features/layout/page-title.ts`).
 - Validate a route's search with an Effect schema: `validateSearch: Schema.toStandardSchemaV1(SignInSearch)`.
 - Pages of every Current User go under `routes/_authenticated/app/`, pages of Admins only under `routes/_authenticated/admin/`, with their components in the `admin/` folder of their feature. Add the page to the sidebar of its root (`features/layout`).
-- A page renders its own top bar, `PageHeader`, with its `title` (the `h1`) after the `trail` of pages that lead to it and `back` for a page reached from another: copy `features/todos/todos-page.tsx`.
+- A page renders its own top bar, `PageHeader`, with its `title` (the `h1`) after the `trail` of pages that lead to it and `back` for a page reached from another, then what it shows in a `PageContent`, which keeps it in line with the top bar: copy `features/todos/todos-page.tsx`.
 - While the Current User is not onboarded (`currentUser.onboardedAt === null`), `AuthenticatedLayout` covers every page under `_authenticated` with `OnboardingDialog`, which cannot be closed (`features/onboarding`).
 - The settings of the Current User are one page, `/app/settings`, linked from the user menu: `SettingsLayout` (`features/settings/settings-layout.tsx`) renders the top bar and the menu of its sections, each a route of `routes/_authenticated/app/settings/` that renders its content only. Add a section to `sections` there, and lay it out with `SettingsCard` (`@quack/ui/components/settings-card`): copy `features/profile/profile-form.tsx`.
-- Pages for visitors only go under `routes/_guest/` and redirect a Current User in their `beforeLoad`.
+- Pages for visitors only go under `routes/_guest/` and redirect a Current User in their `beforeLoad`. Each renders in a `GuestCard` (`features/identity/guest-card.tsx`): copy `features/identity/sign-in-page.tsx`.
 - Read a `redirect` search param through `redirectTarget` (`features/identity/redirect-target.ts`): it comes from a link anyone can write.
 - A link that looks like a button is a `ButtonLink` (`components/button-link.tsx`).
+- A title of a screen outside the top bar is `text-xl font-semibold tracking-tight`, a title of a section `text-sm font-medium`, 8px above its card. A list or a card outside a table is `rounded-xl border`, flat, its rows inset by `px-5`.
+- A load that fails is an `Empty` with "Try again" (`DataTableErrorState` in a table), and a refresh that fails is the alert above the list: copy `features/todos/todos-list.tsx`.
 - `src/routeTree.gen.ts` is generated: commit it as generated.
 
 ## Data

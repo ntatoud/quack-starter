@@ -46,14 +46,12 @@ export function SidebarExternalLink({
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
-        size="sm"
         render={<a href={href} target="_blank" rel="noreferrer" aria-label={name} />}
         tooltip={name}
-        className="text-sidebar-foreground/70"
       >
         {icon}
         <span>{label}</span>
-        <ArrowUpRightIcon className="ml-auto" />
+        <ArrowUpRightIcon className="ml-auto text-sidebar-foreground/50" />
       </SidebarMenuButton>
     </SidebarMenuItem>
   );

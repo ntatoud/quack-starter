@@ -40,7 +40,8 @@ export function FormSelectField({
           id={id}
           name={field.name}
           size={size}
-          className={cn("w-full", textSize[size])}
+          // As tall a text as an input next to it, which is 16px on a small screen.
+          className={cn("w-full", textSize[size], "max-md:text-base")}
           aria-invalid={invalid}
           aria-describedby={describedBy}
         >

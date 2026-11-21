@@ -25,9 +25,9 @@ export function TodosList() {
         <p role="status" className="sr-only">
           Loading todos…
         </p>
-        <ul className="divide-y rounded-lg border" aria-hidden="true">
+        <ul className="divide-y rounded-xl border" aria-hidden="true">
           {[0, 1, 2].map((row) => (
-            <li key={row} className="flex h-11 items-center gap-3 px-3">
+            <li key={row} className="flex h-11 items-center gap-3 px-5">
               <Skeleton className="size-4" />
               <Skeleton className="h-4 w-1/2" />
             </li>
@@ -54,14 +54,14 @@ export function TodosList() {
       </Empty>
     ),
     Success: ({ data, refreshError }) => (
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-4">
         {Option.isSome(refreshError) && (
           <p role="alert" className="flex items-center gap-2 text-sm text-destructive">
             <span>Could not refresh your todos.</span>
             <Button
               variant="link"
               size="sm"
-              className="h-auto p-0"
+              className="h-auto p-0 text-sm"
               disabled={todos.isFetching}
               onClick={() => todos.refetch()}
             >
@@ -80,7 +80,7 @@ export function TodosList() {
             </EmptyHeader>
           </Empty>
         ) : (
-          <ul className="divide-y rounded-lg border">
+          <ul className="divide-y rounded-xl border">
             {data.map((todo) => (
               <TodoItem key={todo.id} todo={todo} />
             ))}

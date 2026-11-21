@@ -23,7 +23,7 @@ export function TodoItem({ todo }: { todo: Todo }) {
   const busy = completeTodo.isPending || removeTodo.isPending;
 
   return (
-    <li className="group/todo flex min-h-11 items-center gap-3 px-3 py-1.5" aria-busy={busy}>
+    <li className="group/todo flex items-center gap-3 py-3 pr-3 pl-5" aria-busy={busy}>
       <Checkbox
         checked={todo.completed}
         disabled={todo.completed || busy}
@@ -41,7 +41,7 @@ export function TodoItem({ todo }: { todo: Todo }) {
           {todo.title}
         </span>
         {(completeTodo.isError || removeTodo.isError) && (
-          <span role="alert" className="text-xs text-destructive">
+          <span role="alert" className="text-sm text-destructive">
             {completeTodo.isError
               ? "Could not complete this todo. Try again."
               : "Could not remove this todo. Try again."}
@@ -49,10 +49,11 @@ export function TodoItem({ todo }: { todo: Todo }) {
         )}
       </div>
       {/* Hidden until hover only where there is a hover: a touch screen would never show it. */}
+      {/* `-my-1`: the title sets the height of the row, not the button. */}
       <Button
         variant="ghost"
         size="icon-sm"
-        className="pointer-fine:opacity-0 pointer-fine:group-focus-within/todo:opacity-100 pointer-fine:group-hover/todo:opacity-100"
+        className="-my-1 pointer-fine:opacity-0 pointer-fine:group-focus-within/todo:opacity-100 pointer-fine:group-hover/todo:opacity-100"
         disabled={busy}
         onClick={() => removeTodo.mutate({ params: { id: todo.id } })}
         aria-label={`Remove ${todo.title}`}

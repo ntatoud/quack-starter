@@ -799,7 +799,7 @@ export function DataTable<
         // A column held at the end draws its own edge: the shade of the end would darken it.
         data-sticky-end={hasStickyEnd || undefined}
         className={cn(
-          "group/table flex min-h-0 flex-col overflow-hidden rounded-lg border bg-surface",
+          "group/table flex min-h-0 flex-col overflow-hidden rounded-xl border bg-surface",
           className,
         )}
         {...props}

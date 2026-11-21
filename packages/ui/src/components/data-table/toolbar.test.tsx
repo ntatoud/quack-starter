@@ -367,7 +367,7 @@ describe("DataTableToolbar", () => {
       .getByRole("button")
       .first()
       .click();
-    await page.getByRole("menuitem", { name: "Retry" }).click();
+    await page.getByRole("menuitem", { name: "Try again" }).click();
 
     expect(retry).toHaveBeenCalledOnce();
   });

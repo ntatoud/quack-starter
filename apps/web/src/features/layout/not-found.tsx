@@ -15,8 +15,9 @@ export function NotFound() {
   return (
     <Empty className="min-h-svh">
       <EmptyHeader>
-        <EmptyTitle>
-          <h1>404</h1>
+        <p className="text-sm font-medium text-muted-foreground">404</p>
+        <EmptyTitle className="text-xl font-semibold">
+          <h1>Page not found</h1>
         </EmptyTitle>
         <EmptyDescription>This page does not exist.</EmptyDescription>
       </EmptyHeader>

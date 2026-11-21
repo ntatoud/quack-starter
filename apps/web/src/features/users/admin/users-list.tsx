@@ -131,7 +131,7 @@ function UsersRows({
           <Button
             variant="link"
             size="sm"
-            className="h-auto p-0"
+            className="h-auto p-0 text-sm"
             disabled={refreshing}
             onClick={onRefresh}
           >

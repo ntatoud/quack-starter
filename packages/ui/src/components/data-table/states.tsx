@@ -106,7 +106,7 @@ export const DataTableErrorState = ({
           <RefreshCwIcon
             className={retrying ? "animate-spin motion-reduce:animate-none" : undefined}
           />
-          Retry
+          Try again
         </Button>
       )}
     </div>

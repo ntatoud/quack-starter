@@ -1,5 +1,6 @@
 import type { Role, User, UserStatus } from "@quack/contracts/identity/user";
 import { Badge } from "@quack/ui/components/badge";
+import { cn } from "@quack/ui/lib/utils";
 import { DateTime } from "effect";
 
 import { labelOf } from "#/features/users/admin/users-filters.ts";
@@ -21,21 +22,21 @@ export function NameCell({ user }: { user: User }) {
   );
 }
 
+// A dot marks a Status, a fill a Role: the two badges sit side by side.
+const statusDot = {
+  active: "bg-emerald-500",
+  invited: "bg-amber-500",
+  suspended: "bg-destructive",
+} satisfies Record<UserStatus, string>;
+
 export function StatusBadge({ status }: { status: UserStatus }) {
   const label = labelOf("status", status);
-  switch (status) {
-    case "active":
-      return (
-        <Badge variant="outline">
-          <span aria-hidden="true" className="size-1.5 rounded-full bg-emerald-500" />
-          {label}
-        </Badge>
-      );
-    case "invited":
-      return <Badge variant="secondary">{label}</Badge>;
-    case "suspended":
-      return <Badge variant="destructive">{label}</Badge>;
-  }
+  return (
+    <Badge variant={status === "suspended" ? "destructive" : "outline"}>
+      <span aria-hidden="true" className={cn("size-1.5 rounded-full", statusDot[status])} />
+      {label}
+    </Badge>
+  );
 }
 
 export function RoleBadge({ role }: { role: Role }) {
@@ -70,13 +71,17 @@ const units: ReadonlyArray<[Intl.RelativeTimeFormatUnit, number]> = [
   ["minute", 60],
 ];
 
-/** In the largest unit that fits: "3 days ago", "last month". */
+const capitalized = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+
+/** In the largest unit that fits, starting with a capital as the other cells do: "3 days ago", "Last month". */
 const timeAgo = (date: Date, now: Date) => {
   const seconds = Math.round((date.getTime() - now.getTime()) / 1000);
   for (const [unit, size] of units) {
-    if (Math.abs(seconds) >= size) return relativeFormat.format(Math.round(seconds / size), unit);
+    if (Math.abs(seconds) >= size) {
+      return capitalized(relativeFormat.format(Math.round(seconds / size), unit));
+    }
   }
-  return relativeFormat.format(0, "minute");
+  return "Just now";
 };
 
 export function DateCell({ date }: { date: DateTime.Utc }) {
