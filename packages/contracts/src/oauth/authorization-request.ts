@@ -14,6 +14,8 @@ export const AuthorizationRequestParams = Schema.Struct({
   code_challenge_method: Schema.optionalKey(Schema.String),
   resource: Schema.optionalKey(Schema.String),
   scope: Schema.optionalKey(Schema.String),
+  /** Opaque to Quack: sent back as is with the authorization response. */
+  state: Schema.optionalKey(Schema.String),
 });
 
 export type AuthorizationRequestParams = typeof AuthorizationRequestParams.Type;
@@ -37,4 +39,17 @@ export class AuthorizationRequest extends Schema.Class<
   permissions: Schema.Array(Permission),
   /** Those of the Grant the User already gave this AI Client, `null` if none. */
   grantedPermissions: Schema.NullOr(Schema.Array(Permission)),
+  /** The User already gave this consent and Quack remembers it: the page approves without asking. */
+  consentRemembered: Schema.Boolean,
+  /** What the page sends back with the User's decision, which proves the decision was made on it. */
+  csrfToken: Schema.String,
 }) {}
+
+/** The User's decision on an authorization request: the request again, since Quack keeps none of it. */
+export const AuthorizationDecision = Schema.Struct({
+  ...AuthorizationRequestParams.fields,
+  csrfToken: Schema.String,
+});
+
+/** The authorization response: where the page sends the User, back to the AI Client. */
+export const AuthorizationRedirect = Schema.Struct({ redirectTo: Schema.String });

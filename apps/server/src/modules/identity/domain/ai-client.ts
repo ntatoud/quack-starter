@@ -1,5 +1,4 @@
 import type { Permission } from "@quack/contracts/permission";
-import { AuthorizationRequest } from "@quack/contracts/oauth/authorization-request";
 import type { AuthorizationRequestParams } from "@quack/contracts/oauth/authorization-request";
 import {
   type AuthorizationErrorCode,
@@ -7,7 +6,7 @@ import {
 } from "@quack/contracts/oauth/oauth-errors";
 import { Context, Effect, Option, Schema } from "effect";
 
-import { grantablePermissions } from "#/modules/identity/domain/grant.ts";
+import { type GrantTerms, grantablePermissions } from "#/modules/identity/domain/grant.ts";
 
 /** The document an AI Client is known by, served at its `client_id` (Client ID Metadata Document). */
 const AiClientDocument = Schema.Struct({
@@ -65,36 +64,28 @@ export const aiClientUrlOf = (clientId: string | undefined, server: Authorizatio
   if (clientId === undefined)
     return Effect.fail(refused("invalid_request", "client_id is missing"));
   const url = URL.parse(clientId);
-
   if (url === null) return Effect.fail(refused("invalid_client", "client_id is not a URL"));
   const isHttps = url.protocol === "https:";
-
   const isLocalHttp =
     url.protocol === "http:" && server.allowLoopbackHttpDocuments && isLoopback(url);
-
   if (!isHttps && !isLocalHttp) {
     return Effect.fail(refused("invalid_client", "client_id must be an https URL"));
   }
-
   if (url.username !== "" || url.password !== "" || clientId.includes("#")) {
     return Effect.fail(refused("invalid_client", "client_id must have no credentials or fragment"));
   }
-
   if (url.pathname === "/") {
     return Effect.fail(refused("invalid_client", "client_id must have a path"));
   }
-
   if (url.origin === new URL(server.issuer).origin) {
     return Effect.fail(refused("invalid_client", "client_id must not be Quack's own address"));
   }
-
   return Effect.succeed(url);
 };
 
 /** Where an authorization response may go: an https address, or one on the User's machine (RFC 8252 s7.3). */
 const isRedirectable = (uri: string) => {
   const url = URL.parse(uri);
-
   return (
     url !== null &&
     !uri.includes("#") &&
@@ -106,22 +97,32 @@ const redirectUriMatches = (listed: string, requested: string) => {
   if (listed === requested) return true;
   const a = URL.parse(listed);
   const b = URL.parse(requested);
-
   if (a === null || b === null || !isLoopback(a) || !isLoopback(b)) return false;
   a.port = "";
   b.port = "";
-
   return a.href === b.href;
 };
 
 const permissionsOf = (scope: string | undefined): Option.Option<ReadonlyArray<Permission>> => {
   const requested = new Set((scope ?? "").split(" ").filter((name) => name !== ""));
   const grantable: ReadonlySet<string> = new Set(grantablePermissions);
-
   return requested.size > 0 && [...requested].every((name) => grantable.has(name))
     ? Option.some(grantablePermissions.filter((permission) => requested.has(permission)))
     : Option.none();
 };
+
+/** An authorization request Quack has verified: the AI Client's document lists its redirect URI. */
+export interface ValidAuthorizationRequest extends GrantTerms {
+  readonly aiClient: {
+    readonly id: string;
+    readonly host: string;
+    readonly name: string;
+  };
+  readonly redirectHost: string;
+  readonly loopbackOnly: boolean;
+  readonly codeChallenge: string;
+  readonly state: string | undefined;
+}
 
 export const checkAuthorizationRequest = Effect.fn(function* (
   params: AuthorizationRequestParams,
@@ -130,20 +131,16 @@ export const checkAuthorizationRequest = Effect.fn(function* (
   server: AuthorizationServer,
 ) {
   const document = Schema.decodeUnknownOption(AiClientDocument)(fetched);
-
   if (Option.isNone(document)) {
     return yield* refused(
       "invalid_client",
       "The AI Client's document must have a client_name and redirect_uris",
     );
   }
-
   const { client_id, client_name, redirect_uris, token_endpoint_auth_method } = document.value;
-
   if (client_id !== params.client_id) {
     return yield* refused("invalid_client", "The AI Client's document is not at its client_id");
   }
-
   if (
     token_endpoint_auth_method !== undefined &&
     sharedSecretMethods.has(token_endpoint_auth_method)
@@ -152,10 +149,8 @@ export const checkAuthorizationRequest = Effect.fn(function* (
   }
 
   const redirectUri = params.redirect_uri;
-
   if (redirectUri === undefined)
     return yield* refused("invalid_request", "redirect_uri is missing");
-
   if (
     !isRedirectable(redirectUri) ||
     !redirect_uris.some((listed) => redirectUriMatches(listed, redirectUri))
@@ -167,17 +162,19 @@ export const checkAuthorizationRequest = Effect.fn(function* (
   if (params.response_type !== "code") {
     return yield* refused("unsupported_response_type", "response_type must be code", redirectUri);
   }
-
-  if (params.code_challenge_method !== "S256" || !s256Challenge.test(params.code_challenge ?? "")) {
+  const codeChallenge = params.code_challenge;
+  if (
+    params.code_challenge_method !== "S256" ||
+    codeChallenge === undefined ||
+    !s256Challenge.test(codeChallenge)
+  ) {
     return yield* refused("invalid_request", "An S256 code_challenge is required", redirectUri);
   }
-
-  if (params.resource !== server.mcpResource) {
+  const resource = params.resource;
+  if (resource !== server.mcpResource) {
     return yield* refused("invalid_target", `resource must be ${server.mcpResource}`, redirectUri);
   }
-
   const permissions = permissionsOf(params.scope);
-
   if (Option.isNone(permissions)) {
     return yield* refused(
       "invalid_scope",
@@ -186,15 +183,18 @@ export const checkAuthorizationRequest = Effect.fn(function* (
     );
   }
 
-  return new AuthorizationRequest({
+  return {
     aiClient: { id: client_id, host: clientId.hostname, name: client_name },
+    aiClientId: client_id,
+    redirectUri,
     redirectHost: new URL(redirectUri).hostname,
     loopbackOnly: redirect_uris.every((listed) => {
       const url = URL.parse(listed);
-
       return url !== null && isLoopback(url);
     }),
+    resource,
     permissions: permissions.value,
-    grantedPermissions: null,
-  });
+    codeChallenge,
+    state: params.state,
+  } satisfies ValidAuthorizationRequest;
 });
