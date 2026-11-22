@@ -22,7 +22,7 @@ To add a context, copy `modules/todos`:
 
 - Only `/api/mcp` reads a bearer token (ADR 0003): `Grants.authenticate` turns it into the `McpCaller`, the Grant's User with the token's Permissions that the Grant and their Role still give. Never accept one on `/api`.
 - An HTTP middleware answers 401 or 403 before any JSON-RPC; an `McpServer.middleware` provides the `McpCaller`. The tools are built outside the scope of the HTTP middleware (`mcp-endpoint.ts`): inside it, it would also wrap the in-process routes and challenge every call.
-- A Grant is one per User and AI Client, in identity: `GrantStore` holds it and its access tokens, stored as SHA-256 only. Approving creates or updates it; the token endpoint (`Grants.exchange`) issues its tokens.
+- A Grant is one per User and AI Client, in identity: `GrantStore` holds it and its access and refresh tokens, stored as SHA-256 only. Approving creates or updates it; the token endpoint (`Grants.exchange`) issues its tokens, for a code or a refresh token. A replaced refresh token presented again revokes the Grant; lifetimes: `docs/ai-clients.md`.
 
 ## Database
 

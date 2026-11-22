@@ -27,11 +27,23 @@ export default Effect.gen(function* () {
     )
   `;
   yield* sql`CREATE INDEX grant_access_tokens_grant_id_idx ON grant_access_tokens (grant_id)`;
+  yield* sql`
+    CREATE TABLE grant_refresh_tokens (
+      token_hash text CONSTRAINT grant_refresh_tokens_pkey PRIMARY KEY,
+      grant_id uuid NOT NULL
+        CONSTRAINT grant_refresh_tokens_grant_id_fkey REFERENCES grants ON DELETE CASCADE,
+      resource text NOT NULL,
+      permissions text[] NOT NULL,
+      replaced boolean NOT NULL
+    )
+  `;
+  yield* sql`CREATE INDEX grant_refresh_tokens_grant_id_idx ON grant_refresh_tokens (grant_id)`;
 });
 
 // An AI Client whose Grant goes asks its User to approve again: nothing is lost that the User cannot give back.
 export const down = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
+  yield* sql`DROP TABLE grant_refresh_tokens`;
   yield* sql`DROP TABLE grant_access_tokens`;
   yield* sql`DROP TABLE grants`;
 });

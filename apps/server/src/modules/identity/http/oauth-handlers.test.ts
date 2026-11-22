@@ -664,14 +664,30 @@ layer(withConfig({}))("OAuthApi token", (it) => {
       const response = yield* token(exchange);
 
       assert.deepStrictEqual(
-        { ...response, access_token: response.access_token.length },
+        {
+          ...response,
+          access_token: response.access_token.length,
+          refresh_token: response.refresh_token.length,
+        },
         {
           access_token: 43,
           token_type: "Bearer",
           expires_in: 3600,
           scope: "todos:list todos:write",
+          refresh_token: 43,
         },
       );
+    }),
+  );
+
+  it.effect("gives every token a refresh token of its own", () =>
+    Effect.gen(function* () {
+      const clientId = anAiClient();
+      const first = yield* token(yield* approvedCode(requestOf(clientId)));
+      const second = yield* token(yield* approvedCode(requestOf(clientId)));
+
+      assert.notStrictEqual(first.refresh_token, second.refresh_token);
+      assert.notStrictEqual(first.refresh_token, first.access_token);
     }),
   );
 
@@ -758,11 +774,15 @@ layer(withConfig({}))("OAuthApi token", (it) => {
   );
 });
 
+// Ada must be stored for her Grant to act; each test may be the first to need her.
+const storeAda = Effect.gen(function* () {
+  yield* (yield* UserRepository).create(ada, "unused").pipe(Effect.ignore);
+});
+
 /** The Permissions an access token opens, as `/api/mcp` will act with them. */
 const permissionsOf = (accessToken: string) =>
   Effect.gen(function* () {
-    // Ada must be stored for her Grant to act; each test may be the first to need her.
-    yield* (yield* UserRepository).create(ada, "unused").pipe(Effect.ignore);
+    yield* storeAda;
 
     const { permissions } = yield* (yield* Grants).authenticate(Redacted.make(accessToken));
 
@@ -794,6 +814,189 @@ layer(withConfig({}))("OAuthApi token, the Permissions of a token", (it) => {
       yield* approvedCode(requestOf(clientId, { scope: "todos:list" }));
 
       assert.deepStrictEqual(yield* permissionsOf(access_token), ["todos:list"]);
+    }),
+  );
+});
+
+/** Whether `/api/mcp` takes the access token. */
+const opens = (accessToken: string) =>
+  permissionsOf(accessToken).pipe(
+    Effect.as(true),
+    Effect.catchTag("Unauthenticated", () => Effect.succeed(false)),
+  );
+
+/** Ada approves a new AI Client and it exchanges the code: answers the tokens, and its client id. */
+const tokensOfANewAiClient = (scope = "todos:list todos:write") =>
+  Effect.gen(function* () {
+    yield* storeAda;
+    const clientId = anAiClient();
+    const tokens = yield* token(yield* approvedCode(requestOf(clientId, { scope })));
+
+    return { clientId, ...tokens };
+  });
+
+/** The refresh of `tokens`: a field `change` sets to undefined is left out. */
+const refreshing = (
+  { clientId, refresh_token }: { clientId: string; refresh_token: string },
+  change: Readonly<Record<string, string | undefined>> = {},
+): TokenRequestParams =>
+  Object.fromEntries(
+    Object.entries({
+      grant_type: "refresh_token",
+      refresh_token,
+      client_id: clientId,
+      resource,
+      ...change,
+    }).filter(([, value]) => value !== undefined),
+  );
+
+layer(withConfig({}))("OAuthApi token, a refresh", (it) => {
+  it.effect("trades a refresh token for new tokens of the same Grant, as the code gave them", () =>
+    Effect.gen(function* () {
+      const tokens = yield* tokensOfANewAiClient("todos:list");
+
+      const refreshed = yield* token(refreshing(tokens));
+
+      assert.deepStrictEqual(
+        { ...refreshed, access_token: undefined, refresh_token: undefined },
+        {
+          access_token: undefined,
+          token_type: "Bearer",
+          expires_in: 3600,
+          scope: "todos:list",
+          refresh_token: undefined,
+        },
+      );
+      assert.notStrictEqual(refreshed.access_token, tokens.access_token);
+      assert.notStrictEqual(refreshed.refresh_token, tokens.refresh_token);
+      assert.deepStrictEqual(yield* permissionsOf(refreshed.access_token), ["todos:list"]);
+    }),
+  );
+
+  it.effect("the resource may be left out of a refresh: the token keeps its own", () =>
+    Effect.gen(function* () {
+      const tokens = yield* tokensOfANewAiClient();
+
+      const refreshed = yield* token(refreshing(tokens, { resource: undefined }));
+
+      assert.isTrue(yield* opens(refreshed.access_token));
+    }),
+  );
+
+  it.effect("a refresh gives no Permission the User no longer approves", () =>
+    Effect.gen(function* () {
+      const tokens = yield* tokensOfANewAiClient("todos:list todos:delete");
+      yield* approvedCode(requestOf(tokens.clientId, { scope: "todos:list" }));
+
+      const refreshed = yield* token(refreshing(tokens));
+
+      assert.strictEqual(refreshed.scope, "todos:list");
+    }),
+  );
+
+  it.effect("each refresh token is replaced on use: the new one refreshes in turn", () =>
+    Effect.gen(function* () {
+      const tokens = yield* tokensOfANewAiClient();
+      const second = yield* token(refreshing(tokens));
+
+      const third = yield* token(refreshing({ ...tokens, ...second }));
+
+      assert.isTrue(yield* opens(third.access_token));
+    }),
+  );
+
+  it.effect("a refresh token presented again revokes the whole Grant", () =>
+    Effect.gen(function* () {
+      const tokens = yield* tokensOfANewAiClient();
+      const refreshed = yield* token(refreshing(tokens));
+
+      assert.strictEqual(yield* tokenRefusal(refreshing(tokens)), "invalid_grant");
+
+      assert.isFalse(yield* opens(refreshed.access_token));
+      assert.isFalse(yield* opens(tokens.access_token));
+      assert.strictEqual(
+        yield* tokenRefusal(refreshing({ ...tokens, ...refreshed })),
+        "invalid_grant",
+      );
+      assert.isTrue(Option.isNone(yield* (yield* GrantStore).findOf(ada.id, tokens.clientId)));
+    }),
+  );
+
+  it.effect("a Grant lasts 30 days from its last refresh, with no other limit", () =>
+    Effect.gen(function* () {
+      const { clientId, ...first } = yield* tokensOfANewAiClient();
+      let { refresh_token } = first;
+
+      for (let refresh = 0; refresh < 3; refresh++) {
+        yield* TestClock.adjust("29 days");
+        ({ refresh_token } = yield* token(refreshing({ clientId, refresh_token })));
+      }
+
+      yield* TestClock.adjust("30 days");
+
+      assert.strictEqual(
+        yield* tokenRefusal(refreshing({ clientId, refresh_token })),
+        "invalid_grant",
+      );
+    }),
+  );
+
+  it.effect("the access token of an expired Grant opens nothing", () =>
+    Effect.gen(function* () {
+      const tokens = yield* tokensOfANewAiClient();
+      const store = yield* GrantStore;
+
+      const grant = yield* store
+        .findOf(ada.id, tokens.clientId)
+        .pipe(Effect.map(Option.getOrThrow));
+
+      // A Grant whose 30 days end within the hour of its token.
+      yield* store.save({
+        ...grant,
+        expiresAt: DateTime.add(yield* DateTime.now, { minutes: 10 }),
+      });
+
+      yield* TestClock.adjust("10 minutes");
+
+      assert.isFalse(yield* opens(tokens.access_token));
+    }),
+  );
+
+  it.effect.each([
+    ["no refresh token", { refresh_token: undefined }, "invalid_request"],
+    [
+      "a refresh token Quack never gave",
+      { refresh_token: "not-a-token-of-quack" },
+      "invalid_grant",
+    ],
+    ["another AI Client", { client_id: "https://evil.example.com/client.json" }, "invalid_grant"],
+    ["no AI Client", { client_id: undefined }, "invalid_grant"],
+    ["another resource", { resource: "https://other.test/api/mcp" }, "invalid_target"],
+  ] as const)(
+    "refuses a refresh with %s, and leaves the refresh token as it was",
+    ([_, change, error]) =>
+      Effect.gen(function* () {
+        const tokens = yield* tokensOfANewAiClient();
+
+        assert.strictEqual(yield* tokenRefusal(refreshing(tokens, change)), error);
+
+        assert.isTrue(yield* opens((yield* token(refreshing(tokens))).access_token));
+      }),
+  );
+});
+
+// Ada is suspended here: the other tests need her active, so this one test has services of its own.
+layer(withConfig({}))("OAuthApi token, a User no longer active", (it) => {
+  it.effect("loses their Grant at their AI Client's next call", () =>
+    Effect.gen(function* () {
+      const tokens = yield* tokensOfANewAiClient();
+      assert.isTrue(yield* opens(tokens.access_token));
+
+      yield* (yield* UserRepository).update(new User({ ...ada, status: "suspended" }));
+
+      assert.isFalse(yield* opens(tokens.access_token));
+      assert.isTrue(Option.isNone(yield* (yield* GrantStore).findOf(ada.id, tokens.clientId)));
+      assert.strictEqual(yield* tokenRefusal(refreshing(tokens)), "invalid_grant");
     }),
   );
 });

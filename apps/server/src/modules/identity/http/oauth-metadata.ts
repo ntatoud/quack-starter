@@ -30,7 +30,7 @@ export const OAuthMetadataRoutes = HttpRouter.addAll(
         authorization_endpoint: `${publicOrigin}/oauth/authorize`,
         token_endpoint: `${publicOrigin}${Api.groups.oauth.endpoints.token.path}`,
         response_types_supported: ["code"],
-        grant_types_supported: ["authorization_code"],
+        grant_types_supported: ["authorization_code", "refresh_token"],
         code_challenge_methods_supported: ["S256"],
         token_endpoint_auth_methods_supported: ["none"],
         client_id_metadata_document_supported: true,

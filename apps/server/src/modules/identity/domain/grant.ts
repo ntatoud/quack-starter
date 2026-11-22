@@ -26,13 +26,15 @@ export const remembersConsent = (grant: GrantTerms, request: GrantTerms) =>
   redirectUriMatches(grant.redirectUri, request.redirectUri) &&
   request.permissions.every((permission) => grant.permissions.includes(permission));
 
-/** How long a Grant lasts once the User approves it, as a Session does. */
+/** How long a Grant lasts from the last approval or refresh, as a Session lasts from its last use. */
 export const grantLifetime = Duration.days(30);
 
 /** Short, since an AI Client keeps it where Quack cannot see: a leaked one opens the Grant for an hour at most. */
 export const accessTokenLifetime = Duration.hours(1);
 
 export const accessTokenBytes = 32;
+
+export const refreshTokenBytes = 32;
 
 export interface GrantDraft extends GrantTerms {
   readonly userId: UserId;
@@ -45,14 +47,29 @@ export interface Grant extends GrantDraft {
   readonly id: string;
 }
 
+/** What a token of a Grant opens, carried from the code it comes from to every token after. */
+export interface TokenTerms {
+  /** Its audience: the only resource that accepts it (RFC 8707). */
+  readonly resource: string;
+  /** Those of the code: approving more later gives an earlier code no more. */
+  readonly permissions: ReadonlyArray<Permission>;
+}
+
 /** The token lives only with the AI Client: a leaked store opens no Grant. */
-export interface AccessToken {
+export interface AccessToken extends TokenTerms {
   /** SHA-256 of the token, in hex. */
   readonly tokenHash: string;
   readonly grantId: string;
-  /** Its audience: the only resource that accepts it (RFC 8707). */
-  readonly resource: string;
-  /** Those of the code it was exchanged for: approving more later gives an earlier code no more. */
-  readonly permissions: ReadonlyArray<Permission>;
   readonly expiresAt: DateTime.Utc;
+}
+
+/**
+ * What an AI Client trades for a new access token while its Grant lasts, replaced on every use. A
+ * replaced one is kept, so the AI Client that presents it again shows it was stolen.
+ */
+export interface RefreshToken extends TokenTerms {
+  /** SHA-256 of the token, in hex. */
+  readonly tokenHash: string;
+  readonly grantId: string;
+  readonly replaced: boolean;
 }
