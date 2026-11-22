@@ -3,6 +3,17 @@ import * as React from "react";
 
 import { Button } from "@quack/ui/components/button";
 import { Checkbox } from "@quack/ui/components/checkbox";
+import {
+  RowSelectionBox,
+  RowSelectionRow,
+  SelectionContext,
+} from "@quack/ui/components/data-table/row-selection-parts";
+import {
+  SelectionBarBar,
+  SelectionBarRoot,
+  SelectionBarStatus,
+} from "@quack/ui/components/data-table/selection-bar-parts";
+import { TableRow } from "@quack/ui/components/table";
 
 /**
  * The rows selected in a table, by id (`getRowId`): what `DataTable` takes as `selection`. The selection is the
@@ -71,50 +82,25 @@ export function useDataTableSelection<TData>(
   );
 }
 
-export type SelectionModel = {
-  /** The ids of the rows of the table that can be selected, in their order. */
-  readonly selectable: ReadonlyArray<string>;
-  /** The same, to look one up in a large table. */
-  readonly selectableSet: ReadonlySet<string>;
-  readonly selected: ReadonlySet<string>;
-  readonly onSelectedChange: (selected: ReadonlySet<string>) => void;
-  readonly label: (rowId: string) => string | undefined;
-  /** Whether the rows selectable are all the rows, though only some show (a virtual table). */
-  readonly allRows: boolean;
-  /** The last row ticked, the start of a range: shared by every checkbox of the table. */
-  readonly anchor: {
-    readonly get: () => string | null;
-    readonly set: (rowId: string) => void;
-  };
-};
-
 /**
- * Ticks or unticks a row, or with `range` every row from the last one ticked to it, as a file list does: what a row
- * checkbox does, and Space on a focused row.
+ * A row of the table: with a `rowId`, a row of its selection, which hears Space on it (Shift from the last row
+ * pressed); without, a plain row.
  */
-export const selectRows = (
-  model: SelectionModel,
-  rowId: string,
-  checked: boolean,
-  range: boolean,
-) => {
-  const { selectable, selected, onSelectedChange, anchor } = model;
-  const from = anchor.get() === null ? -1 : selectable.indexOf(anchor.get() ?? "");
-  const to = selectable.indexOf(rowId);
-  const rows =
-    range && from !== -1 && to !== -1
-      ? selectable.slice(Math.min(from, to), Math.max(from, to) + 1)
-      : [rowId];
-  const next = new Set(selected);
-  for (const id of rows) {
-    if (checked) next.add(id);
-    else next.delete(id);
-  }
-  anchor.set(rowId);
-  onSelectedChange(next);
-};
-
-export const SelectionContext = React.createContext<SelectionModel | null>(null);
+export function SelectableRow({
+  rowId,
+  interactive,
+  ...props
+}: Omit<React.ComponentProps<typeof TableRow>, "id"> & { rowId?: string | undefined }) {
+  if (rowId === undefined) return <TableRow interactive={interactive} {...props} />;
+  return (
+    <RowSelectionRow
+      value={rowId}
+      render={<TableRow interactive={interactive} />}
+      // The props are a row's: `ComponentProps` allows an explicit `undefined` where a part's props do not.
+      {...(props as Omit<React.ComponentProps<typeof RowSelectionRow>, "value">)}
+    />
+  );
+}
 
 const useSelectionModel = () => {
   const model = React.use(SelectionContext);
@@ -124,25 +110,15 @@ const useSelectionModel = () => {
 
 /** The checkbox in the header: selects or clears every row of the table that can be selected. */
 export function SelectAllCheckbox() {
-  const { selectable, selected, onSelectedChange, allRows } = useSelectionModel();
-  const count = selectable.filter((id) => selected.has(id)).length;
-  const all = count > 0 && count === selectable.length;
+  const { selectable, selected, allRows, api } = useSelectionModel();
+  const count = [...selectable].filter((id) => selected.has(id)).length;
+  const all = count > 0 && count === selectable.size;
   return (
     <Checkbox
-      data-slot="data-table-select-all"
       aria-label={allRows ? "Select all rows" : "Select all rows shown"}
-      checked={all}
-      indeterminate={count > 0 && !all}
-      disabled={selectable.length === 0}
-      onCheckedChange={() => {
-        const next = new Set(selected);
-        // Partly selected, it selects every row; selected, it clears them. Rows of other pages stay as they are.
-        for (const id of selectable) {
-          if (all) next.delete(id);
-          else next.add(id);
-        }
-        onSelectedChange(next);
-      }}
+      checked={count > 0 && !all ? "indeterminate" : all}
+      disabled={selectable.size === 0}
+      onCheckedChange={() => api.toggleAll()}
     />
   );
 }
@@ -152,33 +128,17 @@ export function SelectAllCheckbox() {
  * list does.
  */
 export function SelectRowCheckbox({ rowId }: { rowId: string }) {
-  const model = useSelectionModel();
-  const { selectableSet, selected, label } = model;
-  const shift = React.useRef(false);
-  const canSelect = selectableSet.has(rowId);
+  const { api, selectable, selected, label } = useSelectionModel();
   return (
-    // The change event of a checkbox does not tell whether Shift was held: the press does, before the change.
-    <span
-      className="flex"
-      // Read on the press, not the click: Base UI ticks the box through a click of its hidden input, without Shift.
-      onPointerDownCapture={(event) => {
-        shift.current = event.shiftKey;
-      }}
-      onKeyDownCapture={(event) => {
-        if (event.key === " ") shift.current = event.shiftKey;
-      }}
-    >
+    // The change event of a checkbox does not tell whether Shift was held: the box reads it on the press.
+    <RowSelectionBox className="flex">
       <Checkbox
-        data-slot="data-table-select-row"
         aria-label={label(rowId) ?? "Select row"}
         checked={selected.has(rowId)}
-        disabled={!canSelect}
-        onCheckedChange={(checked) => {
-          selectRows(model, rowId, checked, shift.current);
-          shift.current = false;
-        }}
+        disabled={!selectable.has(rowId)}
+        onCheckedChange={() => api.press(rowId, { range: api.takeShift() })}
       />
-    </span>
+    </RowSelectionBox>
   );
 }
 
@@ -204,44 +164,10 @@ export function DataTableSelectionBar({
   children?: React.ReactNode;
 }) {
   const label = `${count} selected`;
-  const bar = React.useRef<HTMLDivElement>(null);
-  const hadFocus = React.useRef(false);
-  React.useLayoutEffect(() => {
-    if (count > 0 || !hadFocus.current) return;
-    hadFocus.current = false;
-    const active = document.activeElement;
-    // The focus moved on by itself (a dialog the action opened): it stays there.
-    if (active !== null && active !== document.body && !bar.current?.contains(active)) return;
-    // By default, the "select all" box of the nearest table around the bar.
-    let around = bar.current?.parentElement ?? null;
-    while (around !== null && around.querySelector("[data-slot=data-table]") === null)
-      around = around.parentElement;
-    const target =
-      focusOnEmpty?.() ??
-      around?.querySelector<HTMLElement>("[data-slot=data-table] thead [role=checkbox]");
-    target?.focus();
-  }, [count, focusOnEmpty]);
   return (
-    <>
-      <span role="status" className="sr-only">
-        {count > 0 ? label : ""}
-      </span>
-      <div
-        ref={bar}
-        data-slot="data-table-selection-bar"
-        role="region"
-        aria-label={label}
-        hidden={count === 0}
-        className="flex min-h-8 flex-wrap items-center gap-1 self-end rounded-md bg-muted p-1 ps-3 text-sm"
-        onFocus={() => {
-          hadFocus.current = true;
-        }}
-        onBlur={() => {
-          // Hidden with the focus inside, the bar loses it to nothing: that blur is the one to act on. Any other (a
-          // click on the page) lets the focus go for good.
-          if (!bar.current?.hidden) hadFocus.current = false;
-        }}
-      >
+    <SelectionBarRoot count={count} onClear={onClear} {...(focusOnEmpty && { focusOnEmpty })}>
+      <SelectionBarStatus className="sr-only">{count > 0 ? label : ""}</SelectionBarStatus>
+      <SelectionBarBar className="flex min-h-8 flex-wrap items-center gap-1 self-end rounded-md bg-muted p-1 ps-3 text-sm">
         <span aria-hidden className="me-1 font-medium whitespace-nowrap tabular-nums">
           {label}
         </span>
@@ -255,7 +181,7 @@ export function DataTableSelectionBar({
         >
           <XIcon />
         </Button>
-      </div>
-    </>
+      </SelectionBarBar>
+    </SelectionBarRoot>
   );
 }

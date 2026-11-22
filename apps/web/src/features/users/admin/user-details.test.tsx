@@ -142,7 +142,7 @@ describe("UserDetails", () => {
     const dialog = page.getByRole("alertdialog", { name: "Suspend Ada Lovelace?" });
     await expect.element(dialog).toBeVisible();
     expect(requests).not.toContain("PATCH /api/users/user-ada");
-    await dialog.getByRole("button", { name: "Suspend" }).click();
+    await dialog.getByRole("button", { name: "Suspend user" }).click();
 
     await expect.element(page.getByRole("button", { name: "Reactivate" })).toBeVisible();
     expect(page.getByRole("alertdialog").elements()).toHaveLength(0);
@@ -225,7 +225,7 @@ describe("UserDetails", () => {
 
     await page.getByRole("button", { name: "Suspend" }).click();
     const dialog = page.getByRole("alertdialog");
-    await dialog.getByRole("button", { name: "Suspend" }).click();
+    await dialog.getByRole("button", { name: "Suspend user" }).click();
 
     await expect
       .element(dialog.getByRole("alert").getByText(/Could not change the user/))
@@ -261,7 +261,7 @@ describe("UserDetails", () => {
     const dialog = page.getByRole("alertdialog", { name: "Delete Ada Lovelace?" });
     await expect.element(dialog.getByText(/cannot be undone/)).toBeVisible();
     expect(requests).not.toContain("DELETE /api/users/user-ada");
-    await dialog.getByRole("button", { name: "Delete" }).click();
+    await dialog.getByRole("button", { name: "Delete user" }).click();
 
     await expect.poll(() => router.state.location.pathname).toBe("/admin/users");
     expect(requests).toContain("DELETE /api/users/user-ada");
@@ -274,7 +274,7 @@ describe("UserDetails", () => {
 
     await page.getByRole("button", { name: "Delete" }).click();
     const dialog = page.getByRole("alertdialog", { name: "Delete Ada Lovelace?" });
-    await dialog.getByRole("button", { name: "Delete" }).click();
+    await dialog.getByRole("button", { name: "Delete user" }).click();
 
     await expect
       .element(dialog.getByRole("alert").getByText("Could not delete the user. Try again."))
@@ -291,7 +291,7 @@ describe("UserDetails", () => {
     );
 
     await page.getByRole("button", { name: "Delete" }).click();
-    await page.getByRole("alertdialog").getByRole("button", { name: "Delete" }).click();
+    await page.getByRole("alertdialog").getByRole("button", { name: "Delete user" }).click();
 
     await expect.poll(() => router.state.location.pathname).toBe("/admin/users");
   });

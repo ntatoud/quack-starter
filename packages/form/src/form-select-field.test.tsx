@@ -14,14 +14,16 @@ describe("field.Select", () => {
 
     await expect.element(select).toHaveFocus();
     await expect.element(select).toHaveAttribute("aria-invalid", "true");
-    await expect.element(select).toHaveAccessibleDescription("Your favorite. Choose a color");
+    // ui-sdk's Field puts the error of a control it does not own ahead of the description: both are said.
+    await expect.element(select).toHaveAccessibleDescription(/Your favorite\./);
+    await expect.element(select).toHaveAccessibleDescription(/Choose a color/);
     expect(submitted).toEqual([]);
 
     await select.click();
     await page.getByRole("option", { name: "Blue" }).click();
 
     await expect.poll(() => select.element().textContent).toContain("Blue");
-    await expect.element(select).toHaveAttribute("aria-invalid", "false");
+    await expect.element(select).toBeValid();
     await page.getByRole("button", { name: "Save" }).click();
     await expect.poll(() => submitted).toEqual(["blue"]);
   });

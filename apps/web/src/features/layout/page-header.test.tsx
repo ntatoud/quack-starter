@@ -1,5 +1,4 @@
 import { SidebarProvider } from "@quack/ui/components/sidebar";
-import { TooltipProvider } from "@quack/ui/components/tooltip";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -17,11 +16,9 @@ import { PageHeader } from "#/features/layout/page-header.tsx";
 const renderAt = async (path: string) => {
   const rootRoute = createRootRoute({
     component: () => (
-      <TooltipProvider>
-        <SidebarProvider>
-          <Outlet />
-        </SidebarProvider>
-      </TooltipProvider>
+      <SidebarProvider>
+        <Outlet />
+      </SidebarProvider>
     ),
   });
   const routes = [

@@ -203,6 +203,7 @@ function UserActions({ user }: { user: User }) {
             label="Suspend"
             title={`Suspend ${name}?`}
             description="They are signed out at their next request, and cannot sign in until they are reactivated."
+            confirmLabel="Suspend user"
             destructive
             {...confirmed("suspend", change, changeFailed)}
             onConfirm={() => apply({ status: "suspended" })}
@@ -217,6 +218,7 @@ function UserActions({ user }: { user: User }) {
           label="Delete"
           title={`Delete ${name}?`}
           description="Their profile, their todos, and their sessions go with them. This cannot be undone."
+          confirmLabel="Delete user"
           destructive
           {...confirmed("delete", remove, "Could not delete the user. Try again.")}
           onConfirm={() => remove.mutate({ params: { id: user.id } })}
@@ -243,6 +245,7 @@ function ConfirmButton({
   label,
   title,
   description,
+  confirmLabel = label,
   destructive = false,
   open,
   onOpenChange,
@@ -253,6 +256,8 @@ function ConfirmButton({
   label: string;
   title: string;
   description: string;
+  /** Not part of the trigger's label for a `destructive` one: an agent pressing it must not match the trigger. */
+  confirmLabel?: string;
   destructive?: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -287,8 +292,9 @@ function ConfirmButton({
             variant={destructive ? "destructive" : "default"}
             disabled={busy}
             onClick={onConfirm}
+            data-agent-confirm={destructive ? `${title} ${description}` : undefined}
           >
-            {label}
+            {confirmLabel}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

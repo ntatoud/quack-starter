@@ -3,7 +3,7 @@
   "compilerOptions": {
     // The browser tests import the theme's stylesheet.
     "types": ["vite-plus/client"],
-    // The shadcn CLI resolves the aliases of components.json through these paths.
+    // A component imports its siblings by the package name, as the apps do.
     "paths": {
       "@quack/ui/*": ["./src/*"]
     }

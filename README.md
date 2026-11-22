@@ -4,7 +4,7 @@
 
 A starting point for TypeScript web applications.
 
-- **Front end**: [TanStack Start](https://tanstack.com/start), React 19, Tailwind v4, [shadcn/ui](https://ui.shadcn.com)
+- **Front end**: [TanStack Start](https://tanstack.com/start), React 19, Tailwind v4, [ui-sdk](https://ui-sdk.dev)
 - **Back end**: [Effect](https://effect.website) v4 with `HttpApi`, on Node.js
 - **Monorepo**: pnpm workspaces and [Vite+](https://viteplus.dev) (task runner with cache, lint, format, test)
 - **Types end to end**: the server and the web client are both derived from one API definition in `packages/contracts`
@@ -64,7 +64,7 @@ apps/
   web/            TanStack Start app
 packages/
   contracts/      Schemas and the API definition shared by both apps
-  ui/             shadcn components and the Tailwind theme
+  ui/             ui-sdk components and the Tailwind theme
   form/           Form hook and its components: TanStack Form, validated by Effect schemas
   oxlint-plugin/  Lint rules: no relative imports, module boundaries, no sql.unsafe outside migrations
 docs/adr/         Architecture decisions

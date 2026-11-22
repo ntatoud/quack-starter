@@ -1,12 +1,12 @@
 import type { DataTableFilter } from "@quack/ui/components/data-table/filters/filter";
 import { ClearOptionsItem } from "@quack/ui/components/data-table/filters/options";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from "@quack/ui/components/dropdown-menu";
+  Menu,
+  MenuContent,
+  MenuRadioGroup,
+  MenuRadioItem,
+  MenuTrigger,
+} from "@quack/ui/components/menu";
 
 // A radio item holds text, so each boolean goes through the text of its item.
 const valueOf = { true: true, false: false } as const;
@@ -22,22 +22,22 @@ export const booleanFilter = ({
   title,
   summary: (value) => labels[`${value}`],
   editor: ({ trigger, value, onValueChange, open, onOpenChange }) => (
-    <DropdownMenu open={open} onOpenChange={onOpenChange}>
-      <DropdownMenuTrigger {...trigger} />
-      <DropdownMenuContent className="w-auto min-w-32">
-        <DropdownMenuRadioGroup
+    <Menu open={open} onOpenChange={onOpenChange}>
+      <MenuTrigger {...trigger} />
+      <MenuContent className="min-w-32">
+        <MenuRadioGroup
           value={value === undefined ? null : `${value}`}
           onValueChange={(next: keyof typeof valueOf) => onValueChange(valueOf[next])}
         >
-          <DropdownMenuRadioItem value="true" closeOnClick>
+          <MenuRadioItem value="true" closeOnSelect>
             {labels.true}
-          </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="false" closeOnClick>
+          </MenuRadioItem>
+          <MenuRadioItem value="false" closeOnSelect>
             {labels.false}
-          </DropdownMenuRadioItem>
-        </DropdownMenuRadioGroup>
+          </MenuRadioItem>
+        </MenuRadioGroup>
         {value !== undefined && <ClearOptionsItem onClear={() => onValueChange(undefined)} />}
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </MenuContent>
+    </Menu>
   ),
 });

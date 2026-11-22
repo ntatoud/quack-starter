@@ -2,12 +2,7 @@ import { PlusIcon } from "lucide-react";
 import * as React from "react";
 
 import { Button } from "@quack/ui/components/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@quack/ui/components/dropdown-menu";
+import { Menu, MenuContent, MenuItem, MenuTrigger } from "@quack/ui/components/menu";
 
 /** Renders nothing once every filter is shown. */
 export function DataTableAddFilter<Key extends string>({
@@ -26,37 +21,36 @@ export function DataTableAddFilter<Key extends string>({
   if (filters.length === 0) return null;
 
   return (
-    <DropdownMenu
+    <Menu
       onOpenChange={(next) => {
         if (next) chosen.current = null;
       }}
       onOpenChangeComplete={(next) => {
         const key = chosen.current;
         if (next || key === null) return;
-        chosen.current = null;
         onAdd(key);
       }}
     >
-      <DropdownMenuTrigger
+      <MenuTrigger
         render={
           <Button ref={ref} data-slot="data-table-add-filter" variant="ghost" size="default" />
         }
       >
         <PlusIcon />
         Add filter
-      </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-auto min-w-36" finalFocus={() => chosen.current === null}>
+      </MenuTrigger>
+      <MenuContent className="min-w-36">
         {filters.map(({ key, title }) => (
-          <DropdownMenuItem
+          <MenuItem
             key={key}
-            onClick={() => {
+            onSelect={() => {
               chosen.current = key;
             }}
           >
             {title}
-          </DropdownMenuItem>
+          </MenuItem>
         ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </MenuContent>
+    </Menu>
   );
 }

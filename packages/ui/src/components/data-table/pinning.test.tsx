@@ -1,4 +1,3 @@
-import { DirectionProvider } from "@base-ui/react/direction-provider";
 import { describe, expect, it } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 
@@ -89,7 +88,7 @@ const header = (name: string) =>
   elementOf(HTMLElement, page.getByRole("columnheader", { name, exact: true }).element());
 /** The headers of the first header row, in their order: the columns outside a group, and the groups. */
 const order = () => document.querySelectorAll("thead tr:first-child th");
-const viewport = () => slot("data-table-viewport");
+const viewport = () => slot("scroll-area-viewport");
 const state = () => page.getByRole("status", { name: "State" });
 const box = (name: string) => header(name).getBoundingClientRect();
 // The line a pinned cell draws on its end side: a horizontal inset shadow, unlike the line under the header.
@@ -132,6 +131,16 @@ describe("DataTable pinned columns", () => {
       .poll(() => box("Name").left - select.getBoundingClientRect().right)
       .toBeCloseTo(0, 0);
     expect(box("Email").left - box("Name").right).toBeCloseTo(0, 0);
+    // The offsets follow the widths a frame later, so a header whose width settled after the first render (a font
+    // arriving) is not yet held where it sits: scrolling before then would hold it short.
+    await expect
+      .poll(() =>
+        Math.abs(
+          Number.parseFloat(getComputedStyle(header("Email")).getPropertyValue("--pin-start")) -
+            (box("Email").left - select.getBoundingClientRect().left),
+        ),
+      )
+      .toBeLessThan(0.5);
     expect(getComputedStyle(header("Email")).boxShadow).not.toMatch(endEdge.ltr);
     const [selectLeft, nameLeft, emailLeft, roleLeft] = [
       select.getBoundingClientRect().left,
@@ -153,11 +162,9 @@ describe("DataTable pinned columns", () => {
 
   it("holds them at the right edge, right to left", async () => {
     await render(
-      <DirectionProvider direction="rtl">
-        <div dir="rtl">
-          <People initial={{ pinned: ["name"] }} />
-        </div>
-      </DirectionProvider>,
+      <div dir="rtl">
+        <People initial={{ pinned: ["name"] }} />
+      </div>,
     );
     await expect.element(header("Name")).toBeVisible();
     await expect

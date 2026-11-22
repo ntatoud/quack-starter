@@ -13,7 +13,6 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { render } from "vitest-browser-react";
 
-import { TooltipProvider } from "@quack/ui/components/tooltip";
 import { elementOf } from "@quack/ui/testing/dom";
 
 import { UsersList } from "#/features/users/admin/users-list.tsx";
@@ -75,7 +74,7 @@ const headerOf = (title: string) => page.getByRole("table").getByText(title, { e
 const scrollerOfTable = () =>
   elementOf(
     HTMLElement,
-    page.getByRole("table").element().closest("[data-slot=data-table-viewport]"),
+    page.getByRole("table").element().closest("[data-slot=scroll-area-viewport]"),
   );
 
 const currentPages = () =>
@@ -100,11 +99,9 @@ const setup = async (
     validateSearch: Schema.toStandardSchemaV1(UsersSearch),
     component: function Users() {
       return (
-        <TooltipProvider>
-          <div style={{ ...size, display: "flex", flexDirection: "column" }}>
-            <UsersList table={useUsersTable(usersRoute.useSearch())} />
-          </div>
-        </TooltipProvider>
+        <div style={{ ...size, display: "flex", flexDirection: "column" }}>
+          <UsersList table={useUsersTable(usersRoute.useSearch())} />
+        </div>
       );
     },
   });

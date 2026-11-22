@@ -1,12 +1,13 @@
 # AGENTS.md
 
-A starter for TypeScript web apps: TanStack Start + shadcn on the front, Effect v4 on the back, in a pnpm + Vite+ (`vp`) monorepo. The words of the domain are defined in `GLOSSARY.md`: use them as defined.
+A starter for TypeScript web apps: TanStack Start + ui-sdk on the front, Effect v4 on the back, in a pnpm + Vite+ (`vp`) monorepo. The words of the domain are defined in `GLOSSARY.md`: use them as defined.
 
 Read the guide of the part you change before you change it:
 
 - `apps/server/AGENTS.md`: the API, its modules, the database, the server's tests.
 - `apps/web/AGENTS.md`: routes, pages, calls to the API, tables, forms.
 - `packages/form/AGENTS.md`: a new control for `@quack/form`.
+- `packages/ui/AGENTS.md`: a component, built on ui-sdk.
 
 ## Commands
 
@@ -22,7 +23,7 @@ One package: `vp run --filter @quack/server test`. One file: `vp test run src/pa
 apps/server             Effect HTTP API (Node)
 apps/web                TanStack Start app
 packages/contracts      Schemas and the HttpApi definition, shared by the server and the web app
-packages/ui             shadcn components and the Tailwind theme
+packages/ui             Components built on ui-sdk, and the Tailwind theme
 packages/form           Form hook and its components: TanStack Form, validated by Effect schemas
 packages/ui-state       UiState: what a screen shows while data loads, one case per state
 packages/effect-query   TanStack Query options from Effects
@@ -31,7 +32,7 @@ packages/oxlint-plugin  Lint rules of this repo
 
 Packages import each other's TypeScript sources through `exports`, by file path, with no barrel and no build step: `@quack/contracts/todos/todo`, `@quack/ui/components/button`.
 
-Add a shadcn component with `pnpm dlx shadcn@latest add <name>` from `packages/ui`. Restyle it for one screen with `className` or composition, leaving the generated file as generated.
+A component of `packages/ui` is built on ui-sdk, and exposes its parts and props: to add one, follow `packages/ui/AGENTS.md`. Restyle it for one screen with `className` or composition.
 
 ## Contracts
 

@@ -1,5 +1,7 @@
+/* Declared first, so the theme wins over the CSS ui-sdk adds to the page. */
+@layer ui-sdk;
+
 @import "tailwindcss";
-@import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
 

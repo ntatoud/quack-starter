@@ -11,12 +11,7 @@ import {
   OptionsStatusItems,
   UnknownValue,
 } from "@quack/ui/components/data-table/filters/options";
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@quack/ui/components/dropdown-menu";
+import { Menu, MenuCheckboxItem, MenuContent, MenuTrigger } from "@quack/ui/components/menu";
 
 const namedLabels = 2;
 
@@ -78,34 +73,36 @@ export const multiSelectFilter = <const Value extends string>({
         );
       return (
         <>
-          <DropdownMenu open={open} onOpenChange={onOpenChange}>
-            <DropdownMenuTrigger {...trigger} />
-            <DropdownMenuContent className="w-auto min-w-36">
+          <Menu open={open} onOpenChange={onOpenChange}>
+            <MenuTrigger {...trigger} />
+            <MenuContent className="min-w-36">
               <OptionsStatusItems status={status} count={options.length} />
               {options.map((option) => (
-                <DropdownMenuCheckboxItem
+                <MenuCheckboxItem
                   indicator="checkbox"
                   key={option.value}
+                  value={option.value}
                   checked={value.includes(option.value)}
                   onCheckedChange={() => toggle(option.value)}
                 >
                   {option.label}
                   <OptionCount count={option.count} />
-                </DropdownMenuCheckboxItem>
+                </MenuCheckboxItem>
               ))}
               {unknownOf(value).map((unknown) => (
-                <DropdownMenuCheckboxItem
+                <MenuCheckboxItem
                   indicator="checkbox"
                   key={unknown}
+                  value={unknown}
                   checked
                   onCheckedChange={() => toggle(unknown)}
                 >
                   <UnknownValue value={unknown} status={status} count={options.length} />
-                </DropdownMenuCheckboxItem>
+                </MenuCheckboxItem>
               ))}
               {value.length > 0 && <ClearOptionsItem onClear={() => onValueChange([])} />}
-            </DropdownMenuContent>
-          </DropdownMenu>
+            </MenuContent>
+          </Menu>
           <OptionsAnnouncement status={status} count={options.length} open={open} />
         </>
       );

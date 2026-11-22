@@ -1,13 +1,13 @@
 import type { User } from "@quack/contracts/identity/user";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@quack/ui/components/dropdown-menu";
+  Menu,
+  MenuContent,
+  MenuGroup,
+  MenuItem,
+  MenuGroupLabel,
+  MenuSeparator,
+  MenuTrigger,
+} from "@quack/ui/components/menu";
 import {
   SidebarMenu,
   SidebarMenuButton,
@@ -30,56 +30,56 @@ export function UserMenu({ currentUser }: { currentUser: typeof User.Encoded }) 
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <DropdownMenu onOpenChange={(open) => open && signOut.isError && signOut.reset()}>
-          <DropdownMenuTrigger
+        <Menu onOpenChange={(open) => open && signOut.isError && signOut.reset()}>
+          <MenuTrigger
             render={
               <SidebarMenuButton
                 size="lg"
                 tooltip={displayName(currentUser)}
-                className="data-popup-open:bg-sidebar-accent data-popup-open:text-sidebar-accent-foreground"
+                className="data-open:bg-sidebar-accent data-open:text-sidebar-accent-foreground"
               />
             }
           >
             <UserIdentity currentUser={currentUser} />
             <ChevronsUpDownIcon className="ml-auto" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
+          </MenuTrigger>
+          <MenuContent
             side={isMobile ? "bottom" : isRightSidebar ? "left" : "right"}
             align="end"
             sideOffset={4}
             className="w-(--anchor-width) min-w-56 rounded-lg"
           >
-            <DropdownMenuGroup>
-              <DropdownMenuLabel className="p-0 font-normal">
+            <MenuGroup>
+              <MenuGroupLabel className="p-0 font-normal">
                 <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm text-foreground">
                   <UserIdentity currentUser={currentUser} />
                 </div>
-              </DropdownMenuLabel>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuItem render={<Link to="/app/settings" />}>
+              </MenuGroupLabel>
+            </MenuGroup>
+            <MenuSeparator />
+            <MenuGroup>
+              <MenuItem render={<Link to="/app/settings" />}>
                 <SettingsIcon />
                 Settings
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
+              </MenuItem>
+            </MenuGroup>
+            <MenuSeparator />
             {/* Stays open on click, so a failed sign-out is said where it was asked. */}
-            <DropdownMenuItem
-              closeOnClick={false}
+            <MenuItem
+              closeOnSelect={false}
               disabled={signOut.isPending}
-              onClick={() => signOut.mutate(undefined)}
+              onSelect={() => signOut.mutate(undefined)}
             >
               <LogOutIcon />
               {signOut.isPending ? "Signing out…" : "Sign out"}
-            </DropdownMenuItem>
+            </MenuItem>
             {signOut.isError && (
               <p role="alert" className="px-2 py-1.5 text-xs text-destructive">
                 Could not sign out. Try again.
               </p>
             )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+          </MenuContent>
+        </Menu>
       </SidebarMenuItem>
     </SidebarMenu>
   );

@@ -1,6 +1,6 @@
 import { LoaderCircleIcon, RotateCwIcon } from "lucide-react";
 
-import { DropdownMenuItem, DropdownMenuSeparator } from "@quack/ui/components/dropdown-menu";
+import { MenuItem, MenuSeparator } from "@quack/ui/components/menu";
 
 export type DataTableFilterOption<Value extends string> = {
   readonly value: Value;
@@ -64,8 +64,8 @@ export function OptionCount({ count }: { count: number | undefined }) {
 export function ClearOptionsItem({ onClear }: { onClear: () => void }) {
   return (
     <>
-      <DropdownMenuSeparator />
-      <DropdownMenuItem onClick={onClear}>Clear</DropdownMenuItem>
+      <MenuSeparator />
+      <MenuItem onSelect={onClear}>Clear</MenuItem>
     </>
   );
 }
@@ -83,29 +83,29 @@ export function OptionsStatusItems({
   if (status.error !== undefined)
     return (
       <>
-        <DropdownMenuItem disabled>Could not load the options</DropdownMenuItem>
+        <MenuItem disabled>Could not load the options</MenuItem>
         {status.loading === true ? (
-          <DropdownMenuItem disabled>
+          <MenuItem disabled>
             <LoaderCircleIcon className="animate-spin text-muted-foreground motion-reduce:animate-none" />
             Trying again…
-          </DropdownMenuItem>
+          </MenuItem>
         ) : (
-          <DropdownMenuItem closeOnClick={false} onClick={status.error.retry}>
+          <MenuItem closeOnSelect={false} onSelect={status.error.retry}>
             <RotateCwIcon className="text-muted-foreground" />
             Try again
-          </DropdownMenuItem>
+          </MenuItem>
         )}
-        {!empty && <DropdownMenuSeparator />}
+        {!empty && <MenuSeparator />}
       </>
     );
   if (status.loading === true && empty)
     return (
-      <DropdownMenuItem disabled>
+      <MenuItem disabled>
         <LoaderCircleIcon className="animate-spin text-muted-foreground motion-reduce:animate-none" />
         Loading…
-      </DropdownMenuItem>
+      </MenuItem>
     );
-  if (empty) return <DropdownMenuItem disabled>No options</DropdownMenuItem>;
+  if (empty) return <MenuItem disabled>No options</MenuItem>;
   return null;
 }
 

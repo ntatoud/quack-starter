@@ -42,7 +42,7 @@ describe("form.SubmitButton", () => {
     expect(onSubmit).toHaveBeenCalledTimes(1);
 
     response.resolve();
-    await expect.element(save).toHaveAttribute("aria-disabled", "false");
+    await expect.element(save).not.toHaveAttribute("aria-disabled");
     await expect.element(save).toHaveStyle({ opacity: "1" });
   });
 
@@ -53,6 +53,6 @@ describe("form.SubmitButton", () => {
     await save.click();
     await expect.element(page.getByText("Name is required")).toBeVisible();
 
-    await expect.element(save).toHaveAttribute("aria-disabled", "false");
+    await expect.element(save).not.toHaveAttribute("aria-disabled");
   });
 });

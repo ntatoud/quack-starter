@@ -22,10 +22,7 @@ export default defineConfig({
   lint: {
     ignorePatterns: GENERATED,
     plugins: ["eslint", "oxc", "react", "unicorn", "typescript"],
-    jsPlugins: ["@shadcn/lint", "@quack/oxlint-plugin"],
-    settings: {
-      shadcn: { ui: "@quack/ui/components" },
-    },
+    jsPlugins: ["@quack/oxlint-plugin"],
     categories: {
       correctness: "error",
       suspicious: "warn",

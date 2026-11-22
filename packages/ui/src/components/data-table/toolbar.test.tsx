@@ -1,4 +1,3 @@
-import { DirectionProvider } from "@base-ui/react/direction-provider";
 import { useState } from "react";
 import { describe, expect, it, onTestFinished, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
@@ -376,6 +375,7 @@ describe("DataTableToolbar", () => {
     const { last } = await setup();
 
     await addFilter("Amount");
+    await expect.element(page.getByRole("spinbutton", { name: "Minimum" })).toHaveFocus();
     await page.getByRole("spinbutton", { name: "Minimum" }).fill("10");
     await page.getByRole("button", { name: "Apply" }).click();
 
@@ -560,11 +560,9 @@ describe("DataTableToolbar layout", () => {
         document.documentElement.style.fontSize = "";
       });
       await render(
-        <DirectionProvider direction={direction}>
-          <div dir={direction}>
-            <Layout initial={{ status: "active", tags: ["vip"] }} />
-          </div>
-        </DirectionProvider>,
+        <div dir={direction}>
+          <Layout initial={{ status: "active", tags: ["vip"] }} />
+        </div>,
       );
       await expect.element(chip("Tags")).toBeVisible();
 

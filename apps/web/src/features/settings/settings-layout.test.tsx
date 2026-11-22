@@ -1,5 +1,4 @@
 import { SidebarProvider } from "@quack/ui/components/sidebar";
-import { TooltipProvider } from "@quack/ui/components/tooltip";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -20,11 +19,9 @@ const setup = async (path: string, preferences: Partial<PreferenceValues> = {}) 
   await page.viewport(1280, 800);
   const rootRoute = createRootRoute({
     component: () => (
-      <TooltipProvider>
-        <SidebarProvider>
-          <Outlet />
-        </SidebarProvider>
-      </TooltipProvider>
+      <SidebarProvider>
+        <Outlet />
+      </SidebarProvider>
     ),
   });
   const settings = createRoute({

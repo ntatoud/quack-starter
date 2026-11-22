@@ -1,5 +1,5 @@
 import { XIcon } from "lucide-react";
-import type * as React from "react";
+import * as React from "react";
 
 import { Button } from "@quack/ui/components/button";
 import { isEmptyValue } from "@quack/ui/lib/data-table/state";
@@ -59,6 +59,18 @@ export const isFilterEmpty = <Read,>(
   // `null` too: a nullable field of the state holds it, and a filter's own `isEmpty` reads only its values.
   value === undefined || value === null || (filter.isEmpty ?? isEmptyValue)(value);
 
+/**
+ * `open`, held back one frame after mount: a popup rendered open takes no focus, and a filter just added mounts open.
+ */
+function useOpenOnceMounted(open: boolean) {
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => {
+    const frame = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(frame);
+  }, []);
+  return open && mounted;
+}
+
 /** The popup of a filter whose editor is a form rather than a list of options: a range, an operator... */
 export function DataTableFilterPopover({
   trigger,
@@ -82,7 +94,7 @@ export function DataTableFilterPopover({
 }
 
 const triggerClassName =
-  "flex h-full min-w-0 cursor-pointer items-center gap-1 rounded-s-md ps-2.5 pe-1 outline-none hover:bg-foreground/5 focus-visible:ring-3 focus-visible:ring-ring/50 data-popup-open:bg-foreground/5";
+  "flex h-full min-w-0 cursor-pointer items-center gap-1 rounded-s-md ps-2.5 pe-1 outline-none hover:bg-foreground/5 focus-visible:ring-3 focus-visible:ring-ring/50 data-open:bg-foreground/5";
 
 /** A filter shown above a table: its title, what it holds, its editor, and a button to remove it. */
 export function DataTableFilterChip<Read, Write>({
@@ -101,8 +113,17 @@ export function DataTableFilterChip<Read, Write>({
   /** The button goes away with the filter: give the focus another place. */
   onRemove: () => void;
 }) {
+  const editorOpen = useOpenOnceMounted(open);
+  const root = React.useRef<HTMLDivElement>(null);
+  // A menu opened by code takes no focus, and a filter just added from a header opens that way, with the focus
+  // left on the header: it goes to the trigger of the filter, so Escape and the arrow keys act on it.
+  React.useEffect(() => {
+    if (editorOpen && root.current?.contains(document.activeElement) === false)
+      root.current.querySelector<HTMLElement>("button")?.focus();
+  }, [editorOpen]);
   return (
     <div
+      ref={root}
       data-slot="data-table-filter-chip"
       role="group"
       aria-label={`${filter.title} filter`}
@@ -136,7 +157,7 @@ export function DataTableFilterChip<Read, Write>({
         title: filter.title,
         value,
         onValueChange,
-        open,
+        open: editorOpen,
         onOpenChange,
       })}
       <Button

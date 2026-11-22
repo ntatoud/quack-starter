@@ -86,7 +86,9 @@ describe("AuthenticatedLayout", () => {
 
     await expect.element(page.getByRole("dialog")).toBeVisible();
     await expect.element(page.getByText("Signed in as ada@example.com")).toBeVisible();
-    expect(page.getByRole("button", { name: "A page of the app" }).elements()).toEqual([]);
+    // The dialog makes the rest of the page inert, which the accessibility tree of a query still lists.
+    const behind = page.getByRole("button", { name: "A page of the app" }).element();
+    await expect.poll(() => behind.matches(":is([inert], [inert] *)")).toBe(true);
   });
 
   it("keeps the page out of reach of a User with a Profile who has not completed the onboarding", async () => {

@@ -25,21 +25,22 @@ export function FormComboboxField({
 }) {
   const control = useFieldControl();
   const { field, id, size, invalid, describedBy } = control;
+
   const labels = new Map(options.map((option) => [option.value, option.label]));
 
   return (
     <>
       <Combobox
-        items={options.map((option) => option.value)}
-        itemToStringLabel={(value: string) => labels.get(value) ?? value}
-        // Base UI calls `null` the value the field holds as `""`: nothing chosen.
+        // The list is closed until opened: the input still shows the label of the value.
+        itemToLabel={(value) => labels.get(value) ?? value}
+        // ui-sdk calls `null` the value of nothing chosen, which the field holds as `""`.
         value={field.state.value === "" ? null : field.state.value}
-        onValueChange={(value: string | null) => field.handleChange(value ?? "")}
+        onValueChange={(value) => field.handleChange(value ?? "")}
+        name={field.name}
       >
         <ComboboxInput
           id={id}
-          name={field.name}
-          placeholder={placeholder}
+          {...(placeholder === undefined ? {} : { placeholder })}
           showClear={clearable && field.state.value !== ""}
           size={size}
           className="w-full"
@@ -50,11 +51,11 @@ export function FormComboboxField({
         <ComboboxContent>
           <ComboboxEmpty>{empty}</ComboboxEmpty>
           <ComboboxList>
-            {(value: string) => (
-              <ComboboxItem key={value} value={value}>
-                {labels.get(value) ?? value}
+            {options.map((option) => (
+              <ComboboxItem key={option.value} value={option.value} label={option.label}>
+                {option.label}
               </ComboboxItem>
-            )}
+            ))}
           </ComboboxList>
         </ComboboxContent>
       </Combobox>
