@@ -4,12 +4,12 @@ import { CurrentUser } from "@quack/contracts/identity/authentication";
 import { Effect } from "effect";
 import { HttpApiBuilder } from "effect/http-api";
 
-import type { Grant as GrantTerms } from "#/modules/identity/domain/grant.ts";
+import type { Grant as StoredGrant } from "#/modules/identity/domain/grant.ts";
 
 import { Grants } from "#/modules/identity/application/grants.ts";
 import { isLoopback } from "#/modules/identity/domain/redirect-uri.ts";
 
-const grantOf = (grant: GrantTerms) =>
+const grantOf = (grant: StoredGrant) =>
   new Grant({
     id: GrantId.make(grant.id),
     aiClient: {
