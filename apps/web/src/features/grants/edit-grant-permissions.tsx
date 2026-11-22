@@ -23,36 +23,41 @@ import { invalidating } from "#/lib/invalidate-queries.ts";
 import { listOf, listParts } from "#/lib/list-of.ts";
 import { toggled } from "#/lib/toggled.ts";
 
-/** "Claude gains todos:delete and loses todos:write, from its next call.", each Permission as a badge. */
-function ChangeSentence({
-  name,
-  added,
-  removed,
-}: {
-  name: string;
-  added: ReadonlyArray<Permission>;
-  removed: ReadonlyArray<Permission>;
-}) {
-  return (
-    <>
-      {name}
-      {added.length > 0 && (
-        <>
-          {" gains "}
-          <Badges permissions={added} />
-        </>
-      )}
-      {added.length > 0 && removed.length > 0 && " and"}
-      {removed.length > 0 && (
-        <>
-          {" loses "}
-          <Badges permissions={removed} />
-        </>
-      )}
-      , from its next call.
-    </>
-  );
-}
+/**
+ * "Claude gains todos:delete and loses todos:write, from its next call.", in parts: words, and lists of Permissions,
+ * which the dialog shows as badges.
+ */
+type SentencePart =
+  | { readonly _tag: "Words"; readonly key: string; readonly text: string }
+  | {
+      readonly _tag: "Permissions";
+      readonly key: string;
+      readonly permissions: ReadonlyArray<Permission>;
+    };
+
+const words = (key: string, text: string): SentencePart => ({ _tag: "Words", key, text });
+
+const changeSentence = (
+  name: string,
+  added: ReadonlyArray<Permission>,
+  removed: ReadonlyArray<Permission>,
+): ReadonlyArray<SentencePart> => [
+  words("name", name),
+  ...(added.length > 0
+    ? [
+        words("gains", " gains "),
+        { _tag: "Permissions", key: "added", permissions: added } as const,
+      ]
+    : []),
+  ...(added.length > 0 && removed.length > 0 ? [words("and", " and")] : []),
+  ...(removed.length > 0
+    ? [
+        words("loses", " loses "),
+        { _tag: "Permissions", key: "removed", permissions: removed } as const,
+      ]
+    : []),
+  words("end", ", from its next call."),
+];
 
 function Badges({ permissions }: { permissions: ReadonlyArray<Permission> }) {
   return listParts(permissions).map(({ separator, word }) => (
@@ -82,11 +87,12 @@ export function EditGrantPermissions({ grant }: { grant: Grant }) {
   const removed = grant.permissions.filter((permission) => !ticked.has(permission));
   const title = `Change ${name}'s permissions?`;
 
-  // The sentence of `ChangeSentence`, as text for a screen reader and an agent.
-  const consequence = `${name} ${[
-    ...(added.length > 0 ? [`gains ${listOf(added)}`] : []),
-    ...(removed.length > 0 ? [`loses ${listOf(removed)}`] : []),
-  ].join(" and ")}, from its next call.`;
+  const sentence = changeSentence(name, added, removed);
+
+  // As text for a screen reader and an agent.
+  const consequence = sentence
+    .map((part) => (part._tag === "Words" ? part.text : listOf(part.permissions)))
+    .join("");
 
   return (
     <Dialog
@@ -116,7 +122,13 @@ export function EditGrantPermissions({ grant }: { grant: Grant }) {
                 {/* A badge is a box of its own, which a screen reader would set apart from the comma after it. */}
                 <span className="sr-only">{consequence}</span>
                 <span aria-hidden>
-                  <ChangeSentence name={name} added={added} removed={removed} />
+                  {sentence.map((part) =>
+                    part._tag === "Words" ? (
+                      <Fragment key={part.key}>{part.text}</Fragment>
+                    ) : (
+                      <Badges key={part.key} permissions={part.permissions} />
+                    ),
+                  )}
                 </span>
               </DialogDescription>
             </DialogHeader>

@@ -669,6 +669,7 @@ describe("server routes of an AI Client", () => {
     name: string,
     accessToken: string,
     overrides: Readonly<Record<string, string | undefined>> = {},
+    toolArguments: Readonly<Record<string, string>> = {},
   ) =>
     handler(
       new Request("http://api.test/api/mcp", {
@@ -688,7 +689,7 @@ describe("server routes of an AI Client", () => {
           method: "tools/call",
           params: {
             name,
-            arguments: {},
+            arguments: toolArguments,
             _meta: statelessMeta,
           },
         }),
@@ -763,6 +764,35 @@ describe("server routes of an AI Client", () => {
       'Bearer error="insufficient_scope", scope="todos:list todos:write todos:delete", resource_metadata="https://quack.test/.well-known/oauth-protected-resource/api/mcp"',
     );
     expect((await callTool("todos_list", access_token)).status).toBe(200);
+  });
+
+  it("the User adds a Permission to an AI Client: its next call needing it works, with no consent page", async () => {
+    const cookie = await sessionCookieOf("ai-client-widened@example.com", "203.0.113.93");
+    const token = await exchange(await approvedCode(cookie, "todos:list"));
+    const { access_token } = (await token.json()) as Tokens;
+    const create = () => callTool("todos_create", access_token, {}, { title: "Feed the ducks" });
+    expect((await create()).status).toBe(403);
+
+    const listed = await handler(
+      new Request("http://api.test/api/grants", { headers: { cookie } }),
+    );
+
+    const [grant] = (await listed.json()) as Array<{ id: string }>;
+
+    const changed = await handler(
+      new Request(`http://api.test/api/grants/${grant?.id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json", cookie },
+        body: JSON.stringify({ permissions: ["todos:list", "todos:write"] }),
+      }),
+    );
+
+    expect(changed.status).toBe(200);
+    expect((await create()).status).toBe(200);
+
+    const todos = await handler(new Request("http://api.test/api/todos", { headers: { cookie } }));
+
+    expect(await todos.text()).toContain("Feed the ducks");
   });
 
   it("an AI Client refreshes its tokens, until it presents a replaced refresh token: then its Grant is revoked", async () => {

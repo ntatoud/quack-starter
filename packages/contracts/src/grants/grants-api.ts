@@ -15,7 +15,7 @@ export class GrantsApi extends HttpApiGroup.make("grants")
     }).annotate(RequiredPermission, "none"),
     /**
      * Sets the Permissions of the Grant, fewer or more, as the User approves them here: its AI Client's tokens hold
-     * them from its next call. None at all is a revocation.
+     * them from its next call. Never none: revoking covers that.
      */
     HttpApiEndpoint.patch("changePermissions", "/:id", {
       params: { id: GrantId },
