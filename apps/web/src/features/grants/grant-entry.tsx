@@ -96,7 +96,7 @@ function RevokeGrant({ grant }: { grant: Grant }) {
       }}
     >
       <AlertDialogTrigger
-        render={<Button variant="outline" size="sm" aria-label={`Revoke ${name}`} />}
+        render={<Button variant="destructive" size="sm" aria-label={`Revoke ${name}`} />}
       >
         Revoke
       </AlertDialogTrigger>

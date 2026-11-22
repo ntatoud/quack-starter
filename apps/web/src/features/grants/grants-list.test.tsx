@@ -218,6 +218,16 @@ describe("GrantsList", () => {
     expect(deleted.map((request) => new URL(request.url).pathname)).toEqual(["/api/grants/claude"]);
   });
 
+  it("moves focus to the next AI Client once one is revoked, so it is not lost", async () => {
+    await setup(serving(agent, claude));
+
+    await page.getByRole("button", { name: "Revoke My Agent" }).click();
+    await page.getByRole("button", { name: "Revoke access" }).click();
+
+    await expect.element(entry("My Agent")).not.toBeInTheDocument();
+    await expect.element(page.getByRole("button", { name: "Revoke Claude" })).toHaveFocus();
+  });
+
   it("says when a Grant cannot be revoked, and keeps it", async () => {
     await setup((request) =>
       request.method === "GET" ? Response.json([claude]) : new Response(null, { status: 500 }),

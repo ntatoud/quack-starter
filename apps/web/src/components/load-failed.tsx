@@ -7,7 +7,6 @@ import {
   EmptyTitle,
 } from "@quack/ui/components/empty";
 
-/** A list that could not load, with the way to load it again. */
 export function LoadFailed({
   title,
   retrying,
