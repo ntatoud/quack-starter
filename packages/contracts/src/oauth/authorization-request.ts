@@ -33,7 +33,6 @@ export const ConsentDetails = Schema.Struct({
   redirectHost: Schema.String,
   /** Every redirect URI of the document is on this machine: anything running here could be the AI Client. */
   loopbackOnly: Schema.Boolean,
-  /** What the AI Client asks for. */
   permissions: Schema.Array(Permission),
   /** Every Permission a Grant may hold, among which the User chooses. */
   grantablePermissions: Schema.Array(Permission),
