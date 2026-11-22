@@ -3,7 +3,7 @@ import { Layer } from "effect";
 
 import { Identity } from "#/modules/identity/application/identity.ts";
 import { Onboarding } from "#/modules/identity/application/onboarding.ts";
-import { IdentitySeed } from "#/modules/identity/application/identity-seed.ts";
+import { devAccountIds, IdentitySeed } from "#/modules/identity/application/identity-seed.ts";
 import { Users } from "#/modules/identity/application/users.ts";
 import { AuthenticationMiddleware } from "#/modules/identity/http/authentication-middleware.ts";
 import { RequireRoleMiddleware } from "#/modules/identity/http/require-role-middleware.ts";
@@ -15,7 +15,7 @@ import { PasswordHasherArgon2 } from "#/modules/identity/infrastructure/password
 import { SessionStorePostgres } from "#/modules/identity/infrastructure/session-store-postgres.ts";
 import { UserRepositoryPostgres } from "#/modules/identity/infrastructure/user-repository-postgres.ts";
 
-export { IdentitySeed };
+export { devAccountIds, IdentitySeed };
 
 export const IdentityPostgres = Layer.mergeAll(UserRepositoryPostgres, SessionStorePostgres);
 

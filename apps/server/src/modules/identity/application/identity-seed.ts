@@ -4,10 +4,8 @@ import { CountryCode, Profile, Team } from "@quack/contracts/identity/profile";
 import { Email, type Role, User, UserId, type UserStatus } from "@quack/contracts/identity/user";
 import { DateTime, Effect, Layer, Schema } from "effect";
 
+import { seedDate } from "#/database/seed-date.ts";
 import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
-
-/** Every seeded date is before it, so a seed gives the same Users whatever day it runs. */
-export const seedDate = new Date("2026-06-01T00:00:00Z");
 
 /** The argon2id hash of `devPassword`, a constant so that seeding hashes nothing. */
 export const devPasswordHash =
@@ -91,15 +89,25 @@ const randomUsers = (faker: Faker, count: number): ReadonlyArray<User> => {
   return users;
 };
 
-export const devUsers = (): ReadonlyArray<User> => {
+const seededFaker = () => {
   const faker = new Faker({ locale: [en, base] });
   faker.seed(1);
-  return [
-    devAccount(faker, devAccounts.admin, "admin", "Admin"),
-    devAccount(faker, devAccounts.user, "user", "User"),
-    ...randomUsers(faker, 100),
-  ];
+  return faker;
 };
+
+// The first draws of the faker, so that their ids do not depend on the random Users.
+const devAccountUsers = (faker: Faker): ReadonlyArray<User> => [
+  devAccount(faker, devAccounts.admin, "admin", "Admin"),
+  devAccount(faker, devAccounts.user, "user", "User"),
+];
+
+export const devUsers = (): ReadonlyArray<User> => {
+  const faker = seededFaker();
+  return [...devAccountUsers(faker), ...randomUsers(faker, 100)];
+};
+
+export const devAccountIds = (): ReadonlyArray<UserId> =>
+  devAccountUsers(seededFaker()).map(({ id }) => id);
 
 export const IdentitySeed = Layer.effectDiscard(
   Effect.gen(function* () {

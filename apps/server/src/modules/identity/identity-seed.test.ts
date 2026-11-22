@@ -5,10 +5,11 @@ import { Email, Password } from "@quack/contracts/identity/user";
 import { ConfigProvider, DateTime, Effect, Layer, Schema } from "effect";
 
 import { Identity } from "#/modules/identity/application/identity.ts";
+import { seedDate } from "#/database/seed-date.ts";
 import {
+  devAccountIds,
   devPasswordHash,
   devUsers,
-  seedDate,
 } from "#/modules/identity/application/identity-seed.ts";
 import { PasswordHasher } from "#/modules/identity/domain/password-hasher.ts";
 import { IdentitySeed } from "#/modules/identity/index.ts";
@@ -132,5 +133,16 @@ describe("devUsers", () => {
 
     assert.isAbove(withProfile.length, seeded.length / 2);
     assert.isBelow(withProfile.length, seeded.length);
+  });
+});
+
+describe("devAccountIds", () => {
+  it("gives the ids of admin@quack.dev and user@quack.dev among the seeded Users", () => {
+    const emailsById = new Map(devUsers().map(({ id, email }) => [id, email]));
+
+    assert.deepStrictEqual(
+      devAccountIds().map((id) => String(emailsById.get(id))),
+      ["admin@quack.dev", "user@quack.dev"],
+    );
   });
 });
