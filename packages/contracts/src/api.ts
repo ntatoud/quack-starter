@@ -7,6 +7,9 @@ import { UsersApi } from "#/users/users-api.ts";
 
 export const API_PREFIX = "/api";
 
+/** Where AI Clients reach Quack over MCP: served by the server, beside the `Api`. */
+export const MCP_PATH = `${API_PREFIX}/mcp`;
+
 export class Api extends HttpApi.make("quack")
   .add(SystemApi)
   .add(IdentityApi)

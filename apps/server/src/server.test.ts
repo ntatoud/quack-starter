@@ -51,6 +51,20 @@ const sessionCookieOf = async (email: string, from: string) =>
   (await signUp(email, { from })).headers.getSetCookie()[0]?.split(";")[0] ?? "";
 const signIn = attempt("/api/sign-in");
 
+const mcpCall = (headers: Record<string, string> = {}) =>
+  handler(
+    new Request("http://api.test/api/mcp", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        accept: "application/json, text/event-stream",
+        "mcp-protocol-version": "2026-07-28",
+        ...headers,
+      },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} }),
+    }),
+  );
+
 afterAll(dispose);
 
 describe("server routes", () => {
@@ -384,6 +398,32 @@ describe("server routes", () => {
     }
     expect(preflight.status).toBeLessThan(300);
     expect(preflight.headers.get("access-control-allow-headers")).toBe("mcp-protocol-version");
+  });
+
+  it.each([
+    ["no token", {}],
+    ["a token no Grant holds", { authorization: "Bearer not-a-token-of-quack" }],
+    ["the public origin and no token", { origin: "https://quack.test" }],
+  ])(
+    "answers /api/mcp with 401 and the challenge naming its resource metadata, to %s",
+    async (_, headers) => {
+      const response = await mcpCall(headers);
+
+      expect(response.status).toBe(401);
+      expect(response.headers.get("www-authenticate")).toBe(
+        'Bearer resource_metadata="https://quack.test/.well-known/oauth-protected-resource/api/mcp"',
+      );
+    },
+  );
+
+  it("answers /api/mcp with 403 to a request from another origin, before it looks for a token", async () => {
+    const response = await mcpCall({
+      origin: "https://elsewhere.example",
+      authorization: "Bearer not-a-token-of-quack",
+    });
+
+    expect(response.status).toBe(403);
+    expect(response.headers.get("www-authenticate")).toBeNull();
   });
 
   it("serves nothing else under /.well-known", async () => {

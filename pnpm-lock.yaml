@@ -273,6 +273,9 @@ importers:
       '@faker-js/faker':
         specifier: 10.6.0
         version: 10.6.0
+      '@quack/brand':
+        specifier: workspace:*
+        version: link:../../packages/brand
       '@quack/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts

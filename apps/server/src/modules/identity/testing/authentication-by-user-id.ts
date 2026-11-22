@@ -3,6 +3,7 @@ import { Unauthenticated } from "@quack/contracts/identity/identity-errors";
 import type { User } from "@quack/contracts/identity/user";
 import { Effect, Layer, Redacted } from "effect";
 
+import { roleAllows } from "#/modules/identity/domain/role-permissions.ts";
 import { authorize } from "#/modules/identity/http/authorize.ts";
 
 /**
@@ -17,7 +18,7 @@ export const authenticationByUserId = (users: ReadonlyArray<User>) =>
         const user = users.find(({ id }) => id === Redacted.value(credential));
         return user === undefined
           ? Effect.fail(new Unauthenticated())
-          : authorize(endpoint, user).pipe(
+          : authorize(endpoint, (permission) => roleAllows(user.role, permission)).pipe(
               Effect.andThen(Effect.provideService(httpEffect, CurrentUser, user)),
             );
       },

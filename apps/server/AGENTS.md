@@ -16,6 +16,10 @@ To add a context, copy `modules/todos`:
 - A server variable goes in `ServerConfig` (`config.ts`), or `DatabaseConfig` for the database, and in `.env.example`.
 - `/health` touches no database, so an outage of Postgres does not get every server restarted.
 
+## MCP
+
+`src/mcp/` is a transport, not a module: it serves `/api/mcp` with a tool for each endpoint the contract offers, which calls the `Api` in process as the `McpCaller` of the request, so the Permission check and the Owner rules stay those of the `Api`. A context adds tools through the contract only.
+
 ## Database
 
 Plain `sql` templates, no ORM (`docs/adr/0001-postgres-through-effect-sql-templates.md`). Which database a worktree uses: README.

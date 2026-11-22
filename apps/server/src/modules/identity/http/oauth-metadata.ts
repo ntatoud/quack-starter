@@ -1,4 +1,4 @@
-import { API_PREFIX } from "@quack/contracts/api";
+import { API_PREFIX, MCP_PATH } from "@quack/contracts/api";
 import { Effect } from "effect";
 import { HttpMiddleware, HttpRouter, HttpServerResponse } from "effect/http";
 
@@ -20,7 +20,6 @@ const wellKnownDocument = (path: `/${string}`, body: object) => {
 export const OAuthMetadataRoutes = HttpRouter.addAll(
   Effect.gen(function* () {
     const publicOrigin = yield* ServerConfig.publicOrigin;
-    const mcpPath = `${API_PREFIX}/mcp`;
 
     return [
       ...wellKnownDocument("/.well-known/oauth-authorization-server", {
@@ -35,8 +34,8 @@ export const OAuthMetadataRoutes = HttpRouter.addAll(
         authorization_response_iss_parameter_supported: true,
         scopes_supported: grantablePermissions,
       }),
-      ...wellKnownDocument(`/.well-known/oauth-protected-resource${mcpPath}`, {
-        resource: `${publicOrigin}${mcpPath}`,
+      ...wellKnownDocument(`/.well-known/oauth-protected-resource${MCP_PATH}`, {
+        resource: `${publicOrigin}${MCP_PATH}`,
         authorization_servers: [publicOrigin],
         scopes_supported: basicPermissions,
         bearer_methods_supported: ["header"],

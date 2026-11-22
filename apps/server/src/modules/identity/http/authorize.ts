@@ -1,17 +1,20 @@
 import { Forbidden } from "@quack/contracts/identity/identity-errors";
-import type { User } from "@quack/contracts/identity/user";
-import { RequiredPermission } from "@quack/contracts/permission";
+import { type Permission, RequiredPermission } from "@quack/contracts/permission";
 import { Context, Effect, Option } from "effect";
 import type { HttpApiEndpoint } from "effect/http-api";
 
-import { roleAllows } from "#/modules/identity/domain/role-permissions.ts";
-
-/** Fails closed: an endpoint that declares no `RequiredPermission` is refused to every caller. */
-export const authorize = (endpoint: HttpApiEndpoint.Top, caller: User) =>
+/**
+ * Whether a caller who `allows` some Permissions may call `endpoint`. Fails closed: an endpoint that
+ * declares no `RequiredPermission` is refused to every caller.
+ */
+export const authorize = (
+  endpoint: HttpApiEndpoint.Top,
+  allows: (permission: Permission) => boolean,
+) =>
   Option.match(Context.getOption(endpoint.annotations, RequiredPermission), {
     onNone: () => Effect.fail(new Forbidden({})),
     onSome: (permission) =>
-      permission === "none" || roleAllows(caller.role, permission)
+      permission === "none" || allows(permission)
         ? Effect.void
         : Effect.fail(new Forbidden({ permission })),
   });
