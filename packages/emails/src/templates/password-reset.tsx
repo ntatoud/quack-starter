@@ -1,4 +1,4 @@
-import { brand } from "#/brand.ts";
+import { brand } from "@quack/brand/brand";
 import { Button } from "#/components/button.tsx";
 import { EmailLayout } from "#/components/email-layout.tsx";
 import { Heading } from "#/components/heading.tsx";

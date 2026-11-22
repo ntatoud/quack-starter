@@ -6,7 +6,7 @@ export function Button({ href, children }: { href: string; children: ReactNode }
     <Section className="my-6">
       <EmailButton
         href={href}
-        className="bg-primary text-primary-foreground rounded-md px-5 py-3 text-sm font-medium no-underline"
+        className="bg-primary text-primary-foreground rounded-lg px-5 py-3 text-sm font-medium no-underline"
       >
         {children}
       </EmailButton>

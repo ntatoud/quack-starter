@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
-import { brand } from "#/brand.ts";
+import { brand } from "@quack/brand/brand";
 import { passwordChanged } from "#/templates/password-changed.tsx";
 
 describe("passwordChanged", () => {

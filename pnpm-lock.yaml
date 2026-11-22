@@ -431,6 +431,9 @@ importers:
 
   packages/emails:
     dependencies:
+      '@quack/brand':
+        specifier: workspace:*
+        version: link:../brand
       react:
         specifier: 'catalog:'
         version: 19.3.1

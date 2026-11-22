@@ -1,32 +1,27 @@
+import { brand } from "@quack/brand/brand";
+import { emailTheme } from "@quack/brand/email-theme";
 import type { ReactNode } from "react";
 import {
   Body,
+  Column,
   Container,
   Head,
   Hr,
   Html,
   Preview,
+  Row,
   Section,
   Tailwind,
   pixelBasedPreset,
   Text,
 } from "react-email";
-import { brand } from "#/brand.ts";
 
-// Mail clients ignore CSS variables and `oklch`: these are the light colors of `@quack/ui`'s theme, copied as hex.
 const tailwindConfig = {
   presets: [pixelBasedPreset],
   theme: {
     extend: {
-      colors: {
-        background: "#ffffff",
-        foreground: "#0a0a0a",
-        primary: "#171717",
-        "primary-foreground": "#fafafa",
-        muted: "#f5f5f5",
-        "muted-foreground": "#737373",
-        border: "#e5e5e5",
-      },
+      colors: emailTheme.colors,
+      borderRadius: { lg: emailTheme.radius },
     },
   },
 };
@@ -47,13 +42,19 @@ export function EmailLayout({
         <Preview>{preview}</Preview>
         <Body className="bg-muted m-0 py-10 font-sans">
           <Container className="bg-background border-border mx-auto max-w-[480px] rounded-lg border border-solid px-10 py-8">
+            {/* The `Logo` of `@quack/brand`, in tables: mail clients lay out no flexbox. */}
             <Section>
-              <Text
-                className="m-0 inline-block h-10 w-10 rounded-lg text-center text-base leading-10 font-semibold"
-                style={{ backgroundColor: brand.logo.background, color: brand.logo.foreground }}
-              >
-                {brand.logo.initials}
-              </Text>
+              <Row>
+                <Column
+                  data-skip-in-text
+                  className="bg-primary text-primary-foreground h-8 w-8 rounded-lg text-center text-base font-semibold"
+                >
+                  {brand.initial}
+                </Column>
+                <Column className="text-foreground pl-2 text-base font-semibold">
+                  {brand.name}
+                </Column>
+              </Row>
             </Section>
             {children}
             <Hr className="border-border my-6" />
