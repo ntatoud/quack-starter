@@ -1,12 +1,12 @@
 import { Api } from "@quack/contracts/api";
 import { Authentication } from "@quack/contracts/identity/authentication";
-import { Context, Effect, Layer, Schema, Scope } from "effect";
+import { Context, Effect, Layer, Option, Schema, Scope } from "effect";
 import { McpServer, Toolkit } from "effect/ai";
 import { HttpClient, HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http";
 import { HttpApiBuilder, HttpApiClient, HttpApiMiddleware } from "effect/http-api";
 
 import { type DerivedTool, type EndpointRequest, type ToolInput } from "#/mcp/derive-tools.ts";
-import { authorize, McpCaller } from "#/modules/identity/index.ts";
+import { authorize, McpCaller, stepUpScope } from "#/modules/identity/index.ts";
 
 type Endpoint = (request: EndpointRequest) => Effect.Effect<Schema.Json, unknown>;
 
@@ -80,7 +80,10 @@ const callEndpoint = (
     );
 };
 
-/** Hides a tool whose endpoint needs a Permission the caller's Grant lacks, by the same check as the `Api`. */
+/**
+ * Lists a tool the caller's Grant opens, or could open once the User approves more: an AI Client calls only
+ * the tools it sees, and the 403 of a call it lacks the Permission for is what leads it to step up.
+ */
 const visibleToCaller = (tools: ReadonlyArray<DerivedTool>) => {
   const endpoints = new Map(tools.map(({ tool, endpoint }) => [tool.name, endpoint]));
 
@@ -93,7 +96,11 @@ const visibleToCaller = (tools: ReadonlyArray<DerivedTool>) => {
 
       return yield* authorize(endpoint, permissions).pipe(
         Effect.as(true),
-        Effect.orElseSucceed(() => false),
+        Effect.catch(({ permission }) =>
+          Effect.succeed(
+            permission !== undefined && Option.isSome(stepUpScope(permissions, permission)),
+          ),
+        ),
       );
     }),
   );

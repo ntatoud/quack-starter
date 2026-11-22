@@ -712,7 +712,7 @@ describe("server routes of an AI Client", () => {
     expect((await refresh(second.refresh_token)).status).toBe(400);
   });
 
-  it("acts with the Permissions of the Grant only: the tools it lacks are hidden", async () => {
+  it("lists the tools a Grant lacks too, so that calling one leads the AI Client to step up", async () => {
     const cookie = await sessionCookieOf("ai-client-list-only@example.com", "203.0.113.82");
     const token = await exchange(await approvedCode(cookie, "todos:list"));
     const { access_token } = (await token.json()) as { access_token: string };
@@ -722,7 +722,7 @@ describe("server routes of an AI Client", () => {
     expect(listed.status).toBe(200);
     const body = await listed.text();
     expect(body).toContain("todos_list");
-    expect(body).not.toContain("todos_create");
+    expect(body).toContain("todos_create");
   });
 
   it("answers a call of a tool whose Permission the Grant lacks with 403 insufficient_scope, naming what to ask for", async () => {
@@ -758,11 +758,8 @@ describe("server routes of an AI Client", () => {
     const { access_token: later } = (await second.json()) as { access_token: string };
 
     expect((await mcpCall({ authorization: `Bearer ${earlier}` })).status).toBe(401);
-    const listed = await mcpCall({ authorization: `Bearer ${later}` });
-    expect(listed.status).toBe(200);
-    const body = await listed.text();
-    expect(body).toContain("todos_list");
-    expect(body).not.toContain("todos_create");
+    expect((await callTool("todos_list", later)).status).toBe(200);
+    expect((await callTool("todos_create", later)).status).toBe(403);
   });
 
   it("answers the token endpoint to any origin, without credentials", async () => {
