@@ -22,12 +22,12 @@ import { useDataTable } from "@quack/ui/hooks/use-data-table";
 import { render } from "vitest-browser-react";
 import { elementOf, slot } from "@quack/ui/testing/dom";
 
-const columnsOf = (count: number): ReadonlyArray<DataTableColumn<{ id: string }>> =>
-  Array.from({ length: count }, (_, i) => ({
-    id: `column-${i}`,
-    header: `A rather long header ${i}`,
-    cell: () => "value",
-  }));
+const columnsOf = (count: number, size?: number): ReadonlyArray<DataTableColumn<{ id: string }>> =>
+  Array.from({ length: count }, (_, i) => {
+    const column = { id: `column-${i}`, header: `A rather long header ${i}`, cell: () => "value" };
+
+    return size === undefined ? column : { ...column, size };
+  });
 
 /** The root of the scroll area says whether the content reaches past an edge, and which one the view is at. */
 const hasOverflowX = (viewport: HTMLElement) =>
@@ -335,9 +335,9 @@ export const columnTyping = (table: DataTableHeaders<"name", "role">) => {
 };
 
 describe("DataTable with onRowClick", () => {
-  type Person = { id: string; name: string };
+  type Clickable = { id: string; name: string };
 
-  const people: ReadonlyArray<Person> = [
+  const people: ReadonlyArray<Clickable> = [
     { id: "p-1", name: "Ada" },
     { id: "p-2", name: "Alan" },
   ];
@@ -346,7 +346,7 @@ describe("DataTable with onRowClick", () => {
     const onRowClick = vi.fn();
     const onAction = vi.fn();
 
-    const columns: ReadonlyArray<DataTableColumn<Person>> = [
+    const columns: ReadonlyArray<DataTableColumn<Clickable>> = [
       { id: "name", accessorKey: "name", title: "Name" },
       {
         id: "actions",
@@ -474,10 +474,7 @@ describe("DataTable right to left", () => {
     await render(
       <div dir="rtl" className="flex h-75 w-100 flex-col">
         {/* Whole-pixel widths: ui-sdk leaves a right-to-left view 1px short of its far end, as the layout rounds. */}
-        <DataTable
-          columns={columnsOf(8).map((column) => ({ ...column, size: 200 }))}
-          data={[{ id: "0" }]}
-        />
+        <DataTable columns={columnsOf(8, 200)} data={[{ id: "0" }]} />
       </div>,
     );
     await expect.element(page.getByRole("table")).toBeVisible();
@@ -1385,7 +1382,7 @@ type Searched = {
   readonly orderBy?: "name" | undefined;
 };
 
-const names = ["Ada", "Alan", "Grace"];
+const searchableNames = ["Ada", "Alan", "Grace"];
 
 function Searchable() {
   const store = useMemoryDataTableStore<Searched>();
@@ -1410,7 +1407,7 @@ function Searchable() {
             filter: "search",
           },
         ]}
-        data={names.flatMap((name) =>
+        data={searchableNames.flatMap((name) =>
           name.toLowerCase().includes(q.toLowerCase()) ? [{ name }] : [],
         )}
         empty={<DataTableEmptyState searchTerm={q} onReset={table.reset} />}

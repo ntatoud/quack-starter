@@ -84,7 +84,7 @@ describe("deriveTools", () => {
       Effect.gen(function* () {
         const defect = yield* defectOf(
           offered(
-            HttpApiEndpoint.get("count", "/", { success: Schema.Number })
+            HttpApiEndpoint.get("count", "/", { success: Schema.Finite })
               .annotate(OpenApi.Description, "Probes.")
               .annotate(RequiredPermission, "todos:list"),
           ),

@@ -17,10 +17,10 @@ const AiClientDocument = Schema.Struct({
   token_endpoint_auth_method: Schema.optionalKey(Schema.String),
 });
 
-export class AiClientDocumentUnavailable extends Schema.TaggedError<AiClientDocumentUnavailable>()(
-  "AiClientDocumentUnavailable",
-  { reason: Schema.String },
-) {}
+export class AiClientDocumentUnavailable extends Schema.TaggedError<
+  AiClientDocumentUnavailable,
+  { readonly brand: unique symbol }
+>()("AiClientDocumentUnavailable", { reason: Schema.String }) {}
 
 /** Answers with the JSON as fetched: what it holds is checked by `checkAuthorizationRequest`. */
 export class AiClientDocuments extends Context.Service<

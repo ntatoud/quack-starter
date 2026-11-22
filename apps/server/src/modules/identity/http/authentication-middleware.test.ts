@@ -40,7 +40,7 @@ const ProbeHandlers = HttpApiBuilder.group(ProbeApi, "probe", (handlers) =>
   handlers
     .handle("open", () => Effect.void)
     .handle("undeclared", () => Effect.void)
-    .handle("listTodos", () => Effect.map(CurrentUser, () => undefined)),
+    .handle("listTodos", () => Effect.asVoid(CurrentUser)),
 );
 
 const sessionCookieOf = Effect.fn(function* (email: string) {

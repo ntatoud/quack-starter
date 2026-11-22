@@ -33,10 +33,10 @@ const setup = async (path: string, preferences: Partial<PreferenceValues> = {}, 
     component: SettingsLayout,
   });
 
-  const section = (name: string, path = name.toLowerCase()) =>
+  const section = (name: string, segment = name.toLowerCase()) =>
     createRoute({
       getParentRoute: () => settings,
-      path,
+      path: segment,
       component: () => <p>The {name} section</p>,
     });
 

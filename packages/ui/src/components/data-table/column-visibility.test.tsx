@@ -33,8 +33,10 @@ const columns: ReadonlyArray<DataTableColumnFor<Product, State>> = [
   },
 ];
 
+const secondPage: State = { page: 2 };
+
 function Products({
-  initial = { page: 2 },
+  initial = secondPage,
   held = false,
 }: {
   initial?: State;

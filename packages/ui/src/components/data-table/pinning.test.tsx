@@ -61,7 +61,15 @@ const people: ReadonlyArray<Person> = [
   },
 ];
 
-function People({ initial = {}, selectable = false }: { initial?: State; selectable?: boolean }) {
+const unpinned: State = {};
+
+function People({
+  initial = unpinned,
+  selectable = false,
+}: {
+  initial?: State;
+  selectable?: boolean;
+}) {
   const store = useMemoryDataTableStore<State>(initial);
 
   const table = useDataTable({
