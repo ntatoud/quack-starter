@@ -106,22 +106,33 @@ export const GrantStorePostgres = Layer.effect(
       execute: (token) => sql`INSERT INTO grant_refresh_tokens ${sql.insert(token)}`,
     });
 
-    // The row is locked before it is read: a second caller waits, then reads it replaced. The join reads
-    // the token from `found`, not the table, whose snapshot predates the wait.
-    const replaceRefreshToken = SqlSchema.findOneOption({
+    const findByRefreshToken = SqlSchema.findOneOption({
       Request: Schema.String,
       Result: GrantWithRefreshTokenRow,
       execute: (tokenHash) => sql`
-        WITH found AS (
-          SELECT * FROM grant_refresh_tokens WHERE token_hash = ${tokenHash} FOR UPDATE
-        ), replacing AS (
-          UPDATE grant_refresh_tokens SET replaced = true
-          WHERE token_hash IN (SELECT token_hash FROM found)
-        )
-        SELECT grants.*, found.token_hash AS refresh_token_hash,
-          found.resource AS refresh_token_resource, found.permissions AS refresh_token_permissions,
-          found.replaced AS refresh_token_replaced
-        FROM found JOIN grants ON grants.id = found.grant_id
+        SELECT grants.*, token.token_hash AS refresh_token_hash,
+          token.resource AS refresh_token_resource, token.permissions AS refresh_token_permissions,
+          token.replaced AS refresh_token_replaced
+        FROM grant_refresh_tokens AS token JOIN grants ON grants.id = token.grant_id
+        WHERE token.token_hash = ${tokenHash}
+      `,
+    });
+
+    // Locks the Grant before the token: a revocation, which deletes the Grant first, then waits for the
+    // rotation to end instead of deadlocking with it.
+    const lockGrant = SqlSchema.findAll({
+      Request: Schema.String,
+      Result: Schema.Struct({ id: Schema.String }),
+      execute: (id) => sql`SELECT id FROM grants WHERE id = ${id} FOR NO KEY UPDATE`,
+    });
+
+    const markReplaced = SqlSchema.findAll({
+      Request: RefreshTokenRow.mapFields(Struct.pick(["tokenHash", "grantId"])),
+      Result: Schema.Struct({ tokenHash: Schema.String }),
+      execute: ({ tokenHash, grantId }) => sql`
+        UPDATE grant_refresh_tokens SET replaced = true
+        WHERE token_hash = ${tokenHash} AND grant_id = ${grantId} AND NOT replaced
+        RETURNING token_hash
       `,
     });
 
@@ -174,8 +185,8 @@ export const GrantStorePostgres = Layer.effect(
       saveRefreshToken: Effect.fn("GrantStore.saveRefreshToken")((token) =>
         insertRefreshToken(token).pipe(Effect.orDie),
       ),
-      replaceRefreshToken: Effect.fn("GrantStore.replaceRefreshToken")((tokenHash) =>
-        replaceRefreshToken(tokenHash).pipe(
+      findByRefreshToken: Effect.fn("GrantStore.findByRefreshToken")((tokenHash) =>
+        findByRefreshToken(tokenHash).pipe(
           Effect.map(
             Option.map(
               ({
@@ -199,8 +210,22 @@ export const GrantStorePostgres = Layer.effect(
           Effect.orDie,
         ),
       ),
-      extend: Effect.fn("GrantStore.extend")((id, expiresAt) =>
-        extend({ id, expiresAt }).pipe(Effect.orDie),
+      rotateRefreshToken: Effect.fn("GrantStore.rotateRefreshToken")(
+        (tokenHash, { accessToken, refreshToken, grantExpiresAt }) => {
+          const grantId = refreshToken.grantId;
+
+          return Effect.gen(function* () {
+            if ((yield* lockGrant(grantId)).length === 0) return false;
+
+            if ((yield* markReplaced({ tokenHash, grantId })).length === 0) return false;
+
+            yield* insertAccessToken(accessToken);
+            yield* insertRefreshToken(refreshToken);
+            yield* extend({ id: grantId, expiresAt: grantExpiresAt });
+
+            return true;
+          }).pipe(sql.withTransaction, Effect.orDie);
+        },
       ),
       revoke: Effect.fn("GrantStore.revoke")((id) => revoke(id).pipe(Effect.orDie)),
     });

@@ -31,23 +31,39 @@ export const GrantStoreMemory = Layer.sync(GrantStore, () => {
         ),
       ),
     saveRefreshToken: (token) => Effect.sync(() => void refreshTokens.set(token.tokenHash, token)),
-    replaceRefreshToken: (tokenHash) =>
+    findByRefreshToken: (tokenHash) =>
       Effect.sync(() =>
-        Option.flatMap(Option.fromNullishOr(refreshTokens.get(tokenHash)), (refreshToken) => {
-          refreshTokens.set(tokenHash, { ...refreshToken, replaced: true });
-
-          return Option.map(byId(refreshToken.grantId), (grant) => ({ grant, refreshToken }));
-        }),
-      ),
-    extend: (grantId, expiresAt) =>
-      Effect.sync(() =>
-        Option.map(byId(grantId), (grant) =>
-          grants.set(keyOf(grant.userId, grant.aiClientId), { ...grant, expiresAt }),
+        Option.flatMap(Option.fromNullishOr(refreshTokens.get(tokenHash)), (refreshToken) =>
+          Option.map(byId(refreshToken.grantId), (grant) => ({ grant, refreshToken })),
         ),
       ),
+    rotateRefreshToken: (tokenHash, next) =>
+      Effect.sync(() => {
+        const refreshToken = refreshTokens.get(tokenHash);
+        const grant = byId(next.refreshToken.grantId);
+
+        if (
+          refreshToken === undefined ||
+          refreshToken.replaced ||
+          refreshToken.grantId !== next.refreshToken.grantId ||
+          Option.isNone(grant)
+        ) {
+          return false;
+        }
+
+        refreshTokens.set(tokenHash, { ...refreshToken, replaced: true });
+        refreshTokens.set(next.refreshToken.tokenHash, next.refreshToken);
+        accessTokens.set(next.accessToken.tokenHash, next.accessToken);
+        const { userId, aiClientId } = grant.value;
+        grants.set(keyOf(userId, aiClientId), { ...grant.value, expiresAt: next.grantExpiresAt });
+
+        return true;
+      }),
     revoke: (grantId) =>
       Effect.sync(() => {
-        for (const [key, grant] of grants) if (grant.id === grantId) grants.delete(key);
+        for (const { userId, aiClientId } of Option.toArray(byId(grantId))) {
+          grants.delete(keyOf(userId, aiClientId));
+        }
 
         for (const tokens of [accessTokens, refreshTokens]) {
           for (const [hash, token] of tokens) if (token.grantId === grantId) tokens.delete(hash);

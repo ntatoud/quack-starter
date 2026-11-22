@@ -70,7 +70,7 @@ describe.skipIf(url === undefined)("GrantStorePostgres", () => {
 
       assert.isTrue(Option.isNone(yield* store.findOf(userId, grant.aiClientId)));
       assert.isTrue(Option.isNone(yield* store.findByAccessToken(accessTokenHash)));
-      assert.isTrue(Option.isNone(yield* store.replaceRefreshToken(refreshTokenHash)));
+      assert.isTrue(Option.isNone(yield* store.findByRefreshToken(refreshTokenHash)));
     }).pipe(Effect.provide(Postgres)),
   );
 });

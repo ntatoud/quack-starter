@@ -951,7 +951,10 @@ layer(withConfig({}))("OAuthApi token, a refresh", (it) => {
         .pipe(Effect.map(Option.getOrThrow));
 
       // A Grant whose 30 days end within the hour of its token.
-      yield* store.extend(grant.id, DateTime.add(yield* DateTime.now, { minutes: 10 }));
+      yield* store.save({
+        ...grant,
+        expiresAt: DateTime.add(yield* DateTime.now, { minutes: 10 }),
+      });
 
       yield* TestClock.adjust("10 minutes");
 
@@ -969,12 +972,16 @@ layer(withConfig({}))("OAuthApi token, a refresh", (it) => {
     ["another AI Client", { client_id: "https://evil.example.com/client.json" }, "invalid_grant"],
     ["no AI Client", { client_id: undefined }, "invalid_grant"],
     ["another resource", { resource: "https://other.test/api/mcp" }, "invalid_target"],
-  ] as const)("refuses a refresh with %s", ([_, change, error]) =>
-    Effect.gen(function* () {
-      const tokens = yield* tokensOfANewAiClient();
+  ] as const)(
+    "refuses a refresh with %s, and leaves the refresh token as it was",
+    ([_, change, error]) =>
+      Effect.gen(function* () {
+        const tokens = yield* tokensOfANewAiClient();
 
-      assert.strictEqual(yield* tokenRefusal(refreshing(tokens, change)), error);
-    }),
+        assert.strictEqual(yield* tokenRefusal(refreshing(tokens, change)), error);
+
+        assert.isTrue(yield* opens((yield* token(refreshing(tokens))).access_token));
+      }),
   );
 });
 

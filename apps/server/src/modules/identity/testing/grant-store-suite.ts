@@ -44,6 +44,15 @@ const aRefreshToken = (grant: Grant) =>
     replaced: false,
   }));
 
+const nextTokens = (grant: Grant) =>
+  Effect.gen(function* () {
+    return {
+      accessToken: yield* anAccessToken(grant),
+      refreshToken: yield* aRefreshToken(grant),
+      grantExpiresAt: at("2026-03-01T00:00:00Z"),
+    };
+  });
+
 /**
  * The promises of a `GrantStore`. `aUser` gives the id of a new User, which an adapter with foreign keys
  * must have stored.
@@ -169,63 +178,86 @@ export const grantStoreSuite = <R>(
         assert.isTrue(Option.isNone(yield* store.findByAccessToken(yield* aTokenHash)));
       }));
 
-    test("replacing a refresh token gives it back as it was, with its Grant, and keeps it replaced", () =>
+    test("finds a Grant by the hash of a refresh token it holds, with the token", () =>
       Effect.gen(function* () {
         const store = yield* GrantStore;
         const { grant, refreshToken } = yield* aGrantWithARefreshToken;
 
         assert.deepStrictEqual(
-          yield* store.replaceRefreshToken(refreshToken.tokenHash),
+          yield* store.findByRefreshToken(refreshToken.tokenHash),
           Option.some({ grant, refreshToken }),
-        );
-        assert.deepStrictEqual(
-          yield* store.replaceRefreshToken(refreshToken.tokenHash),
-          Option.some({ grant, refreshToken: { ...refreshToken, replaced: true } }),
         );
       }));
 
-    test("of two callers that replace the same refresh token at once, one finds it replaced", () =>
+    test("finds nothing for an unknown refresh token hash", () =>
       Effect.gen(function* () {
         const store = yield* GrantStore;
-        const { refreshToken } = yield* aGrantWithARefreshToken;
 
-        const both = yield* Effect.all(
+        assert.isTrue(Option.isNone(yield* store.findByRefreshToken(yield* aTokenHash)));
+      }));
+
+    test("rotating a refresh token replaces it with the next tokens, and extends its Grant", () =>
+      Effect.gen(function* () {
+        const store = yield* GrantStore;
+        const { grant, refreshToken } = yield* aGrantWithARefreshToken;
+        const next = yield* nextTokens(grant);
+
+        assert.isTrue(yield* store.rotateRefreshToken(refreshToken.tokenHash, next));
+
+        const extended = { ...grant, expiresAt: next.grantExpiresAt };
+        assert.deepStrictEqual(
+          yield* store.findByRefreshToken(refreshToken.tokenHash),
+          Option.some({ grant: extended, refreshToken: { ...refreshToken, replaced: true } }),
+        );
+        assert.deepStrictEqual(
+          yield* store.findByRefreshToken(next.refreshToken.tokenHash),
+          Option.some({ grant: extended, refreshToken: next.refreshToken }),
+        );
+        assert.deepStrictEqual(
+          yield* store.findByAccessToken(next.accessToken.tokenHash),
+          Option.some({ grant: extended, accessToken: next.accessToken }),
+        );
+      }));
+
+    test("rotates a refresh token once: the next tokens of a second rotation are not saved", () =>
+      Effect.gen(function* () {
+        const store = yield* GrantStore;
+        const { grant, refreshToken } = yield* aGrantWithARefreshToken;
+        yield* store.rotateRefreshToken(refreshToken.tokenHash, yield* nextTokens(grant));
+        const second = yield* nextTokens(grant);
+
+        assert.isFalse(yield* store.rotateRefreshToken(refreshToken.tokenHash, second));
+        assert.isTrue(
+          Option.isNone(yield* store.findByRefreshToken(second.refreshToken.tokenHash)),
+        );
+        assert.isTrue(Option.isNone(yield* store.findByAccessToken(second.accessToken.tokenHash)));
+      }));
+
+    test("of two callers that rotate the same refresh token at once, one only rotates it", () =>
+      Effect.gen(function* () {
+        const store = yield* GrantStore;
+        const { grant, refreshToken } = yield* aGrantWithARefreshToken;
+
+        const rotated = yield* Effect.all(
           [
-            store.replaceRefreshToken(refreshToken.tokenHash),
-            store.replaceRefreshToken(refreshToken.tokenHash),
+            store.rotateRefreshToken(refreshToken.tokenHash, yield* nextTokens(grant)),
+            store.rotateRefreshToken(refreshToken.tokenHash, yield* nextTokens(grant)),
           ],
           { concurrency: 2 },
         );
 
-        const outcomes = both.map((found) =>
-          Option.match(found, {
-            onNone: () => "none",
-            onSome: ({ refreshToken: { replaced } }) => (replaced ? "already" : "first"),
-          }),
-        );
-
-        assert.deepStrictEqual(outcomes.toSorted(), ["already", "first"]);
+        assert.deepStrictEqual(rotated.toSorted(), [false, true]);
       }));
 
-    test("finds nothing to replace for an unknown refresh token hash", () =>
+    test("rotates no refresh token of a revoked Grant", () =>
       Effect.gen(function* () {
         const store = yield* GrantStore;
+        const { grant, refreshToken } = yield* aGrantWithARefreshToken;
+        const next = yield* nextTokens(grant);
+        yield* store.revoke(grant.id);
 
-        assert.isTrue(Option.isNone(yield* store.replaceRefreshToken(yield* aTokenHash)));
-      }));
-
-    test("extending a Grant changes when it expires, and nothing else", () =>
-      Effect.gen(function* () {
-        const store = yield* GrantStore;
-        const grant = yield* store.save(aDraft(yield* aUser));
-        const expiresAt = at("2026-04-01T00:00:00Z");
-
-        yield* store.extend(grant.id, expiresAt);
-
-        assert.deepStrictEqual(
-          yield* store.findOf(grant.userId, grant.aiClientId),
-          Option.some({ ...grant, expiresAt }),
-        );
+        assert.isFalse(yield* store.rotateRefreshToken(refreshToken.tokenHash, next));
+        assert.isTrue(Option.isNone(yield* store.findByAccessToken(next.accessToken.tokenHash)));
       }));
 
     test("revoking a Grant removes it with its tokens, and leaves the other Grants be", () =>
@@ -252,7 +284,7 @@ export const grantStoreSuite = <R>(
 
         assert.isTrue(Option.isNone(yield* store.findOf(userId, grant.aiClientId)));
         assert.isTrue(Option.isNone(yield* store.findByAccessToken(accessToken.tokenHash)));
-        assert.isTrue(Option.isNone(yield* store.replaceRefreshToken(refreshToken.tokenHash)));
+        assert.isTrue(Option.isNone(yield* store.findByRefreshToken(refreshToken.tokenHash)));
         assert.isTrue(Option.isSome(yield* store.findByAccessToken(otherAccessToken.tokenHash)));
       }));
   });

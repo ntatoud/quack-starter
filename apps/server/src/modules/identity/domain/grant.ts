@@ -47,15 +47,19 @@ export interface Grant extends GrantDraft {
   readonly id: string;
 }
 
+/** What a token of a Grant opens, carried from the code it comes from to every token after. */
+export interface TokenTerms {
+  /** Its audience: the only resource that accepts it (RFC 8707). */
+  readonly resource: string;
+  /** Those of the code: approving more later gives an earlier code no more. */
+  readonly permissions: ReadonlyArray<Permission>;
+}
+
 /** The token lives only with the AI Client: a leaked store opens no Grant. */
-export interface AccessToken {
+export interface AccessToken extends TokenTerms {
   /** SHA-256 of the token, in hex. */
   readonly tokenHash: string;
   readonly grantId: string;
-  /** Its audience: the only resource that accepts it (RFC 8707). */
-  readonly resource: string;
-  /** Those of the code it was exchanged for: approving more later gives an earlier code no more. */
-  readonly permissions: ReadonlyArray<Permission>;
   readonly expiresAt: DateTime.Utc;
 }
 
@@ -63,12 +67,9 @@ export interface AccessToken {
  * What an AI Client trades for a new access token while its Grant lasts, replaced on every use. A
  * replaced one is kept, so the AI Client that presents it again shows it was stolen.
  */
-export interface RefreshToken {
+export interface RefreshToken extends TokenTerms {
   /** SHA-256 of the token, in hex. */
   readonly tokenHash: string;
   readonly grantId: string;
-  readonly resource: string;
-  /** Those of the code the Grant's first token was exchanged for, carried from one token to the next. */
-  readonly permissions: ReadonlyArray<Permission>;
   readonly replaced: boolean;
 }

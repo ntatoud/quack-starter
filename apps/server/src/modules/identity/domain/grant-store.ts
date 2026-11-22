@@ -20,15 +20,23 @@ export class GrantStore extends Context.Service<
       tokenHash: string,
     ): Effect.Effect<Option.Option<{ readonly grant: Grant; readonly accessToken: AccessToken }>>;
     saveRefreshToken(token: RefreshToken): Effect.Effect<void>;
-    /**
-     * Marks the token replaced, and gives it back as it was before, with its Grant: of two callers that
-     * replace the same token at once, the second finds it replaced.
-     */
-    replaceRefreshToken(
+    /** Gives back a replaced token as well: its reader judges reuse. */
+    findByRefreshToken(
       tokenHash: string,
     ): Effect.Effect<Option.Option<{ readonly grant: Grant; readonly refreshToken: RefreshToken }>>;
-    extend(grantId: string, expiresAt: DateTime.Utc): Effect.Effect<void>;
-    /** Removes the Grant with its tokens. */
+    /**
+     * At once: replaces the token, unless it was already, with the tokens of `next`, and extends its
+     * Grant. False when the token was replaced or its Grant revoked first: of two callers that rotate the
+     * same token at once, one gets false.
+     */
+    rotateRefreshToken(
+      tokenHash: string,
+      next: {
+        readonly accessToken: AccessToken;
+        readonly refreshToken: RefreshToken;
+        readonly grantExpiresAt: DateTime.Utc;
+      },
+    ): Effect.Effect<boolean>;
     revoke(grantId: string): Effect.Effect<void>;
   }
 >()("@quack/server/identity/GrantStore") {}
