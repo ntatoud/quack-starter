@@ -1,10 +1,11 @@
 import tailwindcss from "@tailwindcss/vite";
+import viteReact from "@vitejs/plugin-react";
 import { defineConfig } from "vite-plus";
 import { playwright } from "vite-plus/test/browser-playwright";
 
 export default defineConfig({
-  // Sizes, focus rings, and `sr-only` come from the theme.
-  plugins: [tailwindcss()],
+  // Sizes, focus rings, and `sr-only` come from the theme. The tests run the components as the web app compiles them.
+  plugins: [tailwindcss(), viteReact({ compiler: true })],
   test: {
     include: ["src/**/*.test.tsx"],
     setupFiles: ["src/testing/setup.ts"],

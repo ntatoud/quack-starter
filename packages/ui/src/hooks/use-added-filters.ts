@@ -19,7 +19,8 @@ export function useAddedFilters<Key extends string>(hasValue: (key: Key) => bool
   for (const [key, entry] of added) {
     if (!hasValue(key)) {
       next.set(key, { ...entry, seenEmpty: true });
-      changed ||= !entry.seenEmpty;
+
+      if (!entry.seenEmpty) changed = true;
     } else if (entry.seenEmpty || entry.untilValue) changed = true;
     else next.set(key, entry);
   }

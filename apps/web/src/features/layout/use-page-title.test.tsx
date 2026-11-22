@@ -15,7 +15,7 @@ describe("usePageTitle", () => {
     document.title = pageTitle("User", "Users");
 
     const { rerender } = await renderHook<{ name?: string }, void>(
-      ({ name } = {}) => usePageTitle(name, "Users"),
+      ({ name }: { name?: string } = {}) => usePageTitle(name, "Users"),
       { initialProps: {} },
     );
 

@@ -28,6 +28,17 @@ export type DataTableSelection<TData> = {
   readonly canSelect?: (row: TData) => boolean;
 };
 
+// `stored` itself while every id stays among the rows kept, so the selection keeps its identity.
+function narrow(stored: ReadonlySet<string>, matching: Iterable<string> | undefined) {
+  if (matching === undefined) return stored;
+
+  const kept = new Set(matching);
+
+  return [...stored].every((id) => kept.has(id))
+    ? stored
+    : new Set([...stored].filter((id) => kept.has(id)));
+}
+
 /**
  * The selection of a table, in React state: pass it whole to `DataTable` as `selection`.
  *
@@ -55,12 +66,7 @@ export function useDataTableSelection<TData>(
     setStored(new Set());
   }
 
-  const kept = matching === undefined ? undefined : new Set(matching);
-
-  const selected =
-    kept === undefined || [...stored].every((id) => kept.has(id))
-      ? stored
-      : new Set([...stored].filter((id) => kept.has(id)));
+  const selected = narrow(stored, matching);
 
   // Narrowed for good: removing the filter does not bring back rows the user saw leave the selection.
   if (selected !== stored) setStored(selected);
@@ -69,22 +75,18 @@ export function useDataTableSelection<TData>(
 
   // The same object while the selection stays the same: the checkboxes of the table do not render again. `selected`
   // is `stored` but in the render that narrows it, which stores the narrowed set at once.
-  return React.useMemo(
-    () => ({
-      ...(rowLabel !== undefined && { rowLabel }),
-      ...(canSelect !== undefined && { canSelect }),
-      selected,
-      onSelectedChange: setStored,
-      /** How many rows are selected. */
-      count: selected.size,
-      /** The ids selected, in the order they were selected. */
-      ids: [...selected],
-      isSelected: (id: string) => selected.has(id),
-      clear: () => setStored(new Set()),
-    }),
-    // oxlint-disable-next-line react-hooks/exhaustive-deps -- `selected` is the same set while the selection is
-    [selected, rowLabel, canSelect],
-  );
+  return {
+    ...(rowLabel !== undefined && { rowLabel }),
+    ...(canSelect !== undefined && { canSelect }),
+    selected,
+    onSelectedChange: setStored,
+    /** How many rows are selected. */
+    count: selected.size,
+    /** The ids selected, in the order they were selected. */
+    ids: [...selected],
+    isSelected: (id: string) => selected.has(id),
+    clear: () => setStored(new Set()),
+  };
 }
 
 /**

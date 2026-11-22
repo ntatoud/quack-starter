@@ -13,7 +13,7 @@ import { matchQuery } from "@quack/ui-state/query";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Option } from "effect";
-import { useMemo, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import { usersColumns } from "#/features/users/admin/users-columns.tsx";
 import { userLabel } from "#/features/users/full-name.ts";
@@ -28,7 +28,7 @@ const userLink = (user: User) => (
 export function UsersList({ table }: { table: UsersTable }) {
   const users = useQuery(usersQueryOptions(table));
   // Relative dates count from when the page was fetched: the render stays pure, and they read the same until the next fetch.
-  const columns = useMemo(() => usersColumns(new Date(users.dataUpdatedAt)), [users.dataUpdatedAt]);
+  const columns = usersColumns(new Date(users.dataUpdatedAt));
 
   return (
     <>

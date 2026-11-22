@@ -23,10 +23,7 @@ export function usePinLayout({
   hasStickyEnd: boolean;
 }) {
   // The columns held at the start: the checkbox column with the pinned ones, then the pinned ones in order.
-  const pinChain = React.useMemo(
-    () => (pinned.length === 0 ? [] : selectable ? [selectColumnId, ...pinned] : pinned),
-    [pinned, selectable],
-  );
+  const pinChain = pinned.length === 0 ? [] : selectable ? [selectColumnId, ...pinned] : pinned;
 
   const pinHeads = React.useRef(new Map<string, HTMLTableCellElement>());
   const [pinOffsets, setPinOffsets] = React.useState<Readonly<Record<string, number>>>({});

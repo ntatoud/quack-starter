@@ -134,13 +134,10 @@ export const DataTableLoadMore = ({
   const status = React.useRef<HTMLSpanElement>(null);
 
   // The last batch takes the button away: the focus it had goes to the count rather than to the page.
-  const button = React.useCallback(
-    (node: HTMLButtonElement | null) => () => {
-      if (node !== null && document.activeElement === node)
-        queueMicrotask(() => status.current?.focus());
-    },
-    [],
-  );
+  const button = (node: HTMLButtonElement | null) => () => {
+    if (node !== null && document.activeElement === node)
+      queueMicrotask(() => status.current?.focus());
+  };
 
   return (
     <div className="flex items-center justify-between gap-2">

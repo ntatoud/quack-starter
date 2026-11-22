@@ -21,7 +21,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     envDir,
-    plugins: [tailwindcss(), tanstackStart(), viteReact()],
+    plugins: [tailwindcss(), tanstackStart(), viteReact({ compiler: true })],
     // Without portless (`PORTLESS=0 pnpm dev`). Portless passes a port of its own on the command line, which wins.
     server: { port: 3000 },
     test: {
