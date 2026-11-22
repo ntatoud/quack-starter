@@ -15,8 +15,8 @@ import { Skeleton } from "@quack/ui/components/skeleton";
 import { matchQuery } from "@quack/ui-state/query";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ChevronDownIcon, TriangleAlertIcon } from "lucide-react";
-import { useEffect, useMemo, useRef } from "react";
 
+import { authorizationCheckOptions } from "#/features/oauth/authorization-check.ts";
 import { consentSentence } from "#/features/oauth/consent-sentence.ts";
 import { userLabel } from "#/features/users/full-name.ts";
 import { api } from "#/lib/api.ts";
@@ -28,17 +28,13 @@ export interface ConsentPromptProps {
   readonly onSwitchAccount: () => void;
 }
 
+// Stable, so React calls it once, as the sentence mounts: read first by a screen reader, and the place Tab
+// starts from, Approve coming next.
+const focusOnMount = (element: HTMLElement | null) => element?.focus();
+
 /** Asks the Current User whether an AI Client may act for them, once Quack has checked its request. */
 export function ConsentPrompt({ params, currentUser, leave, onSwitchAccount }: ConsentPromptProps) {
-  const check = useQuery(
-    api.oauth.checkAuthorization.queryOptions({
-      input: { payload: params },
-      // A refused request is refused again; the CSRF token lasts as long as the Session.
-      retry: false,
-      staleTime: Infinity,
-      refetchOnWindowFocus: false,
-    }),
-  );
+  const check = useQuery(authorizationCheckOptions(params));
 
   return matchQuery(check, {
     Pending: () => (
@@ -96,25 +92,14 @@ function Consent({
   onSwitchAccount,
 }: ConsentPromptProps & { readonly request: AuthorizationRequest }) {
   const { aiClient } = request;
-  const { csrfToken, consentRemembered } = request;
-  const decision = useMemo(() => ({ payload: { ...params, csrfToken } }), [params, csrfToken]);
+  const decision = { payload: { ...params, csrfToken: request.csrfToken } };
   const onSuccess = ({ redirectTo }: { readonly redirectTo: string }) => leave(redirectTo);
   const approve = useMutation(api.oauth.approveAuthorization.mutationOptions({ onSuccess }));
   const deny = useMutation(api.oauth.denyAuthorization.mutationOptions({ onSuccess }));
   const deciding = approve.isPending || deny.isPending;
   const leaving = approve.isSuccess || deny.isSuccess;
 
-  // Read first by a screen reader, and the place Tab starts from: Approve comes next.
-  const sentence = useRef<HTMLHeadingElement>(null);
-  useEffect(() => sentence.current?.focus(), []);
-
-  const { mutate: approveNow } = approve;
-  useEffect(() => {
-    if (consentRemembered) approveNow(decision);
-  }, [consentRemembered, approveNow, decision]);
-
-  // A remembered consent that could not be sent falls back to asking, where the User can try again.
-  if ((consentRemembered && !approve.isError) || leaving) {
+  if (leaving) {
     return (
       <p role="status" className="text-center text-sm text-muted-foreground">
         Going back to {aiClient.name}…
@@ -125,7 +110,7 @@ function Consent({
   return (
     <div className="flex flex-col gap-6">
       <h1
-        ref={sentence}
+        ref={focusOnMount}
         tabIndex={-1}
         className="text-center text-xl font-semibold tracking-tight outline-none"
       >

@@ -203,28 +203,6 @@ describe("ConsentPrompt", () => {
     expect(leave).not.toHaveBeenCalled();
   });
 
-  it("approves on its own, without asking, when Quack remembers the consent", async () => {
-    const { leave } = await setup({
-      check: () => Response.json(checked({ consentRemembered: true })),
-      approve: () => Response.json({ redirectTo: approved }),
-    });
-
-    await expect.poll(() => leave.mock.calls).toEqual([[approved]]);
-    expect(page.getByRole("button", { name: "Approve" }).elements()).toHaveLength(0);
-  });
-
-  it("asks again when a remembered consent could not be sent", async () => {
-    const { leave } = await setup({
-      check: () => Response.json(checked({ consentRemembered: true })),
-    });
-
-    await expect
-      .element(page.getByRole("alert"))
-      .toHaveTextContent("Could not send your answer. Try again.");
-    await expect.element(page.getByRole("button", { name: "Approve" })).toBeEnabled();
-    expect(leave).not.toHaveBeenCalled();
-  });
-
   it("shows who is signed in, with a way to switch account", async () => {
     const { onSwitchAccount } = await setup({ check: () => Response.json(checked()) });
 
