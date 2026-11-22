@@ -17,4 +17,4 @@ An AI Client acts for a User with the access token of a Grant. Its MCP tools cal
 
 - Nothing on the network accepts the token but the MCP endpoint, so only the endpoints a context marks with `McpTool` are reachable with it.
 - The in-process routes are built outside the scope of the HTTP middleware that checks the token: inside it, every in-process call would be challenged for a token it does not carry. The MCP middleware reads the token a second time to provide the `McpCaller`, one more indexed lookup per call.
-- Revoking a Grant, or a User leaving `active`, cuts the AI Client off at its next call: no token outlives its row.
+- Every call reads the Grant and its User, so a Grant that ends, or a User who leaves `active`, cuts the AI Client off at its next call. Revoking a Grant (#180) will act the same way.

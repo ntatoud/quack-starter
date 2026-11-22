@@ -28,7 +28,6 @@ const ApiHandlers = Layer.mergeAll(SystemHandlers, TodosModule, OAuthModule).pip
     SessionStoreMemory,
     AuthorizationCodeStoreMemory,
     GrantStoreMemory,
-    GrantStoreMemory,
     TodoRepositoryMemory,
     NoHttpClient,
   ]),

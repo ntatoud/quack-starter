@@ -10,17 +10,20 @@ const callableFromAnyOrigin = HttpMiddleware.cors({ allowedMethods: ["POST"] });
 
 /**
  * The headers of the token endpoint that an `HttpApi` endpoint cannot declare: CORS, preflight included, and
- * `Cache-Control: no-store`, since its response holds an access token (RFC 6749 s5.1).
+ * `Cache-Control: no-store` and `Pragma: no-cache`, since its response holds an access token (RFC 6749 s5.1).
  */
 export const TokenEndpointHeaders = HttpRouter.middleware(
   (httpEffect) =>
     Effect.gen(function* () {
       const request = yield* HttpServerRequest.HttpServerRequest;
 
-      if (new URL(request.url, "http://quack").pathname !== tokenPath) return yield* httpEffect;
+      if (new URL(request.url, "http://base").pathname !== tokenPath) return yield* httpEffect;
 
       return yield* callableFromAnyOrigin(
-        Effect.map(httpEffect, HttpServerResponse.setHeader("cache-control", "no-store")),
+        Effect.map(
+          httpEffect,
+          HttpServerResponse.setHeaders({ "cache-control": "no-store", pragma: "no-cache" }),
+        ),
       );
     }),
   { global: true },

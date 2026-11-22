@@ -642,6 +642,7 @@ describe("server routes of an AI Client", () => {
 
     expect(token.status).toBe(200);
     expect(token.headers.get("cache-control")).toBe("no-store");
+    expect(token.headers.get("pragma")).toBe("no-cache");
     const { access_token } = (await token.json()) as { access_token: string };
 
     const listed = await callTool("todos_list", access_token);
