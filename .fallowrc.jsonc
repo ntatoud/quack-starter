@@ -11,7 +11,8 @@
   // An error class or schema in the signature of an exported Effect is exported with it.
   "ignoreExportsUsedInFile": true,
   // Named by the tsconfig plugin entry that @effect/tsgo reads. The package itself is not needed.
-  "ignoreDependencies": ["@effect/language-service"],
+  // The preview server of `email dev` (@quack/emails), which the CLI loads at run time, not through an import.
+  "ignoreDependencies": ["@effect/language-service", "@react-email/ui"],
   // Every rule fails the run. coverage-gaps stays off: it counts the exports no test imports,
   // which flags the entry points and migrations that the server's tests run through the
   // Migrator and the dev scripts.

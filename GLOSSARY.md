@@ -49,6 +49,18 @@ _Avoid_: Client, app, integration, connection
 A User's consent that lets one AI Client act for them with some of their Permissions, until the User revokes it or the AI Client stops using it for a while. A User gives one AI Client at most one Grant.
 _Avoid_: Token, authorization, connection
 
+**Password Reset**:
+How a User who forgot their password chooses a new one, through a link sent to their email.
+_Avoid_: Password recovery, forgot password
+
+**Password Change**:
+How a signed-in User replaces their password, proving it with the current one.
+_Avoid_: Password update
+
+**Email Change**:
+How a signed-in User replaces their email: the new one takes effect once they open a link sent to it.
+_Avoid_: Email update
+
 **Admin**:
 A User whose Role is `admin`. Only an Admin sees the list of Users; any other Current User is forbidden from it.
 _Avoid_: Superuser, staff
