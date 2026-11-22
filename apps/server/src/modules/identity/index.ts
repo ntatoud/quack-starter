@@ -58,6 +58,6 @@ export const IdentityModule = Layer.mergeAll(IdentityHandlers, UsersHandlers).pi
 export const OAuthModule = OAuthHandlers.pipe(
   Layer.provide([AuthorizationRequests.layer, CsrfTokens.layer]),
   Layer.provideMerge(Grants.layer),
-  Layer.provide(AiClientDocumentsHttp),
+  Layer.provide([AiClientDocumentsHttp, AttemptLimiterMemory]),
   Layer.provide([NodeCrypto.layerSecureRandom, NodeCrypto.layerDigest]),
 );

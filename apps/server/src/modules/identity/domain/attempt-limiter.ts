@@ -1,10 +1,15 @@
 import type { TooManyAttempts } from "@quack/contracts/identity/identity-errors";
-import type { Email } from "@quack/contracts/identity/user";
+import type { Email, UserId } from "@quack/contracts/identity/user";
 import { Context, type Effect } from "effect";
 
 export type ClientIp = string;
 
-export type AttemptLimit = "signInFailuresPerEmail" | "signInFailuresPerIp" | "signUpsPerIp";
+export type AttemptLimit =
+  | "signInFailuresPerEmail"
+  | "signInFailuresPerIp"
+  | "signUpsPerIp"
+  | "clientDocumentFetchesPerUser"
+  | "tokenFailuresPerIp";
 
 export class AttemptCounter {
   readonly limit: AttemptLimit;
@@ -25,6 +30,14 @@ export class AttemptCounter {
 
   static signUpsOfIp(ip: ClientIp) {
     return new AttemptCounter("signUpsPerIp", ip);
+  }
+
+  static clientDocumentFetchesOfUser(userId: UserId) {
+    return new AttemptCounter("clientDocumentFetchesPerUser", userId);
+  }
+
+  static tokenFailuresOfIp(ip: ClientIp) {
+    return new AttemptCounter("tokenFailuresPerIp", ip);
   }
 }
 

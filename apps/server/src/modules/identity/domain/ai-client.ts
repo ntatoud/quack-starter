@@ -27,6 +27,8 @@ export class AiClientDocuments extends Context.Service<
   AiClientDocuments,
   {
     fetch(url: URL): Effect.Effect<Schema.Json, AiClientDocumentUnavailable>;
+    /** The document while it is still fresh from an earlier fetch, without fetching it. */
+    cached(url: URL): Effect.Effect<Option.Option<Schema.Json>>;
   }
 >()("@quack/server/identity/AiClientDocuments") {}
 

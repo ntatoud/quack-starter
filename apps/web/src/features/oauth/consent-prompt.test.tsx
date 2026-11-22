@@ -274,6 +274,17 @@ describe("ConsentPrompt", () => {
     expect(page.getByRole("button", { name: "Approve" }).elements()).toHaveLength(0);
   });
 
+  it("says how long to wait when the User made Quack fetch too many documents", async () => {
+    await setup({
+      check: () => Response.json({ _tag: "TooManyAttempts", retryAfter: 600 }, { status: 429 }),
+    });
+
+    await expect
+      .element(page.getByRole("alert"))
+      .toHaveTextContent("Could not load the requestToo many attempts. Try again in 10 minutes.");
+    expect(page.getByRole("button", { name: "Approve" }).elements()).toHaveLength(0);
+  });
+
   it("says when the request could not be checked, and checks it again", async () => {
     let calls = 0;
     await setup({

@@ -30,6 +30,14 @@ A Grant ends sooner when:
 
 An expired Grant's tokens get 401 on `/api/mcp` and `invalid_grant` at the token endpoint.
 
+## Limits
+
+The `AttemptLimiter` of `docs/identity.md` guards two OAuth routes, with the limits in `ServerConfig.attemptLimits`:
+
+- `authorize/check` counts, per User, the fetches of a document that miss the cache (`clientDocumentFetchesPerUser`, 30 in 15 minutes); past it, `TooManyAttempts` (429), which the consent page words.
+- `token` counts, per address, the requests refused with `invalid_grant` (`tokenFailuresPerIp`, 20 in 15 minutes), and never a success. Past it, 429 with `Retry-After` and an OAuth error, `{ "error": "invalid_request", "error_description": "Too many attempts, retry in N seconds" }`. A request is counted before it is tried, so concurrent guesses do not all get through, and given back when it succeeds or fails otherwise.
+- `approve` and `deny` have none: they need a Session and the CSRF token of a request `check` counted. `/api/mcp` has none either.
+
 ## Where the code is
 
 - Contract: `packages/contracts/src/oauth/` (the `oauth` group: `authorize/*` behind `Authentication`, `token` after it).

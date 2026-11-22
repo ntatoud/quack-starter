@@ -811,6 +811,37 @@ describe("server routes of an AI Client", () => {
     }
   });
 
+  it("answers the 21st failed token request of an address with 429, Retry-After, and an OAuth error, and tells the addresses apart by X-Forwarded-For", async () => {
+    const from = { "x-forwarded-for": "203.0.113.90" };
+
+    const failed = await Promise.all(
+      Array.from({ length: 20 }, () => exchange("not-a-code-of-quack", from)),
+    );
+
+    expect(failed.map((response) => response.status)).toEqual(
+      Array.from({ length: 20 }, () => 400),
+    );
+
+    const refused = await exchange("not-a-code-of-quack", from);
+
+    const fromAnotherAddress = await exchange("not-a-code-of-quack", {
+      "x-forwarded-for": "203.0.113.91",
+    });
+
+    expect(refused.status).toBe(429);
+    const retryAfter = Number(refused.headers.get("retry-after"));
+    expect(retryAfter).toBeGreaterThan(800);
+    expect(retryAfter).toBeLessThanOrEqual(900);
+    expect(await refused.json()).toEqual({
+      error: "invalid_request",
+      error_description: `Too many attempts, retry in ${retryAfter} seconds`,
+    });
+    expect(refused.headers.get("cache-control")).toBe("no-store");
+    expect(refused.headers.get("access-control-allow-origin")).toBe("*");
+    expect(refused.headers.get("access-control-expose-headers")).toBe("retry-after");
+    expect(fromAnotherAddress.status).toBe(400);
+  });
+
   it("refuses the access token of a Grant anywhere under /api but /api/mcp", async () => {
     const cookie = await sessionCookieOf("ai-client-bearer@example.com", "203.0.113.81");
     const token = await exchange(await approvedCode(cookie));
