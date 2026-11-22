@@ -26,15 +26,19 @@ export const selectionBar = definePrimitive({
     /** Moves the focus the bar held to where `focusOnEmpty` says. */
     handOffFocus: (bar: HTMLElement) => {
       const active = document.activeElement;
+
       // The focus moved on by itself (a dialog the action opened): it stays there.
       if (active !== null && active !== document.body && !bar.contains(active)) return;
       // By default, the "select all" box of the nearest table around the bar.
       let around = bar.parentElement;
+
       while (around !== null && around.querySelector("[data-slot=data-table]") === null)
         around = around.parentElement;
+
       const target =
         context.options().focusOnEmpty?.() ??
         around?.querySelector<HTMLElement>("[data-slot=data-table] thead [role=checkbox]");
+
       target?.focus();
     },
   }),
@@ -50,23 +54,28 @@ export const selectionBar = definePrimitive({
       }),
       bind: (el, part) => {
         let hadFocus = false;
+
         const focused = () => {
           hadFocus = true;
         };
+
         const left = () => {
           // Hidden with the focus inside, the bar loses it to nothing: that blur is the one to act on. Any other (a
           // click on the page) lets the focus go for good.
           if (!el.hidden) hadFocus = false;
         };
+
         // Once the bar hides, after the page shows that: the focus is gone or about to.
         const hiding = new MutationObserver(() => {
           if (!el.hidden || !hadFocus) return;
           hadFocus = false;
           part.api.handOffFocus(el);
         });
+
         el.addEventListener("focusin", focused);
         el.addEventListener("focusout", left);
         hiding.observe(el, { attributes: true, attributeFilter: ["hidden"] });
+
         return () => {
           el.removeEventListener("focusin", focused);
           el.removeEventListener("focusout", left);

@@ -13,10 +13,12 @@ afterEach(() => {
 describe("usePageTitle", () => {
   it("keeps the title of the route until the data is loaded, then titles the page with it", async () => {
     document.title = pageTitle("User", "Users");
+
     const { rerender } = await renderHook<{ name?: string }, void>(
       ({ name } = {}) => usePageTitle(name, "Users"),
       { initialProps: {} },
     );
+
     expect(document.title).toBe(pageTitle("User", "Users"));
 
     await rerender({ name: "Ada Lovelace" });

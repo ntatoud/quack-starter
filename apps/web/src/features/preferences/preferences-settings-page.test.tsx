@@ -7,6 +7,7 @@ import { PreferencesSettingsPage } from "#/features/preferences/preferences-sett
 import { testProviders } from "#/testing/test-providers.tsx";
 
 const fetch = vi.fn<typeof globalThis.fetch>();
+
 vi.stubGlobal("fetch", fetch);
 
 afterEach(() => {
@@ -20,6 +21,7 @@ const setup = async (values: Partial<PreferenceValues> = {}) => {
       <PreferencesSettingsPage />
     </Providers>,
   );
+
   return {
     preferences,
     theme: page.getByRole("radiogroup", { name: "Theme" }),

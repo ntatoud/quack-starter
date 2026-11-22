@@ -28,15 +28,19 @@ const step = (
   files: ReadonlyArray<MigrationFile>,
 ): Result.Result<RollbackStep, string> => {
   const file = files.find(({ name }) => name === fileName(migration));
+
   if (file === undefined) {
     return Result.fail(
       `Migration ${label(migration)} is applied, but no file ${fileName(migration)} holds it: check out the code that added it.`,
     );
   }
-  const down = file.exports["down"];
+
+  const down = file.exports.down;
+
   if (!Effect.isEffect(down)) {
     return Result.fail(`${file.name} exports no down Effect: it cannot be reverted.`);
   }
+
   // A migration's down needs the SqlClient only, as its up does for the Migrator.
   return Result.succeed({ ...migration, down: down as RollbackStep["down"] });
 };
@@ -51,13 +55,16 @@ export const rollbackPlan = ({
   readonly to: number | undefined;
 }): Result.Result<ReadonlyArray<RollbackStep>, string> => {
   const latestFirst = [...applied].sort((a, b) => b.id - a.id);
+
   const reverted =
     to === undefined ? latestFirst.slice(0, 1) : latestFirst.filter(({ id }) => id > to);
+
   return Result.all(reverted.map((migration) => step(migration, files)));
 };
 
 const reason = (cause: Cause.Cause<unknown>) => {
   const error = Cause.squash(cause);
+
   return error instanceof Error ? error.message : String(error);
 };
 
@@ -65,21 +72,25 @@ const AppliedRow = Schema.Struct({ migrationId: Schema.Int, name: Schema.String 
 
 export const migrationsTableExists = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
+
   const found = yield* SqlSchema.findAll({
     Request: Schema.Void,
     Result: Schema.Struct({ found: Schema.Int }),
     execute: () => sql`SELECT 1 AS found WHERE to_regclass(${MIGRATIONS_TABLE}) IS NOT NULL`,
   })(undefined);
+
   return found.length > 0;
 });
 
 export const appliedMigrations = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
+
   const rows = yield* SqlSchema.findAll({
     Request: Schema.Void,
     Result: AppliedRow,
     execute: () => sql`SELECT migration_id, name FROM ${sql(MIGRATIONS_TABLE)}`,
   })(undefined);
+
   return rows.map(({ migrationId, name }): AppliedMigration => ({ id: migrationId, name }));
 });
 
@@ -99,10 +110,12 @@ export const rollback = Effect.fn("rollback")(function* ({
       // The lock the Migrator takes: a server starting meanwhile waits for the rollback to end.
       yield* sql`LOCK TABLE ${sql(MIGRATIONS_TABLE)} IN ACCESS EXCLUSIVE MODE`;
       const applied = yield* appliedMigrations;
+
       const steps = yield* Result.match(rollbackPlan({ applied, files, to }), {
         onSuccess: Effect.succeed,
         onFailure: (message) => Effect.fail(new RollbackFailed({ message })),
       });
+
       for (const migration of steps) {
         yield* migration.down.pipe(
           Effect.catchCause((cause) =>
@@ -116,6 +129,7 @@ export const rollback = Effect.fn("rollback")(function* ({
         yield* sql`DELETE FROM ${sql(MIGRATIONS_TABLE)} WHERE migration_id = ${migration.id}`;
         yield* Effect.log(`Reverted migration ${label(migration)}`);
       }
+
       return steps.map(label);
     }),
   );

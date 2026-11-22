@@ -10,7 +10,7 @@ import { useMemoryDataTableStore } from "@quack/ui/hooks/use-memory-data-table-s
 
 import { render } from "vitest-browser-react";
 
-type State = {
+export type State = {
   readonly page?: number | undefined;
   readonly q?: string | undefined;
   readonly orderBy?: "name" | undefined;
@@ -19,10 +19,12 @@ type State = {
 
 function LocalTable() {
   const store = useMemoryDataTableStore<State>();
+
   const table = useDataTable({
     store,
     defaultSorting: { column: "name", direction: "asc" },
   });
+
   return (
     <>
       <DataTableToolbar table={table} search={{ "aria-label": "Search" }} />
@@ -71,10 +73,12 @@ export const typing = (
     title: "Role",
     options: [{ value: "admin", label: "Admin" }],
   });
+
   const loose = selectFilter({
     title: "Role",
     options: [{ value: "admin" as string, label: "Admin" }],
   });
+
   return () => [
     // A filter may offer part of a field's values.
     useDataTable({

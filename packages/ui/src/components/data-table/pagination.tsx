@@ -23,13 +23,18 @@ export const pagesAround = (
   siblings = 1,
 ): ReadonlyArray<number | "gap-before" | "gap-after"> => {
   const around = Array.from({ length: siblings * 2 + 1 }, (_, i) => page - siblings + i);
+
   const shown = [...new Set([1, ...around, pages])]
     .filter((n) => n >= 1 && n <= pages)
     .sort((a, b) => a - b);
+
   return shown.flatMap((n, i) => {
     const gap = i === 0 ? 0 : n - (shown[i - 1] ?? n) - 1;
+
     if (gap === 0) return [n];
+
     if (gap === 1) return [n - 1, n];
+
     return [n <= page ? ("gap-before" as const) : ("gap-after" as const), n];
   });
 };
@@ -74,6 +79,7 @@ function PageControl({
         {children}
       </Button>
     );
+
   return (
     <AnchorButton
       {...props}
@@ -93,7 +99,7 @@ function PageControl({
   );
 }
 
-type PageNavigation = {
+export type PageNavigation = {
   readonly pageLink: (page: number) => DataTableLink | undefined;
   readonly goToPage: (page: number, options?: { readonly replace?: boolean }) => void;
 };
@@ -108,10 +114,12 @@ function PageSizeSelect({
   onPageSizeChange: (size: number) => void;
 }) {
   const id = React.useId();
+
   // The size of the state stays offered, though the list lacks it: the select shows what the table shows.
   const sizes = pageSizes.includes(pageSize)
     ? pageSizes
     : [...pageSizes, pageSize].sort((a, b) => a - b);
+
   return (
     <div className="flex items-center gap-2">
       {/* Hidden from sight in a narrow footer: the select keeps it as its name. */}
@@ -139,7 +147,7 @@ function PageSizeSelect({
   );
 }
 
-type PaginationProps = {
+export type PaginationProps = {
   /** What `useDataTable` answers. */
   table: PageNavigation & {
     readonly page: number;
@@ -186,20 +194,25 @@ export function DataTablePagination({
     count.total === undefined
       ? Math.max(1, Number.isFinite(count.pages) ? count.pages : 1)
       : pageCount(count.total, pageSize);
+
   // The current page shows in two lists, one for narrow footers: the one shown takes the focus.
   const currentLinks = React.useRef(new Set<HTMLAnchorElement | HTMLButtonElement>());
+
   const currentLink = React.useCallback((node: HTMLAnchorElement | HTMLButtonElement | null) => {
     if (node === null) return;
     currentLinks.current.add(node);
+
     return () => {
       currentLinks.current.delete(node);
     };
   }, []);
+
   // Previous or Next, disabled once it reaches its end, can no longer hold the focus it had.
   const refocusOn = React.useRef<number | null>(null);
   React.useEffect(() => {
     const target = refocusOn.current;
     refocusOn.current = null;
+
     if (target !== page) return;
     [...currentLinks.current].find((link) => link.checkVisibility())?.focus();
   }, [page]);
@@ -225,10 +238,11 @@ export function DataTablePagination({
 
   const previous = Math.min(page - 1, pages);
   const next = page + 1;
+
   const pageList = (siblings: number, className: string) => (
     <ul className={className}>
       {pagesAround(page, pages, siblings).map((n) =>
-        typeof n === "string" ? (
+        n === "gap-before" || n === "gap-after" ? (
           <li key={n}>
             <span aria-hidden className="flex h-8 w-4 items-center justify-center">
               <MoreHorizontalIcon className="size-4" />

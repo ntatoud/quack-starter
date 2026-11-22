@@ -6,6 +6,7 @@ export const schemaFormOptions = <Values, Decoded>(
   defaultValues: Values,
 ) => {
   const validator: StandardSchemaV1<Values, Decoded> = Schema.toStandardSchemaV1(schema);
+
   return formOptions({
     defaultValues,
     validationLogic: revalidateLogic(),

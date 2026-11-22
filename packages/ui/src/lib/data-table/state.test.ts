@@ -26,6 +26,7 @@ const defaults = { column: "name", direction: "asc" } as const;
 const memoryStore = (initial: State, { addresses = true } = {}) => {
   const updates: Array<{ state: State; replace: boolean }> = [];
   let current = initial;
+
   const store: DataTableStore<State> = {
     get state() {
       return current;
@@ -41,9 +42,11 @@ const memoryStore = (initial: State, { addresses = true } = {}) => {
       }),
     }),
   };
+
   const table = dataTableState(store, defaults, {
     filterKeys: ["status", "tags", "total", "ids"],
   });
+
   return {
     table,
     updates,
@@ -169,6 +172,7 @@ describe("dataTableState", () => {
   it("says whether the search or a filter narrows the rows, and resets them but the sorting", () => {
     expect(memoryStore({ orderBy: "createdAt", page: 2 }).table.isFiltered).toBe(false);
     expect(memoryStore({ total: {} }).table.isFiltered).toBe(false);
+
     const { table, updates } = memoryStore({
       orderBy: "createdAt",
       page: 2,
@@ -257,6 +261,7 @@ describe("dataTableState history with a store that lags", () => {
     const updates: Array<{ state: State; replace: boolean }> = [];
     let shown: State = {};
     let newest: State = {};
+
     const store: DataTableStore<State> = {
       get state() {
         return shown;
@@ -266,7 +271,9 @@ describe("dataTableState history with a store that lags", () => {
         updates.push({ state: newest, replace: options?.replace ?? false });
       },
     };
+
     const history: DataTableHistory = { current: null };
+
     return {
       updates,
       /** A render: the table as the store shows it now. */
@@ -359,9 +366,11 @@ describe("dataTableState history with a store that holds more than the table", (
     const updates: Array<{ state: State; replace: boolean }> = [];
     // The URL holds a key of a child route; the table's state, what its route validated, does not.
     let url: State & { readonly userId?: string } = { userId: "7" };
+
     const store: DataTableStore<State> = {
       get state() {
         const { userId: _userId, ...state } = url;
+
         return state;
       },
       update: (next, options) => {
@@ -369,6 +378,7 @@ describe("dataTableState history with a store that holds more than the table", (
         updates.push({ state: url, replace: options?.replace ?? false });
       },
     };
+
     const history: DataTableHistory = { current: null };
     const table = () => dataTableState(store, defaults, { history });
 
@@ -492,6 +502,7 @@ describe("dataTableState pinned columns", () => {
   it("keeps pins out of what the rows depend on", () => {
     const keys = (state: State) => {
       const { table } = memoryStore(state);
+
       return [table.filtersKey, table.rowsKey, table.isFiltered];
     };
 

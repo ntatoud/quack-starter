@@ -61,14 +61,18 @@ const setup = async (
 ) => {
   const states: Array<State> = [];
   const held: Array<(state: State) => State> = [];
+
   function Table() {
     const [state, setState] = useState<State>(initial);
+
     const apply = (next: (state: State) => State) =>
       setState((current) => {
         const result = next(current);
         states.push(result);
+
         return result;
       });
+
     const store: DataTableStore<State> = {
       state,
       update: (next) => {
@@ -77,6 +81,7 @@ const setup = async (
         else apply(next);
       },
     };
+
     const table = useDataTable({
       store,
       defaultSorting: { column: "name", direction: "asc" },
@@ -99,6 +104,7 @@ const setup = async (
         amount: minimumFilter,
       },
     });
+
     return (
       <>
         <DataTableToolbar table={table} {...(searchable && { search: { "aria-label": "Search" } })}>
@@ -122,7 +128,9 @@ const setup = async (
       </>
     );
   }
+
   const screen = await render(<Table />);
+
   return {
     states,
     last: () => states.at(-1),
@@ -138,8 +146,10 @@ const clickBehindMenu = (name: string) =>
   ).click();
 
 const chip = (title: string) => page.getByRole("group", { name: `${title} filter` });
+
 /** What the chip shows: its button, without what its live region says. */
 const chipText = (title: string) => chip(title).getByRole("button").first();
+
 const addFilter = async (title: string) => {
   await page.getByRole("button", { name: "Add filter" }).click();
   await page.getByRole("menuitem", { name: title }).click();
@@ -159,6 +169,7 @@ const chipOf = (
     onRemove={() => {}}
   />
 );
+
 /** What the chip of the Owner says aloud. */
 const announced = () => chip("Owner").getByRole("status");
 
@@ -406,6 +417,7 @@ describe("DataTableToolbar", () => {
         tags: ["vip"],
         amount: { min: 1 },
       } as const;
+
       const screen = await setup(all, {}, { searchable: false, later });
       expect(page.getByRole("button", { name: "Add filter" }).elements()).toHaveLength(0);
 
@@ -516,6 +528,7 @@ describe("DataTableToolbar search", () => {
 
 function Layout({ initial }: { initial: State }) {
   const store = useMemoryDataTableStore<State>(initial);
+
   const table = useDataTable({
     store,
     defaultSorting: { column: "name", direction: "asc" },
@@ -534,6 +547,7 @@ function Layout({ initial }: { initial: State }) {
       amount: minimumFilter,
     },
   });
+
   return (
     <DataTableToolbar table={table} search={{ "aria-label": "Search" }}>
       <button type="button">Export</button>
@@ -568,8 +582,10 @@ describe("DataTableToolbar layout", () => {
 
       const frame = toolbar().getBoundingClientRect();
       expect(toolbar().scrollWidth).toBeLessThanOrEqual(toolbar().clientWidth);
+
       for (const element of toolbar().querySelectorAll("*")) {
         const box = element.getBoundingClientRect();
+
         // A visually hidden live region is a pixel wide, a pixel outside: it shows nothing.
         if (box.width === 0 || element.classList.contains("sr-only")) continue;
         expect(box.left).toBeGreaterThanOrEqual(frame.left - 0.5);
@@ -642,8 +658,10 @@ describe("DataTableFilterChip look", () => {
 describe("DataTableFilterChip at phone width", () => {
   it("keeps a long summary on one line, inside the toolbar", async () => {
     await viewport(375);
+
     function Long() {
       const store = useMemoryDataTableStore<State>({ tags: ["vip", "beta"] });
+
       const table = useDataTable({
         store,
         defaultSorting: { column: "name", direction: "asc" },
@@ -657,8 +675,10 @@ describe("DataTableFilterChip at phone width", () => {
           }),
         },
       });
+
       return <DataTableToolbar table={table} />;
     }
+
     await render(<Long />);
     const trigger = chipText("Tags");
     await expect.element(trigger).toBeVisible();
@@ -675,14 +695,18 @@ describe("DataTableFilterChip of several options", () => {
   it("ticks its options in boxes, empty when unticked, filled with a check when ticked", async () => {
     await setup({ tags: ["vip"] });
     await chip("Tags").getByRole("button").first().click();
+
     const box = (name: string) => {
       const found = page
         .getByRole("menuitemcheckbox", { name })
         .element()
         .querySelector<HTMLElement>("span[aria-hidden]");
+
       if (found === null) throw new Error(`No box for ${name}.`);
+
       return found;
     };
+
     await expect.element(page.getByRole("menuitemcheckbox", { name: "VIP" })).toBeVisible();
 
     const empty = getComputedStyle(box("Beta"));

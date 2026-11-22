@@ -11,6 +11,7 @@ export function SignInPage() {
   const setCurrentUser = useSetCurrentUser();
   const navigate = useNavigate();
   const search = useSearch({ from: "/_guest/sign-in" });
+
   const onSignedIn = async (user: User) => {
     await setCurrentUser(user);
     await navigate({ href: redirectTarget(search.redirect) });

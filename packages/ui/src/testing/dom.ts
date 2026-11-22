@@ -4,6 +4,7 @@ export const elementOf = <T extends Element>(
   node: Element | null | undefined,
 ): T => {
   if (!(node instanceof type)) throw new Error(`Expected a ${type.name}, found ${String(node)}.`);
+
   return node;
 };
 

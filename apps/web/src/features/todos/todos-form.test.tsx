@@ -16,9 +16,11 @@ const created = (title: string) =>
 
 // The API client keeps the `fetch` it first saw, so one stub serves every test and each test sets its response.
 let respond: (request: Request) => Response | Promise<Response>;
+
 const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) =>
   respond(new Request(input, init)),
 );
+
 vi.stubGlobal("fetch", fetch);
 
 const setup = async (response: typeof respond) => {
@@ -28,6 +30,7 @@ const setup = async (response: typeof respond) => {
       <TodosForm />
     </QueryClientProvider>,
   );
+
   return {
     input: page.getByRole("textbox", { name: "New todo" }),
     add: page.getByRole("button", { name: "Add" }),
@@ -79,8 +82,10 @@ describe("TodosForm", () => {
 
   it("sends the trimmed title, clears the input, and announces the todo", async () => {
     const requests: Array<unknown> = [];
+
     const { input } = await setup(async (request) => {
       requests.push(await request.json());
+
       return created("Ship it");
     });
 
@@ -94,8 +99,10 @@ describe("TodosForm", () => {
 
   it("calls the API on the page's own origin, under /api", async () => {
     const urls: Array<string> = [];
+
     const { input } = await setup((request) => {
       urls.push(request.url);
+
       return created("Ship it");
     });
 

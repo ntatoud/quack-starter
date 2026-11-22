@@ -1,13 +1,4 @@
-import type { MutationFunctionContext } from "@tanstack/react-query";
-
 import { api } from "#/lib/api.ts";
+import { invalidating } from "#/lib/invalidate-queries.ts";
 
-export const invalidateTodos = {
-  onSettled: (
-    _data: unknown,
-    _error: unknown,
-    _input: unknown,
-    _onMutateResult: unknown,
-    { client }: MutationFunctionContext,
-  ) => client.invalidateQueries({ queryKey: api.todos.key() }),
-};
+export const invalidateTodos = invalidating(api.todos.key());

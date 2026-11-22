@@ -20,6 +20,7 @@ import {
 import { Skeleton } from "@quack/ui/components/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@quack/ui/components/tooltip";
 import { PanelLeftIcon } from "lucide-react";
+import { isFunction, isText } from "@quack/ui/lib/guards";
 
 export const SIDEBAR_COOKIE_NAME = "sidebar_state";
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
@@ -42,6 +43,7 @@ const SidebarContext = React.createContext<SidebarContextProps | null>(null);
 
 function useSidebar() {
   const context = React.useContext(SidebarContext);
+
   if (!context) {
     throw new Error("useSidebar must be used within a SidebarProvider.");
   }
@@ -67,9 +69,11 @@ function SidebarProvider({
 
   const [_open, _setOpen] = React.useState(defaultOpen);
   const open = openProp ?? _open;
+
   const setOpen = React.useCallback(
     (value: boolean | ((value: boolean) => boolean)) => {
-      const openState = typeof value === "function" ? value(open) : value;
+      const openState = isFunction(value) ? value(open) : value;
+
       if (setOpenProp) {
         setOpenProp(openState);
       } else {
@@ -469,6 +473,7 @@ function SidebarMenuButton({
   tooltip?: string | React.ComponentProps<typeof TooltipContent>;
 } & VariantProps<typeof sidebarMenuButtonVariants>) {
   const { isMobile, state } = useSidebar();
+
   const comp = renderElement(
     "button",
     mergeProps(
@@ -488,16 +493,14 @@ function SidebarMenuButton({
     return comp;
   }
 
-  if (typeof tooltip === "string") {
-    tooltip = {
-      children: tooltip,
-    };
-  }
-
   return (
     <Tooltip disabled={state !== "collapsed" || isMobile}>
       {comp}
-      <TooltipContent side="right" align="center" {...tooltip} />
+      <TooltipContent
+        side="right"
+        align="center"
+        {...(isText(tooltip) ? { children: tooltip } : tooltip)}
+      />
     </Tooltip>
   );
 }

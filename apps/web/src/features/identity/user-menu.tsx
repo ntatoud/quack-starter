@@ -87,6 +87,7 @@ export function UserMenu({ currentUser }: { currentUser: typeof User.Encoded }) 
 
 function UserIdentity({ currentUser }: { currentUser: typeof User.Encoded }) {
   const { email, profile } = currentUser;
+
   return (
     <>
       <UserAvatar user={currentUser} />

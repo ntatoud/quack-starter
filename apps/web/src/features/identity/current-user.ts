@@ -16,8 +16,10 @@ const getCurrentUser = createServerFn({ method: "GET" }).handler(async () => {
     cookie: getRequestHeader("cookie"),
     clientIp: getRequestIP(),
   });
+
   // Appended, not set: setting the header would replace the cookies already on the response.
   if (setCookie.length > 0) appendResponseHeader("set-cookie", setCookie);
+
   return user === null ? null : encodeUser(user);
 });
 

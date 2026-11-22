@@ -48,20 +48,25 @@ export function useDataTableSelection<TData>(
   const { initial, matching, resetOn, ...rest } = options;
   const [stored, setStored] = React.useState<ReadonlySet<string>>(() => new Set(initial));
   const [lastReset, setLastReset] = React.useState(resetOn);
+
   // Adjusted while rendering, as React advises for state that follows a prop: no render shows the stale selection.
   if (!Object.is(lastReset, resetOn)) {
     setLastReset(resetOn);
     setStored(new Set());
   }
+
   const kept = matching === undefined ? undefined : new Set(matching);
+
   const selected =
     kept === undefined || [...stored].every((id) => kept.has(id))
       ? stored
       : new Set([...stored].filter((id) => kept.has(id)));
+
   // Narrowed for good: removing the filter does not bring back rows the user saw leave the selection.
   if (selected !== stored) setStored(selected);
 
   const { rowLabel, canSelect } = rest;
+
   // The same object while the selection stays the same: the checkboxes of the table do not render again. `selected`
   // is `stored` but in the render that narrows it, which stores the narrowed set at once.
   return React.useMemo(
@@ -92,6 +97,7 @@ export function SelectableRow({
   ...props
 }: Omit<React.ComponentProps<typeof TableRow>, "id"> & { rowId?: string | undefined }) {
   if (rowId === undefined) return <TableRow interactive={interactive} {...props} />;
+
   return (
     <RowSelectionRow
       value={rowId}
@@ -104,7 +110,9 @@ export function SelectableRow({
 
 const useSelectionModel = () => {
   const model = React.use(SelectionContext);
+
   if (model === null) throw new Error("A selection cell renders inside a DataTable.");
+
   return model;
 };
 
@@ -113,6 +121,7 @@ export function SelectAllCheckbox() {
   const { selectable, selected, allRows, api } = useSelectionModel();
   const count = [...selectable].filter((id) => selected.has(id)).length;
   const all = count > 0 && count === selectable.size;
+
   return (
     <Checkbox
       aria-label={allRows ? "Select all rows" : "Select all rows shown"}
@@ -129,6 +138,7 @@ export function SelectAllCheckbox() {
  */
 export function SelectRowCheckbox({ rowId }: { rowId: string }) {
   const { api, selectable, selected, label } = useSelectionModel();
+
   return (
     // The change event of a checkbox does not tell whether Shift was held: the box reads it on the press.
     <RowSelectionBox className="flex">
@@ -164,6 +174,7 @@ export function DataTableSelectionBar({
   children?: React.ReactNode;
 }) {
   const label = `${count} selected`;
+
   return (
     <SelectionBarRoot count={count} onClear={onClear} {...(focusOnEmpty && { focusOnEmpty })}>
       <SelectionBarStatus className="sr-only">{count > 0 ? label : ""}</SelectionBarStatus>

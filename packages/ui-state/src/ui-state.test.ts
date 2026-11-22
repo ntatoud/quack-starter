@@ -3,7 +3,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import { UiState } from "#/ui-state.ts";
 
-type Loaded = Exclude<UiState<string, Error>, { readonly _tag: "Idle" }>;
+export type Loaded = Exclude<UiState<string, Error>, { readonly _tag: "Idle" }>;
 
 const offline = new Error("offline");
 

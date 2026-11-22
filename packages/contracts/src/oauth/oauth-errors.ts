@@ -8,6 +8,7 @@ export const AuthorizationErrorCode = Schema.Literals([
   "invalid_scope",
   "invalid_target",
 ]);
+
 export type AuthorizationErrorCode = typeof AuthorizationErrorCode.Type;
 
 /**

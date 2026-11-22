@@ -52,6 +52,7 @@ describe("makeProcedure", () => {
 
   it("interrupts the Effect when the query is cancelled", async () => {
     let interrupted = false;
+
     const hangs = makeProcedure(
       ["hangs"],
       () =>
@@ -64,6 +65,7 @@ describe("makeProcedure", () => {
         ),
       run,
     );
+
     const controller = new AbortController();
 
     const pending = hangs.queryOptions().queryFn(context(controller.signal));

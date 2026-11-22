@@ -12,15 +12,16 @@ export interface RouterContext {
 }
 
 // A call without a Session would fail again: retrying only delays the sign-in page.
-const retry = (failureCount: number, error: unknown): boolean =>
+const retry = (failureCount: number, error: Error): boolean =>
   !(error instanceof Unauthenticated) && failureCount < 3;
 
 export function getRouter() {
-  const onError = (error: unknown): void => {
+  const onError = (error: Error): void => {
     if (!(error instanceof Unauthenticated)) return;
     setCurrentUserData(queryClient, null);
     const { pathname, href } = router.state.location;
     const signIn = signInLocation(href);
+
     // Several calls can fail at once: the first one already led to the sign-in page.
     if (pathname === signIn.to) return;
     void router.navigate(signIn);

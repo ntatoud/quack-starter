@@ -16,6 +16,7 @@ export default defineConfig(({ mode }) => {
     process.env.PORTLESS_URL === undefined
       ? loadEnv(mode, envDir, "").API_URL
       : execFileSync("portless", ["get", "api.quack"], { encoding: "utf8" }).trim();
+
   if (API_URL !== undefined) process.env.API_URL = API_URL;
 
   return {

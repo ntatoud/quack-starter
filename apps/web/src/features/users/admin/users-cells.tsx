@@ -31,6 +31,7 @@ const statusDot = {
 
 export function StatusBadge({ status }: { status: UserStatus }) {
   const label = labelOf("status", status);
+
   return (
     <Badge variant={status === "suspended" ? "destructive" : "outline"}>
       <span aria-hidden="true" className={cn("size-1.5 rounded-full", statusDot[status])} />
@@ -76,16 +77,19 @@ const capitalized = (text: string) => text.charAt(0).toUpperCase() + text.slice(
 /** In the largest unit that fits, starting with a capital as the other cells do: "3 days ago", "Last month". */
 const timeAgo = (date: Date, now: Date) => {
   const seconds = Math.round((date.getTime() - now.getTime()) / 1000);
+
   for (const [unit, size] of units) {
     if (Math.abs(seconds) >= size) {
       return capitalized(relativeFormat.format(Math.round(seconds / size), unit));
     }
   }
+
   return "Just now";
 };
 
 export function DateCell({ date }: { date: DateTime.Utc }) {
   const value = DateTime.toDateUtc(date);
+
   return (
     <time dateTime={value.toISOString()} className="whitespace-nowrap">
       {dateFormat.format(value)}
@@ -104,6 +108,7 @@ export function OnboardedCell({ date }: { date: DateTime.Utc | null }) {
 export function TimeAgoCell({ date, now }: { date: DateTime.Utc | null; now: Date }) {
   if (date === null) return <span className="text-muted-foreground">Never</span>;
   const value = DateTime.toDateUtc(date);
+
   return (
     <time
       dateTime={value.toISOString()}

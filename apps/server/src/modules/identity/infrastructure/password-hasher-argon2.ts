@@ -25,6 +25,7 @@ interface Argon2Hash {
 
 // The base64 of a PHC string has no padding.
 const encodeBase64 = (bytes: Uint8Array) => Base64.encode(bytes).replace(/=+$/, "");
+
 const decodeBase64 = (text: string) =>
   Result.getOrUndefined(Base64.decode(text.padEnd(Math.ceil(text.length / 4) * 4, "=")));
 
@@ -37,11 +38,14 @@ const phc = /^\$argon2id\$v=19\$m=(\d+),t=(\d+),p=(\d+)\$([A-Za-z0-9+/]+)\$([A-Z
 
 const parsePhc = (hash: string): Option.Option<Argon2Hash> => {
   const match = phc.exec(hash);
+
   if (match === null) return Option.none();
   const [, memory, passes, parallelism, salt = "", tag = ""] = match;
   const saltBytes = decodeBase64(salt);
   const tagBytes = decodeBase64(tag);
+
   if (saltBytes === undefined || tagBytes === undefined) return Option.none();
+
   return Option.some({
     costs: { memory: Number(memory), passes: Number(passes), parallelism: Number(parallelism) },
     salt: saltBytes,
@@ -69,13 +73,16 @@ export const PasswordHasherArgon2 = Layer.effect(
       hash: Effect.fn("PasswordHasher.hash")(function* (password) {
         const salt = yield* random.randomBytes(saltLength);
         const tag = yield* derive(password, currentCosts, salt, tagLength);
+
         return formatPhc({ costs: currentCosts, salt, tag });
       }),
       verify: Effect.fn("PasswordHasher.verify")(function* (password, storedHash) {
         const stored = parsePhc(storedHash);
+
         if (Option.isNone(stored)) return false;
         const { costs, salt, tag } = stored.value;
         const derived = yield* derive(password, costs, salt, tag.length);
+
         return Mac.timingSafeEqual(derived, tag);
       }),
     });

@@ -25,11 +25,14 @@ function Pages({
   results?: string;
 } & ({ pages: number } | { total: number })) {
   const store = useMemoryDataTableStore<State>(initial);
+
   const table = useDataTable({
     store,
     defaultSorting: { column: "name", direction: "asc" },
   });
+
   const [busy, setBusy] = useState(initiallyBusy);
+
   return (
     <>
       <button type="button" onClick={() => setBusy(false)}>
@@ -89,6 +92,7 @@ describe("DataTablePagination", () => {
       .element(page.getByRole("button", { name: "Page 10" }))
       .toHaveAttribute("aria-current", "page");
     const footer = page.getByTestId("footer").element().getBoundingClientRect();
+
     for (const name of ["Previous", "Next"]) {
       const box = page.getByRole("button", { name }).element().getBoundingClientRect();
       expect(box.left).toBeGreaterThanOrEqual(footer.left);
@@ -147,10 +151,12 @@ describe("DataTablePagination", () => {
   it("keeps the page size named, though its label hides, in two lines at most of a narrow footer", async () => {
     function Sized() {
       const store = useMemoryDataTableStore<State>({ page: 4 });
+
       const table = useDataTable({
         store,
         defaultSorting: { column: "name", direction: "asc" },
       });
+
       return (
         <div data-testid="footer" style={{ width: "262px" }} className="@container">
           <DataTablePagination
@@ -162,6 +168,7 @@ describe("DataTablePagination", () => {
         </div>
       );
     }
+
     await render(<Sized />);
 
     const select = page.getByRole("combobox", { name: "Rows per page" });
@@ -169,17 +176,24 @@ describe("DataTablePagination", () => {
     expect(page.getByText("Rows per page").element().className).toContain("sr-only");
     expect(getComputedStyle(page.getByText("Rows per page").element()).position).toBe("absolute");
     const footer = page.getByTestId("footer").element();
+
     // A line: the boxes that overlap one another vertically.
     const boxes = [...footer.querySelectorAll("button, [role=combobox], p")]
-      .map((element) => element.getBoundingClientRect())
-      .filter((box) => box.width > 0)
+      .flatMap((element) => {
+        const box = element.getBoundingClientRect();
+
+        return box.width > 0 ? [box] : [];
+      })
       .sort((a, b) => a.top - b.top);
+
     let lines = 0;
     let bottom = -Infinity;
+
     for (const box of boxes) {
       if (box.top >= bottom) lines++;
       bottom = Math.max(bottom, box.bottom);
     }
+
     expect(lines).toBeLessThanOrEqual(2);
     // On a line of its own, the page list sits at the end.
     const nav = page.getByRole("navigation", { name: "Pages" }).element();

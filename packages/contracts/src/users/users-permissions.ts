@@ -7,4 +7,5 @@ export const UsersPermission = Schema.Literals([
   "users:write",
   "users:delete",
 ]);
+
 export type UsersPermission = typeof UsersPermission.Type;

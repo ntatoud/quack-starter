@@ -7,5 +7,6 @@ export function useMemoryDataTableStore<S extends DataTableStateValue>(
   initial: S = {} as S,
 ): DataTableStore<S> {
   const [state, setState] = useState(initial);
+
   return { state, update: (next) => setState(next) };
 }

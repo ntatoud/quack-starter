@@ -21,6 +21,7 @@ const renderAt = async (path: string) => {
       </SidebarProvider>
     ),
   });
+
   const routes = [
     createRoute({
       getParentRoute: () => rootRoute,
@@ -45,11 +46,14 @@ const renderAt = async (path: string) => {
       ),
     }),
   ];
+
   const router = createRouter({
     routeTree: rootRoute.addChildren(routes),
     history: createMemoryHistory({ initialEntries: [path] }),
   });
+
   await render(<RouterProvider router={router} />);
+
   return router;
 };
 

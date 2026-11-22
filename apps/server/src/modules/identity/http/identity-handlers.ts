@@ -31,7 +31,9 @@ export const IdentityHandlers = HttpApiBuilder.group(
           payload.password,
           yield* clientIp,
         );
+
         yield* cookie.set(session);
+
         return user;
       }),
       signIn: Effect.fn(function* ({ payload }) {
@@ -40,7 +42,9 @@ export const IdentityHandlers = HttpApiBuilder.group(
           payload.password,
           yield* clientIp,
         );
+
         yield* cookie.set(session);
+
         return user;
       }),
       // Not behind `Authentication`, which would refuse a request with no Session.
@@ -51,10 +55,12 @@ export const IdentityHandlers = HttpApiBuilder.group(
       me: () => Effect.service(CurrentUser),
       updateProfile: Effect.fn(function* ({ payload }) {
         const currentUser = yield* CurrentUser;
+
         return yield* users.updateProfile(currentUser.id, payload);
       }),
       completeOnboarding: Effect.fn(function* ({ payload }) {
         const currentUser = yield* CurrentUser;
+
         return yield* onboarding.complete(currentUser.id, payload);
       }),
     });

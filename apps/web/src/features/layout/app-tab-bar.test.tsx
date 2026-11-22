@@ -17,6 +17,7 @@ import { testProviders } from "#/testing/test-providers.tsx";
 const setup = async ({ width, role, path }: { width: number; role: Role; path: string }) => {
   await page.viewport(width, 800);
   const rootRoute = createRootRoute();
+
   const authenticated = createRoute({
     getParentRoute: () => rootRoute,
     id: "_authenticated",
@@ -34,33 +35,39 @@ const setup = async ({ width, role, path }: { width: number; role: Role; path: s
       },
     }),
   });
+
   const app = createRoute({
     getParentRoute: () => authenticated,
     path: "app",
     component: AppLayout,
   });
+
   const todos = createRoute({
     getParentRoute: () => app,
     path: "/",
     component: () => <PageHeader title="Todos" />,
   });
+
   const settings = createRoute({
     getParentRoute: () => app,
     path: "settings/profile",
     component: () => <PageHeader title="Profile" />,
   });
+
   const router = createRouter({
     routeTree: rootRoute.addChildren([
       authenticated.addChildren([app.addChildren([todos, settings])]),
     ]),
     history: createMemoryHistory({ initialEntries: [path] }),
   });
+
   const { Providers } = testProviders();
   await render(
     <Providers>
       <RouterProvider router={router} />
     </Providers>,
   );
+
   return page.getByRole("navigation", { name: "Main" });
 };
 
@@ -94,10 +101,12 @@ describe("AppTabBar", () => {
     await setup({ width: 1280, role: "admin", path: "/app" });
 
     await expect.element(page.getByRole("heading", { name: "Todos" })).toBeVisible();
+
     const inHeader = page
       .getByRole("link", { name: "Administration" })
       .elements()
       .filter((link) => link.closest("header") !== null);
+
     expect(inHeader).toEqual([]);
   });
 

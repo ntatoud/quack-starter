@@ -9,6 +9,7 @@ import { api } from "#/lib/api.ts";
 export const useDeleteUser = (id: UserId) => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+
   const leave = async () => {
     await queryClient.invalidateQueries({ queryKey: api.users.list.key() });
     // The page goes before the User's query: still shown, it would ask again for them, and be told they are not found.
@@ -16,6 +17,7 @@ export const useDeleteUser = (id: UserId) => {
       queryClient.removeQueries({ queryKey: userQueryOptions(id).queryKey }),
     );
   };
+
   return useMutation(
     api.users.remove.mutationOptions({
       onSuccess: leave,

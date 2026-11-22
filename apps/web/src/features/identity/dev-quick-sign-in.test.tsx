@@ -9,9 +9,11 @@ import { DevQuickSignIn } from "#/features/identity/dev-quick-sign-in.tsx";
 
 // The API client keeps the `fetch` it first saw, so one stub serves every test and each test sets its response.
 let respond: (request: Request) => Response | Promise<Response>;
+
 const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) =>
   respond(new Request(input, init)),
 );
+
 vi.stubGlobal("fetch", fetch);
 
 const setup = async (response: typeof respond) => {
@@ -22,6 +24,7 @@ const setup = async (response: typeof respond) => {
       <DevQuickSignIn onSignedIn={(user) => void signedIn.push(user)} />
     </QueryClientProvider>,
   );
+
   return signedIn;
 };
 
@@ -32,8 +35,10 @@ afterEach(() => {
 describe("DevQuickSignIn", () => {
   it("signs in as the seeded account of the Role", async () => {
     const requests: Array<unknown> = [];
+
     const signedIn = await setup(async (request) => {
       requests.push(await request.json());
+
       return Response.json({
         id: "1",
         email: devAccounts.admin,

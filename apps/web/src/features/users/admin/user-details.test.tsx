@@ -32,25 +32,30 @@ const ada = {
 
 // The API client keeps the `fetch` it first saw, so one stub serves every test and each test sets its response.
 let respond: (request: Request) => Response | Promise<Response>;
+
 const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) =>
   respond(new Request(input, init)),
 );
+
 vi.stubGlobal("fetch", fetch);
 
 const setup = async (id: string, response: typeof respond, canChange = true) => {
   respond = response;
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
   const router = createRouter({
     routeTree: createRootRoute({
       component: () => <UserDetails id={UserId.make(id)} canChange={canChange} />,
     }),
     history: createMemoryHistory({ initialEntries: ["/"] }),
   });
+
   await render(
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
+
   return { router };
 };
 
@@ -135,6 +140,7 @@ describe("UserDetails", () => {
     await setup("user-ada", (request) => {
       requests.push(`${request.method} ${new URL(request.url).pathname}`);
       const status = requests.includes("PATCH /api/users/user-ada") ? "suspended" : "active";
+
       return Response.json({ ...ada, status });
     });
 
@@ -154,6 +160,7 @@ describe("UserDetails", () => {
     const bodies: Array<unknown> = [];
     await setup("user-ada", async (request) => {
       if (request.method === "PATCH") bodies.push(await request.json());
+
       return Response.json({ ...ada, role: bodies.length > 0 ? "user" : "admin" });
     });
 
@@ -205,6 +212,7 @@ describe("UserDetails", () => {
     const bodies: Array<unknown> = [];
     await setup("user-ada", async (request) => {
       if (request.method === "PATCH") bodies.push(await request.json());
+
       return Response.json({ ...ada, role: bodies.length > 0 ? "admin" : "user" });
     });
 
@@ -236,7 +244,9 @@ describe("UserDetails", () => {
     let fails = true;
     await setup("user-ada", async (request) => {
       if (request.method === "GET") return Response.json(ada);
+
       if (fails) return new Response(null, { status: 500 });
+
       return Response.json({ ...ada, ...(await request.json()) });
     });
     await page.getByRole("button", { name: "Remove admin" }).click();
@@ -252,8 +262,10 @@ describe("UserDetails", () => {
 
   it("deletes a User once confirmed, and leads back to the Users table", async () => {
     const requests: Array<string> = [];
+
     const { router } = await setup("user-ada", (request) => {
       requests.push(`${request.method} ${new URL(request.url).pathname}`);
+
       return request.method === "DELETE" ? new Response(null, { status: 204 }) : Response.json(ada);
     });
 

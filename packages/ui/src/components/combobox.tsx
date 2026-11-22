@@ -22,7 +22,7 @@ import {
   inputGroupInputClassName,
 } from "@quack/ui/components/input-group";
 
-type WithClassName<Props> = Omit<Props, "className" | "children"> & {
+export type WithClassName<Props> = Omit<Props, "className" | "children"> & {
   className?: string | undefined;
   children?: React.ReactNode;
 };

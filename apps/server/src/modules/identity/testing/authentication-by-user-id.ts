@@ -16,6 +16,7 @@ export const authenticationByUserId = (users: ReadonlyArray<User>) =>
     Authentication.of({
       session: (httpEffect, { credential, endpoint }) => {
         const user = users.find(({ id }) => id === Redacted.value(credential));
+
         return user === undefined
           ? Effect.fail(new Unauthenticated())
           : callAs(httpEffect, endpoint, { user, permissions: rolePermissions(user.role) });

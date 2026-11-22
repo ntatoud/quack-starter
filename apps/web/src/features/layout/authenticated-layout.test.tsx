@@ -49,6 +49,7 @@ const setup = async (currentUser: typeof newcomer | typeof onboarded | typeof no
   const queryClient = new QueryClient();
   queryClient.setQueryData(currentUserQueryOptions.queryKey, currentUser);
   const rootRoute = createRootRoute();
+
   const authenticated = createRoute({
     getParentRoute: () => rootRoute,
     id: "_authenticated",
@@ -57,15 +58,18 @@ const setup = async (currentUser: typeof newcomer | typeof onboarded | typeof no
     }),
     component: AuthenticatedLayout,
   });
+
   const app = createRoute({
     getParentRoute: () => authenticated,
     path: "app",
     component: () => <button type="button">A page of the app</button>,
   });
+
   const router = createRouter({
     routeTree: rootRoute.addChildren([authenticated.addChildren([app])]),
     history: createMemoryHistory({ initialEntries: ["/app"] }),
   });
+
   await render(
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />

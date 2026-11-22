@@ -9,7 +9,7 @@ import { createIsomorphicFn } from "@tanstack/react-start";
 import { getRequestHeader } from "@tanstack/react-start/server";
 import { createContext, use } from "react";
 
-type StorageOf = (name: string) => ValueStorage;
+export type StorageOf = (name: string) => ValueStorage;
 
 const storageOption = (storageOf: StorageOf | undefined, name: string) =>
   storageOf === undefined ? {} : { storage: storageOf(name) };
@@ -42,6 +42,7 @@ const requestCookie = createIsomorphicFn()
  */
 export const cookiePreferences = () => {
   const cookie = requestCookie() ?? null;
+
   return createPreferences((name) => createCookieStorage(name, { cookie }));
 };
 
@@ -49,7 +50,9 @@ export const PreferencesContext = createContext<Preferences | null>(null);
 
 export const usePreferences = (): Preferences => {
   const preferences = use(PreferencesContext);
+
   if (preferences === null) throw new Error("usePreferences needs a PreferencesContext.");
+
   return preferences;
 };
 

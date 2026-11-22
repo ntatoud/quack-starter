@@ -1,5 +1,4 @@
-import { ConfigProvider, Layer } from "effect";
-import { Effect } from "effect";
+import { ConfigProvider, Effect, Layer, Schema } from "effect";
 import { HttpClient, HttpClientResponse, HttpRouter, HttpServer } from "effect/http";
 import { afterAll, beforeAll, describe, expect, it } from "vite-plus/test";
 
@@ -23,11 +22,13 @@ const Config = ConfigProvider.layer(
 
 /** The URLs Quack fetched, each answered with a document that matches none. */
 const fetched: Array<string> = [];
+
 const RecordingHttpClient = Layer.succeed(
   HttpClient.HttpClient,
   HttpClient.make((request) =>
     Effect.sync(() => {
       fetched.push(request.url);
+
       return HttpClientResponse.fromWeb(request, Response.json({}));
     }),
   ),
@@ -43,17 +44,32 @@ const get = (path: string) => handler(new Request(new URL(path, "http://api.test
 
 const attempt =
   (path: "/api/sign-up" | "/api/sign-in") =>
-  (email: string, { from, password = "correct horse battery staple" }: Attempt = {}) =>
-    handler(
+  (email: string, { from, password = "correct horse battery staple" }: Attempt = {}) => {
+    const headers = new Headers({ "content-type": "application/json" });
+
+    if (from !== undefined) headers.set("x-forwarded-for", from);
+
+    return handler(
       new Request(new URL(path, "http://api.test"), {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-          ...(from === undefined ? {} : { "x-forwarded-for": from }),
-        },
+        headers,
         body: JSON.stringify({ email, password }),
       }),
     );
+  };
+
+const decodeOpenApi = Schema.decodeUnknownSync(
+  Schema.Struct({
+    components: Schema.Struct({ securitySchemes: Schema.Record(Schema.String, Schema.Json) }),
+    paths: Schema.Record(
+      Schema.String,
+      Schema.Record(
+        Schema.String,
+        Schema.Struct({ security: Schema.optional(Schema.Array(Schema.Json)) }),
+      ),
+    ),
+  }),
+);
 
 interface Attempt {
   readonly from?: string;
@@ -64,6 +80,7 @@ const signUp = attempt("/api/sign-up");
 
 const sessionCookieOf = async (email: string, from: string) =>
   (await signUp(email, { from })).headers.getSetCookie()[0]?.split(";")[0] ?? "";
+
 const signIn = attempt("/api/sign-in");
 
 const mcpCall = (headers: Record<string, string> = {}) =>
@@ -95,6 +112,7 @@ describe("server routes", () => {
         body: JSON.stringify({ title: "Ship it" }),
       }),
     );
+
     expect(created.status).toBe(200);
     const todo = await created.json();
     expect(todo).toMatchObject({ title: "Ship it", ownerId: user.id });
@@ -107,6 +125,7 @@ describe("server routes", () => {
   it("answers 404 TodoNotFound to a user who completes a Todo of another Owner, though they may write Todos", async () => {
     const owner = await sessionCookieOf("dorothy@example.com", "203.0.113.60");
     const other = await sessionCookieOf("radia@example.com", "203.0.113.60");
+
     const created = await handler(
       new Request("http://api.test/api/todos", {
         method: "POST",
@@ -114,6 +133,7 @@ describe("server routes", () => {
         body: JSON.stringify({ title: "Mine" }),
       }),
     );
+
     const { id } = (await created.json()) as { id: string };
 
     const response = await handler(
@@ -151,6 +171,7 @@ describe("server routes", () => {
     const [setCookie] = (
       await signUp("katherine@example.com", { from: "203.0.113.50" })
     ).headers.getSetCookie();
+
     const cookie = setCookie?.split(";")[0] ?? "";
 
     const responses = await Promise.all(
@@ -174,29 +195,39 @@ describe("server routes", () => {
     const response = await get("/api/openapi.json");
 
     expect(response.status).toBe(200);
-    const { paths } = (await response.json()) as { paths: Record<string, unknown> };
+    const { paths } = decodeOpenApi(await response.json());
     expect(Object.keys(paths)).toContain("/api/todos");
   });
 
   it("describes the session cookie as the security scheme of /api/me, of the todos and of the users, and of no public endpoint", async () => {
-    const openapi = (await (await get("/api/openapi.json")).json()) as {
-      components: { securitySchemes: Record<string, unknown> };
-      paths: Record<string, Record<string, { security?: ReadonlyArray<Record<string, unknown>> }>>;
-    };
+    const openapi = decodeOpenApi(await (await get("/api/openapi.json")).json());
 
     expect(openapi.components.securitySchemes).toEqual({
       session: { type: "apiKey", name: "session", in: "cookie" },
     });
-    expect(openapi.paths["/api/me"]?.["get"]?.security).toEqual([{ session: [] }]);
-    expect(openapi.paths["/api/sign-up"]?.["post"]?.security ?? []).toEqual([]);
-    expect(openapi.paths["/api/sign-out"]?.["post"]?.security ?? []).toEqual([]);
-    expect(openapi.paths["/api/todos"]?.["get"]?.security).toEqual([{ session: [] }]);
-    expect(openapi.paths["/api/todos"]?.["post"]?.security).toEqual([{ session: [] }]);
-    expect(openapi.paths["/api/todos/{id}/complete"]?.["post"]?.security).toEqual([
-      { session: [] },
-    ]);
-    expect(openapi.paths["/api/todos/{id}"]?.["delete"]?.security).toEqual([{ session: [] }]);
-    expect(openapi.paths["/api/users"]?.["get"]?.security).toEqual([{ session: [] }]);
+    const securityOf = (path: string, method: string) => openapi.paths[path]?.[method]?.security;
+
+    const protectedEndpoints = [
+      ["/api/me", "get"],
+      ["/api/todos", "get"],
+      ["/api/todos", "post"],
+      ["/api/todos/{id}/complete", "post"],
+      ["/api/todos/{id}", "delete"],
+      ["/api/users", "get"],
+    ] as const;
+
+    for (const [path, method] of protectedEndpoints) {
+      expect(securityOf(path, method)).toEqual([{ session: [] }]);
+    }
+
+    const publicEndpoints = [
+      ["/api/sign-up", "post"],
+      ["/api/sign-out", "post"],
+    ] as const;
+
+    for (const [path, method] of publicEndpoints) {
+      expect(securityOf(path, method) ?? []).toEqual([]);
+    }
   });
 
   it("signs a visitor up, then answers /api/me to the session cookie it set", async () => {
@@ -215,9 +246,11 @@ describe("server routes", () => {
     });
 
     const [cookie] = response.headers.getSetCookie();
+
     const me = await handler(
       new Request("http://api.test/api/me", { headers: { cookie: cookie?.split(";")[0] ?? "" } }),
     );
+
     expect(me.status).toBe(200);
     expect(await me.json()).toEqual(user);
   });
@@ -241,11 +274,13 @@ describe("server routes", () => {
     const atSignIn = response.headers.getSetCookie()[0]?.split(";")[0] ?? "";
     expect(atSignIn).toMatch(/^session=[A-Za-z0-9_-]{43}$/);
     expect(atSignIn).not.toBe(atSignUp);
+
     const answers = await Promise.all(
       [atSignUp, atSignIn].map((cookie) =>
         handler(new Request("http://api.test/api/me", { headers: { cookie } })),
       ),
     );
+
     expect(answers.map((me) => me.status)).toEqual([200, 200]);
   });
 
@@ -288,6 +323,7 @@ describe("server routes", () => {
         signUp(`visitor-${visitor}@example.com`, { from: "203.0.113.7" }),
       ),
     );
+
     expect(signedUp.map((response) => response.status)).toEqual(
       Array.from({ length: 10 }, () => 200),
     );
@@ -306,6 +342,7 @@ describe("server routes", () => {
 
   it("answers a sign-in with 429 TooManyAttempts after 5 failures on the email, from any address", async () => {
     await signUp("hedy@example.com", { from: "203.0.113.20" });
+
     const failed = await Promise.all(
       Array.from({ length: 5 }, (_, failure) =>
         signIn("hedy@example.com", {
@@ -314,6 +351,7 @@ describe("server routes", () => {
         }),
       ),
     );
+
     expect(failed.map((response) => response.status)).toEqual([401, 401, 401, 401, 401]);
 
     const response = await signIn("hedy@example.com", { from: "203.0.113.30" });
@@ -393,6 +431,7 @@ describe("server routes", () => {
     "/.well-known/oauth-protected-resource/api/mcp",
   ])("lets any origin read %s, without credentials", async (path) => {
     const origin = { origin: "https://ai-client.example" };
+
     const [read, preflight] = await Promise.all([
       handler(new Request(new URL(path, "http://api.test"), { headers: origin })),
       handler(
@@ -411,6 +450,7 @@ describe("server routes", () => {
       expect(response.headers.get("access-control-allow-origin")).toBe("*");
       expect(response.headers.get("access-control-allow-credentials")).toBeNull();
     }
+
     expect(preflight.status).toBeLessThan(300);
     expect(preflight.headers.get("access-control-allow-headers")).toBe("mcp-protocol-version");
   });
@@ -462,10 +502,10 @@ describe("server routes of the authorization server", () => {
     handler(
       new Request("http://api.test/api/oauth/authorize/check", {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-          ...(cookie === undefined ? {} : { cookie }),
-        },
+        headers:
+          cookie === undefined
+            ? { "content-type": "application/json" }
+            : { "content-type": "application/json", cookie },
         body: JSON.stringify({ client_id: clientId }),
       }),
     );
@@ -503,6 +543,7 @@ describe("server routes, with the dev Users seeded", () => {
 
   beforeAll(async () => {
     seeded = makeSeeded();
+
     const signedIn = await seeded.handler(
       new Request("http://api.test/api/sign-in", {
         method: "POST",
@@ -510,6 +551,7 @@ describe("server routes, with the dev Users seeded", () => {
         body: JSON.stringify({ email: "admin@quack.dev", password: "quack-password" }),
       }),
     );
+
     cookie = signedIn.headers.getSetCookie()[0]?.split(";")[0] ?? "";
   });
 
@@ -522,18 +564,22 @@ describe("server routes, with the dev Users seeded", () => {
     const firstPage = await usersAt("");
     expect(firstPage.status).toBe(200);
     expect(await firstPage.json()).toMatchObject({ total: devUsers().length });
+
     const outOfBounds = await Promise.all(
       ["?pageSize=0", "?pageSize=101", "?pageSize=2.5", "?page=0", "?orderBy=id", "?dir=up"].map(
         usersAt,
       ),
     );
+
     expect(outOfBounds.map((response) => response.status)).toEqual([400, 400, 400, 400, 400, 400]);
     const byRoleDesc = await usersAt("?orderBy=role&dir=desc&pageSize=1");
     expect(await byRoleDesc.json()).toMatchObject({ items: [{ role: "user" }] });
+
     const suspended = (await (await usersAt("?status=suspended&pageSize=100")).json()) as {
       total: number;
       items: Array<{ status: string }>;
     };
+
     expect(suspended.total).toBeGreaterThan(0);
     expect(new Set(suspended.items.map(({ status }) => status))).toEqual(new Set(["suspended"]));
     expect((await usersAt("?status=deleted")).status).toBe(400);

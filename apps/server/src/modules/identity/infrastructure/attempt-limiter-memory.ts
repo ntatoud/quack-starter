@@ -29,6 +29,7 @@ export const AttemptLimiterMemory = Layer.effect(
 
     const openWindow = (key: string, now: number): AttemptWindow | undefined => {
       const window = windows.get(key);
+
       return window !== undefined && window.endsAtMillis > now ? window : undefined;
     };
 
@@ -36,6 +37,7 @@ export const AttemptLimiterMemory = Layer.effect(
     const sweep = (now: number) => {
       if (now - sweptAt < sweepEveryMillis) return;
       sweptAt = now;
+
       for (const [key, window] of windows) {
         if (window.endsAtMillis <= now) windows.delete(key);
       }
@@ -45,20 +47,25 @@ export const AttemptLimiterMemory = Layer.effect(
       take: Effect.fn("AttemptLimiter.take")(function* (counters) {
         const now = yield* Clock.currentTimeMillis;
         sweep(now);
+
         const slots = counters.map((counter) => {
           const slot = slotOf(counter);
+
           return { ...slot, open: openWindow(slot.key, now) };
         });
+
         const waitMillis = Math.max(
           0,
           ...slots.map(({ open, limit }) =>
             open !== undefined && open.count >= limit ? open.endsAtMillis - now : 0,
           ),
         );
+
         if (waitMillis > 0) {
           // Rounded up: an attempt made `retryAfter` seconds later finds the window ended.
           return yield* new TooManyAttempts({ retryAfter: Math.ceil(waitMillis / 1000) });
         }
+
         for (const { key, open, window } of slots) {
           windows.set(key, {
             count: (open?.count ?? 0) + 1,
@@ -70,6 +77,7 @@ export const AttemptLimiterMemory = Layer.effect(
         const now = yield* Clock.currentTimeMillis;
         const { key } = slotOf(counter);
         const open = openWindow(key, now);
+
         if (open === undefined || open.count <= 1) {
           windows.delete(key);
         } else {

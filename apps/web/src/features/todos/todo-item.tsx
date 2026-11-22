@@ -14,12 +14,14 @@ export function TodoItem({ todo }: { todo: Todo }) {
       onMutate: (): void => removeTodo.reset(),
     }),
   );
+
   const removeTodo = useMutation(
     api.todos.remove.mutationOptions({
       ...invalidateTodos,
       onMutate: (): void => completeTodo.reset(),
     }),
   );
+
   const busy = completeTodo.isPending || removeTodo.isPending;
 
   return (

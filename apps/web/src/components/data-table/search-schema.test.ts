@@ -27,6 +27,7 @@ describe("dataTableSearchSchema", () => {
       category: "software",
       tags: ["new", "sale"],
     };
+
     expect(Schema.decodeUnknownSync(schema)(search)).toEqual(search);
   });
 

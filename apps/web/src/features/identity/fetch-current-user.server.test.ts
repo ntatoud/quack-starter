@@ -28,7 +28,11 @@ afterAll(() => {
 });
 
 const json =
-  (status: number, body: unknown, headers: Record<string, string | Array<string>> = {}) =>
+  (
+    status: number,
+    body: Readonly<Record<string, string | null>>,
+    headers: Record<string, string | Array<string>> = {},
+  ) =>
   (response: ServerResponse) => {
     response.writeHead(status, { "content-type": "application/json", ...headers });
     response.end(JSON.stringify(body));

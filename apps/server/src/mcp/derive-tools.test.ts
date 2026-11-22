@@ -19,6 +19,7 @@ const defectOf = <Id extends string, Groups extends HttpApiGroup.Constraint>(
   Effect.gen(function* () {
     const exit = yield* Effect.exit(deriveTools(api));
     assert.isTrue(Exit.isFailure(exit));
+
     return Exit.isFailure(exit) ? Cause.pretty(exit.cause) : "";
   });
 

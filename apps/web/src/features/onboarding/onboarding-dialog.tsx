@@ -43,6 +43,7 @@ export function OnboardingDialog({
         .catch((cause: unknown) => {
           throw new SubmitFailed("Could not save your name. Try again.", { cause });
         });
+
       await onOnboarded(user);
     },
   });

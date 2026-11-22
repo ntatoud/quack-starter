@@ -20,6 +20,7 @@ type Person = {
   readonly net: number;
   readonly gross: number;
 };
+
 type State = {
   readonly page?: number | undefined;
   readonly orderBy?: "name" | undefined;
@@ -62,11 +63,14 @@ const people: ReadonlyArray<Person> = [
 
 function People({ initial = {}, selectable = false }: { initial?: State; selectable?: boolean }) {
   const store = useMemoryDataTableStore<State>(initial);
+
   const table = useDataTable({
     store,
     defaultSorting: { column: "name", direction: "asc" },
   });
+
   const selection = useDataTableSelection<Person>();
+
   return (
     <>
       <DataTableColumnVisibility table={table} columns={columns} />
@@ -86,11 +90,13 @@ function People({ initial = {}, selectable = false }: { initial?: State; selecta
 
 const header = (name: string) =>
   elementOf(HTMLElement, page.getByRole("columnheader", { name, exact: true }).element());
+
 /** The headers of the first header row, in their order: the columns outside a group, and the groups. */
 const order = () => document.querySelectorAll("thead tr:first-child th");
 const viewport = () => slot("scroll-area-viewport");
 const state = () => page.getByRole("status", { name: "State" });
 const box = (name: string) => header(name).getBoundingClientRect();
+
 // The line a pinned cell draws on its end side: a horizontal inset shadow, unlike the line under the header.
 const endEdge = { ltr: /\) -1px 0px 0px/, rtl: /\) 1px 0px 0px/ };
 
@@ -120,10 +126,12 @@ describe("DataTable pinned columns", () => {
 
   it("holds the pinned columns, after the checkboxes, while the others slide under them", async () => {
     await render(<People initial={{ pinned: ["name", "email"] }} selectable />);
+
     const select = elementOf(
       HTMLElement,
       page.getByRole("checkbox", { name: "Select all rows shown" }).element().closest("th"),
     );
+
     await expect.element(header("Name")).toBeVisible();
 
     // Each pinned column starts where the one before it ends, the checkboxes first.
@@ -142,6 +150,7 @@ describe("DataTable pinned columns", () => {
       )
       .toBeLessThan(0.5);
     expect(getComputedStyle(header("Email")).boxShadow).not.toMatch(endEdge.ltr);
+
     const [selectLeft, nameLeft, emailLeft, roleLeft] = [
       select.getBoundingClientRect().left,
       box("Name").left,

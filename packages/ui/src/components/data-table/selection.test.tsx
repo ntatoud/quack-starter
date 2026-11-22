@@ -46,7 +46,9 @@ function Harness({
     rowLabel: (person) => `Select ${person.name}`,
     canSelect: (person) => !person.locked,
   });
+
   const [shown, setShown] = useState(rows);
+
   return (
     <>
       <button type="button" onClick={() => setShown(rows.slice(3))}>
@@ -73,6 +75,7 @@ function Harness({
 
 const checkbox = (name: string) => page.getByRole("checkbox", { name });
 const selectAll = () => checkbox("Select all rows shown");
+
 /** The bar, shown while rows are selected, named by how many. */
 const bar = (count: number) => page.getByRole("region", { name: `${count} selected` });
 
@@ -173,10 +176,12 @@ describe("DataTable selection", () => {
 function FilteredHarness({ mode }: { mode: "matching" | "resetOn" }) {
   const [onlyA, setOnlyA] = useState(false);
   const shown = onlyA ? people.filter((person) => person.name.startsWith("A")) : people;
+
   const selection = useDataTableSelection<Person>({
     rowLabel: (person) => `Select ${person.name}`,
     ...(mode === "matching" ? { matching: shown.map((person) => person.id) } : { resetOn: onlyA }),
   });
+
   return (
     <>
       <button type="button" onClick={() => setOnlyA((value) => !value)}>
@@ -228,13 +233,16 @@ type Search = {
 
 function ToolbarHarness() {
   const store = useMemoryDataTableStore<Search>();
+
   const table = useDataTable({
     store,
     defaultSorting: { column: "name", direction: "asc" },
   });
+
   const selection = useDataTableSelection<Person>({
     rowLabel: (person) => `Select ${person.name}`,
   });
+
   return (
     <>
       <DataTableToolbar
@@ -281,12 +289,14 @@ type Filtered = {
   readonly orderBy?: "name" | undefined;
   readonly status?: "active" | "invited" | undefined;
 };
+
 type Member = Person & { status: string };
 
 const members: ReadonlyArray<Member> = people.map((person) => ({
   ...person,
   status: "active",
 }));
+
 const memberColumns: ReadonlyArray<DataTableColumnFor<Member, Filtered>> = [
   { id: "name", accessorKey: "name", title: "Name", filter: "search" },
   { id: "status", accessorKey: "status", title: "Status", filter: "status" },
@@ -295,6 +305,7 @@ const memberColumns: ReadonlyArray<DataTableColumnFor<Member, Filtered>> = [
 /** A toolbar crowded enough to wrap in a narrow page, over a table whose headers open its filters. */
 function CrowdedHarness({ onArchive }: { onArchive?: () => void }) {
   const store = useMemoryDataTableStore<Filtered>();
+
   const table = useDataTable({
     store,
     defaultSorting: { column: "name", direction: "asc" },
@@ -308,9 +319,11 @@ function CrowdedHarness({ onArchive }: { onArchive?: () => void }) {
       }),
     },
   });
+
   const selection = useDataTableSelection<Member>({
     rowLabel: (person) => `Select ${person.name}`,
   });
+
   return (
     <div className="w-80">
       <input aria-label="Note" />
@@ -412,12 +425,14 @@ describe("DataTableToolbar with a selection, in a narrow page", () => {
     const option = page.getByRole("menuitemradio", { name: "Active" });
     await expect.element(option).toBeVisible();
     expect(controls().inert).toBe(false);
+
     const trigger = page
       .getByRole("group", { name: "Status filter" })
       .getByRole("button")
       .first()
       .element()
       .getBoundingClientRect();
+
     const menu = page.getByRole("menu").element().getBoundingClientRect();
     expect(Math.abs(menu.top - trigger.bottom)).toBeLessThan(16);
     expect(Math.abs(menu.left - trigger.left)).toBeLessThan(16);
@@ -441,6 +456,7 @@ describe("DataTableSelectionBar alone", () => {
     const selection = useDataTableSelection<Person>({
       rowLabel: (person) => `Select ${person.name}`,
     });
+
     return (
       <>
         <button type="button">Target</button>
@@ -534,13 +550,16 @@ describe("DataTableToolbar with a selection, shown again for a filter", () => {
 describe("DataTableSelectionBar, where the focus goes once it empties", () => {
   function Nested({ toolbar = false }: { toolbar?: boolean }) {
     const store = useMemoryDataTableStore<Search>();
+
     const table = useDataTable({
       store,
       defaultSorting: { column: "name", direction: "asc" },
     });
+
     const selection = useDataTableSelection<Person>({
       rowLabel: (person) => `Select ${person.name}`,
     });
+
     return (
       <div>
         <p>Some text</p>
@@ -622,6 +641,7 @@ describe("DataTable selection, columns rebuilt on every render", () => {
     const selection = useDataTableSelection<Person>({
       rowLabel: (person) => `Select ${person.name}`,
     });
+
     return (
       <DataTable
         // A new array, and new columns, on every render.
@@ -655,6 +675,7 @@ describe("DataTable selection, virtual", () => {
   it("names its header checkbox for every row, not those shown", async () => {
     function Virtual() {
       const selection = useDataTableSelection<Person>();
+
       return (
         <div className="flex h-75 flex-col">
           <DataTable
@@ -667,6 +688,7 @@ describe("DataTable selection, virtual", () => {
         </div>
       );
     }
+
     await render(<Virtual />);
 
     await expect
@@ -705,6 +727,7 @@ describe("DataTableToolbar with a selection, wrapped over three lines", () => {
 
 describe("DataTable selection from a focused row", () => {
   const row = (name: string) => page.getByRole("row", { name: new RegExp(name) });
+
   const focusRow = async (name: string) => {
     elementOf(HTMLElement, row(name).element()).focus();
     await expect.element(row(name)).toHaveFocus();
@@ -739,6 +762,7 @@ describe("DataTable selection from a focused row", () => {
 
     await focusRow("Ada");
     const element = row("Ada").element();
+
     for (const repeat of [false, true, true])
       element.dispatchEvent(
         new KeyboardEvent("keydown", {

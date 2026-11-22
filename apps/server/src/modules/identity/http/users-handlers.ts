@@ -16,6 +16,7 @@ export const UsersHandlers = HttpApiBuilder.group(
       get: ({ params }) => users.get(params.id),
       update: Effect.fn(function* ({ params, payload }) {
         const currentUser = yield* CurrentUser;
+
         return yield* users.update(params.id, payload, currentUser.id);
       }),
       remove: Effect.fn(function* ({ params }) {

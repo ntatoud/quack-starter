@@ -10,7 +10,9 @@ import {
 export const testProviders = (values: Partial<PreferenceValues> = {}) => {
   const queryClient = new QueryClient();
   const preferences = createPreferences();
+
   if (values.colorScheme !== undefined) preferences.colorScheme.set(values.colorScheme);
+
   if (values.sidebarSide !== undefined) preferences.sidebarSide.set(values.sidebarSide);
 
   function Providers({ children }: { children: ReactNode }) {

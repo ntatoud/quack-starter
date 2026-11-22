@@ -13,17 +13,22 @@ export class DatabaseUnreachable extends Schema.TaggedError<
 >()("DatabaseUnreachable", { url: Schema.String, cause: Schema.Defect() }) {
   override get message() {
     const reason = this.cause instanceof Error ? this.cause.message : "no reason given";
+
     return `The server cannot connect to Postgres at ${this.url}: ${reason}`;
   }
 }
 
 export const withoutPassword = (url: string): string => {
   const parsed = URL.parse(url);
+
   if (parsed === null || !["postgres:", "postgresql:"].includes(parsed.protocol)) {
     return "a DATABASE_URL that is not a postgres URL";
   }
+
   if (parsed.password !== "") parsed.password = "***";
+
   if (parsed.searchParams.has("password")) parsed.searchParams.set("password", "***");
+
   return parsed.href;
 };
 
@@ -51,6 +56,7 @@ const Migrations = PgMigrator.layer({ loader: PgMigrator.fromFileSystem(migratio
 
 export const databaseAt = (config: DatabaseSettings) => {
   const { url, client } = connectionTo(config);
+
   return Migrations.pipe(
     Layer.provideMerge(client),
     // A failing Layer that provides the client's services, as `catchTag` keeps only what both provide.

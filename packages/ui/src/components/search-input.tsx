@@ -8,13 +8,17 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "@quack/ui/components/input-group";
+import { isFunction } from "@quack/ui/lib/guards";
 
 const setRef = <T,>(ref: React.Ref<T> | undefined, value: T) => {
-  if (typeof ref === "function") {
+  if (isFunction(ref)) {
     const cleanup = ref(value);
-    return () => (typeof cleanup === "function" ? cleanup() : ref(null));
+
+    return () => (isFunction(cleanup) ? cleanup() : ref(null));
   }
+
   if (ref) ref.current = value;
+
   return () => {
     if (ref) ref.current = null;
   };
@@ -63,6 +67,7 @@ function SearchInput({
   const search = (text: string) => {
     clearTimeout(timer.current);
     const trimmed = text.trim();
+
     if (trimmed === searched.current) return;
     searched.current = trimmed;
     onSearch(trimmed);
@@ -73,6 +78,7 @@ function SearchInput({
   const attach = React.useCallback(
     (node: HTMLInputElement | null) => {
       const detach = setRef(ref, node);
+
       return () => {
         clearTimeout(timer.current);
         detach();
@@ -94,11 +100,13 @@ function SearchInput({
           onValueChange?.(text, details);
           setValue(text);
           clearTimeout(timer.current);
+
           if (text.trim() === "") search(text);
           else timer.current = setTimeout(() => search(text), delay);
         }}
         onKeyDown={(event) => {
           onKeyDown?.(event);
+
           if (event.key === "Enter") search(event.currentTarget.value);
         }}
         // A search still waiting runs when the input is left, so a click that follows (a reset, a link) acts on it.

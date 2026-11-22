@@ -30,6 +30,7 @@ export const UserOrder = Schema.Literals([
   "onboardedAt",
   "lastSignInAt",
 ]);
+
 export type UserOrder = typeof UserOrder.Type;
 
 /** Matches the Users whose email or full name contains it, whatever its case. */
@@ -47,6 +48,7 @@ export const UserListQuery = Schema.Struct({
   onboarded: Schema.optionalKey(Schema.Boolean),
   ...sortingFields(UserOrder.literals, "email"),
 });
+
 export type UserListQuery = typeof UserListQuery.Type;
 
 const NotFound = UserNotFound.pipe(HttpApiSchema.status(404));
@@ -59,6 +61,7 @@ export const UserChanges = Schema.Struct({
   role: Schema.optionalKey(Role),
   status: Schema.optionalKey(Schema.Literals(["active", "suspended"])),
 });
+
 export type UserChanges = typeof UserChanges.Type;
 
 export class UsersApi extends HttpApiGroup.make("users")

@@ -32,7 +32,9 @@ const togglesOf = (
         column.columns,
         group === undefined ? column.title : `${group} · ${column.title}`,
       );
+
     if (column.title === undefined || column.id === undefined) return [];
+
     return [
       {
         id: column.id,
@@ -60,18 +62,24 @@ export function DataTableColumnVisibility<TData extends RowData>({
   columns: ReadonlyArray<DataTableColumn<TData>>;
 }) {
   const toggles = togglesOf(columns as ReadonlyArray<DataTableColumn<RowData>>);
+
   // A URL that hides every column hides none, as the table shows it.
   const hidden = toggles.every((toggle) => table.hiddenColumns.includes(toggle.id))
     ? []
     : table.hiddenColumns;
+
   const shown = toggles.filter((toggle) => !hidden.includes(toggle.id));
   // The ticks sent and not back yet in `hiddenColumns` (a slow store): a quick tick acts on them, not on this render.
   const sent = React.useRef({ from: "", visible: new Map<string, boolean>() });
+
   const pendingVisibility = () => {
     const from = table.hiddenColumns.join("\n");
+
     if (sent.current.from !== from) sent.current = { from, visible: new Map() };
+
     return sent.current.visible;
   };
+
   return (
     <Menu>
       <MenuTrigger
@@ -89,6 +97,7 @@ export function DataTableColumnVisibility<TData extends RowData>({
             const checked = !hidden.includes(toggle.id);
             const pinned = table.pinnedColumns?.includes(toggle.id) ?? false;
             const { setColumnPinned } = table;
+
             const visibility = (
               <MenuCheckboxItem
                 indicator="checkbox"
@@ -100,8 +109,10 @@ export function DataTableColumnVisibility<TData extends RowData>({
                   const pending = pendingVisibility();
                   const isShown = (id: string) => pending.get(id) ?? !hidden.includes(id);
                   const next = !isShown(toggle.id);
+
                   // The last column shown stays, even when the hides before it are still on their way.
                   if (!next && toggles.filter((t) => isShown(t.id)).length <= 1) return;
+
                   // From every column hidden in the URL, hiding one shows the others.
                   if (hidden !== table.hiddenColumns)
                     for (const other of toggles)
@@ -109,6 +120,7 @@ export function DataTableColumnVisibility<TData extends RowData>({
                         table.setColumnVisible(other.id, true);
                         pending.set(other.id, true);
                       }
+
                   table.setColumnVisible(toggle.id, next);
                   pending.set(toggle.id, next);
                 }}
@@ -116,8 +128,10 @@ export function DataTableColumnVisibility<TData extends RowData>({
                 {toggle.title}
               </MenuCheckboxItem>
             );
+
             if (setColumnPinned === undefined)
               return <React.Fragment key={toggle.id}>{visibility}</React.Fragment>;
+
             // The pin sits beside its column, an item of its own: the arrow keys reach it next.
             return (
               <div key={toggle.id} className="flex items-center gap-1">

@@ -11,9 +11,11 @@ const anOwner = () => UserId.make(crypto.randomUUID());
 const seededTodos = (owners: ReadonlyArray<UserId>, runs: number) =>
   Effect.gen(function* () {
     const repository = yield* TodoRepository;
+
     for (let run = 0; run < runs; run++) {
       yield* Layer.build(TodosSeed(owners)).pipe(Effect.scoped);
     }
+
     return yield* Effect.forEach(owners, repository.findAll);
   }).pipe(Effect.provide(TodoRepositoryMemory));
 

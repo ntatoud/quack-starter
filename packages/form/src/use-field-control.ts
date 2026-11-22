@@ -19,6 +19,7 @@ export function useFieldControl<Value = string>() {
   const size = layout?.size ?? "md";
   const errorId = `${id}-error`;
   const invalid = meta.isTouched && !meta.isValid;
+
   const describedBy = [
     layout?.hasDescription ? layout.descriptionId : null,
     invalid ? errorId : null,

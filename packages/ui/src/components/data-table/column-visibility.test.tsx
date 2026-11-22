@@ -13,6 +13,7 @@ type Product = {
   readonly net: number;
   readonly gross: number;
 };
+
 type State = {
   readonly page?: number | undefined;
   readonly orderBy?: "name" | "net" | undefined;
@@ -42,6 +43,7 @@ function Products({
 }) {
   const [state, setState] = useState<State>(initial);
   const [waiting] = useState<Array<(state: State) => State>>([]);
+
   const table = useDataTable({
     store: {
       state,
@@ -49,6 +51,7 @@ function Products({
     },
     defaultSorting: { column: "name", direction: "asc" },
   });
+
   return (
     <>
       <button type="button" onClick={() => waiting.splice(0).forEach((next) => setState(next))}>
@@ -110,6 +113,7 @@ describe("DataTableColumnVisibility", () => {
     await expect.element(header("Name")).toBeVisible();
 
     await page.getByRole("button", { name: "Columns" }).click();
+
     for (const name of ["Name", "Price · Excl. VAT", "Price · Incl. VAT"])
       await expect.element(toggle(name)).toBeChecked();
     await toggle("Price · Excl. VAT").click();
@@ -124,18 +128,22 @@ describe("DataTableColumnVisibility", () => {
 
   it("counts the titled columns only to tell a URL that hides them all", async () => {
     type Person = { readonly name: string; readonly role: string };
+
     const people: ReadonlyArray<DataTableColumnFor<Person, State>> = [
       { id: "name", accessorKey: "name", title: "Name" },
       { id: "role", accessorKey: "role", title: "Role" },
       // No title: the menu does not offer it, so it does not count.
       { id: "actions", header: () => "Actions", cell: () => "Edit" },
     ];
+
     function People() {
       const [state, setState] = useState<State>({ hidden: ["name", "role"] });
+
       const table = useDataTable({
         store: { state, update: (next) => setState(next) },
         defaultSorting: { column: "name", direction: "asc" },
       });
+
       return (
         <>
           <DataTableColumnVisibility table={table} columns={people} />
@@ -143,6 +151,7 @@ describe("DataTableColumnVisibility", () => {
         </>
       );
     }
+
     await render(<People />);
 
     await expect.element(header("Name")).toBeVisible();
@@ -184,6 +193,7 @@ describe("DataTableColumnVisibility", () => {
 
   it("ticks its columns in boxes, shown unticked too, and names a nested column by its whole path", async () => {
     type Invoice = { readonly q1: number; readonly q2: number };
+
     const billing: ReadonlyArray<DataTableColumnFor<Invoice, State>> = [
       {
         id: "billing",
@@ -202,14 +212,18 @@ describe("DataTableColumnVisibility", () => {
         ],
       },
     ];
+
     function Invoices() {
       const [state, setState] = useState<State>({ hidden: ["q2-amount"] });
+
       const table = useDataTable({
         store: { state, update: (next) => setState(next) },
         defaultSorting: { column: "name", direction: "asc" },
       });
+
       return <DataTableColumnVisibility table={table} columns={billing} />;
     }
+
     await render(<Invoices />);
 
     await page.getByRole("button", { name: "Columns" }).click();

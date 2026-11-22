@@ -17,12 +17,14 @@ export default defineRule({
   },
   create: (context) => {
     if (isMigration(context.filename.replaceAll("\\", "/"))) return {};
+
     const report = (node: ESTree.Node) =>
       context.report({
         node,
         message:
           "sql.unsafe sends its text unescaped. Write a sql`...` template, whose values are bound parameters; only a migration, in database/migrations/, may use sql.unsafe.",
       });
+
     return {
       MemberExpression: (node) => {
         if (isUnsafe(node.property, node.computed)) report(node);

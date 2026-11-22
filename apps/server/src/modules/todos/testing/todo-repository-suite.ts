@@ -23,6 +23,7 @@ const aSavedTodo = (ownerId: UserId) =>
     const repository = yield* TodoRepository;
     const todo = aTodo({ id: yield* repository.nextId, ownerId });
     yield* repository.save(todo);
+
     return todo;
   });
 
@@ -54,21 +55,25 @@ export const todoRepositorySuite = (layer: Layer.Layer<TodoRepository>) => {
         const owner = yield* anOwner;
         const [one, other] = [yield* repository.nextId, yield* repository.nextId];
         const [lower, higher] = one < other ? [one, other] : [other, one];
+
         const last = aTodo({
           id: yield* repository.nextId,
           ownerId: owner,
           createdAt: at("2026-03-01T00:00:00Z"),
         });
+
         const first = aTodo({
           id: lower,
           ownerId: owner,
           createdAt: at("2026-01-01T00:00:00Z"),
         });
+
         const second = aTodo({
           id: higher,
           ownerId: owner,
           createdAt: at("2026-01-01T00:00:00Z"),
         });
+
         const otherOwners = aTodo({ id: yield* repository.nextId, ownerId: yield* anOwner });
 
         yield* Effect.forEach([last, second, otherOwners, first], repository.save);

@@ -1,16 +1,14 @@
-import { useStore } from "@tanstack/react-form";
+import { useStore, type ValidationError } from "@tanstack/react-form";
 import { type ComponentProps, type FormEvent, useState } from "react";
 
 import { useFormContext } from "#/context.ts";
 import { ErrorMessages, ErrorText } from "#/field-control-error.tsx";
-import { type Message, toMessage } from "#/messages.ts";
+import { isIssuesByPath, type Message, toMessage } from "#/messages.ts";
 import { SubmitFailed } from "#/submit-failed.ts";
 
 /** The issues of the form itself have the empty path; a `SubmitFailed` is stored as its message. */
-const toFormMessages = (error: unknown): Array<Message | undefined> =>
-  typeof error === "object" && error !== null
-    ? ((error as Record<string, Array<Message>>)[""] ?? [])
-    : [toMessage(error)];
+const toFormMessages = (error: ValidationError): Array<Message | undefined> =>
+  isIssuesByPath(error) ? [...(error[""] ?? [])] : [toMessage(error)];
 
 export function Form({
   children,
@@ -20,6 +18,7 @@ export function Form({
   const errors = useStore(form.store, (state) => state.errors).flatMap(toFormMessages);
   const values = useStore(form.store, (state) => state.values);
   const [announcement, setAnnouncement] = useState({ text: "", values });
+
   // An edit makes it out of date for good: a reset can bring back the very values it was about.
   if (announcement.text !== "" && announcement.values !== values) {
     setAnnouncement({ text: "", values });
@@ -33,6 +32,7 @@ export function Form({
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
     // The button is unavailable while a submission runs; a script or another control may still submit.
     if (form.state.isSubmitting) return;
     const element = event.currentTarget;
@@ -41,6 +41,7 @@ export function Form({
       () => {
         if (form.state.isSubmitSuccessful) return;
         const invalid = element.querySelector<HTMLElement>('[aria-invalid="true"]');
+
         if (invalid === null) {
           announce(form.state.errors.flatMap(toFormMessages));
         } else if (invalid !== document.activeElement) {
@@ -49,10 +50,11 @@ export function Form({
           // Enter was pressed in the field. Focusing the focused element says nothing.
           const fieldMeta: Record<string, { errors: Array<unknown> } | undefined> =
             form.state.fieldMeta;
+
           announce((fieldMeta[invalid.getAttribute("name") ?? ""]?.errors ?? []).map(toMessage));
         }
       },
-      (error: unknown) => {
+      (error) => {
         if (!(error instanceof SubmitFailed)) return reportError(error);
         form.setErrorMap({ onServer: error.message });
         announce([error]);

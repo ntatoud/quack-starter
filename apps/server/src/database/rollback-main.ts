@@ -11,7 +11,9 @@ const program = Effect.gen(function* () {
     onSuccess: Effect.succeed,
     onFailure: (message) => Effect.fail(new RollbackFailed({ message })),
   });
+
   const reverted = yield* withDatabase(rollback({ directory: migrationsDirectory, to }));
+
   if (reverted.length === 0) yield* Effect.log("No migration to revert.");
 });
 

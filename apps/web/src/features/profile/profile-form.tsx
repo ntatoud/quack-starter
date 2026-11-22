@@ -21,6 +21,7 @@ import { api } from "#/lib/api.ts";
 const decodeProfileDraft = Schema.decodeSync(ProfileDraft);
 const encodeUser = Schema.encodeSync(User);
 const regionNames = new Intl.DisplayNames(["en"], { type: "region" });
+
 const countryOptions = countryCodes
   .map((code) => ({ value: code, label: regionNames.of(code) ?? code }))
   .toSorted((a, b) => a.label.localeCompare(b.label, "en"));
@@ -37,6 +38,7 @@ export function ProfileForm({ currentUser }: { currentUser: typeof User.Encoded 
         .catch((cause: unknown) => {
           throw new SubmitFailed("Could not save the profile. Try again.", { cause });
         });
+
       // The values as the API stored them; the defaults stay those of the Current User, which follows.
       formApi.reset(profileDraftOf(encodeUser(user).profile), { keepDefaultValues: true });
       await updateCurrentUser(user);

@@ -26,16 +26,18 @@ export class AiClientDocumentUnavailable extends Schema.TaggedError<AiClientDocu
 export class AiClientDocuments extends Context.Service<
   AiClientDocuments,
   {
-    fetch(url: URL): Effect.Effect<unknown, AiClientDocumentUnavailable>;
+    fetch(url: URL): Effect.Effect<Schema.Json, AiClientDocumentUnavailable>;
   }
 >()("@quack/server/identity/AiClientDocuments") {}
 
 const refused = (error: AuthorizationErrorCode, description: string, redirectUri?: string) =>
-  new AuthorizationRequestRefused({
-    error,
-    error_description: description,
-    ...(redirectUri === undefined ? {} : { redirect_uri: redirectUri }),
-  });
+  redirectUri === undefined
+    ? new AuthorizationRequestRefused({ error, error_description: description })
+    : new AuthorizationRequestRefused({
+        error,
+        error_description: description,
+        redirect_uri: redirectUri,
+      });
 
 // RFC 8252 s7.3: an app on this machine picks its port when it starts.
 const loopbackHosts = new Set(["localhost", "127.0.0.1", "[::1]"]);
@@ -51,7 +53,7 @@ const sharedSecretMethods = new Set([
 // RFC 7636 s4.2: the base64url of a SHA-256, unpadded.
 const s256Challenge = /^[A-Za-z0-9_-]{43}$/;
 
-interface AuthorizationServer {
+export interface AuthorizationServer {
   readonly issuer: string;
   readonly mcpResource: string;
   /** Lets an AI Client run on this machine, such as a local MCP Inspector, serve its document over `http`. */
@@ -63,28 +65,36 @@ export const aiClientUrlOf = (clientId: string | undefined, server: Authorizatio
   if (clientId === undefined)
     return Effect.fail(refused("invalid_request", "client_id is missing"));
   const url = URL.parse(clientId);
+
   if (url === null) return Effect.fail(refused("invalid_client", "client_id is not a URL"));
   const isHttps = url.protocol === "https:";
+
   const isLocalHttp =
     url.protocol === "http:" && server.allowLoopbackHttpDocuments && isLoopback(url);
+
   if (!isHttps && !isLocalHttp) {
     return Effect.fail(refused("invalid_client", "client_id must be an https URL"));
   }
+
   if (url.username !== "" || url.password !== "" || clientId.includes("#")) {
     return Effect.fail(refused("invalid_client", "client_id must have no credentials or fragment"));
   }
+
   if (url.pathname === "/") {
     return Effect.fail(refused("invalid_client", "client_id must have a path"));
   }
+
   if (url.origin === new URL(server.issuer).origin) {
     return Effect.fail(refused("invalid_client", "client_id must not be Quack's own address"));
   }
+
   return Effect.succeed(url);
 };
 
 /** Where an authorization response may go: an https address, or one on the User's machine (RFC 8252 s7.3). */
 const isRedirectable = (uri: string) => {
   const url = URL.parse(uri);
+
   return (
     url !== null &&
     !uri.includes("#") &&
@@ -96,15 +106,18 @@ const redirectUriMatches = (listed: string, requested: string) => {
   if (listed === requested) return true;
   const a = URL.parse(listed);
   const b = URL.parse(requested);
+
   if (a === null || b === null || !isLoopback(a) || !isLoopback(b)) return false;
   a.port = "";
   b.port = "";
+
   return a.href === b.href;
 };
 
 const permissionsOf = (scope: string | undefined): Option.Option<ReadonlyArray<Permission>> => {
   const requested = new Set((scope ?? "").split(" ").filter((name) => name !== ""));
   const grantable: ReadonlySet<string> = new Set(grantablePermissions);
+
   return requested.size > 0 && [...requested].every((name) => grantable.has(name))
     ? Option.some(grantablePermissions.filter((permission) => requested.has(permission)))
     : Option.none();
@@ -113,20 +126,24 @@ const permissionsOf = (scope: string | undefined): Option.Option<ReadonlyArray<P
 export const checkAuthorizationRequest = Effect.fn(function* (
   params: AuthorizationRequestParams,
   clientId: URL,
-  fetched: unknown,
+  fetched: Schema.Json,
   server: AuthorizationServer,
 ) {
   const document = Schema.decodeUnknownOption(AiClientDocument)(fetched);
+
   if (Option.isNone(document)) {
     return yield* refused(
       "invalid_client",
       "The AI Client's document must have a client_name and redirect_uris",
     );
   }
+
   const { client_id, client_name, redirect_uris, token_endpoint_auth_method } = document.value;
+
   if (client_id !== params.client_id) {
     return yield* refused("invalid_client", "The AI Client's document is not at its client_id");
   }
+
   if (
     token_endpoint_auth_method !== undefined &&
     sharedSecretMethods.has(token_endpoint_auth_method)
@@ -135,8 +152,10 @@ export const checkAuthorizationRequest = Effect.fn(function* (
   }
 
   const redirectUri = params.redirect_uri;
+
   if (redirectUri === undefined)
     return yield* refused("invalid_request", "redirect_uri is missing");
+
   if (
     !isRedirectable(redirectUri) ||
     !redirect_uris.some((listed) => redirectUriMatches(listed, redirectUri))
@@ -148,13 +167,17 @@ export const checkAuthorizationRequest = Effect.fn(function* (
   if (params.response_type !== "code") {
     return yield* refused("unsupported_response_type", "response_type must be code", redirectUri);
   }
+
   if (params.code_challenge_method !== "S256" || !s256Challenge.test(params.code_challenge ?? "")) {
     return yield* refused("invalid_request", "An S256 code_challenge is required", redirectUri);
   }
+
   if (params.resource !== server.mcpResource) {
     return yield* refused("invalid_target", `resource must be ${server.mcpResource}`, redirectUri);
   }
+
   const permissions = permissionsOf(params.scope);
+
   if (Option.isNone(permissions)) {
     return yield* refused(
       "invalid_scope",
@@ -168,6 +191,7 @@ export const checkAuthorizationRequest = Effect.fn(function* (
     redirectHost: new URL(redirectUri).hostname,
     loopbackOnly: redirect_uris.every((listed) => {
       const url = URL.parse(listed);
+
       return url !== null && isLoopback(url);
     }),
     permissions: permissions.value,

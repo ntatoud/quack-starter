@@ -1,4 +1,5 @@
 import type { MouseEvent } from "react";
+import { isFunction } from "@quack/ui/lib/guards";
 
 export type SortDirection = "asc" | "desc";
 
@@ -26,16 +27,26 @@ export type DataTableBaseState<SortColumn extends string = string> = {
   readonly pinned?: ReadonlyArray<string> | undefined;
 };
 
-/**
- * Any state of a table: its base fields and its filters. Its values are data, as a URL holds them: text, numbers,
- * booleans, dates, arrays, plain objects, sets and maps.
- */
-export type DataTableStateValue = DataTableBaseState;
+/** Data, as a URL holds it: text, numbers, booleans, dates, arrays, plain objects, sets and maps. */
+export type DataTableValue =
+  | string
+  | number
+  | boolean
+  | null
+  | undefined
+  | Date
+  | ReadonlyArray<DataTableValue>
+  | ReadonlySet<DataTableValue>
+  | ReadonlyMap<DataTableValue, DataTableValue>
+  | { readonly [field: string]: DataTableValue };
+
+/** Any state of a table: its base fields and its filters, whose values are data. */
+export type DataTableStateValue = DataTableBaseState & { readonly [field: string]: DataTableValue };
 
 /** The fields of a state that hold its filters: every field but the page, the search, the sorting, and the columns hidden or pinned. */
 export type DataTableFilterKey<S extends DataTableStateValue> = Exclude<
   keyof S,
-  keyof DataTableStateValue
+  keyof DataTableBaseState
 > &
   string;
 
@@ -72,7 +83,7 @@ export type DataTableHistory = {
   } | null;
 };
 
-type Column<S extends DataTableStateValue> = NonNullable<S["orderBy"]>;
+export type Column<S extends DataTableStateValue> = NonNullable<S["orderBy"]>;
 
 /** A filter's new value, or a function of its current one. `undefined` empties it. */
 export type DataTableFilterUpdate<Value> =
@@ -83,18 +94,24 @@ export type DataTableFilterUpdate<Value> =
 const without = <S extends DataTableStateValue>(state: S, ...keys: ReadonlyArray<string>): S =>
   Object.fromEntries(Object.entries(state).filter(([key]) => !keys.includes(key))) as S;
 
-const isPlainObject = (value: unknown): value is Record<string, unknown> => {
-  if (typeof value !== "object" || value === null) return false;
+const isPlainObject = (
+  value: DataTableValue,
+): value is { readonly [field: string]: DataTableValue } => {
+  // `Object(value) === value` holds for any object and no primitive, `null` included.
+  if (Object(value) !== value) return false;
   const prototype: unknown = Object.getPrototypeOf(value);
+
   return prototype === Object.prototype || prototype === null;
 };
 
 // The same state gives the same text, whatever the order of its keys and with its empty keys left out: a router
 // hands the state back in the order of its schema. A `Set` or a `Map` counts by what it holds.
-const fingerprint = (value: unknown): string =>
-  JSON.stringify(value, (_key, inner: unknown) => {
+const fingerprint = (value: DataTableValue): string =>
+  JSON.stringify(value, (_key, inner: DataTableValue) => {
     if (inner instanceof Set) return { set: [...inner].map(fingerprint).sort() };
+
     if (inner instanceof Map) return { map: [...inner].map((entry) => fingerprint(entry)).sort() };
+
     return isPlainObject(inner)
       ? Object.fromEntries(Object.entries(inner).sort(([a], [b]) => a.localeCompare(b)))
       : inner;
@@ -104,13 +121,80 @@ const fingerprint = (value: unknown): string =>
  * Empty: nothing, `""`, `[]`, an empty set or map, or a plain object whose fields are all empty, such as a range
  * with neither end. A `Date` or any other instance is a value.
  */
-export const isEmptyValue = (value: unknown): boolean =>
+export const isEmptyValue = (value: DataTableValue): boolean =>
   value === undefined ||
   value === null ||
   value === "" ||
   (Array.isArray(value) && value.length === 0) ||
   ((value instanceof Set || value instanceof Map) && value.size === 0) ||
   (isPlainObject(value) && Object.values(value).every(isEmptyValue));
+
+type HistoryEntry = NonNullable<DataTableHistory["current"]>;
+
+const withField = <S extends DataTableStateValue>(
+  state: S,
+  key: string,
+  value: DataTableValue,
+): S => (value === undefined ? without(state, key) : ({ ...state, [key]: value } as S));
+
+// `id` in the list of ids when `on`, out of it otherwise; an empty list is no list.
+const toggled = (list: ReadonlyArray<string> | undefined, id: string, on: boolean) => {
+  const others = (list ?? []).filter((other) => other !== id);
+  const next = on ? [...others, id] : others;
+
+  return next.length === 0 ? undefined : next;
+};
+
+// A column sorted by is a column shown: one hidden would sort rows by an order nothing shows.
+const shownForSort = <S extends DataTableStateValue>(state: S, column: string): S =>
+  withField(state, "hidden", toggled(state.hidden, column, false));
+
+// A column hidden is unpinned: its pin would come back with it unasked.
+const unpinnedWith = <S extends DataTableStateValue>(state: S, id: string, visible: boolean): S =>
+  visible ? state : withField(state, "pinned", toggled(state.pinned, id, false));
+
+// Rows sorted by a column out of sight show no order: hiding it goes back to the default sorting, from the first page
+// as any other sorting does. (Hiding the default column itself keeps it: the rows need some order.)
+const withoutSortedBy = <S extends DataTableStateValue>(
+  state: S,
+  id: string,
+  defaultColumn: string,
+): S =>
+  state.orderBy === id && id !== defaultColumn ? without(state, "orderBy", "dir", "page") : state;
+
+// A URL may sort by a column it also hides: rows in an order nothing shows take the default sorting instead.
+const resolveSorting = <S extends DataTableStateValue>(
+  state: S,
+  defaultSorting: DataTableSorting<Column<S>>,
+) => {
+  const hidden =
+    state.orderBy !== undefined &&
+    state.orderBy !== defaultSorting.column &&
+    (state.hidden ?? []).includes(state.orderBy);
+
+  const sorting: DataTableSorting<Column<S>> = hidden
+    ? defaultSorting
+    : {
+        column: (state.orderBy ?? defaultSorting.column) as Column<S>,
+        direction: state.dir ?? defaultSorting.direction,
+      };
+
+  return { sorting, hidden };
+};
+
+const pending = (entry: HistoryEntry | null, found: string) =>
+  entry !== null && !entry.landed && entry.from === found;
+
+// The last change, when this one is one more of its run: the same field, from the state it left (or still on its way
+// there). A run that comes back to where it started (a search typed, then cleared) pushes: Back then brings back what
+// was cleared, rather than doing nothing.
+const runOf = (entry: HistoryEntry | null, field: string, found: string, left: string) =>
+  entry !== null &&
+  entry.field === field &&
+  (entry.state === found || pending(entry, found)) &&
+  left !== entry.origin
+    ? entry
+    : undefined;
 
 /**
  * What a table does to its state. Any change of the rows shown starts again from the first page, and a value left
@@ -133,7 +217,7 @@ export const dataTableState = <S extends DataTableStateValue>(
     filterKeys?: ReadonlyArray<DataTableFilterKey<S>>;
     /** How many rows a page holds while the state does not say. */
     defaultPageSize?: number;
-    isEmpty?: (key: DataTableFilterKey<S>, value: unknown) => boolean;
+    isEmpty?: (key: DataTableFilterKey<S>, value: DataTableValue) => boolean;
     history?: DataTableHistory;
   } = {},
 ) => {
@@ -149,6 +233,7 @@ export const dataTableState = <S extends DataTableStateValue>(
     "pinned",
     ...filterKeys,
   ]);
+
   const fingerprintOwn = (state: S) =>
     fingerprint(Object.fromEntries(Object.entries(state).filter(([key]) => ownKeys.has(key))));
 
@@ -156,54 +241,37 @@ export const dataTableState = <S extends DataTableStateValue>(
   // and on every change, since a store may apply one before the next render.
   const arrived = () => {
     const found = fingerprintOwn(store.state);
+
     if (history.current?.state === found) history.current.landed = true;
+
     return found;
   };
+
   arrived();
 
-  // A URL may sort by a column it also hides: rows in an order nothing shows take the default sorting instead.
-  const sortedHidden =
-    store.state.orderBy !== undefined &&
-    store.state.orderBy !== defaultSorting.column &&
-    (store.state.hidden ?? []).includes(store.state.orderBy);
-  const sorting: DataTableSorting<Column<S>> = sortedHidden
-    ? defaultSorting
-    : {
-        column: (store.state.orderBy ?? defaultSorting.column) as Column<S>,
-        direction: store.state.dir ?? defaultSorting.direction,
-      };
+  const { sorting, hidden: sortedHidden } = resolveSorting(store.state, defaultSorting);
 
   // `valueOf` reads the state the store hands to `next`, not `store.state`: a router may still hold an older one
   // while it loads the last, and a second change in that time builds on the first rather than losing it.
   const set = (
     field: string,
-    valueOf: (state: S) => unknown,
+    valueOf: (state: S) => DataTableValue,
     next: (state: S) => S,
-    onResolved?: (value: unknown) => void,
+    onResolved?: (value: DataTableValue) => void,
   ) => {
     const found = arrived();
-    const current = (store.state as Record<string, unknown>)[field];
-    const pending =
-      history.current !== null && !history.current.landed && history.current.from === found;
-    if (!pending && fingerprint(valueOf(store.state) ?? null) === fingerprint(current ?? null)) {
+    const current = store.state[field];
+    const waiting = pending(history.current, found);
+
+    if (!waiting && fingerprint(valueOf(store.state) ?? null) === fingerprint(current ?? null)) {
       onResolved?.(current);
+
       return;
     }
+
     const left = fingerprintOwn(next(store.state));
-    const replace =
-      history.current !== null &&
-      history.current.field === field &&
-      (history.current.state === found || pending) &&
-      // A run that comes back to where it started (a search typed, then cleared) pushes: Back then brings back what
-      // was cleared, rather than doing nothing.
-      left !== history.current.origin;
-    const entry = {
-      field,
-      state: left,
-      from: found,
-      origin: replace && history.current !== null ? history.current.origin : found,
-      landed: false,
-    };
+    const run = runOf(history.current, field, found, left);
+    const entry = { field, state: left, from: found, origin: run?.origin ?? found, landed: false };
     history.current = entry;
     // The store applies `next` to the state it holds, which may be newer than `store.state`: the entry records what
     // it left, so the store is seen to land it.
@@ -211,43 +279,49 @@ export const dataTableState = <S extends DataTableStateValue>(
       (state) => {
         const result = next(state);
         entry.state = fingerprintOwn(result);
+
         // After the store's update, which may run while React renders: the callback may set state.
         if (onResolved !== undefined) {
-          const value = (result as Record<string, unknown>)[field];
+          const value = result[field];
           queueMicrotask(() => onResolved(value));
         }
+
         return result;
       },
-      { replace },
+      { replace: run !== undefined },
     );
     // A store that applies a change at once, as memory, has landed it.
     arrived();
   };
+
   const push = (next: (state: S) => S) => {
     history.current = null;
     store.update(next);
   };
 
-  // A column sorted by is a column shown: one hidden would sort rows by an order nothing shows.
-  const shownForSort = (state: S, column: string): S => {
-    const hidden = (state.hidden ?? []).filter((other) => other !== column);
-    return hidden.length === 0 ? without(state, "hidden") : { ...state, hidden };
-  };
   const sort = ({ column, direction }: DataTableSorting<Column<S>>) =>
     push((state) => {
       const shown = shownForSort(state, column);
+
       return column === defaultSorting.column && direction === defaultSorting.direction
         ? without(shown, "page", "orderBy", "dir")
         : { ...without(shown, "page"), orderBy: column, dir: direction };
     });
+
   const onPage = (page: number) => (state: S) =>
     page === 1 ? without(state, "page") : { ...state, page };
+
+  // An empty filter counts as none, whatever its form in the URL (`[]`, `""`, left out).
+  const filterValueOf = (key: DataTableFilterKey<S>) => {
+    const value = store.state[key];
+
+    return value === undefined || isEmpty(key, value) ? undefined : value;
+  };
+
+  const filterValues = filterKeys.map((key) => filterValueOf(key) ?? null);
+
   const isFiltered =
-    (store.state.q ?? "") !== "" ||
-    filterKeys.some((key) => {
-      const value = store.state[key];
-      return value !== undefined && !isEmpty(key, value);
-    });
+    (store.state.q ?? "") !== "" || filterKeys.some((key) => filterValueOf(key) !== undefined);
 
   return {
     /** What the rows shown depend on: the query to the API, or the filtering in memory. */
@@ -285,8 +359,7 @@ export const dataTableState = <S extends DataTableStateValue>(
       set(
         "q",
         () => (text === "" ? undefined : text),
-        (state) =>
-          text === "" ? without(state, "page", "q") : { ...without(state, "page"), q: text },
+        (state) => withField(without(state, "page"), "q", text === "" ? undefined : text),
       ),
     /**
      * Sets a filter, or empties it with `undefined`. Given a function, it computes the value from the current one, as
@@ -299,22 +372,18 @@ export const dataTableState = <S extends DataTableStateValue>(
       onResolved?: (value: S[Key] | undefined) => void,
     ) => {
       const valueOf = (state: S): S[Key] | undefined => {
-        const next =
-          typeof value === "function"
-            ? (value as (current: S[Key] | undefined) => S[Key] | undefined)(state[key])
-            : value;
+        const next = isFunction(value)
+          ? (value as (current: S[Key] | undefined) => S[Key] | undefined)(state[key])
+          : value;
+
         return next === undefined || isEmpty(key, next) ? undefined : next;
       };
+
       set(
         key,
         valueOf,
-        (state) => {
-          const next = valueOf(state);
-          return next === undefined
-            ? without(state, "page", key)
-            : { ...without(state, "page"), [key]: next };
-        },
-        onResolved as ((value: unknown) => void) | undefined,
+        (state) => withField(without(state, "page"), key, valueOf(state)),
+        onResolved as ((value: DataTableValue) => void) | undefined,
       );
     },
     /** The ids of the columns hidden, for the `table` of `DataTable`. */
@@ -322,29 +391,14 @@ export const dataTableState = <S extends DataTableStateValue>(
     /** Shows or hides a column, on the page it is on: the rows stay the same. */
     // Columns shown or hidden in a row make one history entry, as the ticks of a filter.
     setColumnVisible: (id: string, visible: boolean) => {
-      const hiddenOf = (state: S) => {
-        const hidden = (state.hidden ?? []).filter((other) => other !== id);
-        const next = visible ? hidden : [...hidden, id];
-        return next.length === 0 ? undefined : next;
-      };
-      set("hidden", hiddenOf, (state) => {
-        const next = hiddenOf(state);
-        // Rows sorted by a column out of sight show no order: hiding it goes back to the default sorting, from the first
-        // page as any other sorting does. (Hiding the default column itself keeps it: the rows need some order.)
-        const kept =
-          !visible && state.orderBy === id && id !== defaultSorting.column
-            ? without(state, "orderBy", "dir", "page")
-            : state;
-        // A column hidden is unpinned: its pin would come back with it unasked.
-        const pins = (kept.pinned ?? []).filter((other) => visible || other !== id);
-        const unpinned =
-          pins.length === (kept.pinned ?? []).length
-            ? kept
-            : pins.length === 0
-              ? without(kept, "pinned")
-              : { ...kept, pinned: pins };
-        return next === undefined ? without(unpinned, "hidden") : { ...unpinned, hidden: next };
-      });
+      const hiddenOf = (state: S) => toggled(state.hidden, id, !visible);
+      set("hidden", hiddenOf, (state) =>
+        withField(
+          unpinnedWith(withoutSortedBy(state, id, defaultSorting.column), id, visible),
+          "hidden",
+          hiddenOf(state),
+        ),
+      );
     },
     /** The ids of the columns pinned at the start, in order, for the `table` of `DataTable`. */
     pinnedColumns: store.state.pinned ?? [],
@@ -353,16 +407,10 @@ export const dataTableState = <S extends DataTableStateValue>(
      * scroll. A column pinned shows. Pins in a row make one history entry.
      */
     setColumnPinned: (id: string, pinned: boolean) => {
-      const pinnedOf = (state: S) => {
-        const others = (state.pinned ?? []).filter((other) => other !== id);
-        const next = pinned ? [...others, id] : others;
-        return next.length === 0 ? undefined : next;
-      };
-      set("pinned", pinnedOf, (state) => {
-        const next = pinnedOf(state);
-        const shown = pinned ? shownForSort(state, id) : state;
-        return next === undefined ? without(shown, "pinned") : { ...shown, pinned: next };
-      });
+      const pinnedOf = (state: S) => toggled(state.pinned, id, pinned);
+      set("pinned", pinnedOf, (state) =>
+        withField(pinned ? shownForSort(state, id) : state, "pinned", pinnedOf(state)),
+      );
     },
     /** Whether the search or a filter narrows the rows. */
     isFiltered,
@@ -370,25 +418,14 @@ export const dataTableState = <S extends DataTableStateValue>(
      * Changes with the search or a filter, and only with them, not the page, the sorting or the hidden columns: give
      * it to `useDataTableSelection` as `resetOn` to clear the selection when the rows that match change.
      */
-    // An empty filter counts as none, whatever its form in the URL (`[]`, `""`, left out).
-    filtersKey: fingerprint([
-      store.state.q ?? null,
-      ...filterKeys.map((key) => {
-        const value = store.state[key];
-        return value === undefined || isEmpty(key, value) ? null : value;
-      }),
-    ]),
+    filtersKey: fingerprint([store.state.q ?? null, ...filterValues]),
     /** Changes whenever other rows show: another page, size, sorting, search or filter. */
     rowsKey: fingerprint([
       store.state.page ?? 1,
       store.state.size ?? defaultPageSize,
       sorting,
       store.state.q ?? null,
-      // An empty filter is none, as in `filtersKey`: writing it out shows the same rows.
-      ...filterKeys.map((key) => {
-        const value = store.state[key];
-        return value === undefined || isEmpty(key, value) ? null : value;
-      }),
+      ...filterValues,
     ]),
     /** Clears the search and every filter, and keeps the sorting. */
     reset: () => push((state) => without(state, "page", "q", ...filterKeys)),

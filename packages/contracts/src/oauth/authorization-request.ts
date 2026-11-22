@@ -15,6 +15,7 @@ export const AuthorizationRequestParams = Schema.Struct({
   resource: Schema.optionalKey(Schema.String),
   scope: Schema.optionalKey(Schema.String),
 });
+
 export type AuthorizationRequestParams = typeof AuthorizationRequestParams.Type;
 
 /** What the consent page shows of a valid authorization request. */

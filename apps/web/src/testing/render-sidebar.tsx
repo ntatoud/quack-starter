@@ -21,6 +21,7 @@ export const renderSidebar = async (
 ) => {
   // Below the breakpoint of `useIsMobile`, the sidebar is a closed sheet.
   await page.viewport(1280, 800);
+
   const rootRoute = createRootRoute({
     component: () => (
       <SidebarProvider>
@@ -39,10 +40,12 @@ export const renderSidebar = async (
       </SidebarProvider>
     ),
   });
+
   const router = createRouter({
     routeTree: rootRoute,
     history: createMemoryHistory({ initialEntries: ["/"] }),
   });
+
   const providers = testProviders(preferences);
   const { Providers } = providers;
   await render(
@@ -50,5 +53,6 @@ export const renderSidebar = async (
       <RouterProvider router={router} />
     </Providers>,
   );
+
   return providers;
 };

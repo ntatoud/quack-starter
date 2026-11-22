@@ -20,6 +20,7 @@ import { UserRepositoryMemory } from "#/modules/identity/testing/user-repository
 
 const password = Schema.decodeSync(Password)(devPassword);
 const anotherPassword = Schema.decodeSync(Password)("another password");
+
 const devEmails = Object.entries(devAccounts).map(
   ([role, email]) => [role, Schema.decodeSync(Email)(email)] as const,
 );
@@ -110,10 +111,12 @@ describe("devUsers", () => {
 
     for (const { status, createdAt, lastSignInAt } of devUsers()) {
       assert.isAtMost(DateTime.toEpochMillis(createdAt), seedMillis);
+
       if (lastSignInAt !== null) {
         assert.isAtLeast(DateTime.toEpochMillis(lastSignInAt), DateTime.toEpochMillis(createdAt));
         assert.isAtMost(DateTime.toEpochMillis(lastSignInAt), seedMillis);
       }
+
       assert.strictEqual(lastSignInAt === null, status === "invited");
     }
   });
@@ -121,6 +124,7 @@ describe("devUsers", () => {
   it("gives an onboarding date to the Users with a Profile who signed in, and to them only", () => {
     for (const { profile, lastSignInAt, onboardedAt, createdAt } of devUsers()) {
       assert.strictEqual(onboardedAt !== null, profile !== null && lastSignInAt !== null);
+
       if (onboardedAt !== null) {
         assert.isAtLeast(DateTime.toEpochMillis(onboardedAt), DateTime.toEpochMillis(createdAt));
       }

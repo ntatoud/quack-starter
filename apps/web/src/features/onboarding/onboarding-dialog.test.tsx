@@ -34,15 +34,18 @@ const onboardedUser = {
 
 // The API client keeps the `fetch` it first saw, so one stub serves every test and each test sets its response.
 let respond: (request: Request) => Response | Promise<Response>;
+
 const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) =>
   respond(new Request(input, init)),
 );
+
 vi.stubGlobal("fetch", fetch);
 
 const setup = async (response: typeof respond) => {
   respond = response;
   const onboarded: Array<User> = [];
   const rootRoute = createRootRoute();
+
   const app = createRoute({
     getParentRoute: () => rootRoute,
     path: "app",
@@ -50,20 +53,24 @@ const setup = async (response: typeof respond) => {
       <OnboardingDialog email="ada@example.com" onOnboarded={(user) => void onboarded.push(user)} />
     ),
   });
+
   const signIn = createRoute({
     getParentRoute: () => rootRoute,
     path: "sign-in",
     component: () => <h1>Sign in</h1>,
   });
+
   const router = createRouter({
     routeTree: rootRoute.addChildren([app, signIn]),
     history: createMemoryHistory({ initialEntries: ["/app"] }),
   });
+
   await render(
     <QueryClientProvider client={new QueryClient()}>
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
+
   return {
     onboarded,
     router,
@@ -106,8 +113,10 @@ describe("OnboardingDialog", () => {
 
   it("signs out to the sign-in page", async () => {
     const requests: Array<string> = [];
+
     const dialog = await setup((request) => {
       requests.push(`${request.method} ${new URL(request.url).pathname}`);
+
       return new Response(null, { status: 204 });
     });
 
@@ -138,8 +147,10 @@ describe("OnboardingDialog", () => {
 
   it("saves the name as the contract spells it, then hands over the User", async () => {
     const requests: Array<{ method: string; url: string; body: unknown }> = [];
+
     const dialog = await setup(async (request) => {
       requests.push({ method: request.method, url: request.url, body: await request.json() });
+
       return Response.json(onboardedUser);
     });
 

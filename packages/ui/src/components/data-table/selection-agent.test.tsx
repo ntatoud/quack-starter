@@ -27,6 +27,7 @@ function People() {
     rowLabel: (person) => `Select ${person.name}`,
     canSelect: (person) => !person.locked,
   });
+
   return (
     <>
       <DataTableSelectionBar count={selection.count} onClear={selection.clear} />
@@ -43,6 +44,7 @@ function People() {
 
 // One bridge for the file: it has no `destroy`, and remembers the components of earlier tests as off the page.
 const agent = createAgent();
+
 afterEach(cleanup);
 
 const entry = (label: string) => agent.snapshot().find((component) => component.label === label);
@@ -54,9 +56,11 @@ describe("DataTable selection, for an agent", () => {
     const components = agent
       .snapshot()
       .filter((component) => !component.offPage && component.component !== "more");
+
     for (const component of components)
       expect(component.label, `${component.component} ${component.ref} has no name`).toBeTruthy();
     const labels = components.map((component) => component.label);
+
     for (const label of ["Selection of People", "Select Ada", "Select all rows shown"])
       expect(labels, `${label} is missing from the snapshot`).toContain(label);
 
@@ -68,14 +72,17 @@ describe("DataTable selection, for an agent", () => {
 
   it("selects a row, the rows that can be, then clears them, as the bar and the checkboxes show", async () => {
     await render(<People />);
+
     const items = entry("Selection of People")?.items as
       | ReadonlyArray<{ value: string }>
       | undefined;
+
     const ada = items?.find((item) => item.value === "p-1")?.value;
 
     const toggled = await agent.act({
       steps: [{ ref: "Selection of People", action: "toggle", args: [ada] }],
     });
+
     expect(toggled.ok, toggled.error?.message).toBe(true);
     await expect.element(page.getByRole("checkbox", { name: "Select Ada" })).toBeChecked();
     await expect.element(page.getByRole("region", { name: "1 selected" })).toBeVisible();
@@ -83,6 +90,7 @@ describe("DataTable selection, for an agent", () => {
     const all = await agent.act({
       steps: [{ ref: "Selection of People", action: "selectAll" }],
     });
+
     expect(all.ok, all.error?.message).toBe(true);
     await expect.element(page.getByRole("region", { name: "3 selected" })).toBeVisible();
     await expect.element(page.getByRole("checkbox", { name: "Select Grace" })).not.toBeChecked();
@@ -90,6 +98,7 @@ describe("DataTable selection, for an agent", () => {
     const cleared = await agent.act({
       steps: [{ ref: "Selection of People", action: "clear" }],
     });
+
     expect(cleared.ok, cleared.error?.message).toBe(true);
     await expect.element(page.getByRole("region", { name: /selected/ })).not.toBeInTheDocument();
   });

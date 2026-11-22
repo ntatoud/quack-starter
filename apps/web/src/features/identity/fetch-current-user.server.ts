@@ -3,7 +3,7 @@ import { Effect } from "effect";
 import { Cookies, FetchHttpClient, HttpClient, HttpClientRequest } from "effect/http";
 import { HttpApiClient } from "effect/http-api";
 
-interface FetchCurrentUserOptions {
+export interface FetchCurrentUserOptions {
   readonly apiUrl: URL;
   readonly cookie: string | undefined;
   readonly clientIp: string | undefined;
@@ -12,6 +12,11 @@ interface FetchCurrentUserOptions {
 /** `setCookie` is what the API wants the browser to store: the caller sends it on, or the browser never sees it. */
 export const fetchCurrentUser = async ({ apiUrl, cookie, clientIp }: FetchCurrentUserOptions) => {
   const setCookie: Array<string> = [];
+  const forwardedHeaders: Record<string, string> = {};
+
+  if (cookie !== undefined) forwardedHeaders.cookie = cookie;
+
+  if (clientIp !== undefined) forwardedHeaders["x-forwarded-for"] = clientIp;
 
   const user = await Effect.gen(function* () {
     const client = yield* HttpApiClient.make(Api, {
@@ -19,10 +24,7 @@ export const fetchCurrentUser = async ({ apiUrl, cookie, clientIp }: FetchCurren
       transformClient: (httpClient) =>
         httpClient.pipe(
           HttpClient.mapRequest((request) =>
-            HttpClientRequest.setHeaders(request, {
-              ...(cookie === undefined ? {} : { cookie }),
-              ...(clientIp === undefined ? {} : { "x-forwarded-for": clientIp }),
-            }),
+            HttpClientRequest.setHeaders(request, forwardedHeaders),
           ),
           HttpClient.tap((response) =>
             Effect.sync(() => {
@@ -31,6 +33,7 @@ export const fetchCurrentUser = async ({ apiUrl, cookie, clientIp }: FetchCurren
           ),
         ),
     });
+
     return yield* client.identity.me();
   }).pipe(
     Effect.catchTag("Unauthenticated", () => Effect.succeed(null)),

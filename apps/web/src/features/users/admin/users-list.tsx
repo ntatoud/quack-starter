@@ -29,6 +29,7 @@ export function UsersList({ table }: { table: UsersTable }) {
   const users = useQuery(usersQueryOptions(table));
   // Relative dates count from when the page was fetched: the render stays pure, and they read the same until the next fetch.
   const columns = useMemo(() => usersColumns(new Date(users.dataUpdatedAt)), [users.dataUpdatedAt]);
+
   return (
     <>
       <DataTableToolbar
@@ -63,6 +64,7 @@ function UsersTableOf({
     refreshing: users.isFetching,
     onRefresh: retry,
   };
+
   return matchQuery(users, {
     Pending: () => <UsersRows {...shared} data={[]} empty={<DataTableLoadingState />} />,
     Error: () => (

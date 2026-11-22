@@ -1,3 +1,4 @@
+import antiSlop from "ultracite/oxlint/anti-slop";
 import { defineConfig } from "vite-plus";
 
 // .agents/skills: installed by `npx skills`, kept as its authors wrote them.
@@ -22,13 +23,16 @@ export default defineConfig({
   lint: {
     ignorePatterns: GENERATED,
     plugins: ["eslint", "oxc", "react", "unicorn", "typescript"],
-    jsPlugins: ["@quack/oxlint-plugin"],
+    jsPlugins: ["@quack/oxlint-plugin", ...(antiSlop.jsPlugins ?? [])],
     categories: {
       correctness: "error",
       suspicious: "warn",
       perf: "warn",
     },
     rules: {
+      ...antiSlop.rules,
+      // This repo does not justify each type assertion in a `SAFETY:` comment.
+      "anti-slop/require-safety-comment-for-type-assertion": "off",
       "eslint/no-unused-vars": [
         "error",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" },

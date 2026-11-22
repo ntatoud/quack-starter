@@ -5,10 +5,20 @@ import { McpServer, Toolkit } from "effect/ai";
 import { HttpClient, HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http";
 import { HttpApiBuilder, HttpApiClient, HttpApiMiddleware } from "effect/http-api";
 
-import { type DerivedTool, deriveTools } from "#/mcp/derive-tools.ts";
+import {
+  type DerivedTool,
+  deriveTools,
+  type EndpointRequest,
+  type ToolInput,
+} from "#/mcp/derive-tools.ts";
 import { authorize, McpCaller } from "#/modules/identity/index.ts";
 
-type Endpoint = (request: object) => Effect.Effect<unknown, unknown>;
+type Endpoint = (request: EndpointRequest) => Effect.Effect<Schema.Json, unknown>;
+
+/** The client of the `Api`, indexed by the names its derived tools carry. */
+interface ClientEndpoints {
+  readonly [group: string]: { readonly [endpoint: string]: Endpoint };
+}
 
 /**
  * A client of the `Api` that calls its handlers in this fiber, with no network between: the McpCaller
@@ -20,10 +30,13 @@ const inProcessClient = Effect.gen(function* () {
   const router = yield* Layer.build(
     HttpApiBuilder.layer(Api).pipe(Layer.provideMerge(Layer.fresh(HttpRouter.layer))),
   );
+
   const handle = Context.get(router, HttpRouter.HttpRouter).asHttpEffect();
   const scope = yield* Effect.scope;
+
   const httpClient = HttpClient.make((request) => {
     const requestScope = Scope.forkUnsafe(scope);
+
     return handle.pipe(
       Effect.map((response) => HttpServerResponse.toClientResponse(response, { request })),
       Effect.provideService(
@@ -35,6 +48,7 @@ const inProcessClient = Effect.gen(function* () {
       Effect.onExit((exit) => Scope.close(requestScope, exit)),
     );
   });
+
   const client = yield* HttpApiClient.makeWith(Api, {
     httpClient,
     baseUrl: "http://in-process",
@@ -44,7 +58,11 @@ const inProcessClient = Effect.gen(function* () {
       HttpApiMiddleware.layerClient(Authentication, ({ next, request }) => next(request)),
     ),
   );
-  return client as unknown as Readonly<Record<string, Readonly<Record<string, Endpoint>>>>;
+
+  // The client is typed by the `Api`, which a toolkit built at runtime cannot index by name.
+  const generic: object = client;
+
+  return generic as ClientEndpoints;
 });
 
 const callEndpoint = (
@@ -54,13 +72,14 @@ const callEndpoint = (
   const call = client[group.identifier]![endpoint.identifier]!;
   const isDeclared = Schema.is(Schema.Union(errors));
 
-  return (args: Readonly<Record<string, unknown>>) =>
+  return (args: ToolInput) =>
     call(toRequest(args)).pipe(
       Effect.map(toResult),
       // Every error an endpoint declares, its middleware's included, is a `Schema.TaggedError`.
       Effect.catch((error) => {
         if (!isDeclared(error)) return Effect.die(error);
         const { _tag, message } = error as { readonly _tag: string; readonly message: string };
+
         return Effect.fail({ _tag, message });
       }),
     );
@@ -69,11 +88,14 @@ const callEndpoint = (
 /** Hides a tool whose endpoint needs a Permission the caller's Grant lacks, by the same check as the `Api`. */
 const visibleToCaller = (tools: ReadonlyArray<DerivedTool>) => {
   const endpoints = new Map(tools.map(({ tool, endpoint }) => [tool.name, endpoint]));
+
   return McpServer.visibility(({ target }) =>
     Effect.gen(function* () {
       const endpoint = endpoints.get(target);
+
       if (endpoint === undefined) return false;
       const { permissions } = yield* McpCaller;
+
       return yield* authorize(endpoint, permissions).pipe(
         Effect.as(true),
         Effect.orElseSucceed(() => false),
@@ -89,9 +111,11 @@ const register = (
   Effect.gen(function* () {
     const client = yield* inProcessClient;
     const toolkit = Toolkit.make(...tools.map(({ tool }) => tool));
+
     const handlers = Object.fromEntries(
       tools.map((tool) => [tool.tool.name, callEndpoint(client, tool)]),
     );
+
     yield* McpServer.registerToolkit(toolkit).pipe(
       Effect.provide(toolkit.toLayer(handlers as never)),
     );

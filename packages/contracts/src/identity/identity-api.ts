@@ -26,6 +26,7 @@ export const OnboardingPayload = Schema.Struct({
   firstName: trimmed(PersonName),
   lastName: trimmed(PersonName),
 });
+
 export type OnboardingPayload = typeof OnboardingPayload.Type;
 
 export class IdentityApi extends HttpApiGroup.make("identity").add(

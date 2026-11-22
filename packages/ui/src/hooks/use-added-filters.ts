@@ -15,6 +15,7 @@ export function useAddedFilters<Key extends string>(hasValue: (key: Key) => bool
 
   const next = new Map<Key, Entry>();
   let changed = false;
+
   for (const [key, entry] of added) {
     if (!hasValue(key)) {
       next.set(key, { ...entry, seenEmpty: true });
@@ -22,7 +23,9 @@ export function useAddedFilters<Key extends string>(hasValue: (key: Key) => bool
     } else if (entry.seenEmpty || entry.untilValue) changed = true;
     else next.set(key, entry);
   }
+
   if (changed) setAdded(next);
+
   // A filter that goes, on Back say, closes: Forward does not bring it back open.
   if (open !== null && !hasValue(open) && !next.has(open)) setOpen(null);
 
@@ -45,6 +48,7 @@ export function useAddedFilters<Key extends string>(hasValue: (key: Key) => bool
     release: (key: Key) =>
       setAdded((keys) => {
         const entry = keys.get(key);
+
         return entry === undefined ? keys : new Map(keys).set(key, { ...entry, untilValue: true });
       }),
     clear: () => {

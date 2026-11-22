@@ -34,10 +34,12 @@ export const multiSelectFilter = <const Value extends string>({
   placeholder?: string;
 } & DataTableOptionsStatus): DataTableFilter<ReadonlyArray<string>, Value[]> => {
   const known = new Set<string>(options.map((option) => option.value));
+
   // Once each, though the URL may repeat them.
   const unknownOf = (values: ReadonlyArray<string>) => [
     ...new Set(values.filter((value) => !known.has(value))),
   ];
+
   // A value the options lack came from the field, so it is one of the field's values.
   const ordered = (values: ReadonlyArray<string>) =>
     [
@@ -50,7 +52,9 @@ export const multiSelectFilter = <const Value extends string>({
     placeholder,
     summary: (values): React.ReactNode => {
       const shown = ordered(values);
+
       if (shown.length > namedLabels) return <SelectedCount count={shown.length} />;
+
       return shown.map((value, index) => (
         <span key={value}>
           {index > 0 && ", "}
@@ -71,6 +75,7 @@ export const multiSelectFilter = <const Value extends string>({
               : [...current, toggled],
           ),
         );
+
       return (
         <>
           <Menu open={open} onOpenChange={onOpenChange}>

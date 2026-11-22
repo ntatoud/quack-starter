@@ -8,6 +8,7 @@ export function FormDescription(props: Omit<ComponentProps<typeof FieldDescripti
 
   useLayoutEffect(() => {
     setHasDescription(true);
+
     return () => setHasDescription(false);
   }, [setHasDescription]);
 

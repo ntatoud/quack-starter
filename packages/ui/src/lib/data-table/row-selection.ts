@@ -47,6 +47,7 @@ export const rowSelection = definePrimitive({
     const change = createChange(context);
     const rows = () => context.options().rows ?? [];
     const selectableIds = () => rows().flatMap((row) => (row.selectable ? [row.value] : []));
+
     const selection = createSelection(context, {
       key: "selected",
       set: (value, details) => change("selected", value, details),
@@ -54,6 +55,7 @@ export const rowSelection = definePrimitive({
       multiple: () => true,
       selectable: (id) => selectableIds().includes(id),
     });
+
     // Shift is held when the box is pressed, not when it changes: the change event of a checkbox does not tell.
     let shiftOnPress = false;
 
@@ -61,13 +63,16 @@ export const rowSelection = definePrimitive({
       if (!selectableIds().includes(id)) return;
       const details = { reason: "item-press", ...(event && { event }) } as const;
       const anchor = selection.anchor();
+
       if (range && anchor !== null && selectableIds().includes(anchor)) {
         if (selection.isSelected(id)) {
           // The range is cleared, as it is ticked: from the last row pressed to this one.
           const order = selectableIds();
+
           const [from = 0, to = 0] = [order.indexOf(anchor), order.indexOf(id)].toSorted(
             (a, b) => a - b,
           );
+
           const cleared = new Set(order.slice(from, to + 1));
           change(
             "selected",
@@ -79,8 +84,10 @@ export const rowSelection = definePrimitive({
           selection.extend(id, details);
           selection.setAnchor(id);
         }
+
         return;
       }
+
       selection.toggle(id, details);
     };
 
@@ -127,6 +134,7 @@ export const rowSelection = definePrimitive({
       takeShift: () => {
         const held = shiftOnPress;
         shiftOnPress = false;
+
         return held;
       },
     };
@@ -143,11 +151,14 @@ export const rowSelection = definePrimitive({
       on: {
         keydown: (event, { el, key, api }) => {
           const press = event as KeyboardEvent;
+
           if (press.target !== el || press.key !== " ") return;
+
           // Alt, Ctrl and Cmd with Space belong to the browser and the app.
           if (press.altKey || press.ctrlKey || press.metaKey) return;
           // The browser would scroll a page and leave the focused row behind.
           press.preventDefault();
+
           if (!press.repeat) api.press(key, { range: press.shiftKey, event: press });
         },
       },
@@ -158,6 +169,7 @@ export const rowSelection = definePrimitive({
         pointerdown: (event, { api }) => api.rememberShift((event as PointerEvent).shiftKey),
         keydown: (event, { api }) => {
           const press = event as KeyboardEvent;
+
           if (press.key === " ") api.rememberShift(press.shiftKey);
         },
       },

@@ -15,12 +15,14 @@ const local = Http.createServer((request, response) => {
     response.writeHead(200, { "content-type": "application/json" }).end("{}");
   }
 });
+
 let port = 0;
 
 beforeAll(async () => {
   await new Promise<void>((resolve) => local.listen(0, "127.0.0.1", resolve));
   port = (local.address() as AddressInfo).port;
 });
+
 afterAll(() => new Promise<void>((resolve) => local.close(() => resolve())));
 
 const get = (url: string, allowLoopback: boolean) =>
@@ -40,6 +42,7 @@ const get = (url: string, allowLoopback: boolean) =>
 
 const refusalOf = async (url: string, allowLoopback = false) => {
   const exit = await get(url, allowLoopback);
+
   return Exit.isFailure(exit) ? String(exit.cause) : "answered";
 };
 

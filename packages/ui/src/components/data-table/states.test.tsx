@@ -29,6 +29,7 @@ describe("DataTableLoadingState, many rows", () => {
     const opacities = [...document.querySelectorAll<HTMLElement>("[aria-hidden=true]")].map(
       (line) => Number(getComputedStyle(line).opacity),
     );
+
     expect(opacities).toHaveLength(10);
     expect(Math.min(...opacities)).toBeGreaterThanOrEqual(0.5);
     expect(opacities[0]).toBe(1);
@@ -102,9 +103,11 @@ describe("DataTableLoadMore", () => {
 
   it("says how many rows are loaded, and keeps the focus while the next batch loads", async () => {
     const onLoadMore = vi.fn();
+
     const screen = await render(
       <DataTableLoadMore loaded={10} total={30} hasMore onLoadMore={onLoadMore} />,
     );
+
     await expect.element(page.getByRole("status")).toHaveTextContent("10 of 30");
 
     const button = page.getByRole("button", { name: "Load more" });
@@ -138,6 +141,7 @@ describe("DataTableLoadMore count", () => {
     const screen = await render(
       <DataTableLoadMore loaded={20} total={30} hasMore onLoadMore={() => {}} />,
     );
+
     const status = page.getByRole("status");
     await expect.element(status).toHaveTextContent("20 of 30");
     const ring = () => getComputedStyle(status.element()).boxShadow;

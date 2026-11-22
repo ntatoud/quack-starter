@@ -15,9 +15,11 @@ const todo = (id: string, title: string, completed = false) => ({
 
 // The API client keeps the `fetch` it first saw, so one stub serves every test and each test sets its response.
 let respond: (request: Request) => Response | Promise<Response>;
+
 const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) =>
   respond(new Request(input, init)),
 );
+
 vi.stubGlobal("fetch", fetch);
 
 const setup = async (response: typeof respond) => {
@@ -28,6 +30,7 @@ const setup = async (response: typeof respond) => {
       <TodosList />
     </QueryClientProvider>,
   );
+
   return { queryClient };
 };
 
@@ -79,6 +82,7 @@ describe("TodosList", () => {
     let completed = false;
     await setup((request) => {
       if (request.method === "POST") completed = true;
+
       return request.method === "GET"
         ? Response.json([todo("1", "Ship it", completed)])
         : Response.json(todo("1", "Ship it", true));
@@ -100,6 +104,7 @@ describe("TodosList", () => {
       const id = new URL(request.url).pathname.split("/").at(-1) ?? "";
       const removal = Promise.withResolvers<Response>();
       removals.set(id, removal);
+
       return removal.promise.finally(() => removed.add(id));
     });
     const removeShip = page.getByRole("button", { name: "Remove Ship it" });
@@ -112,6 +117,7 @@ describe("TodosList", () => {
 
     await expect.element(removeShip).toBeDisabled();
     await expect.element(removeWrite).toBeDisabled();
+
     for (const removal of removals.values()) removal.resolve(new Response(null, { status: 204 }));
     await expect.element(page.getByText("No todos yet")).toBeVisible();
   });
@@ -120,20 +126,25 @@ describe("TodosList", () => {
     let loads = 0;
     await setup((request) => {
       if (request.method === "GET") loads += 1;
+
       return Response.json([todo("1", "Ship it")]);
     });
     await expect.element(page.getByRole("checkbox", { name: "Complete Ship it" })).toBeVisible();
 
     respond = (request) => {
       if (request.method === "GET") loads += 1;
+
       return new Response(null, { status: 500 });
     };
+
     await page.getByRole("checkbox", { name: "Complete Ship it" }).click();
 
     await expect.element(page.getByText("Could not complete this todo. Try again.")).toBeVisible();
+
     const refreshFailed = page
       .getByRole("alert")
       .filter({ hasText: "Could not refresh your todos." });
+
     await expect.element(refreshFailed).toBeVisible();
     expect(loads).toBe(2);
     await expect.element(page.getByRole("checkbox", { name: "Complete Ship it" })).toBeVisible();

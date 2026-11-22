@@ -36,6 +36,7 @@ const aUser = (
 ) =>
   Effect.gen(function* () {
     const repository = yield* UserRepository;
+
     return new User({
       id: yield* repository.nextId,
       email: Email.make(`${name}.${mark}@example.com`),
@@ -70,6 +71,7 @@ const listed = (query: Partial<UserListQuery> & Pick<UserListQuery, "search">) =
   Effect.gen(function* () {
     const repository = yield* UserRepository;
     const { items, total } = yield* repository.findAll({ ...firstPage, ...query });
+
     return { emails: items.map(({ email }) => email), total };
   });
 
@@ -170,6 +172,7 @@ export const userRepositorySuite = (layer: Layer.Layer<UserRepository>) => {
         const mark = yield* aMark;
         const user = yield* aUser(mark, "ada");
         yield* created(user);
+
         const suspended = new User({
           ...user,
           status: "suspended",
@@ -192,12 +195,15 @@ export const userRepositorySuite = (layer: Layer.Layer<UserRepository>) => {
       Effect.gen(function* () {
         const mark = yield* aMark;
         const byEmail = yield* aUser(mark, `x${mark}y`);
+
         const byName = yield* aUser(mark, "grace", {
           profile: { firstName: "Grace", lastName: `Hop${mark.toUpperCase()}per`, team: "design" },
         });
+
         const neither = yield* aUser(mark, "linus", {
           profile: { firstName: "Linus", lastName: "Torvalds", team: "design" },
         });
+
         yield* created(byEmail, byName, neither);
 
         assert.deepStrictEqual((yield* listed({ search: `x${mark}y` })).emails, emailsOf(byEmail));
@@ -211,18 +217,22 @@ export const userRepositorySuite = (layer: Layer.Layer<UserRepository>) => {
       Effect.gen(function* () {
         const mark = yield* aMark;
         const engineering = { firstName: "A", lastName: "B", team: "engineering" } as const;
+
         const kept = yield* aUser(mark, "kept", {
           role: "admin",
           status: "invited",
           profile: engineering,
         });
+
         const otherRole = yield* aUser(mark, "role", { status: "invited", profile: engineering });
         const otherStatus = yield* aUser(mark, "status", { role: "admin", profile: engineering });
+
         const otherTeam = yield* aUser(mark, "team", {
           role: "admin",
           status: "invited",
           profile: { ...engineering, team: "sales" },
         });
+
         const noProfile = yield* aUser(mark, "noprofile", { role: "admin", status: "invited" });
         yield* created(kept, otherRole, otherStatus, otherTeam, noProfile);
 
@@ -304,9 +314,11 @@ export const userRepositorySuite = (layer: Layer.Layer<UserRepository>) => {
       Effect.gen(function* () {
         const repository = yield* UserRepository;
         const mark = yield* aMark;
+
         const user = yield* aUser(mark, "ada", {
           profile: { firstName: "Ada", lastName: "Lovelace", team: null, country: null },
         });
+
         yield* created(user);
 
         assert.deepStrictEqual(yield* repository.findById(user.id), Option.some(user));
@@ -315,15 +327,19 @@ export const userRepositorySuite = (layer: Layer.Layer<UserRepository>) => {
     test("sorts the Users with no team or no country last, in either direction", () =>
       Effect.gen(function* () {
         const mark = yield* aMark;
+
         const design = yield* aUser(mark, "a", {
           profile: { ...person("Ann", "A"), country: CountryCode.make("GB") },
         });
+
         const sales = yield* aUser(mark, "b", {
           profile: { ...person("Bob", "B"), team: "sales", country: CountryCode.make("FR") },
         });
+
         const neither = yield* aUser(mark, "c", {
           profile: { ...person("Cy", "C"), team: null, country: null },
         });
+
         yield* created(neither, sales, design);
 
         for (const orderBy of ["team", "country"] as const) {
