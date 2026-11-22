@@ -86,16 +86,14 @@ export class AuthorizationRequests extends Context.Service<
         return url.href;
       };
 
-      const activeGrantOf = Effect.fn("AuthorizationRequests.activeGrantOf")(function* (
-        userId: UserId,
-        aiClientId: string,
-      ) {
-        const now = yield* DateTime.now;
+      const activeGrantOf = (userId: UserId, aiClientId: string) =>
+        Effect.gen(function* () {
+          const now = yield* DateTime.now;
 
-        return Option.filter(yield* grants.findOf(userId, aiClientId), (grant) =>
-          DateTime.isLessThan(now, grant.expiresAt),
-        );
-      });
+          return Option.filter(yield* grants.findOf(userId, aiClientId), (grant) =>
+            DateTime.isLessThan(now, grant.expiresAt),
+          );
+        });
 
       return AuthorizationRequests.of({
         check: Effect.fn("AuthorizationRequests.check")(function* (params, userId) {

@@ -22,6 +22,7 @@ export default Effect.gen(function* () {
       grant_id uuid NOT NULL
         CONSTRAINT grant_access_tokens_grant_id_fkey REFERENCES grants ON DELETE CASCADE,
       resource text NOT NULL,
+      permissions text[] NOT NULL,
       expires_at timestamptz NOT NULL
     )
   `;

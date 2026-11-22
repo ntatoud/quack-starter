@@ -22,14 +22,17 @@ const AccessTokenRow = Schema.Struct({
   tokenHash: Schema.String,
   grantId: Schema.String,
   resource: Schema.String,
+  permissions: Schema.Array(Permission),
   expiresAt: Schema.DateTimeUtcFromDate,
 });
 
+// One row of the join: the Grant's columns, and its token's under an `access_token_` prefix.
 const GrantWithAccessTokenRow = Schema.Struct({
   ...GrantRow.fields,
-  tokenHash: Schema.String,
-  tokenResource: Schema.String,
-  tokenExpiresAt: Schema.DateTimeUtcFromDate,
+  accessTokenHash: Schema.String,
+  accessTokenResource: Schema.String,
+  accessTokenPermissions: Schema.Array(Permission),
+  accessTokenExpiresAt: Schema.DateTimeUtcFromDate,
 });
 
 // An id that is no uuid finds no User: Postgres would refuse to compare it with the column, and fail the request.
@@ -74,8 +77,9 @@ export const GrantStorePostgres = Layer.effect(
       Request: Schema.String,
       Result: GrantWithAccessTokenRow,
       execute: (tokenHash) => sql`
-        SELECT grants.*, token.token_hash, token.resource AS token_resource,
-          token.expires_at AS token_expires_at
+        SELECT grants.*, token.token_hash AS access_token_hash,
+          token.resource AS access_token_resource, token.permissions AS access_token_permissions,
+          token.expires_at AS access_token_expires_at
         FROM grant_access_tokens AS token JOIN grants ON grants.id = token.grant_id
         WHERE token.token_hash = ${tokenHash}
       `,
@@ -94,15 +98,24 @@ export const GrantStorePostgres = Layer.effect(
       findByAccessToken: Effect.fn("GrantStore.findByAccessToken")((tokenHash) =>
         findByAccessToken(tokenHash).pipe(
           Effect.map(
-            Option.map(({ tokenHash: hash, tokenResource, tokenExpiresAt, ...grant }) => ({
-              grant,
-              accessToken: {
-                tokenHash: hash,
-                grantId: grant.id,
-                resource: tokenResource,
-                expiresAt: tokenExpiresAt,
-              },
-            })),
+            Option.map(
+              ({
+                accessTokenHash,
+                accessTokenResource,
+                accessTokenPermissions,
+                accessTokenExpiresAt,
+                ...grant
+              }) => ({
+                grant,
+                accessToken: {
+                  tokenHash: accessTokenHash,
+                  grantId: grant.id,
+                  resource: accessTokenResource,
+                  permissions: accessTokenPermissions,
+                  expiresAt: accessTokenExpiresAt,
+                },
+              }),
+            ),
           ),
           Effect.orDie,
         ),

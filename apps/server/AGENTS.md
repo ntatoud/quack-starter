@@ -20,7 +20,7 @@ To add a context, copy `modules/todos`:
 
 `src/mcp/` is a transport, not a module: it serves `/api/mcp` with a tool for each endpoint the contract offers, which calls the `Api` in process as the `McpCaller` of the request, so the Permission check and the Owner rules stay those of the `Api`. A context adds tools through the contract only. The flow, from discovery to a tool call: `docs/ai-clients.md`.
 
-- Only `/api/mcp` reads a bearer token (ADR 0003): `Grants.authenticate` turns it into the `McpCaller`, the Grant's User with the Grant's Permissions their Role still gives. Never accept one on `/api`.
+- Only `/api/mcp` reads a bearer token (ADR 0003): `Grants.authenticate` turns it into the `McpCaller`, the Grant's User with the token's Permissions that the Grant and their Role still give. Never accept one on `/api`.
 - An HTTP middleware answers 401 or 403 before any JSON-RPC; an `McpServer.middleware` provides the `McpCaller`. The tools are built outside the scope of the HTTP middleware (`mcp-endpoint.ts`): inside it, it would also wrap the in-process routes and challenge every call.
 - A Grant is one per User and AI Client, in identity: `GrantStore` holds it and its access tokens, stored as SHA-256 only. Approving creates or updates it; the token endpoint (`Grants.exchange`) issues its tokens.
 

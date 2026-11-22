@@ -34,7 +34,6 @@ export const accessTokenLifetime = Duration.hours(1);
 
 export const accessTokenBytes = 32;
 
-/** A Grant as the User approves it, before the store gives it an id. */
 export interface GrantDraft extends GrantTerms {
   readonly userId: UserId;
   /** What the AI Client said it was when the User last approved. */
@@ -53,5 +52,7 @@ export interface AccessToken {
   readonly grantId: string;
   /** Its audience: the only resource that accepts it (RFC 8707). */
   readonly resource: string;
+  /** Those of the code it was exchanged for: approving more later gives an earlier code no more. */
+  readonly permissions: ReadonlyArray<Permission>;
   readonly expiresAt: DateTime.Utc;
 }

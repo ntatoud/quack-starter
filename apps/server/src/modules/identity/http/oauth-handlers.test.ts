@@ -6,14 +6,15 @@ import type { AuthorizationRequestParams } from "@quack/contracts/oauth/authoriz
 import type { AuthorizationErrorCode } from "@quack/contracts/oauth/oauth-errors";
 import type { TokenRequestParams } from "@quack/contracts/oauth/token-request";
 import type { Permission } from "@quack/contracts/permission";
-import { ConfigProvider, DateTime, Effect, Fiber, Layer, Option, Schema } from "effect";
+import { ConfigProvider, DateTime, Effect, Fiber, Layer, Option, Redacted, Schema } from "effect";
 import { HttpClient, HttpClientRequest, HttpClientResponse, HttpServer } from "effect/http";
 import { HttpApiMiddleware, HttpApiTest } from "effect/http-api";
 import { TestClock } from "effect/testing";
 
 import { AuthorizationCodeStore } from "#/modules/identity/domain/authorization-code-store.ts";
 import { GrantStore } from "#/modules/identity/domain/grant-store.ts";
-import { OAuthModule } from "#/modules/identity/index.ts";
+import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
+import { Grants, OAuthModule } from "#/modules/identity/index.ts";
 import { AuthorizationCodeStoreMemory } from "#/modules/identity/testing/authorization-code-store-memory.ts";
 import { GrantStoreMemory } from "#/modules/identity/testing/grant-store-memory.ts";
 import { UserRepositoryMemory } from "#/modules/identity/testing/user-repository-memory.ts";
@@ -121,7 +122,7 @@ const withConfig = (env: Record<string, string>) =>
       Layer.provide(StubHttpClient),
       Layer.provideMerge(AuthorizationCodeStoreMemory),
       Layer.provideMerge(GrantStoreMemory),
-      Layer.provide(UserRepositoryMemory),
+      Layer.provideMerge(UserRepositoryMemory),
       Layer.provideMerge(authenticationByUserId([ada])),
       Layer.provide(
         ConfigProvider.layer(ConfigProvider.fromUnknown({ PUBLIC_URL: publicOrigin, ...env })),
@@ -753,6 +754,46 @@ layer(withConfig({}))("OAuthApi token", (it) => {
       yield* tokenRefusal({ ...exchange, code_verifier: `${codeVerifier}x` });
 
       assert.strictEqual(yield* tokenRefusal(exchange), "invalid_grant");
+    }),
+  );
+});
+
+/** The Permissions an access token opens, as `/api/mcp` will act with them. */
+const permissionsOf = (accessToken: string) =>
+  Effect.gen(function* () {
+    // Ada must be stored for her Grant to act; each test may be the first to need her.
+    yield* (yield* UserRepository).create(ada, "unused").pipe(Effect.ignore);
+
+    const { permissions } = yield* (yield* Grants).authenticate(Redacted.make(accessToken));
+
+    return [...permissions].toSorted();
+  });
+
+layer(withConfig({}))("OAuthApi token, the Permissions of a token", (it) => {
+  it.effect(
+    "a code gives no more than was approved with it, though the User approved more since",
+    () =>
+      Effect.gen(function* () {
+        const clientId = anAiClient();
+        const narrow = yield* approvedCode(requestOf(clientId, { scope: "todos:list" }));
+        yield* approvedCode(requestOf(clientId, { scope: "todos:list todos:delete" }));
+
+        const response = yield* token(narrow);
+
+        assert.strictEqual(response.scope, "todos:list");
+        assert.deepStrictEqual(yield* permissionsOf(response.access_token), ["todos:list"]);
+      }),
+  );
+
+  it.effect("a token loses the Permissions the User no longer approves", () =>
+    Effect.gen(function* () {
+      const clientId = anAiClient();
+      const wide = yield* approvedCode(requestOf(clientId, { scope: "todos:list todos:delete" }));
+      const { access_token } = yield* token(wide);
+
+      yield* approvedCode(requestOf(clientId, { scope: "todos:list" }));
+
+      assert.deepStrictEqual(yield* permissionsOf(access_token), ["todos:list"]);
     }),
   );
 });

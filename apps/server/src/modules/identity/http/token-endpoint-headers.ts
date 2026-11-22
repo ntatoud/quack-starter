@@ -1,8 +1,8 @@
-import { API_PREFIX } from "@quack/contracts/api";
+import { Api } from "@quack/contracts/api";
 import { Effect } from "effect";
 import { HttpMiddleware, HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http";
 
-const tokenPath = `${API_PREFIX}/oauth/token`;
+const tokenPath = Api.groups.oauth.endpoints.token.path;
 
 // An AI Client running in a browser exchanges its code from its own origin. It sends no cookie: the code and its
 // verifier are its only proof, so any origin may call.

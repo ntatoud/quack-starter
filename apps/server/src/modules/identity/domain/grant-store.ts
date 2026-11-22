@@ -6,7 +6,7 @@ import type { AccessToken, Grant, GrantDraft } from "#/modules/identity/domain/g
 export class GrantStore extends Context.Service<
   GrantStore,
   {
-    /** Gives the User's Grant to the AI Client the new terms, keeping its id, or creates it if they gave none. */
+    /** One Grant per User and AI Client: saving one they already gave replaces its terms and keeps its id. */
     save(grant: GrantDraft): Effect.Effect<Grant>;
     findOf(userId: UserId, aiClientId: string): Effect.Effect<Option.Option<Grant>>;
     saveAccessToken(token: AccessToken): Effect.Effect<void>;

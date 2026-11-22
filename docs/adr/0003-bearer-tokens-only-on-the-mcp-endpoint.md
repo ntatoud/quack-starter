@@ -11,7 +11,7 @@ An AI Client acts for a User with the access token of a Grant. Its MCP tools cal
 - Access tokens are opaque random strings, stored only as their SHA-256, like a Session's token, and looked up on every call. They last 1 hour, and their audience is the MCP resource identifier (`<PUBLIC_URL>/api/mcp`). No signing keys.
 - `/api/mcp` is the only route that reads `Authorization: Bearer`. It answers 401 with `WWW-Authenticate: Bearer resource_metadata="..."` to a request with no token, or with one whose hash is unknown, whose audience is another resource, or that is expired, or whose Grant is expired or whose User is no longer `active`.
 - `/api` over HTTP never accepts a bearer token: the session cookie stays its only credential.
-- A tool calls its endpoint through an in-process client of the same `Api`: no network between. The caller travels in the context as an `McpCaller` (the Grant's User, with the Grant's Permissions that the User's Role still gives), which `Authentication` takes in place of the Session. Same handlers, same Permission check, same Owner rules.
+- A tool calls its endpoint through an in-process client of the same `Api`: no network between. The caller travels in the context as an `McpCaller` (the Grant's User, with the token's Permissions that the Grant and the User's Role still give), which `Authentication` takes in place of the Session. Same handlers, same Permission check, same Owner rules.
 
 ## Consequences
 

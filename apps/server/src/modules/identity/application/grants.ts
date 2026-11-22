@@ -25,8 +25,14 @@ const invalidGrant = refused(
   "The code is unknown, spent, expired, or was not given for this request.",
 );
 
+/** What only the AI Client that asked for the code knows: the code, and the verifier of its challenge. */
+interface CodeSecrets {
+  readonly code: string;
+  readonly verifier: string;
+}
+
 /** The secrets of an authorization code grant, once the request is one (RFC 6749 s4.1.3). */
-const secretsOf = (params: TokenRequestParams) => {
+const secretsOf = (params: TokenRequestParams): Effect.Effect<CodeSecrets, TokenRequestRefused> => {
   if (params.grant_type === undefined) {
     return Effect.fail(refused("invalid_request", "grant_type is missing."));
   }
@@ -40,14 +46,20 @@ const secretsOf = (params: TokenRequestParams) => {
     : Effect.succeed({ code: params.code, verifier: params.code_verifier });
 };
 
+/** The Permissions in every one of `sets`, in the order of the first. */
+const held = (
+  first: ReadonlyArray<Permission>,
+  ...others: ReadonlyArray<ReadonlyArray<Permission>>
+) => first.filter((permission) => others.every((set) => set.includes(permission)));
+
 export class Grants extends Context.Service<
   Grants,
   {
     /** Exchanges an authorization code for an access token of the Grant the User approved (RFC 6749 s4.1.3). */
     exchange(params: TokenRequestParams): Effect.Effect<TokenResponse, TokenRequestRefused>;
     /**
-     * Who an access token acts for: the User of its active Grant, with the Permissions of the Grant that
-     * their Role still gives. Only a token whose audience is the MCP endpoint opens it.
+     * Who an access token acts for: the User of its active Grant, with the token's Permissions that the
+     * Grant and the User's Role still give. Only a token whose audience is the MCP endpoint opens it.
      */
     authenticate(
       token: Redacted.Redacted<string>,
@@ -75,31 +87,29 @@ export class Grants extends Context.Service<
         );
 
       /** The code of the request, once it was given for this request: spent either way. */
-      const redeem = Effect.fn("Grants.redeem")(function* (
-        params: TokenRequestParams,
-        { code, verifier }: { readonly code: string; readonly verifier: string },
-      ) {
-        // Taken before anything is checked: a code whose exchange fails is spent, so it cannot be tried again.
-        const found = yield* codes.take(yield* sha256Hex(digest, code));
+      const redeem = (params: TokenRequestParams, { code, verifier }: CodeSecrets) =>
+        Effect.gen(function* () {
+          // Taken before anything is checked: a code whose exchange fails is spent, so it cannot be tried again.
+          const found = yield* codes.take(yield* sha256Hex(digest, code));
 
-        if (Option.isNone(found)) return yield* invalidGrant;
-        const redeemed = found.value;
+          if (Option.isNone(found)) return yield* invalidGrant;
+          const redeemed = found.value;
 
-        if (
-          DateTime.isGreaterThanOrEqualTo(yield* DateTime.now, redeemed.expiresAt) ||
-          params.client_id !== redeemed.aiClientId ||
-          params.redirect_uri !== redeemed.redirectUri ||
-          (yield* challengeOf(verifier)) !== redeemed.codeChallenge
-        ) {
-          return yield* invalidGrant;
-        }
+          if (
+            DateTime.isGreaterThanOrEqualTo(yield* DateTime.now, redeemed.expiresAt) ||
+            params.client_id !== redeemed.aiClientId ||
+            params.redirect_uri !== redeemed.redirectUri ||
+            (yield* challengeOf(verifier)) !== redeemed.codeChallenge
+          ) {
+            return yield* invalidGrant;
+          }
 
-        if (params.resource !== redeemed.resource) {
-          return yield* refused("invalid_target", `resource must be ${redeemed.resource}.`);
-        }
+          if (params.resource !== redeemed.resource) {
+            return yield* refused("invalid_target", `resource must be ${redeemed.resource}.`);
+          }
 
-        return redeemed;
-      });
+          return redeemed;
+        });
 
       return Grants.of({
         exchange: Effect.fn("Grants.exchange")(function* (params) {
@@ -108,11 +118,13 @@ export class Grants extends Context.Service<
 
           if (Option.isNone(grant)) return yield* invalidGrant;
           const token = Base64Url.encode(yield* random.randomBytes(accessTokenBytes));
+          const permissions = held(code.permissions, grant.value.permissions);
 
           yield* grants.saveAccessToken({
             tokenHash: yield* sha256Hex(digest, token),
             grantId: grant.value.id,
             resource: code.resource,
+            permissions,
             expiresAt: DateTime.addDuration(yield* DateTime.now, accessTokenLifetime),
           });
 
@@ -120,7 +132,7 @@ export class Grants extends Context.Service<
             access_token: token,
             token_type: "Bearer",
             expires_in: Duration.toSeconds(accessTokenLifetime),
-            scope: grant.value.permissions.join(" "),
+            scope: permissions.join(" "),
           };
         }),
         authenticate: Effect.fn("Grants.authenticate")(function* (token) {
@@ -144,11 +156,11 @@ export class Grants extends Context.Service<
           const user = yield* users.findById(grant.userId);
 
           if (Option.isNone(user) || !canSignIn(user.value)) return yield* new Unauthenticated();
-          const ofRole = rolePermissions(user.value.role);
+          const ofRole = [...rolePermissions(user.value.role)];
 
           return {
             user: user.value,
-            permissions: new Set(grant.permissions.filter((permission) => ofRole.has(permission))),
+            permissions: new Set(held(accessToken.permissions, grant.permissions, ofRole)),
           };
         }),
       });

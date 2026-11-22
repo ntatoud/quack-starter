@@ -26,12 +26,19 @@ const callerOf = (grants: Grants["Service"], authorization: string | undefined) 
  * token of an active Grant. Anything else gets its answer over HTTP, before any JSON-RPC.
  */
 const accessToken = (publicOrigin: string) => {
-  const challenge = HttpServerResponse.empty({
-    status: 401,
-    headers: {
-      "www-authenticate": `Bearer resource_metadata="${publicOrigin}/.well-known/oauth-protected-resource${MCP_PATH}"`,
-    },
-  });
+  const resourceMetadata = `resource_metadata="${publicOrigin}/.well-known/oauth-protected-resource${MCP_PATH}"`;
+
+  // RFC 6750 s3: a request with no token gets no error code; one whose token opens nothing, invalid_token.
+  const challenge = (authorization: string | undefined) =>
+    HttpServerResponse.empty({
+      status: 401,
+      headers: {
+        "www-authenticate":
+          authorization === undefined
+            ? `Bearer ${resourceMetadata}`
+            : `Bearer error="invalid_token", ${resourceMetadata}`,
+      },
+    });
 
   return HttpRouter.middleware(
     Effect.gen(function* () {
@@ -48,7 +55,7 @@ const accessToken = (publicOrigin: string) => {
 
           const caller = yield* callerOf(grants, headers.authorization);
 
-          return Option.isSome(caller) ? yield* toMcpServer : challenge;
+          return Option.isSome(caller) ? yield* toMcpServer : challenge(headers.authorization);
         });
     }),
   );

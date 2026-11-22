@@ -423,7 +423,7 @@ describe("server routes", () => {
       authorization_endpoint: "https://quack.test/oauth/authorize",
       token_endpoint: "https://quack.test/api/oauth/token",
       response_types_supported: ["code"],
-      grant_types_supported: ["authorization_code", "refresh_token"],
+      grant_types_supported: ["authorization_code"],
       code_challenge_methods_supported: ["S256"],
       token_endpoint_auth_methods_supported: ["none"],
       client_id_metadata_document_supported: true,
@@ -473,9 +473,11 @@ describe("server routes", () => {
     expect(preflight.headers.get("access-control-allow-headers")).toBe("mcp-protocol-version");
   });
 
+  const resourceMetadata =
+    'resource_metadata="https://quack.test/.well-known/oauth-protected-resource/api/mcp"';
+
   it.each([
     ["no token", {}],
-    ["a token no Grant holds", { authorization: "Bearer not-a-token-of-quack" }],
     ["the public origin and no token", { origin: "https://quack.test" }],
   ])(
     "answers /api/mcp with 401 and the challenge naming its resource metadata, to %s",
@@ -483,11 +485,30 @@ describe("server routes", () => {
       const response = await mcpCall(headers);
 
       expect(response.status).toBe(401);
-      expect(response.headers.get("www-authenticate")).toBe(
-        'Bearer resource_metadata="https://quack.test/.well-known/oauth-protected-resource/api/mcp"',
-      );
+      expect(response.headers.get("www-authenticate")).toBe(`Bearer ${resourceMetadata}`);
     },
   );
+
+  it("answers /api/mcp to a token no Grant holds with 401 invalid_token (RFC 6750 s3)", async () => {
+    const response = await mcpCall({ authorization: "Bearer not-a-token-of-quack" });
+
+    expect(response.status).toBe(401);
+    expect(response.headers.get("www-authenticate")).toBe(
+      `Bearer error="invalid_token", ${resourceMetadata}`,
+    );
+  });
+
+  it("answers a token request whose body is no form with 415, as OAuth sends only forms", async () => {
+    const response = await handler(
+      new Request("http://api.test/api/oauth/token", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ grant_type: "authorization_code" }),
+      }),
+    );
+
+    expect(response.status).toBe(415);
+  });
 
   it("answers /api/mcp with 403 to a request from another origin, before it looks for a token", async () => {
     const response = await mcpCall({

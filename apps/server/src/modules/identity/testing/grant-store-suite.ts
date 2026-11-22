@@ -95,6 +95,7 @@ export const grantStoreSuite = <R>(
           tokenHash: yield* aTokenHash,
           grantId: grant.id,
           resource: grant.resource,
+          permissions: ["todos:list"],
           expiresAt: at("2000-01-01T00:00:00Z"),
         };
 
@@ -116,6 +117,7 @@ export const grantStoreSuite = <R>(
           tokenHash: yield* aTokenHash,
           grantId: grant.id,
           resource: grant.resource,
+          permissions: ["todos:list"],
           expiresAt: at("2026-01-01T01:00:00Z"),
         };
 
