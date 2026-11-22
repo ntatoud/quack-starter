@@ -1,7 +1,7 @@
 import { Api } from "@quack/contracts/api";
-import { Grant, GrantablePermission, GrantId } from "@quack/contracts/grants/grant";
+import { Grant, GrantId } from "@quack/contracts/grants/grant";
 import { CurrentUser } from "@quack/contracts/identity/authentication";
-import { Effect, Schema } from "effect";
+import { Effect } from "effect";
 import { HttpApiBuilder } from "effect/http-api";
 
 import { Grants } from "#/modules/identity/application/grants.ts";
@@ -27,8 +27,7 @@ export const GrantsHandlers = HttpApiBuilder.group(
                 name: grant.aiClientName,
               },
               loopbackOnly: isLoopback(new URL(grant.redirectUri)),
-              // Approving holds a Grant to those already: this only narrows the type.
-              permissions: grant.permissions.filter(Schema.is(GrantablePermission)),
+              permissions: grant.permissions,
               lastUsedAt: grant.lastUsedAt,
               expiresAt: grant.expiresAt,
             }),

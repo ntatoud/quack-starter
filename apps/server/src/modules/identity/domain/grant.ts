@@ -1,11 +1,12 @@
 import type { UserId } from "@quack/contracts/identity/user";
 import { Permission } from "@quack/contracts/permission";
-import { GrantablePermission } from "@quack/contracts/grants/grant";
+import { TodosPermission } from "@quack/contracts/todos/todos-permissions";
 import { type DateTime, Duration, Option } from "effect";
 
 import { redirectUriMatches } from "#/modules/identity/domain/redirect-uri.ts";
 
-export const grantablePermissions = GrantablePermission.literals;
+/** The Permissions a Grant may hold: those of the contexts exposed to AI Clients, never `users:*`. */
+export const grantablePermissions = TodosPermission.literals;
 
 /**
  * What an AI Client asks its User for to get `missing` too (RFC 6750 s3.1, step-up): what it `held` as well,

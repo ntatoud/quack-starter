@@ -146,26 +146,26 @@ describe("GrantsList", () => {
     await expect.element(entry("My Agent").getByText("Never used yet")).toBeVisible();
   });
 
-  it("names each Permission in plain words, deleting in the destructive style", async () => {
+  it("names each Permission as the consent page does, deleting in the destructive style", async () => {
     await setup(serving(claude));
     await expect.element(entry("Claude")).toBeVisible();
 
     const badges = entry("Claude").getByRole("list", { name: "Permissions" }).getByRole("listitem");
     expect(badges.elements().map((badge) => badge.textContent)).toEqual([
-      "See todos",
-      "Create and complete todos",
-      "Delete todos",
+      "todos:list",
+      "todos:write",
+      "todos:delete",
     ]);
     expect(
       entry("Claude")
-        .getByText("Delete todos")
+        .getByText("todos:delete")
         .element()
         .closest("[data-variant]")
         ?.getAttribute("data-variant"),
     ).toBe("destructive");
     expect(
       entry("Claude")
-        .getByText("See todos")
+        .getByText("todos:list")
         .element()
         .closest("[data-variant]")
         ?.getAttribute("data-variant"),
@@ -191,7 +191,7 @@ describe("GrantsList", () => {
     await expect
       .element(dialog)
       .toHaveAccessibleDescription(
-        "Claude loses access at once, and can no longer see, create, complete, and delete your todos. To act for you again, it has to ask for your consent.",
+        "Claude loses todos:list, todos:write, and todos:delete at once. To act for you again, it has to ask for your consent.",
       );
     await expect.element(dialog.getByRole("button", { name: "Keep access" })).toHaveFocus();
 

@@ -16,9 +16,9 @@ import { useMutation } from "@tanstack/react-query";
 import { DateTime } from "effect";
 import { useState } from "react";
 
-import { actionsOf, destroys, permissionWords } from "#/features/grants/permission-words.ts";
 import { api } from "#/lib/api.ts";
 import { invalidating } from "#/lib/invalidate-queries.ts";
+import { listOf } from "#/lib/list-of.ts";
 import { timeAgo } from "#/lib/time-ago.ts";
 
 export function GrantEntry({
@@ -51,8 +51,9 @@ export function GrantEntry({
         <ul aria-label="Permissions" className="flex flex-wrap gap-1">
           {grant.permissions.map((permission) => (
             <li key={permission}>
-              <Badge variant={destroys(permission) ? "destructive" : "secondary"}>
-                {permissionWords[permission].label}
+              {/* What it removes, a User cannot get back. */}
+              <Badge variant={permission === "todos:delete" ? "destructive" : "secondary"}>
+                {permission}
               </Badge>
             </li>
           ))}
@@ -83,7 +84,7 @@ function RevokeGrant({ grant }: { grant: Grant }) {
   const revoke = useMutation(api.grants.revoke.mutationOptions(invalidating(api.grants.key())));
   const name = grant.aiClient.name;
   const title = `Revoke ${name}'s access?`;
-  const consequence = `${name} loses access at once, and can no longer ${actionsOf(grant.permissions)}. To act for you again, it has to ask for your consent.`;
+  const consequence = `${name} loses ${listOf(grant.permissions)} at once. To act for you again, it has to ask for your consent.`;
 
   return (
     <AlertDialog

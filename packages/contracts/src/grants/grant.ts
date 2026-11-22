@@ -1,11 +1,6 @@
 import { Schema } from "effect";
 
-import { TodosPermission } from "#/todos/todos-permissions.ts";
-
-/** The Permissions a Grant may hold: those of the contexts exposed to AI Clients, never `users:*`. */
-export const GrantablePermission = TodosPermission;
-
-export type GrantablePermission = typeof GrantablePermission.Type;
+import { Permission } from "#/permission.ts";
 
 export const GrantId = Schema.String.pipe(Schema.brand("GrantId"));
 
@@ -24,7 +19,7 @@ export class Grant extends Schema.Class<Grant, { readonly brand: unique symbol }
   }),
   /** The AI Client comes back on this machine: anything running here could be it. */
   loopbackOnly: Schema.Boolean,
-  permissions: Schema.Array(GrantablePermission),
+  permissions: Schema.Array(Permission),
   /** `null` until the AI Client first calls a tool. */
   lastUsedAt: Schema.NullOr(Schema.DateTimeUtcFromString),
   /** Pushed back by each refresh: an AI Client still in use keeps its Grant. */
