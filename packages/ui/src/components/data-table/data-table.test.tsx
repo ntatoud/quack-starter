@@ -1039,7 +1039,7 @@ describe("DataTable selected rows", () => {
 describe("DataTable hovered rows inside a card", () => {
   it("lights a hovered row and its cell held at the end alike, apart from the card, in dark mode", async () => {
     await render(
-      <div className="dark">
+      <div data-color-scheme="dark">
         <Card>
           <DataTable
             columns={[
@@ -1235,7 +1235,7 @@ describe("DataTable scroll on other rows", () => {
 describe("DataTable inside a card", () => {
   it("gives its sticky cells the background of the card, in dark mode too", async () => {
     await render(
-      <div className="dark">
+      <div data-color-scheme="dark">
         <Card>
           <DataTable
             columns={[

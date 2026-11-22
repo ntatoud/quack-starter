@@ -34,7 +34,7 @@ describe("AppSidebar", () => {
   it.each(["left", "right"] as const)(
     "sits on the %s when the Current User prefers it",
     async (side) => {
-      await renderSidebar(AppSidebar, "user", { "right-sidebar": side === "right" });
+      await renderSidebar(AppSidebar, "user", { sidebarSide: side });
 
       const edgeOf = () => {
         const panel = document.querySelector("[data-slot=sidebar-container]");

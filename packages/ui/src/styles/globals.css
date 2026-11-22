@@ -7,11 +7,11 @@
 
 /* `system` follows the theme of the operating system, so the server render needs no script to draw it. */
 @custom-variant dark {
-  &:is(.dark *) {
+  &:where([data-color-scheme="dark"], [data-color-scheme="dark"] *) {
     @slot;
   }
   @media (prefers-color-scheme: dark) {
-    &:is(.system *) {
+    &:where([data-color-scheme="system"], [data-color-scheme="system"] *) {
       @slot;
     }
   }
@@ -76,9 +76,24 @@
   --inset-shadow-edge-b: inset 0 -1px 0 var(--border);
 }
 
-:root {
-  /* Every color pairs its light and dark value: `color-scheme`, set by the theme, picks one. */
+/* Without a choice, the page follows the operating system, as with `system`. */
+:root,
+[data-color-scheme="system"] {
+  color-scheme: light dark;
+}
+
+[data-color-scheme="light"] {
   color-scheme: light;
+}
+
+[data-color-scheme="dark"] {
+  color-scheme: dark;
+}
+
+/* Declared again on each element with its own scheme, so a part of the page can take another one. */
+:root,
+[data-color-scheme] {
+  /* Every color pairs its light and dark value: `color-scheme` picks one. */
   --background: light-dark(oklch(1 0 0), oklch(0.145 0 0));
   --foreground: light-dark(oklch(0.145 0 0), oklch(0.985 0 0));
   --card: light-dark(oklch(1 0 0), oklch(0.205 0 0));
@@ -114,15 +129,6 @@
   /* The shadow cast over content cut off at the edge of a scroll area. */
   --shade: light-dark(oklch(0 0 0 / 0.08), oklch(0 0 0 / 0.6));
   --surface: var(--background);
-}
-
-/* As specific as `:root`: these win by coming after it, so they stay below it. */
-.dark {
-  color-scheme: dark;
-}
-
-.system {
-  color-scheme: light dark;
 }
 
 @layer base {

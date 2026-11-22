@@ -3,12 +3,12 @@ import { SidebarContent } from "@quack/ui/components/sidebar";
 import { PanelLeftIcon, PanelRightIcon } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
-import { usePreference, useSetPreference } from "#/features/preferences/use-preference.ts";
+import { usePreferences, useSidebarSide } from "#/features/preferences/preferences.ts";
 
 /** The content of the sidebar, whose empty space opens a menu of the Preferences of the sidebar. */
 export function SidebarContentWithMenu({ children }: { children: ReactNode }) {
-  const isRightSidebar = usePreference("right-sidebar");
-  const setPreference = useSetPreference();
+  const { sidebarSide } = usePreferences();
+  const isRightSidebar = useSidebarSide() === "right";
   const [controller] = useState(() => createMenuController<unknown, string>());
 
   return (
@@ -25,7 +25,7 @@ export function SidebarContentWithMenu({ children }: { children: ReactNode }) {
         {children}
       </SidebarContent>
       <MenuContent align="start" alignOffset={4} side="right">
-        <MenuItem onSelect={() => setPreference("right-sidebar", !isRightSidebar)}>
+        <MenuItem onSelect={() => sidebarSide.set(isRightSidebar ? "left" : "right")}>
           {isRightSidebar ? <PanelLeftIcon /> : <PanelRightIcon />}
           {isRightSidebar ? "Move left" : "Move right"}
         </MenuItem>

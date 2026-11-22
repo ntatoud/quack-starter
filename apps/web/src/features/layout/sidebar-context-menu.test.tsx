@@ -19,20 +19,20 @@ const sidebarSide = () =>
 
 describe("the menu of the sidebar", () => {
   it("puts the sidebar on the right from a right click on its empty space, and back", async () => {
-    const { preferencesStore } = await renderSidebar(AppSidebar, "user");
+    const { preferences } = await renderSidebar(AppSidebar, "user");
     const { content, below } = emptySpace();
 
     await page.elementLocator(content).click({ button: "right", position: below });
     await page.getByRole("menuitem", { name: "Move right" }).click();
 
     await expect.poll(sidebarSide).toBe("right");
-    expect(preferencesStore.read()["right-sidebar"]).toBe(true);
+    expect(preferences.sidebarSide.get().value).toBe("right");
 
     await page.elementLocator(content).click({ button: "right", position: below });
     await page.getByRole("menuitem", { name: "Move left" }).click();
 
     await expect.poll(sidebarSide).toBe("left");
-    expect(preferencesStore.read()["right-sidebar"]).toBe(false);
+    expect(preferences.sidebarSide.get().value).toBe("left");
   });
 
   it("leaves a right click on a link to the browser", async () => {
