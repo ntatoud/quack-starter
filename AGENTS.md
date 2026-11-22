@@ -31,6 +31,8 @@ packages/effect-query   TanStack Query options from Effects
 packages/oxlint-plugin  Lint rules of this repo
 ```
 
+The server serves `/api` and `/.well-known`, and the web app relays both to it (`lib/api-relay.ts`): the browser and AI Clients see one origin, `PUBLIC_URL`.
+
 Packages import each other's TypeScript sources through `exports`, by file path, with no barrel and no build step: `@quack/contracts/todos/todo`, `@quack/ui/components/button`.
 
 The brand lives in `packages/brand` only: the app's names in `brand.ts`, its `Logo`, the icon of the browser tab (`icon.ts`), and the font, radius, and colors of the theme in `theme.css`, which `@quack/ui/globals.css` imports. Read the name from `brand`, never write it in a page; to rebrand the app, change that package. Contracts stay out of it, as of any `@quack` package.

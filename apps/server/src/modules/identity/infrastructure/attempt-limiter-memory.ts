@@ -18,7 +18,7 @@ const sweepEveryMillis = Duration.toMillis(Duration.minutes(1));
 export const AttemptLimiterMemory = Layer.effect(
   AttemptLimiter,
   Effect.gen(function* () {
-    const { attemptLimits } = yield* ServerConfig;
+    const attemptLimits = yield* ServerConfig.attemptLimits;
     const windows = new Map<string, AttemptWindow>();
     let sweptAt = yield* Clock.currentTimeMillis;
 

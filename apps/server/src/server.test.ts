@@ -1,4 +1,4 @@
-import { Layer } from "effect";
+import { ConfigProvider, Layer } from "effect";
 import { HttpRouter, HttpServer } from "effect/http";
 import { afterAll, beforeAll, describe, expect, it } from "vite-plus/test";
 
@@ -15,8 +15,13 @@ const MemoryStorage = Layer.mergeAll(
   TodoRepositoryMemory,
 );
 
+// Another origin than the one of the requests below: the documents must not take theirs from `Host`.
+const Config = ConfigProvider.layer(
+  ConfigProvider.fromUnknown({ PUBLIC_URL: "https://quack.test" }),
+);
+
 const { handler, dispose } = HttpRouter.toWebHandler(
-  Routes.pipe(Layer.provide([HttpServer.layerServices, MemoryStorage])),
+  Routes.pipe(Layer.provide([HttpServer.layerServices, MemoryStorage, Config])),
 );
 
 const get = (path: string) => handler(new Request(new URL(path, "http://api.test")));
@@ -324,6 +329,67 @@ describe("server routes", () => {
     },
   );
 
+  it("serves the authorization server metadata at the origin root, built from PUBLIC_URL", async () => {
+    const response = await get("/.well-known/oauth-authorization-server");
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      issuer: "https://quack.test",
+      authorization_endpoint: "https://quack.test/oauth/authorize",
+      token_endpoint: "https://quack.test/api/oauth/token",
+      response_types_supported: ["code"],
+      grant_types_supported: ["authorization_code", "refresh_token"],
+      code_challenge_methods_supported: ["S256"],
+      token_endpoint_auth_methods_supported: ["none"],
+      client_id_metadata_document_supported: true,
+      authorization_response_iss_parameter_supported: true,
+      scopes_supported: ["todos:list", "todos:write", "todos:delete"],
+    });
+  });
+
+  it("serves the protected resource metadata of /api/mcp, built from PUBLIC_URL", async () => {
+    const response = await get("/.well-known/oauth-protected-resource/api/mcp");
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      resource: "https://quack.test/api/mcp",
+      authorization_servers: ["https://quack.test"],
+      scopes_supported: ["todos:list"],
+      bearer_methods_supported: ["header"],
+    });
+  });
+
+  it.each([
+    "/.well-known/oauth-authorization-server",
+    "/.well-known/oauth-protected-resource/api/mcp",
+  ])("lets any origin read %s, without credentials", async (path) => {
+    const origin = { origin: "https://ai-client.example" };
+    const [read, preflight] = await Promise.all([
+      handler(new Request(new URL(path, "http://api.test"), { headers: origin })),
+      handler(
+        new Request(new URL(path, "http://api.test"), {
+          method: "OPTIONS",
+          headers: {
+            ...origin,
+            "access-control-request-method": "GET",
+            "access-control-request-headers": "mcp-protocol-version",
+          },
+        }),
+      ),
+    ]);
+
+    for (const response of [read, preflight]) {
+      expect(response.headers.get("access-control-allow-origin")).toBe("*");
+      expect(response.headers.get("access-control-allow-credentials")).toBeNull();
+    }
+    expect(preflight.status).toBeLessThan(300);
+    expect(preflight.headers.get("access-control-allow-headers")).toBe("mcp-protocol-version");
+  });
+
+  it("serves nothing else under /.well-known", async () => {
+    expect((await get("/.well-known/oauth-protected-resource")).status).toBe(404);
+  });
+
   it("answers a cross-origin preflight with no CORS header", async () => {
     const response = await handler(
       new Request("http://api.test/api/todos", {
@@ -339,7 +405,7 @@ describe("server routes", () => {
 const makeSeeded = () =>
   HttpRouter.toWebHandler(
     Layer.mergeAll(Routes, IdentitySeed).pipe(
-      Layer.provide([HttpServer.layerServices, MemoryStorage]),
+      Layer.provide([HttpServer.layerServices, MemoryStorage, Config]),
     ),
   );
 

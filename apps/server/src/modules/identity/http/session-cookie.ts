@@ -17,7 +17,7 @@ export class SessionCookie extends Context.Service<
   static readonly layer = Layer.effect(
     SessionCookie,
     Effect.gen(function* () {
-      const { cookieSecure } = yield* ServerConfig;
+      const cookieSecure = yield* ServerConfig.cookieSecure;
 
       // Clearing takes the same attributes, or the browser keeps the cookie it has.
       const attributes = {
