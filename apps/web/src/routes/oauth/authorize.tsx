@@ -11,8 +11,6 @@ export const Route = createFileRoute("/oauth/authorize")({
     if (context.currentUser === null) throw redirect(signInLocation(location.href));
     return { currentUser: context.currentUser };
   },
-  // Another site must not frame the page under a decoy, so the User approves what they cannot see.
-  headers: () => ({ "Content-Security-Policy": "frame-ancestors 'none'" }),
   head: () => ({ meta: [{ title: pageTitle("Connect an AI Client") }] }),
   component: ConsentPage,
 });

@@ -127,7 +127,7 @@ function Consent({
       <h1
         ref={sentence}
         tabIndex={-1}
-        className="text-center text-2xl leading-snug font-semibold tracking-tight outline-none"
+        className="text-center text-xl font-semibold tracking-tight outline-none"
       >
         {consentSentence(aiClient, request.permissions)}
       </h1>

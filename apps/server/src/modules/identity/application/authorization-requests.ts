@@ -10,6 +10,7 @@ import { Digest, SecureRandom } from "effect/crypto";
 import { Base64Url } from "effect/encoding";
 
 import { ServerConfig } from "#/config.ts";
+import { sha256Hex } from "#/modules/identity/application/sha256-hex.ts";
 import {
   AiClientDocuments,
   aiClientUrlOf,
@@ -105,7 +106,7 @@ export class AuthorizationRequests extends Context.Service<
           const request = yield* validate(params);
           const code = Base64Url.encode(yield* random.randomBytes(authorizationCodeBytes));
           yield* codes.save({
-            codeHash: yield* digest.digestHex(Digest.sha256, new TextEncoder().encode(code)),
+            codeHash: yield* sha256Hex(digest, code),
             userId,
             aiClientId: request.aiClientId,
             aiClientName: request.aiClient.name,
