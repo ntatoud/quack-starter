@@ -17,6 +17,7 @@ import { Route as AuthenticatedAppRouteRouteImport } from './routes/_authenticat
 import { Route as GuestSignInRouteImport } from './routes/_guest/sign-in'
 import { Route as GuestSignUpRouteImport } from './routes/_guest/sign-up'
 import { Route as ApiSplatRouteImport } from './routes/api/$'
+import { Route as PrototypeConsentRouteImport } from './routes/prototype/consent'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app/index'
 import { Route as AuthenticatedAppSettingsRouteRouteImport } from './routes/_authenticated/app/settings/route'
@@ -62,6 +63,11 @@ const GuestSignUpRoute = GuestSignUpRouteImport.update({
 const ApiSplatRoute = ApiSplatRouteImport.update({
   id: '/api/$',
   path: '/api/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrototypeConsentRoute = PrototypeConsentRouteImport.update({
+  id: '/prototype/consent',
+  path: '/prototype/consent',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
@@ -118,6 +124,7 @@ export interface FileRoutesByFullPath {
   '/sign-in': typeof GuestSignInRoute
   '/sign-up': typeof GuestSignUpRoute
   '/api/$': typeof ApiSplatRoute
+  '/prototype/consent': typeof PrototypeConsentRoute
   '/app/settings': typeof AuthenticatedAppSettingsRouteRouteWithChildren
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/app/': typeof AuthenticatedAppIndexRoute
@@ -132,6 +139,7 @@ export interface FileRoutesByTo {
   '/sign-in': typeof GuestSignInRoute
   '/sign-up': typeof GuestSignUpRoute
   '/api/$': typeof ApiSplatRoute
+  '/prototype/consent': typeof PrototypeConsentRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/app': typeof AuthenticatedAppIndexRoute
   '/admin/users/$id': typeof AuthenticatedAdminUsersIdRoute
@@ -150,6 +158,7 @@ export interface FileRoutesById {
   '/_guest/sign-in': typeof GuestSignInRoute
   '/_guest/sign-up': typeof GuestSignUpRoute
   '/api/$': typeof ApiSplatRoute
+  '/prototype/consent': typeof PrototypeConsentRoute
   '/_authenticated/app/settings': typeof AuthenticatedAppSettingsRouteRouteWithChildren
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
@@ -168,6 +177,7 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/api/$'
+    | '/prototype/consent'
     | '/app/settings'
     | '/admin/'
     | '/app/'
@@ -182,6 +192,7 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/api/$'
+    | '/prototype/consent'
     | '/admin'
     | '/app'
     | '/admin/users/$id'
@@ -199,6 +210,7 @@ export interface FileRouteTypes {
     | '/_guest/sign-in'
     | '/_guest/sign-up'
     | '/api/$'
+    | '/prototype/consent'
     | '/_authenticated/app/settings'
     | '/_authenticated/admin/'
     | '/_authenticated/app/'
@@ -214,6 +226,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   GuestRouteRoute: typeof GuestRouteRouteWithChildren
   ApiSplatRoute: typeof ApiSplatRoute
+  PrototypeConsentRoute: typeof PrototypeConsentRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -272,6 +285,13 @@ declare module '@tanstack/react-router' {
       path: '/api/$'
       fullPath: '/api/$'
       preLoaderRoute: typeof ApiSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/prototype/consent': {
+      id: '/prototype/consent'
+      path: '/prototype/consent'
+      fullPath: '/prototype/consent'
+      preLoaderRoute: typeof PrototypeConsentRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/admin/': {
@@ -418,6 +438,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   GuestRouteRoute: GuestRouteRouteWithChildren,
   ApiSplatRoute: ApiSplatRoute,
+  PrototypeConsentRoute: PrototypeConsentRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
