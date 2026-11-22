@@ -1,11 +1,13 @@
 import { assert, layer } from "@effect/vitest";
 import { Email, User, UserId } from "@quack/contracts/identity/user";
 import type { Permission } from "@quack/contracts/permission";
+import { Api } from "@quack/contracts/api";
 import { ConfigProvider, DateTime, Effect, Layer } from "effect";
 import { McpProtocol, McpServer, McpTest } from "effect/ai";
 import { HttpClient, HttpServer } from "effect/http";
 
-import { ContractTools } from "#/mcp/contract-tools.ts";
+import { contractTools } from "#/mcp/contract-tools.ts";
+import { deriveTools } from "#/mcp/derive-tools.ts";
 import { IdentityModule, McpCaller, OAuthModule } from "#/modules/identity/index.ts";
 import { AuthorizationCodeStoreMemory } from "#/modules/identity/testing/authorization-code-store-memory.ts";
 import { GrantStoreMemory } from "#/modules/identity/testing/grant-store-memory.ts";
@@ -60,7 +62,9 @@ const clientWith = (name: string, permissions: ReadonlyArray<Permission> = every
       Effect.provideService(effect, McpCaller, { user, permissions: new Set(permissions) }),
     );
 
-    const client = yield* McpTest.makeClient(ContractTools.pipe(Layer.provide(asCaller.layer)), {
+    const tools = contractTools(yield* deriveTools(Api));
+
+    const client = yield* McpTest.makeClient(tools.pipe(Layer.provide(asCaller.layer)), {
       protocols: [McpProtocol.v2026_07_28],
     });
 

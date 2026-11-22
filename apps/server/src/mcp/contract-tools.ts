@@ -5,12 +5,7 @@ import { McpServer, Toolkit } from "effect/ai";
 import { HttpClient, HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http";
 import { HttpApiBuilder, HttpApiClient, HttpApiMiddleware } from "effect/http-api";
 
-import {
-  type DerivedTool,
-  deriveTools,
-  type EndpointRequest,
-  type ToolInput,
-} from "#/mcp/derive-tools.ts";
+import { type DerivedTool, type EndpointRequest, type ToolInput } from "#/mcp/derive-tools.ts";
 import { authorize, McpCaller } from "#/modules/identity/index.ts";
 
 type Endpoint = (request: EndpointRequest) => Effect.Effect<Schema.Json, unknown>;
@@ -127,6 +122,3 @@ const register = (
  */
 export const contractTools = (tools: ReadonlyArray<DerivedTool>) =>
   Layer.effectDiscard(register(tools)).pipe(Layer.provide(visibleToCaller(tools).layer));
-
-/** The tools derived from the `Api`, as `contractTools` serves them. */
-export const ContractTools = Layer.unwrap(Effect.map(deriveTools(Api), contractTools));

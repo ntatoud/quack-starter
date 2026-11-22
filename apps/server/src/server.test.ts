@@ -738,6 +738,17 @@ describe("server routes of an AI Client", () => {
     );
   });
 
+  it("leaves a call of a tool Quack does not have to the MCP server, with no step-up", async () => {
+    const cookie = await sessionCookieOf("ai-client-unknown-tool@example.com", "203.0.113.85");
+    const token = await exchange(await approvedCode(cookie, "todos:list"));
+    const { access_token } = (await token.json()) as { access_token: string };
+
+    const response = await callTool("todos_archive", access_token);
+
+    expect(response.status).not.toBe(403);
+    expect(response.headers.get("www-authenticate")).toBeNull();
+  });
+
   it("approving the AI Client again sets the Grant's Permissions to those approved now, and revokes its earlier tokens", async () => {
     const cookie = await sessionCookieOf("ai-client-reapproved@example.com", "203.0.113.84");
     const first = await exchange(await approvedCode(cookie, "todos:list todos:write"));

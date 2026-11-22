@@ -1,6 +1,6 @@
 import { brand } from "@quack/brand/brand";
 import { Api, MCP_PATH } from "@quack/contracts/api";
-import { Permission } from "@quack/contracts/permission";
+import type { Permission } from "@quack/contracts/permission";
 import { Effect, Layer, Option, Redacted } from "effect";
 import { McpProtocol, McpSchema, McpServer } from "effect/ai";
 import { type Headers, HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http";
@@ -9,7 +9,7 @@ import type { HttpApiEndpoint } from "effect/http-api";
 import { ServerConfig } from "#/config.ts";
 import { contractTools } from "#/mcp/contract-tools.ts";
 import { deriveTools } from "#/mcp/derive-tools.ts";
-import { authorize, Grants, McpCaller, mayBeGranted } from "#/modules/identity/index.ts";
+import { authorize, Grants, McpCaller, stepUpScope } from "#/modules/identity/index.ts";
 
 const instructions = `${brand.name} manages the Todos of the User who connected you. Call todos_list first.`;
 
@@ -25,14 +25,13 @@ const callerOf = (grants: Grants["Service"], authorization: string | undefined) 
 };
 
 /**
- * The Permission a `tools/call` needs and the caller could get by asking their User again, read from its
- * `Mcp-Name` header (MCP 2026-07-28) by the same check as the `Api`. A tool no endpoint stands for, or one
- * no Grant of this User may open, is left to the MCP server to refuse: asking again would loop.
+ * The Permission a `tools/call` needs and the caller lacks, read from its `Mcp-Name` header (MCP 2026-07-28)
+ * by the same check as the `Api`. A tool no endpoint stands for is left to the MCP server to refuse.
  */
 const missingPermission = (
   endpoints: ReadonlyMap<string, HttpApiEndpoint.Top>,
   headers: Headers.Headers,
-  { user, permissions }: Effect.Success<ReturnType<Grants["Service"]["authenticate"]>>,
+  { permissions }: McpCaller["Service"],
 ) => {
   const name = headers["mcp-name"];
 
@@ -45,10 +44,7 @@ const missingPermission = (
     ? Effect.succeedNone
     : Effect.match(authorize(endpoint, permissions), {
         onSuccess: () => Option.none<Permission>(),
-        onFailure: ({ permission }) =>
-          Option.filter(Option.fromNullishOr(permission), (missing) =>
-            mayBeGranted(user.role, missing),
-          ),
+        onFailure: ({ permission }) => Option.fromNullishOr(permission),
       });
 };
 
@@ -88,18 +84,15 @@ const accessToken = (publicOrigin: string, endpoints: ReadonlyMap<string, HttpAp
               : challenge(401, 'error="invalid_token"');
           }
 
-          const missing = yield* missingPermission(endpoints, headers, caller.value);
-
-          if (Option.isNone(missing)) return yield* toMcpServer;
-
-          // RFC 6750 s3.1, step-up: the AI Client asks the User again for `scope`, which becomes the whole of
-          // its Grant, so it names what the Grant holds as well as what it lacks.
-          const scope = Permission.literals.filter(
-            (permission) =>
-              permission === missing.value || caller.value.permissions.has(permission),
+          // A Permission no Grant may hold is left to the MCP server to refuse: asking the User would loop.
+          const scope = Option.flatMap(
+            yield* missingPermission(endpoints, headers, caller.value),
+            (missing) => stepUpScope(caller.value.permissions, missing),
           );
 
-          return challenge(403, 'error="insufficient_scope"', `scope="${scope.join(" ")}"`);
+          return Option.isSome(scope)
+            ? challenge(403, 'error="insufficient_scope"', `scope="${scope.value.join(" ")}"`)
+            : yield* toMcpServer;
         });
     }),
   );

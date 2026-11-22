@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { type GrantTerms, remembersConsent } from "#/modules/identity/domain/grant.ts";
+import { Option } from "effect";
+
+import { type GrantTerms, remembersConsent, stepUpScope } from "#/modules/identity/domain/grant.ts";
 
 const grant: GrantTerms = {
   aiClientId: "https://claude.ai/oauth/client.json",
@@ -33,5 +35,17 @@ describe("remembersConsent", () => {
     ["a Permission the Grant lacks", { permissions: ["todos:list", "todos:delete"] as const }],
   ])("asks again for %s", (_what, request) => {
     expect(remembersConsent(grant, { ...grant, ...request })).toBe(false);
+  });
+});
+
+describe("stepUpScope", () => {
+  it("asks for what the token holds and the Permission it lacks, in the order of the Permissions", () => {
+    expect(stepUpScope(new Set(["todos:delete"]), "todos:list")).toEqual(
+      Option.some(["todos:list", "todos:delete"]),
+    );
+  });
+
+  it("asks for nothing to open a tool no Grant may hold: asking again would loop", () => {
+    expect(stepUpScope(new Set(["todos:list"]), "users:list")).toEqual(Option.none());
   });
 });
