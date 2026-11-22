@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { mergeProps, type PartProps, renderElement } from "@ui-sdk/react/primitive";
+import { useShortcut, useShortcutHint } from "@ui-sdk/react/shortcuts";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "cn";
 
@@ -25,7 +26,7 @@ const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
 const SIDEBAR_WIDTH = "16rem";
 const SIDEBAR_WIDTH_MOBILE = "18rem";
 const SIDEBAR_WIDTH_ICON = "3rem";
-const SIDEBAR_KEYBOARD_SHORTCUT = "b";
+const SIDEBAR_KEYBOARD_SHORTCUT = "mod+b";
 
 type SidebarContextProps = {
   state: "expanded" | "collapsed";
@@ -84,17 +85,7 @@ function SidebarProvider({
     return isMobile ? setOpenMobile((previous) => !previous) : setOpen((previous) => !previous);
   }, [isMobile, setOpen, setOpenMobile]);
 
-  React.useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === SIDEBAR_KEYBOARD_SHORTCUT && (event.metaKey || event.ctrlKey)) {
-        event.preventDefault();
-        toggleSidebar();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [toggleSidebar]);
+  useShortcut(SIDEBAR_KEYBOARD_SHORTCUT, toggleSidebar, { description: "Toggle Sidebar" });
 
   const state = open ? "expanded" : "collapsed";
 
@@ -237,9 +228,11 @@ function Sidebar({
 
 function SidebarTrigger({ className, onClick, ...props }: React.ComponentProps<typeof Button>) {
   const { toggleSidebar } = useSidebar();
+  const hint = useShortcutHint(SIDEBAR_KEYBOARD_SHORTCUT);
 
   return (
     <Button
+      aria-keyshortcuts={hint.ariaKeyshortcuts}
       data-sidebar="trigger"
       data-slot="sidebar-trigger"
       variant="ghost"

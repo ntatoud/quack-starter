@@ -49,3 +49,32 @@ describe("Sidebar on a narrow screen", () => {
     },
   );
 });
+
+describe("Sidebar on a wide screen", () => {
+  it("collapses and expands with Mod+B, which its trigger tells assistive tech", async () => {
+    await page.viewport(1200, 700);
+    const screen = await render(
+      <SidebarProvider>
+        <Sidebar collapsible="icon">
+          <SidebarContent>
+            <a href="/somewhere">Somewhere</a>
+          </SidebarContent>
+        </Sidebar>
+        <SidebarTrigger />
+      </SidebarProvider>,
+    );
+    const sidebar = () => screen.container.querySelector("[data-slot=sidebar][data-state]");
+    const mod = navigator.platform.startsWith("Mac") ? "Meta" : "Control";
+
+    await expect
+      .element(page.getByRole("button", { name: "Toggle Sidebar" }))
+      .toHaveAttribute("aria-keyshortcuts", `${mod}+B`);
+    expect(sidebar()).toHaveAttribute("data-state", "expanded");
+
+    await userEvent.keyboard(`{${mod}>}b{/${mod}}`);
+    await expect.poll(() => sidebar()?.getAttribute("data-state")).toBe("collapsed");
+
+    await userEvent.keyboard(`{${mod}>}b{/${mod}}`);
+    await expect.poll(() => sidebar()?.getAttribute("data-state")).toBe("expanded");
+  });
+});
