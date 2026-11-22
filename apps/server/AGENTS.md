@@ -31,9 +31,10 @@ To add a context, copy `modules/todos`:
 
 - A span comes from each `Effect.fn("Service.method")`, each request, and each SQL statement. Add `Effect.withSpan` only around a step that is none of these and worth timing.
 - The server writes one line per response, at `Error` with its cause for a 5xx. A handler logs no error of its own: an expected error (404, 401, 409) shows in that line's status.
+- Every MCP request answers `/api/mcp` with 200, so `asGrantCaller` (`mcp-endpoint.ts`) writes a line per tool call: `mcp.tool`, `user.id`, and `mcp.result` (`ok`, `tool_error`, `rejected`). A defect of a tool is logged at `Error` by Effect, with the same annotations, and reaches the AI Client only as a `tool_error`.
 - Log what an operator acts on: `Warn` for a refused attempt (a failed sign-in, an attempt limit reached), `Info` for a change of state worth finding again (a sign-up, an Admin changing a User, a migration applied). Put the ids in `Effect.annotateLogs`, keyed like `user.id`, not in the message.
 - Never log nor put on a span a password, a session token, a cookie, or an email: a User is known by their id. A client address appears only on an attempt limit reached, the only place an operator acts on it.
-- The tests do not assert on logs, except the one of a 5xx (`observability.test.ts`).
+- The tests do not assert on logs, except the line of a 5xx and of a tool call (`observability.test.ts`).
 
 ## Database
 

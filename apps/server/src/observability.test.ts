@@ -1,5 +1,5 @@
 import { Cause, ConfigProvider, Effect, Layer, Logger, References, Tracer } from "effect";
-import { FetchHttpClient, HttpRouter, HttpServer } from "effect/http";
+import { HttpClient, HttpClientResponse, HttpRouter, HttpServer } from "effect/http";
 import { afterAll, describe, expect, it } from "vite-plus/test";
 
 import { AuthorizationCodeStoreMemory } from "#/modules/identity/testing/authorization-code-store-memory.ts";
@@ -52,6 +52,28 @@ const BrokenTodoRepository = Layer.succeed(
   }),
 );
 
+const clientId = "https://claude.example.com/oauth/client.json";
+const redirectUri = "https://claude.example.com/api/mcp/auth_callback";
+const resource = "https://quack.test/api/mcp";
+
+// Every fetch gets the document of the AI Client: the only one the server makes is for it.
+const AiClientDocument = Layer.succeed(
+  HttpClient.HttpClient,
+  HttpClient.make((request) =>
+    Effect.succeed(
+      HttpClientResponse.fromWeb(
+        request,
+        Response.json({
+          client_id: clientId,
+          client_name: "Claude",
+          redirect_uris: [redirectUri],
+          token_endpoint_auth_method: "none",
+        }),
+      ),
+    ),
+  ),
+);
+
 const { handler, dispose } = HttpRouter.toWebHandler(
   Routes.pipe(
     Layer.provide([
@@ -62,7 +84,7 @@ const { handler, dispose } = HttpRouter.toWebHandler(
       GrantStoreMemory,
       BrokenTodoRepository,
       ConfigProvider.layer(ConfigProvider.fromUnknown({ PUBLIC_URL: "https://quack.test" })),
-      FetchHttpClient.layer,
+      AiClientDocument,
     ]),
     Layer.provideMerge([RecordingTracer, RecordingLogger]),
   ),
@@ -84,6 +106,86 @@ const signUp = async (email: string) => {
 
   return { id: user.id, cookie: response.headers.getSetCookie()[0]?.split(";")[0] ?? "" };
 };
+
+const post = (
+  path: string,
+  body: Readonly<Record<string, string | ReadonlyArray<string>>>,
+  cookie: string,
+) =>
+  handler(
+    new Request(new URL(path, "http://api.test"), {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify(body),
+    }),
+  );
+
+/** The access token of a Grant the User of `cookie` approved, to list their Todos. */
+const accessTokenOf = async (cookie: string) => {
+  const request = {
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    response_type: "code",
+    // The pair of RFC 7636 appendix B.
+    code_challenge: "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
+    code_challenge_method: "S256",
+    resource,
+    scope: "todos:list",
+  };
+
+  const consent = (await (await post("/api/oauth/authorize/check", request, cookie)).json()) as {
+    csrfToken: string;
+    permissions: ReadonlyArray<string>;
+  };
+
+  const approved = await post("/api/oauth/authorize/approve", { ...request, ...consent }, cookie);
+  const { redirectTo } = (await approved.json()) as { redirectTo: string };
+
+  const token = await handler(
+    new Request("http://api.test/api/oauth/token", {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        grant_type: "authorization_code",
+        code: new URL(redirectTo).searchParams.get("code") ?? "",
+        redirect_uri: redirectUri,
+        client_id: clientId,
+        code_verifier: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
+        resource,
+      }),
+    }),
+  );
+
+  return ((await token.json()) as { access_token: string }).access_token;
+};
+
+const callTool = (name: string, accessToken: string) =>
+  handler(
+    new Request("http://api.test/api/mcp", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        accept: "application/json, text/event-stream",
+        "mcp-protocol-version": "2026-07-28",
+        "mcp-method": "tools/call",
+        "mcp-name": name,
+        authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: {
+          name,
+          arguments: {},
+          _meta: {
+            "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+            "io.modelcontextprotocol/clientCapabilities": {},
+          },
+        },
+      }),
+    }),
+  );
 
 const serverSpanOf = (path: string) =>
   spans.findLast((span) => span.kind === "server" && span.attributes.get("url.path") === path);
@@ -141,5 +243,34 @@ describe("observability", () => {
       trace_id: serverSpanOf("/api/todos")?.traceId,
     });
     expect(Cause.pretty(line?.cause ?? Cause.empty)).toContain(todosCrash);
+  });
+
+  it("logs a tool call over MCP with its tool and User, and its defect at Error with the same", async () => {
+    const { id, cookie } = await signUp("katherine@example.com");
+    const accessToken = await accessTokenOf(cookie);
+
+    const response = await callTool("todos_list", accessToken);
+
+    expect(response.status).toBe(200);
+    const traceId = serverSpanOf("/api/mcp")?.traceId;
+    const ofCall = entries.filter((entry) => entry.annotations["trace_id"] === traceId);
+    const call = { trace_id: traceId, "user.id": id, "mcp.tool": "todos_list" };
+    expect(ofCall.find((entry) => entry.level === "Error")?.annotations).toMatchObject(call);
+    expect(
+      Cause.pretty(ofCall.find((entry) => entry.level === "Error")?.cause ?? Cause.empty),
+    ).toContain(todosCrash);
+    expect(
+      ofCall.find((entry) => entry.annotations["mcp.result"] !== undefined)?.annotations,
+    ).toMatchObject({ ...call, "mcp.result": "tool_error" });
+  });
+
+  it("puts the User of the Grant on the span of a tool call", async () => {
+    const { id, cookie } = await signUp("dorothy@example.com");
+
+    await callTool("todos_list", await accessTokenOf(cookie));
+
+    const span = spans.findLast(({ name }) => name === "tools/call todos_list");
+    expect(span?.attributes.get("user.id")).toBe(id);
+    expect(span?.attributes.get("user.role")).toBe("user");
   });
 });

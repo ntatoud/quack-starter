@@ -271,6 +271,44 @@
       }
     },
     {
+      "id": 12,
+      "title": "MCP tool calls per tool and result",
+      "type": "timeseries",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 13,
+        "w": 24,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "expr": "sum by (mcp_tool, mcp_result) (count_over_time({service_name=\"quack-server\"} |= \"Called MCP tool\" [$__auto]))",
+          "legendFormat": "{{mcp_tool}} {{mcp_result}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      }
+    },
+    {
       "id": 7,
       "title": "Duration per operation, p95 (services and SQL)",
       "type": "timeseries",
@@ -280,7 +318,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 13,
+        "y": 22,
         "w": 12,
         "h": 9
       },
@@ -318,7 +356,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 13,
+        "y": 22,
         "w": 12,
         "h": 9
       },
@@ -356,7 +394,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 22,
+        "y": 31,
         "w": 12,
         "h": 10
       },
@@ -388,7 +426,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 22,
+        "y": 31,
         "w": 12,
         "h": 10
       },
@@ -416,7 +454,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 32,
+        "y": 41,
         "w": 24,
         "h": 12
       },
