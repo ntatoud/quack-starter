@@ -18,12 +18,13 @@ import * as React from "react";
 import { cn } from "@quack/ui/lib/utils";
 
 import { DataTableColumnHeader } from "@quack/ui/components/data-table/column-header";
+import { RowSelectionRoot } from "@quack/ui/components/data-table/row-selection-parts";
+import type { RowSelectionRow as RowOfSelection } from "@quack/ui/lib/data-table/row-selection";
 import {
   type DataTableSelection,
+  SelectableRow,
   SelectAllCheckbox,
-  SelectionContext,
   SelectRowCheckbox,
-  selectRows,
 } from "@quack/ui/components/data-table/selection";
 import type {
   DataTableFilterKey,
@@ -304,6 +305,30 @@ type RowClickEvent =
   | React.MouseEvent<HTMLTableRowElement>
   | React.KeyboardEvent<HTMLTableRowElement>;
 
+/** The root of the table: with a selection, the root of its primitive (the table is named for an agent by it). */
+function TableRoot({
+  selection,
+  label,
+  ...props
+}: {
+  selection?: {
+    selected: ReadonlySet<string>;
+    onSelectedChange: (selected: ReadonlySet<string>) => void;
+    rows: ReadonlyArray<RowOfSelection>;
+    allRows: boolean;
+  };
+  label?: string | undefined;
+} & Omit<ComponentProps<"div">, "className"> & { className: string }) {
+  if (selection === undefined) return <div data-slot="data-table" {...props} />;
+  return (
+    <RowSelectionRoot
+      {...selection}
+      {...(label !== undefined && { "aria-label": label })}
+      {...props}
+    />
+  );
+}
+
 export function DataTable<
   TData extends RowData,
   Sort extends string = string,
@@ -386,8 +411,6 @@ export function DataTable<
   const opens = onRowClick !== undefined || rowLink !== undefined;
   // The checkbox column comes first, and holds no link.
   const firstLinkedIndex = selectable ? 1 : 0;
-  // The last row ticked, from which Shift + click selects a range.
-  const anchor = React.useRef<string | null>(null);
   // Columns declared once keep their identity, so the table does not rebuild them on every render. The checkboxes
   // read the selection from a context, so a new selection does not rebuild them either.
   const { definitions, pinned } = React.useMemo(() => {
@@ -440,31 +463,16 @@ export function DataTable<
     [rows, selecting, canSelect, rowLabel],
   );
   const allRows = virtual !== undefined;
-  const selectionModel = React.useMemo(() => {
-    if (selected === undefined || onSelectedChange === undefined) return null;
-    const ids = rows.map((row) => row.id);
-    const selectableIds = selectableKey === "" ? [] : selectableKey.split("\n");
-    const labelOf = new Map<string, string>(
-      (JSON.parse(labelsKey) as ReadonlyArray<string>).flatMap((rowName, i) =>
-        rowName === "" ? [] : [[ids[i] ?? "", rowName]],
-      ),
-    );
-    return {
-      selectable: selectableIds,
-      selectableSet: new Set(selectableIds),
-      selected,
-      onSelectedChange,
-      // A virtual table renders the rows in view only, but selects them all.
-      allRows,
-      anchor: {
-        get: () => anchor.current,
-        set: (rowId: string) => {
-          anchor.current = rowId;
-        },
-      },
-      label: (rowId: string) => labelOf.get(rowId),
-    };
-  }, [rows, selected, onSelectedChange, selectableKey, labelsKey, allRows]);
+  const selectionRows = React.useMemo<ReadonlyArray<RowOfSelection> | null>(() => {
+    if (!selecting) return null;
+    const selectableIds = new Set(selectableKey === "" ? [] : selectableKey.split("\n"));
+    const names = JSON.parse(labelsKey) as ReadonlyArray<string>;
+    return rows.map((row, i) => ({
+      value: row.id,
+      label: names[i] === "" ? undefined : names[i],
+      selectable: selectableIds.has(row.id),
+    }));
+  }, [rows, selecting, selectableKey, labelsKey]);
   const columnCount = table.getAllLeafColumns().length;
   const hasStickyEnd = table
     .getAllLeafColumns()
@@ -670,10 +678,10 @@ export function DataTable<
   );
 
   const renderRow = (row: Row<typeof features, TData>, index: number) => (
-    <TableRow
+    <SelectableRow
       key={row.id}
+      rowId={selecting ? row.id : undefined}
       data-row-index={index}
-      data-state={selected?.has(row.id) ? "selected" : undefined}
       interactive={opens}
       {...(virtual === undefined && { ref: keepRowFocus })}
       {...(opens && {
@@ -721,20 +729,9 @@ export function DataTable<
             event.preventDefault();
             focusRow(move);
           } else if (event.key === " ") {
-            // Selects the row, Shift from the last one ticked, as its checkbox does; and the browser would scroll a
-            // page and leave the focused row behind.
-            event.preventDefault();
-            if (
-              selectionModel !== null &&
-              !event.repeat &&
-              selectionModel.selectableSet.has(row.id)
-            )
-              selectRows(
-                selectionModel,
-                row.id,
-                !selectionModel.selected.has(row.id),
-                event.shiftKey,
-              );
+            // The browser would scroll a page and leave the focused row behind. With a selection, the row part of
+            // it handles Space (and skips the primitive's handler once this one prevents the default).
+            if (!selecting) event.preventDefault();
           } else if (event.key === "Enter" && !event.repeat) {
             if (rowLink !== undefined)
               event.currentTarget
@@ -790,7 +787,7 @@ export function DataTable<
           </TableCell>
         );
       })}
-    </TableRow>
+    </SelectableRow>
   );
 
   // As tall as its rows, up to the height its parent gives it (a column of flex with a height, the table not told to
@@ -798,203 +795,207 @@ export function DataTable<
   // header stays in the table to keep its columns, its cells sticky (a table does not keep a sticky section above its
   // rows); the footer, one cell wide, sits below the scroll area, so the scrollbar runs along the rows only.
   return (
-    <SelectionContext value={selectionModel}>
-      <div
-        data-slot="data-table"
-        // A column held at the end draws its own edge: the shade of the end would darken it.
-        data-sticky-end={hasStickyEnd || undefined}
-        className={cn(
-          "group/table flex min-h-0 flex-col overflow-hidden rounded-xl border bg-surface",
-          className,
-        )}
-        {...props}
+    <TableRoot
+      // A column held at the end draws its own edge: the shade of the end would darken it.
+      data-sticky-end={hasStickyEnd || undefined}
+      label={label === undefined ? undefined : `Selection of ${label}`}
+      className={cn(
+        "group/table flex min-h-0 flex-col overflow-hidden rounded-xl border bg-surface",
+        className,
+      )}
+      {...props}
+      {...(selectionRows !== null &&
+        selected !== undefined &&
+        onSelectedChange !== undefined && {
+          selection: { selected, onSelectedChange, rows: selectionRows, allRows },
+        })}
+    >
+      {/* The table's own variables sit here, not on its root, whose `style` is the app's (a height). */}
+      <ScrollAreaPrimitive
+        style={
+          {
+            "--header-height": `${size.height}px`,
+            "--held-start": `${heldEdges.start}px`,
+            "--held-end": `${heldEdges.end}px`,
+            // The viewport less the padding of a cell; `auto` until measured (the server knows no width), so the
+            // empty slot spans its cell meanwhile.
+            "--empty-width": size.width > 0 ? `calc(${size.width}px - var(--spacing) * 6)` : "auto",
+          } as React.CSSProperties
+        }
+        className="group/scroll relative flex min-h-0 flex-1 flex-col"
+        // Named for an agent, which lists the scroll area among the components of the page.
+        {...(label !== undefined && { "aria-label": `Scrolling of ${label}` })}
       >
-        {/* The table's own variables sit here, not on its root, whose `style` is the app's (a height). */}
-        <ScrollAreaPrimitive
-          style={
-            {
-              "--header-height": `${size.height}px`,
-              "--held-start": `${heldEdges.start}px`,
-              "--held-end": `${heldEdges.end}px`,
-              // The viewport less the padding of a cell; `auto` until measured (the server knows no width), so the
-              // empty slot spans its cell meanwhile.
-              "--empty-width":
-                size.width > 0 ? `calc(${size.width}px - var(--spacing) * 6)` : "auto",
-            } as React.CSSProperties
-          }
-          className="group/scroll relative flex min-h-0 flex-1 flex-col"
+        <ScrollAreaViewport
+          ref={viewport}
+          // Focusable by code whatever it holds: the focus of a row or an empty slot that goes lands here.
+          tabIndex={-1}
+          // The horizontal scrollbar overlays the rows: its height (h-2.5) is kept free below the last one. No
+          // rubber band at the edges: it would drag the sticky header off the rows, and a horizontal one would swipe
+          // back in history. A table with nothing to scroll still lets the page scroll under the wheel.
+          className="size-full scroll-pt-(--header-height) overscroll-x-none outline-none focus-visible:ring-3 focus-visible:ring-ring/50 group-data-overflow-x/scroll:pb-2.5 data-overflow-y:overscroll-y-none"
         >
-          <ScrollAreaViewport
-            ref={viewport}
-            // Focusable by code whatever it holds: the focus of a row or an empty slot that goes lands here.
-            tabIndex={-1}
-            // The horizontal scrollbar overlays the rows: its height (h-2.5) is kept free below the last one. No
-            // rubber band at the edges: it would drag the sticky header off the rows, and a horizontal one would swipe
-            // back in history. A table with nothing to scroll still lets the page scroll under the wheel.
-            className="size-full scroll-pt-(--header-height) overscroll-x-none outline-none focus-visible:ring-3 focus-visible:ring-ring/50 group-data-overflow-x/scroll:pb-2.5 data-overflow-y:overscroll-y-none"
-          >
-            {/* Watched for its size: rows that come or go (a search, a page) update the scrollbars and the shades. */}
-            <ScrollAreaContent>
-              <Table
-                aria-label={label}
-                // Assistive tech counts the rows in the DOM: with only those in view there, it is told how many there are.
-                // With no row, the empty slot is a row of its own: the count is left to the DOM.
-                aria-rowcount={
-                  virtual === undefined || rows.length === 0
-                    ? undefined
-                    : headerGroups.length + rows.length
-                }
-              >
-                {/* Sticky as a whole: its rows, as many as the groups of columns are deep, stay stacked. */}
-                <TableHeader ref={head} sticky>
-                  {headerGroups.map((group, depth) => (
-                    <TableRow
-                      key={group.id}
-                      aria-rowindex={virtual === undefined ? undefined : depth + 1}
-                    >
-                      {/* A column shallower than the others spans the rows above it, from its topmost header down. */}
-                      {group.headers
-                        .filter((header) => header.rowSpan > 0)
-                        .map((header) => {
-                          const spansColumns = header.column.columns.length > 0;
-                          const layout = layoutOf(header.column.columnDef, header.column.id);
-                          const pin = spansColumns ? undefined : pinOf(header.column.id);
-                          return (
-                            <TableHead
-                              key={header.id}
-                              {...(pin !== undefined && {
-                                ref: pinHead(header.column.id),
+          {/* Watched for its size: rows that come or go (a search, a page) update the scrollbars and the shades. */}
+          <ScrollAreaContent>
+            <Table
+              aria-label={label}
+              // Assistive tech counts the rows in the DOM: with only those in view there, it is told how many there are.
+              // With no row, the empty slot is a row of its own: the count is left to the DOM.
+              aria-rowcount={
+                virtual === undefined || rows.length === 0
+                  ? undefined
+                  : headerGroups.length + rows.length
+              }
+            >
+              {/* Sticky as a whole: its rows, as many as the groups of columns are deep, stay stacked. */}
+              <TableHeader ref={head} sticky>
+                {headerGroups.map((group, depth) => (
+                  <TableRow
+                    key={group.id}
+                    aria-rowindex={virtual === undefined ? undefined : depth + 1}
+                  >
+                    {/* A column shallower than the others spans the rows above it, from its topmost header down. */}
+                    {group.headers
+                      .filter((header) => header.rowSpan > 0)
+                      .map((header) => {
+                        const spansColumns = header.column.columns.length > 0;
+                        const layout = layoutOf(header.column.columnDef, header.column.id);
+                        const pin = spansColumns ? undefined : pinOf(header.column.id);
+                        return (
+                          <TableHead
+                            key={header.id}
+                            {...(pin !== undefined && {
+                              ref: pinHead(header.column.id),
+                            })}
+                            pinEdge={pin?.edge ?? false}
+                            colSpan={header.colSpan}
+                            rowSpan={header.rowSpan > 1 ? header.rowSpan : undefined}
+                            scope={spansColumns ? "colgroup" : "col"}
+                            // Chromium exposes a header of scope `colgroup` as a cell.
+                            role="columnheader"
+                            aria-sort={
+                              sorting?.column === header.column.id
+                                ? ariaSort[sorting.direction]
+                                : undefined
+                            }
+                            sticky={pin === undefined ? layout.sticky : "start"}
+                            shrink={layout.shrink}
+                            align={layout.align}
+                            spans={spansColumns}
+                            style={
+                              {
+                                "--column-size":
+                                  layout.size === undefined ? "auto" : `${layout.size}px`,
+                                "--pin-start": `${pin?.start ?? 0}px`,
+                              } as React.CSSProperties
+                            }
+                            // A width given to a column holds from one page to the next, at least.
+                            {...(layout.size !== undefined &&
+                              !spansColumns && {
+                                className: "w-(--column-size) min-w-(--column-size)",
                               })}
-                              pinEdge={pin?.edge ?? false}
-                              colSpan={header.colSpan}
-                              rowSpan={header.rowSpan > 1 ? header.rowSpan : undefined}
-                              scope={spansColumns ? "colgroup" : "col"}
-                              // Chromium exposes a header of scope `colgroup` as a cell.
-                              role="columnheader"
-                              aria-sort={
-                                sorting?.column === header.column.id
-                                  ? ariaSort[sorting.direction]
-                                  : undefined
-                              }
-                              sticky={pin === undefined ? layout.sticky : "start"}
-                              shrink={layout.shrink}
-                              align={layout.align}
-                              spans={spansColumns}
-                              style={
-                                {
-                                  "--column-size":
-                                    layout.size === undefined ? "auto" : `${layout.size}px`,
-                                  "--pin-start": `${pin?.start ?? 0}px`,
-                                } as React.CSSProperties
-                              }
-                              // A width given to a column holds from one page to the next, at least.
-                              {...(layout.size !== undefined &&
-                                !spansColumns && {
-                                  className: "w-(--column-size) min-w-(--column-size)",
-                                })}
-                            >
-                              {isTitled(header.column.columnDef) ? (
-                                <TitledHeader
-                                  column={header.column.columnDef}
-                                  table={headers as DataTableHeaders | undefined}
-                                />
-                              ) : (
-                                <table.FlexRender header={header} />
-                              )}
-                            </TableHead>
-                          );
-                        })}
-                    </TableRow>
-                  ))}
-                </TableHeader>
-                <TableBody aria-busy={busy || undefined}>
-                  {rows.length === 0 ? (
-                    <TableRow hoverable={false}>
-                      <TableCell colSpan={columnCount}>
-                        {/* As wide as the viewport and held at its start: a table wider than the screen keeps it in view. */}
-                        <div
-                          ref={keepFocusInTable}
-                          className="sticky start-3 w-(--empty-width) max-w-full wrap-anywhere whitespace-normal"
-                        >
-                          {empty}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ) : virtual === undefined ? (
-                    rows.map((row, index) => renderRow(row, index))
-                  ) : (
-                    <>
-                      {/* Rows out of view are left out; two empty rows keep their height, so the scrollbar stays true. */}
-                      <tr
-                        aria-hidden="true"
-                        style={
-                          {
-                            "--row-height": `${items[0]?.start ?? 0}px`,
-                          } as React.CSSProperties
-                        }
-                        className="h-(--row-height)"
-                      />
-                      {items.map((item) => {
-                        const row = rows[item.index];
-                        return row === undefined ? null : renderRow(row, item.index);
+                          >
+                            {isTitled(header.column.columnDef) ? (
+                              <TitledHeader
+                                column={header.column.columnDef}
+                                table={headers as DataTableHeaders | undefined}
+                              />
+                            ) : (
+                              <table.FlexRender header={header} />
+                            )}
+                          </TableHead>
+                        );
                       })}
-                      <tr
-                        aria-hidden="true"
-                        style={
-                          {
-                            "--row-height": `${virtualizer.getTotalSize() - (items.at(-1)?.end ?? 0)}px`,
-                          } as React.CSSProperties
-                        }
-                        className="h-(--row-height)"
-                      />
-                    </>
-                  )}
-                </TableBody>
-              </Table>
-            </ScrollAreaContent>
-          </ScrollAreaViewport>
-          {/* The track starts below the header, a padding the thumb is sized without. */}
-          <ScrollBar autoHide className="z-20 pt-(--header-height)" />
-          {/* A scrollbar that shows on hover only says nothing of the columns past the edge: a shade does. */}
-          <div
-            aria-hidden="true"
-            data-slot="data-table-overflow-start"
-            className="pointer-events-none absolute inset-y-0 start-(--held-start) z-20 w-6 from-shade to-transparent opacity-0 transition-opacity group-[[data-overflow-x]:not([data-at-x-start])]/scroll:opacity-100 motion-reduce:transition-none ltr:bg-linear-to-r rtl:bg-linear-to-l"
-          />
-          <div
-            aria-hidden="true"
-            data-slot="data-table-overflow-end"
-            className="pointer-events-none absolute inset-y-0 end-(--held-end) z-20 w-6 from-shade to-transparent opacity-0 transition-opacity group-[[data-overflow-x]:not([data-at-x-end])]/scroll:opacity-100 motion-reduce:transition-none ltr:bg-linear-to-l rtl:bg-linear-to-r"
-          />
-          {/* The track runs along the columns that scroll only, between those held at each end: a padding the scroll area
+                  </TableRow>
+                ))}
+              </TableHeader>
+              <TableBody aria-busy={busy || undefined}>
+                {rows.length === 0 ? (
+                  <TableRow hoverable={false}>
+                    <TableCell colSpan={columnCount}>
+                      {/* As wide as the viewport and held at its start: a table wider than the screen keeps it in view. */}
+                      <div
+                        ref={keepFocusInTable}
+                        className="sticky start-3 w-(--empty-width) max-w-full wrap-anywhere whitespace-normal"
+                      >
+                        {empty}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : virtual === undefined ? (
+                  rows.map((row, index) => renderRow(row, index))
+                ) : (
+                  <>
+                    {/* Rows out of view are left out; two empty rows keep their height, so the scrollbar stays true. */}
+                    <tr
+                      aria-hidden="true"
+                      style={
+                        {
+                          "--row-height": `${items[0]?.start ?? 0}px`,
+                        } as React.CSSProperties
+                      }
+                      className="h-(--row-height)"
+                    />
+                    {items.map((item) => {
+                      const row = rows[item.index];
+                      return row === undefined ? null : renderRow(row, item.index);
+                    })}
+                    <tr
+                      aria-hidden="true"
+                      style={
+                        {
+                          "--row-height": `${virtualizer.getTotalSize() - (items.at(-1)?.end ?? 0)}px`,
+                        } as React.CSSProperties
+                      }
+                      className="h-(--row-height)"
+                    />
+                  </>
+                )}
+              </TableBody>
+            </Table>
+          </ScrollAreaContent>
+        </ScrollAreaViewport>
+        {/* The track starts below the header, a padding the thumb is sized without. */}
+        <ScrollBar autoHide className="z-20 pt-(--header-height)" />
+        {/* A scrollbar that shows on hover only says nothing of the columns past the edge: a shade does. */}
+        <div
+          aria-hidden="true"
+          data-slot="data-table-overflow-start"
+          className="pointer-events-none absolute inset-y-0 start-(--held-start) z-20 w-6 from-shade to-transparent opacity-0 transition-opacity group-[[data-overflow-x]:not([data-at-x-start])]/scroll:opacity-100 motion-reduce:transition-none ltr:bg-linear-to-r rtl:bg-linear-to-l"
+        />
+        <div
+          aria-hidden="true"
+          data-slot="data-table-overflow-end"
+          className="pointer-events-none absolute inset-y-0 end-(--held-end) z-20 w-6 from-shade to-transparent opacity-0 transition-opacity group-[[data-overflow-x]:not([data-at-x-end])]/scroll:opacity-100 motion-reduce:transition-none ltr:bg-linear-to-l rtl:bg-linear-to-r"
+        />
+        {/* The track runs along the columns that scroll only, between those held at each end: a padding the scroll area
               counts when it sizes the thumb. */}
-          <ScrollBar orientation="horizontal" className="z-20 ps-(--held-start) pe-(--held-end)" />
-          <ScrollAreaCorner />
-        </ScrollAreaPrimitive>
-        {opens && (
-          <span id={hintId} hidden>
-            {selectionModel === null
-              ? "Enter opens a row; the arrow keys move between rows."
-              : "Enter opens a row, Space selects it; the arrow keys move between rows."}
-          </span>
-        )}
-        {/* One region per message: a region is read whole when it changes, so a sorting would be read again with
+        <ScrollBar orientation="horizontal" className="z-20 ps-(--held-start) pe-(--held-end)" />
+        <ScrollAreaCorner />
+      </ScrollAreaPrimitive>
+      {opens && (
+        <span id={hintId} hidden>
+          {!selecting
+            ? "Enter opens a row; the arrow keys move between rows."
+            : "Enter opens a row, Space selects it; the arrow keys move between rows."}
+        </span>
+      )}
+      {/* One region per message: a region is read whole when it changes, so a sorting would be read again with
             every empty result after it. */}
-        <span role="status" className="sr-only">
-          {sortMessage}
-        </span>
-        <span role="status" className="sr-only">
-          {emptyMessage}
-        </span>
-        {footer !== undefined && (
-          <div
-            data-slot="data-table-footer"
-            className="@container border-t bg-muted/50 px-3 py-2 text-sm"
-          >
-            {footer}
-          </div>
-        )}
-      </div>
-    </SelectionContext>
+      <span role="status" className="sr-only">
+        {sortMessage}
+      </span>
+      <span role="status" className="sr-only">
+        {emptyMessage}
+      </span>
+      {footer !== undefined && (
+        <div
+          data-slot="data-table-footer"
+          className="@container border-t bg-muted/50 px-3 py-2 text-sm"
+        >
+          {footer}
+        </div>
+      )}
+    </TableRoot>
   );
 }
