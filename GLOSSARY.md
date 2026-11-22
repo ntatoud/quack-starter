@@ -13,12 +13,12 @@ The proof that a User has signed in, valid until they sign out or it expires. A 
 _Avoid_: Token, login
 
 **Current User**:
-The User whose Session made the request being handled.
+The User whose Session, or whose Grant to an AI Client, made the request being handled.
 _Avoid_: Viewer, logged-in user, me
 
 **Role**:
-What a User is allowed to do: `user` or `admin`.
-_Avoid_: Permission, group, profile
+What a User is allowed to do: `user` or `admin`. A Role gives a set of Permissions.
+_Avoid_: Group, profile
 
 **Status**:
 Whether a User can sign in: `active`, `invited` (added, but has not chosen a password yet), or `suspended` (refused by an Admin). Only an `active` User signs in, and a Session of a User who is no longer `active` ends at its next request.
@@ -36,6 +36,18 @@ _Avoid_: Setup, welcome, wizard
 How the app looks on a device, such as the side of the sidebar or the theme (light, dark, or that of the system), whoever is signed in on it. Each one has a default, which a device where it was never changed gets.
 A User changes them in the settings, next to their Profile.
 _Avoid_: Customization, option
+
+**Permission**:
+The right to take one kind of action in a context, such as listing Todos. A request needs the Permission of what it asks for.
+_Avoid_: Scope, right, privilege
+
+**AI Client**:
+An application driven by an AI model (Claude, ChatGPT...) that acts for a User through MCP, known by the address of the document that describes it. One address is one AI Client, for every User.
+_Avoid_: Client, app, integration, connection
+
+**Grant**:
+A User's consent that lets one AI Client act for them with some of their Permissions, until the User revokes it or the AI Client stops using it for a while. A User gives one AI Client at most one Grant.
+_Avoid_: Token, authorization, connection
 
 **Admin**:
 A User whose Role is `admin`. Only an Admin sees the list of Users; any other Current User is forbidden from it.
