@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vite-plus/test";
 import { devUsers } from "#/modules/identity/application/identity-seed.ts";
 import { IdentitySeed } from "#/modules/identity/index.ts";
 import { AuthorizationCodeStoreMemory } from "#/modules/identity/testing/authorization-code-store-memory.ts";
+import { GrantStoreMemory } from "#/modules/identity/testing/grant-store-memory.ts";
 import { SessionStoreMemory } from "#/modules/identity/testing/session-store-memory.ts";
 import { UserRepositoryMemory } from "#/modules/identity/testing/user-repository-memory.ts";
 import { TodoRepositoryMemory } from "#/modules/todos/testing/todo-repository-memory.ts";
@@ -14,6 +15,7 @@ const MemoryStorage = Layer.mergeAll(
   UserRepositoryMemory,
   SessionStoreMemory,
   AuthorizationCodeStoreMemory,
+  GrantStoreMemory,
   TodoRepositoryMemory,
 );
 
@@ -22,8 +24,9 @@ const Config = ConfigProvider.layer(
   ConfigProvider.fromUnknown({ PUBLIC_URL: "https://quack.test" }),
 );
 
-/** The URLs Quack fetched, each answered with a document that matches none. */
+/** The URLs Quack fetched, each answered with its document in `documents`, or one that matches none. */
 const fetched: Array<string> = [];
+const documents = new Map<string, Schema.Json>();
 
 const RecordingHttpClient = Layer.succeed(
   HttpClient.HttpClient,
@@ -31,7 +34,7 @@ const RecordingHttpClient = Layer.succeed(
     Effect.sync(() => {
       fetched.push(request.url);
 
-      return HttpClientResponse.fromWeb(request, Response.json({}));
+      return HttpClientResponse.fromWeb(request, Response.json(documents.get(request.url) ?? {}));
     }),
   ),
 );
@@ -85,6 +88,13 @@ const sessionCookieOf = async (email: string, from: string) =>
 
 const signIn = attempt("/api/sign-in");
 
+// A stateless request (MCP 2026-07-28) says what initialize used to: the version it speaks, as its header
+// does, and what its AI Client can do.
+const statelessMeta = {
+  "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+  "io.modelcontextprotocol/clientCapabilities": {},
+};
+
 const mcpCall = (headers: Record<string, string> = {}) =>
   handler(
     new Request("http://api.test/api/mcp", {
@@ -93,9 +103,15 @@ const mcpCall = (headers: Record<string, string> = {}) =>
         "content-type": "application/json",
         accept: "application/json, text/event-stream",
         "mcp-protocol-version": "2026-07-28",
+        "mcp-method": "tools/list",
         ...headers,
       },
-      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} }),
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/list",
+        params: { _meta: statelessMeta },
+      }),
     }),
   );
 
@@ -529,6 +545,163 @@ describe("server routes of the authorization server", () => {
 
     expect(response.status).toBe(400);
     expect(fetched).toContain(clientId);
+  });
+});
+
+describe("server routes of an AI Client", () => {
+  const clientId = "https://claude.example.com/oauth/client.json";
+  const redirectUri = "https://claude.example.com/api/mcp/auth_callback";
+  const resource = "https://quack.test/api/mcp";
+
+  documents.set(clientId, {
+    client_id: clientId,
+    client_name: "Claude",
+    redirect_uris: [redirectUri],
+    token_endpoint_auth_method: "none",
+  });
+
+  const authorizationRequest = {
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    response_type: "code",
+    // The pair of RFC 7636 appendix B.
+    code_challenge: "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
+    code_challenge_method: "S256",
+    resource,
+    scope: "todos:list todos:write",
+  };
+
+  const post = (path: string, body: Readonly<Record<string, string>>, cookie: string) =>
+    handler(
+      new Request(new URL(path, "http://api.test"), {
+        method: "POST",
+        headers: { "content-type": "application/json", cookie },
+        body: JSON.stringify(body),
+      }),
+    );
+
+  /** The User of `cookie` approves the AI Client on the consent page: answers the code it gets back. */
+  const approvedCode = async (cookie: string, scope = authorizationRequest.scope) => {
+    const request = { ...authorizationRequest, scope };
+    const check = await post("/api/oauth/authorize/check", request, cookie);
+    const { csrfToken } = (await check.json()) as { csrfToken: string };
+
+    const approved = await post("/api/oauth/authorize/approve", { ...request, csrfToken }, cookie);
+
+    const { redirectTo } = (await approved.json()) as { redirectTo: string };
+
+    return new URL(redirectTo).searchParams.get("code") ?? "";
+  };
+
+  const exchange = (code: string, headers: Record<string, string> = {}) =>
+    handler(
+      new Request("http://api.test/api/oauth/token", {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded", ...headers },
+        body: new URLSearchParams({
+          grant_type: "authorization_code",
+          code,
+          redirect_uri: redirectUri,
+          client_id: clientId,
+          code_verifier: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
+          resource,
+        }),
+      }),
+    );
+
+  const callTool = (name: string, accessToken: string) =>
+    handler(
+      new Request("http://api.test/api/mcp", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          accept: "application/json, text/event-stream",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "tools/call",
+          "mcp-name": name,
+          authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/call",
+          params: {
+            name,
+            arguments: {},
+            _meta: statelessMeta,
+          },
+        }),
+      }),
+    );
+
+  it("an AI Client exchanges the code the User approved, then lists their Todos through MCP", async () => {
+    const cookie = await sessionCookieOf("ai-client-flow@example.com", "203.0.113.80");
+    await post("/api/todos", { title: "Feed the ducks" }, cookie);
+
+    const token = await exchange(await approvedCode(cookie));
+
+    expect(token.status).toBe(200);
+    expect(token.headers.get("cache-control")).toBe("no-store");
+    const { access_token } = (await token.json()) as { access_token: string };
+
+    const listed = await callTool("todos_list", access_token);
+
+    expect(listed.status).toBe(200);
+    expect(await listed.text()).toContain("Feed the ducks");
+  });
+
+  it("acts with the Permissions of the Grant only: the tools it lacks are hidden", async () => {
+    const cookie = await sessionCookieOf("ai-client-list-only@example.com", "203.0.113.82");
+    const token = await exchange(await approvedCode(cookie, "todos:list"));
+    const { access_token } = (await token.json()) as { access_token: string };
+
+    const listed = await mcpCall({ authorization: `Bearer ${access_token}` });
+
+    expect(listed.status).toBe(200);
+    const body = await listed.text();
+    expect(body).toContain("todos_list");
+    expect(body).not.toContain("todos_create");
+  });
+
+  it("answers the token endpoint to any origin, without credentials", async () => {
+    const origin = { origin: "https://claude.example.com" };
+
+    const [refused, preflight] = await Promise.all([
+      exchange("not-a-code-of-quack", origin),
+      handler(
+        new Request("http://api.test/api/oauth/token", {
+          method: "OPTIONS",
+          headers: {
+            ...origin,
+            "access-control-request-method": "POST",
+            "access-control-request-headers": "content-type",
+          },
+        }),
+      ),
+    ]);
+
+    expect(refused.status).toBe(400);
+    expect(await refused.json()).toMatchObject({ error: "invalid_grant" });
+    expect(preflight.status).toBeLessThan(300);
+
+    for (const response of [refused, preflight]) {
+      expect(response.headers.get("access-control-allow-origin")).toBe("*");
+      expect(response.headers.get("access-control-allow-credentials")).toBeNull();
+    }
+  });
+
+  it("refuses the access token of a Grant anywhere under /api but /api/mcp", async () => {
+    const cookie = await sessionCookieOf("ai-client-bearer@example.com", "203.0.113.81");
+    const token = await exchange(await approvedCode(cookie));
+    const { access_token } = (await token.json()) as { access_token: string };
+
+    const response = await handler(
+      new Request("http://api.test/api/todos", {
+        headers: { authorization: `Bearer ${access_token}` },
+      }),
+    );
+
+    expect(response.status).toBe(401);
   });
 });
 

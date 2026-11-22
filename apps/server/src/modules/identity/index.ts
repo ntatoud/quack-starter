@@ -2,6 +2,7 @@ import { NodeCrypto } from "@effect/platform-node";
 import { Layer } from "effect";
 
 import { AuthorizationRequests } from "#/modules/identity/application/authorization-requests.ts";
+import { Grants } from "#/modules/identity/application/grants.ts";
 import { Identity } from "#/modules/identity/application/identity.ts";
 import { Onboarding } from "#/modules/identity/application/onboarding.ts";
 import { devAccountIds, IdentitySeed } from "#/modules/identity/application/identity-seed.ts";
@@ -14,10 +15,12 @@ import { IdentityHandlers } from "#/modules/identity/http/identity-handlers.ts";
 import { OAuthHandlers } from "#/modules/identity/http/oauth-handlers.ts";
 import { OAuthMetadataRoutes } from "#/modules/identity/http/oauth-metadata.ts";
 import { SessionCookie } from "#/modules/identity/http/session-cookie.ts";
+import { TokenEndpointHeaders } from "#/modules/identity/http/token-endpoint-headers.ts";
 import { UsersHandlers } from "#/modules/identity/http/users-handlers.ts";
 import { AiClientDocumentsHttp } from "#/modules/identity/infrastructure/ai-client-documents-http.ts";
 import { AiClientHttpClient } from "#/modules/identity/infrastructure/ai-client-http-client.ts";
 import { AuthorizationCodeStorePostgres } from "#/modules/identity/infrastructure/authorization-code-store-postgres.ts";
+import { GrantStorePostgres } from "#/modules/identity/infrastructure/grant-store-postgres.ts";
 import { AttemptLimiterMemory } from "#/modules/identity/infrastructure/attempt-limiter-memory.ts";
 import { PasswordHasherArgon2 } from "#/modules/identity/infrastructure/password-hasher-argon2.ts";
 import { SessionStorePostgres } from "#/modules/identity/infrastructure/session-store-postgres.ts";
@@ -27,15 +30,18 @@ export {
   AiClientHttpClient,
   authorize,
   devAccountIds,
+  Grants,
   IdentitySeed,
   McpCaller,
   OAuthMetadataRoutes,
+  TokenEndpointHeaders,
 };
 
 export const IdentityPostgres = Layer.mergeAll(
   UserRepositoryPostgres,
   SessionStorePostgres,
   AuthorizationCodeStorePostgres,
+  GrantStorePostgres,
 );
 
 export const IdentityModule = Layer.mergeAll(IdentityHandlers, UsersHandlers).pipe(
@@ -51,6 +57,7 @@ export const IdentityModule = Layer.mergeAll(IdentityHandlers, UsersHandlers).pi
  */
 export const OAuthModule = OAuthHandlers.pipe(
   Layer.provide([AuthorizationRequests.layer, CsrfTokens.layer]),
+  Layer.provideMerge(Grants.layer),
   Layer.provide(AiClientDocumentsHttp),
   Layer.provide([NodeCrypto.layerSecureRandom, NodeCrypto.layerDigest]),
 );

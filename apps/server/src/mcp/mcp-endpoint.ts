@@ -1,24 +1,29 @@
 import { brand } from "@quack/brand/brand";
 import { MCP_PATH } from "@quack/contracts/api";
-import { Effect, Layer, Option } from "effect";
-import { McpProtocol, McpServer } from "effect/ai";
+import { Effect, Layer, Option, Redacted } from "effect";
+import { McpProtocol, McpSchema, McpServer } from "effect/ai";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http";
 
 import { ServerConfig } from "#/config.ts";
 import { ContractTools } from "#/mcp/contract-tools.ts";
-import { McpCaller } from "#/modules/identity/index.ts";
+import { Grants, McpCaller } from "#/modules/identity/index.ts";
 
 const instructions = `${brand.name} manages the Todos of the User who connected you. Call todos_list first.`;
 
-const callerOf = (
-  _authorization: string | undefined,
-): Effect.Effect<Option.Option<McpCaller["Service"]>> =>
-  // No AI Client can hold an access token until Quack issues Grants: every request is challenged.
-  Effect.succeedNone;
+// RFC 6750 s2.1: the scheme is case-insensitive.
+const bearer = /^Bearer +(\S+)$/i;
+
+const callerOf = (grants: Grants["Service"], authorization: string | undefined) => {
+  const token = bearer.exec(authorization ?? "")?.[1];
+
+  return token === undefined
+    ? Effect.succeedNone
+    : grants.authenticate(Redacted.make(token)).pipe(Effect.option);
+};
 
 /**
  * Lets through to the MCP server only a request from no origin or the public one, carrying the access
- * token of a Grant, as the McpCaller of that Grant.
+ * token of an active Grant. Anything else gets its answer over HTTP, before any JSON-RPC.
  */
 const accessToken = (publicOrigin: string) => {
   const challenge = HttpServerResponse.empty({
@@ -28,29 +33,52 @@ const accessToken = (publicOrigin: string) => {
     },
   });
 
-  return HttpRouter.middleware<{ provides: McpCaller }>()((toMcpServer) =>
+  return HttpRouter.middleware(
     Effect.gen(function* () {
-      const { headers } = yield* HttpServerRequest.HttpServerRequest;
+      const grants = yield* Grants;
 
-      // A page of another origin is refused before anything else: a browser sends its Origin (DNS rebinding).
-      if (headers.origin !== undefined && headers.origin !== publicOrigin) {
-        return HttpServerResponse.empty({ status: 403 });
-      }
+      return (toMcpServer) =>
+        Effect.gen(function* () {
+          const { headers } = yield* HttpServerRequest.HttpServerRequest;
 
-      const caller = yield* callerOf(headers.authorization);
+          // A page of another origin is refused before anything else: a browser sends its Origin (DNS rebinding).
+          if (headers.origin !== undefined && headers.origin !== publicOrigin) {
+            return HttpServerResponse.empty({ status: 403 });
+          }
 
-      return Option.isSome(caller)
-        ? yield* Effect.provideService(toMcpServer, McpCaller, caller.value)
-        : challenge;
+          const caller = yield* callerOf(grants, headers.authorization);
+
+          return Option.isSome(caller) ? yield* toMcpServer : challenge;
+        });
     }),
   );
 };
+
+/**
+ * Runs each MCP request as the McpCaller of the Grant whose token it carries, reading the token again: the
+ * tools are not `registrations` of the transport (see below), whose request services only MCP middleware meets.
+ */
+const asGrantCaller = McpServer.middleware<{ provides: McpCaller }>()(
+  Effect.gen(function* () {
+    const grants = yield* Grants;
+
+    return (effect, { headers }) =>
+      Effect.flatMap(callerOf(grants, headers.authorization), (caller) =>
+        Option.isSome(caller)
+          ? Effect.provideService(effect, McpCaller, caller.value)
+          : // The token passed `accessToken` an instant ago: only a Grant that ended since leads here.
+            Effect.fail(
+              new McpSchema.InvalidRequest({ message: "The access token opens no Grant." }),
+            ),
+      );
+  }),
+);
 
 export const McpEndpoint = Layer.unwrap(
   Effect.gen(function* () {
     const publicOrigin = yield* ServerConfig.publicOrigin;
 
-    return McpServer.layerHttp({
+    const transport = McpServer.layerHttp({
       name: brand.name,
       version: "1.0.0",
       instructions,
@@ -59,7 +87,10 @@ export const McpEndpoint = Layer.unwrap(
       // The middleware answers another origin first; the server, which refuses any origin it is not
       // told of, must still let the public one through.
       allowedOrigins: [publicOrigin],
-      registrations: ContractTools,
     }).pipe(Layer.provide(accessToken(publicOrigin).layer));
+
+    // The tools are built outside the scope of `accessToken`, which would otherwise also wrap the routes of
+    // the `Api` they call in process, and challenge each call for a token it does not carry.
+    return ContractTools.pipe(Layer.provide(asGrantCaller.layer), Layer.provideMerge(transport));
   }),
 );
