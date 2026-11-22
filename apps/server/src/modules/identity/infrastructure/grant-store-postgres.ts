@@ -74,8 +74,10 @@ export const GrantStorePostgres = Layer.effect(
             permissions = EXCLUDED.permissions,
             expires_at = EXCLUDED.expires_at
           RETURNING ${grantColumns}
-        ), revoked AS (
+        ), revoked_access AS (
           DELETE FROM grant_access_tokens WHERE grant_id IN (SELECT id FROM saved)
+        ), revoked_refresh AS (
+          DELETE FROM grant_refresh_tokens WHERE grant_id IN (SELECT id FROM saved)
         )
         SELECT ${grantColumns} FROM saved
       `,

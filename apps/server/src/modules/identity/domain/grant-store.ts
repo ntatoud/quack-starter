@@ -13,7 +13,8 @@ export class GrantStore extends Context.Service<
   {
     /**
      * One Grant per User and AI Client: saving one they already gave replaces its terms, keeps its id, and
-     * revokes its access tokens at once, since a token given before could hold more than the new terms.
+     * revokes its access and refresh tokens at once, since a token given before could hold more than the
+     * new terms.
      */
     save(grant: GrantDraft): Effect.Effect<Grant>;
     findOf(userId: UserId, aiClientId: string): Effect.Effect<Option.Option<Grant>>;

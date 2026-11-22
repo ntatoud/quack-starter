@@ -732,7 +732,7 @@ describe("server routes of an AI Client", () => {
   });
 
   it("answers a call of a tool whose Permission the Grant lacks with 403 insufficient_scope, naming what to ask for", async () => {
-    const cookie = await sessionCookieOf("ai-client-step-up@example.com", "203.0.113.83");
+    const cookie = await sessionCookieOf("ai-client-step-up@example.com", "203.0.113.87");
     const token = await exchange(await approvedCode(cookie, "todos:delete todos:list"));
     const { access_token } = (await token.json()) as { access_token: string };
 
@@ -768,13 +768,18 @@ describe("server routes of an AI Client", () => {
 
   it("approving the AI Client again sets the Grant's Permissions to those approved now, and revokes its earlier tokens", async () => {
     const cookie = await sessionCookieOf("ai-client-reapproved@example.com", "203.0.113.84");
-    const first = await exchange(await approvedCode(cookie, "todos:list todos:write"));
-    const { access_token: earlier } = (await first.json()) as { access_token: string };
+
+    const earlier = (await (
+      await exchange(await approvedCode(cookie, "todos:list todos:write"))
+    ).json()) as Tokens;
 
     const second = await exchange(await approvedCode(cookie, "todos:list"));
-    const { access_token: later } = (await second.json()) as { access_token: string };
+    const { access_token: later } = (await second.json()) as Tokens;
 
-    expect((await mcpCall({ authorization: `Bearer ${earlier}` })).status).toBe(401);
+    expect((await mcpCall({ authorization: `Bearer ${earlier.access_token}` })).status).toBe(401);
+    expect(await (await refresh(earlier.refresh_token)).json()).toMatchObject({
+      error: "invalid_grant",
+    });
     expect((await callTool("todos_list", later)).status).toBe(200);
     expect((await callTool("todos_create", later)).status).toBe(403);
   });

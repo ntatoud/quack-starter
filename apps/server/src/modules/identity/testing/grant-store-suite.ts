@@ -70,6 +70,19 @@ export const grantStoreSuite = <R>(
     return { grant, refreshToken };
   });
 
+  /** A User's Grants to two AI Clients. */
+  const twoGrantsOfOneUser = Effect.gen(function* () {
+    const store = yield* GrantStore;
+    const userId = yield* aUser;
+    const grant = yield* store.save(aDraft(userId));
+
+    const other = yield* store.save(
+      aDraft(userId, { aiClientId: "https://other.example.com/client.json" }),
+    );
+
+    return { store, userId, grant, other };
+  });
+
   const test = (name: string, body: () => Effect.Effect<void, never, GrantStore | R>) =>
     it.effect(name, () => body().pipe(Effect.provide(layer)));
 
@@ -148,38 +161,36 @@ export const grantStoreSuite = <R>(
         );
       }));
 
-    test("saving a Grant again revokes its access tokens, and no other Grant's", () =>
+    test("saving a Grant again revokes its access and refresh tokens, and no other Grant's", () =>
       Effect.gen(function* () {
-        const store = yield* GrantStore;
-        const userId = yield* aUser;
-        const grant = yield* store.save(aDraft(userId));
+        const { store, userId, grant, other } = yield* twoGrantsOfOneUser;
 
-        const other = yield* store.save(
-          aDraft(userId, { aiClientId: "https://other.example.com/client.json" }),
-        );
+        const [revokedAccess, keptAccess] = [
+          yield* anAccessToken(grant),
+          yield* anAccessToken(other),
+        ];
 
-        const tokenOf = (grantId: string) =>
-          Effect.map(aTokenHash, (tokenHash): AccessToken => ({
-            tokenHash,
-            grantId,
-            resource: grant.resource,
-            permissions: ["todos:list"],
-            expiresAt: at("2026-01-01T01:00:00Z"),
-          }));
+        const [revokedRefresh, keptRefresh] = [
+          yield* aRefreshToken(grant),
+          yield* aRefreshToken(other),
+        ];
 
-        const revoked = [yield* tokenOf(grant.id), yield* tokenOf(grant.id)];
-        const kept = yield* tokenOf(other.id);
+        for (const token of [revokedAccess, keptAccess]) yield* store.saveAccessToken(token);
 
-        for (const token of [...revoked, kept]) yield* store.saveAccessToken(token);
+        for (const token of [revokedRefresh, keptRefresh]) yield* store.saveRefreshToken(token);
         yield* store.save(aDraft(userId, { permissions: ["todos:list"] }));
 
-        for (const token of revoked) {
-          assert.isTrue(Option.isNone(yield* store.findByAccessToken(token.tokenHash)));
-        }
+        assert.isTrue(Option.isNone(yield* store.findByAccessToken(revokedAccess.tokenHash)));
+        assert.isTrue(Option.isNone(yield* store.findByRefreshToken(revokedRefresh.tokenHash)));
 
         assert.deepStrictEqual(
-          yield* store.findByAccessToken(kept.tokenHash),
-          Option.some({ grant: other, accessToken: kept }),
+          yield* store.findByAccessToken(keptAccess.tokenHash),
+          Option.some({ grant: other, accessToken: keptAccess }),
+        );
+
+        assert.deepStrictEqual(
+          yield* store.findByRefreshToken(keptRefresh.tokenHash),
+          Option.some({ grant: other, refreshToken: keptRefresh }),
         );
       }));
 
@@ -274,13 +285,7 @@ export const grantStoreSuite = <R>(
 
     test("revoking a Grant removes it with its tokens, and leaves the other Grants be", () =>
       Effect.gen(function* () {
-        const store = yield* GrantStore;
-        const userId = yield* aUser;
-        const grant = yield* store.save(aDraft(userId));
-
-        const other = yield* store.save(
-          aDraft(userId, { aiClientId: "https://other.example.com/client.json" }),
-        );
+        const { store, userId, grant, other } = yield* twoGrantsOfOneUser;
 
         const [accessToken, refreshToken] = [
           yield* anAccessToken(grant),
