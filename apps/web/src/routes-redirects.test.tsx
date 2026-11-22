@@ -7,7 +7,7 @@ import { routeTree } from "#/routeTree.gen.ts";
 import { testProviders } from "#/testing/test-providers.tsx";
 
 const landingOf = async (path: string, who: Role | "visitor") => {
-  const { queryClient, preferencesStore } = testProviders();
+  const { queryClient } = testProviders();
   queryClient.setQueryData(
     currentUserQueryOptions.queryKey,
     who === "visitor"
@@ -25,7 +25,7 @@ const landingOf = async (path: string, who: Role | "visitor") => {
   );
   const router = createRouter({
     routeTree,
-    context: { queryClient, preferencesStore },
+    context: { queryClient },
     history: createMemoryHistory({ initialEntries: [path] }),
   });
   await router.load();

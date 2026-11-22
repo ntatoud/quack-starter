@@ -3,13 +3,13 @@ import { SidebarInset, SidebarProvider } from "@quack/ui/components/sidebar";
 import { Outlet, useRouteContext } from "@tanstack/react-router";
 import type { ComponentType } from "react";
 
-import { usePreference } from "#/features/preferences/use-preference.ts";
+import { useSidebarSide } from "#/features/preferences/preferences.ts";
 
 export type SidebarProps = { readonly currentUser: typeof User.Encoded };
 
 export function SidebarLayout({ sidebar: Sidebar }: { sidebar: ComponentType<SidebarProps> }) {
   const { currentUser, sidebarOpen } = useRouteContext({ from: "/_authenticated" });
-  const side = usePreference("right-sidebar") ? "right" : "left";
+  const side = useSidebarSide();
   const sidebar = <Sidebar currentUser={currentUser} />;
 
   return (

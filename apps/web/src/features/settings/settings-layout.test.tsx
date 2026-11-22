@@ -80,12 +80,10 @@ describe("SettingsLayout", () => {
     await expect.element(profile).toHaveAttribute("aria-current", "page");
   });
 
-  it.each([false, true])(
-    "puts its menu on the left of the section, level with its top, right sidebar %s",
-    async (isRightSidebar) => {
-      const { navBox, sectionBox } = await setup("/app/settings/profile", {
-        "right-sidebar": isRightSidebar,
-      });
+  it.each(["left", "right"] as const)(
+    "puts its menu on the left of the section, level with its top, sidebar on the %s",
+    async (sidebarSide) => {
+      const { navBox, sectionBox } = await setup("/app/settings/profile", { sidebarSide });
 
       await expect.poll(() => navBox().left < sectionBox().left).toBe(true);
       expect(navBox().top).toBe(sectionBox().top);

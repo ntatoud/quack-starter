@@ -18,14 +18,14 @@ import { Link } from "@tanstack/react-router";
 import { ChevronsUpDownIcon, LogOutIcon, SettingsIcon } from "lucide-react";
 
 import { useSignOut } from "#/features/identity/use-sign-out.ts";
-import { usePreference } from "#/features/preferences/use-preference.ts";
+import { useSidebarSide } from "#/features/preferences/preferences.ts";
 import { fullName } from "#/features/users/full-name.ts";
 import { UserAvatar } from "#/features/users/user-avatar.tsx";
 
 export function UserMenu({ currentUser }: { currentUser: typeof User.Encoded }) {
   const { isMobile } = useSidebar();
   const signOut = useSignOut();
-  const isRightSidebar = usePreference("right-sidebar");
+  const sidebarSide = useSidebarSide();
 
   return (
     <SidebarMenu>
@@ -44,7 +44,7 @@ export function UserMenu({ currentUser }: { currentUser: typeof User.Encoded }) 
             <ChevronsUpDownIcon className="ml-auto" />
           </MenuTrigger>
           <MenuContent
-            side={isMobile ? "bottom" : isRightSidebar ? "left" : "right"}
+            side={isMobile ? "bottom" : sidebarSide === "right" ? "left" : "right"}
             align="end"
             sideOffset={4}
             className="w-(--anchor-width) min-w-56 rounded-lg"

@@ -18,7 +18,7 @@ import type { LinkTarget } from "#/features/layout/sidebar-link.tsx";
 import { Logo } from "#/features/layout/logo.tsx";
 import { SidebarContentWithMenu } from "#/features/layout/sidebar-context-menu.tsx";
 import type { SidebarProps } from "#/features/layout/sidebar-layout.tsx";
-import { usePreference } from "#/features/preferences/use-preference.ts";
+import { useSidebarSide } from "#/features/preferences/preferences.ts";
 
 export function SidebarFrame({
   currentUser,
@@ -27,7 +27,7 @@ export function SidebarFrame({
 }: SidebarProps & { home: LinkTarget; children: ReactNode }) {
   const { state, isMobile, setOpenMobile } = useSidebar();
   const collapsed = state === "collapsed" && !isMobile;
-  const side = usePreference("right-sidebar") ? "right" : "left";
+  const side = useSidebarSide();
 
   return (
     <Sidebar side={side} collapsible="icon">

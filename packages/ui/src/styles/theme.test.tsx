@@ -10,14 +10,14 @@ const emulateColorScheme = (value: ColorScheme) =>
   });
 
 afterEach(async () => {
-  document.documentElement.className = "";
+  document.documentElement.removeAttribute("data-color-scheme");
   await emulateColorScheme("light");
 });
 
-// `null` is a page whose root has no theme class, as before the Preferences are read.
-const setup = async (themeClass: "system" | ColorScheme | null, system: ColorScheme) => {
+// `null` is a page whose root has no `data-color-scheme`, as before the Preferences are read.
+const setup = async (choice: "system" | ColorScheme | null, system: ColorScheme) => {
   await emulateColorScheme(system);
-  document.documentElement.className = themeClass ?? "";
+  if (choice !== null) document.documentElement.setAttribute("data-color-scheme", choice);
   await render(
     <div data-testid="box" className="bg-background dark:border-2">
       Box
@@ -34,16 +34,6 @@ const lightBackground = "oklch(1 0 0)";
 const darkBackground = "oklch(0.145 0 0)";
 
 describe("the theme", () => {
-  it.each(["light", "dark"] as const)(
-    "is light without a theme class, on a %s system",
-    async (system) => {
-      const box = await setup(null, system);
-
-      expect(box.background()).toBe(lightBackground);
-      expect(box.isDarkVariant()).toBe(false);
-    },
-  );
-
   it("is light with `light`, on a dark system", async () => {
     const box = await setup("light", "dark");
 
@@ -66,5 +56,29 @@ describe("the theme", () => {
 
     expect(box.background()).toBe(background);
     expect(box.isDarkVariant()).toBe(isDark);
+  });
+
+  it.each([
+    ["light", lightBackground],
+    ["dark", darkBackground],
+  ] as const)("follows a %s system without a choice", async (system, background) => {
+    const box = await setup(null, system);
+
+    expect(box.background()).toBe(background);
+  });
+
+  it("gives a part of the page its own scheme", async () => {
+    await setup("light", "light");
+    await render(
+      <div data-color-scheme="dark">
+        <div data-testid="part" className="bg-background">
+          Part
+        </div>
+      </div>,
+    );
+
+    expect(getComputedStyle(page.getByTestId("part").element()).backgroundColor).toBe(
+      darkBackground,
+    );
   });
 });
