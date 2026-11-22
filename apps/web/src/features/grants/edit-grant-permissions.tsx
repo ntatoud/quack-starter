@@ -23,7 +23,7 @@ import { invalidating } from "#/lib/invalidate-queries.ts";
 import { listOf, listParts } from "#/lib/list-of.ts";
 import { toggled } from "#/lib/toggled.ts";
 
-/** "Claude gains todos:delete and loses todos:write, from its next call.", what it gains as badges. */
+/** "Claude gains todos:delete and loses todos:write, from its next call.", each Permission as a badge. */
 function ChangeSentence({
   name,
   added,
@@ -39,18 +39,28 @@ function ChangeSentence({
       {added.length > 0 && (
         <>
           {" gains "}
-          {listParts(added).map(({ separator, word }) => (
-            <Fragment key={word}>
-              {separator}
-              <PermissionBadge permission={word} />
-            </Fragment>
-          ))}
+          <Badges permissions={added} />
         </>
       )}
       {added.length > 0 && removed.length > 0 && " and"}
-      {removed.length > 0 && ` loses ${listOf(removed)}`}, from its next call.
+      {removed.length > 0 && (
+        <>
+          {" loses "}
+          <Badges permissions={removed} />
+        </>
+      )}
+      , from its next call.
     </>
   );
+}
+
+function Badges({ permissions }: { permissions: ReadonlyArray<Permission> }) {
+  return listParts(permissions).map(({ separator, word }) => (
+    <Fragment key={word}>
+      {separator}
+      <PermissionBadge permission={word} />
+    </Fragment>
+  ));
 }
 
 /**
@@ -72,7 +82,7 @@ export function EditGrantPermissions({ grant }: { grant: Grant }) {
   const removed = grant.permissions.filter((permission) => !ticked.has(permission));
   const title = `Change ${name}'s permissions?`;
 
-  // The sentence of `ChangeSentence`, as text for an agent.
+  // The sentence of `ChangeSentence`, as text for a screen reader and an agent.
   const consequence = `${name} ${[
     ...(added.length > 0 ? [`gains ${listOf(added)}`] : []),
     ...(removed.length > 0 ? [`loses ${listOf(removed)}`] : []),
@@ -103,7 +113,11 @@ export function EditGrantPermissions({ grant }: { grant: Grant }) {
             <DialogHeader>
               <DialogTitle>{title}</DialogTitle>
               <DialogDescription>
-                <ChangeSentence name={name} added={added} removed={removed} />
+                {/* A badge is a box of its own, which a screen reader would set apart from the comma after it. */}
+                <span className="sr-only">{consequence}</span>
+                <span aria-hidden>
+                  <ChangeSentence name={name} added={added} removed={removed} />
+                </span>
               </DialogDescription>
             </DialogHeader>
             <p role="alert" className="text-sm text-destructive empty:hidden">
