@@ -58,7 +58,7 @@ export function UserMenu({ currentUser }: { currentUser: typeof User.Encoded }) 
             </MenuGroup>
             <MenuSeparator />
             <MenuGroup>
-              <MenuItem render={<Link to="/app/settings" />}>
+              <MenuItem render={<Link to="/app/settings/profile" />}>
                 <SettingsIcon />
                 Settings
               </MenuItem>

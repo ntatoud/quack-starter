@@ -48,12 +48,13 @@ export function TodoItem({ todo }: { todo: Todo }) {
           </span>
         )}
       </div>
-      {/* Hidden until hover only where there is a hover: a touch screen would never show it. */}
+      {/* Hidden until hover only on a wide screen with a mouse: a touch screen would never show it, and a phone's layout,
+          also seen in a narrow window or a browser's device mode that keeps the mouse, always shows it. */}
       {/* `-my-1`: the title sets the height of the row, not the button. */}
       <Button
         variant="ghost"
         size="icon-sm"
-        className="-my-1 pointer-fine:opacity-0 pointer-fine:group-focus-within/todo:opacity-100 pointer-fine:group-hover/todo:opacity-100"
+        className="-my-1 md:pointer-fine:opacity-0 md:pointer-fine:group-focus-within/todo:opacity-100 md:pointer-fine:group-hover/todo:opacity-100"
         disabled={busy}
         onClick={() => removeTodo.mutate({ params: { id: todo.id } })}
         aria-label={`Remove ${todo.title}`}

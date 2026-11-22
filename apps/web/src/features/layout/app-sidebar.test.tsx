@@ -28,7 +28,7 @@ describe("AppSidebar", () => {
 
     await expect
       .element(page.getByRole("menuitem", { name: "Settings" }))
-      .toHaveAttribute("href", "/app/settings");
+      .toHaveAttribute("href", "/app/settings/profile");
   });
 
   it.each(["left", "right"] as const)(

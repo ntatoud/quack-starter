@@ -11,12 +11,13 @@ import { describe, expect, it } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 import { render } from "vitest-browser-react";
 
+import { SettingsHome } from "#/features/settings/settings-home.tsx";
 import { SettingsLayout } from "#/features/settings/settings-layout.tsx";
 import type { PreferenceValues } from "#/features/preferences/preferences.ts";
 import { testProviders } from "#/testing/test-providers.tsx";
 
-const setup = async (path: string, preferences: Partial<PreferenceValues> = {}) => {
-  await page.viewport(1280, 800);
+const setup = async (path: string, preferences: Partial<PreferenceValues> = {}, width = 1280) => {
+  await page.viewport(width, 800);
   const rootRoute = createRootRoute({
     component: () => (
       <SidebarProvider>
@@ -37,7 +38,11 @@ const setup = async (path: string, preferences: Partial<PreferenceValues> = {}) 
     });
   const router = createRouter({
     routeTree: rootRoute.addChildren([
-      settings.addChildren([section("Profile"), section("Preferences")]),
+      settings.addChildren([
+        createRoute({ getParentRoute: () => settings, path: "/", component: SettingsHome }),
+        section("Profile"),
+        section("Preferences"),
+      ]),
     ]),
     history: createMemoryHistory({ initialEntries: [path] }),
   });
@@ -49,6 +54,7 @@ const setup = async (path: string, preferences: Partial<PreferenceValues> = {}) 
   );
   const nav = page.getByRole("navigation", { name: "Settings" });
   return {
+    router,
     profile: nav.getByRole("link", { name: "Profile" }),
     preferences: nav.getByRole("link", { name: "Preferences" }),
     navBox: () => nav.element().getBoundingClientRect(),
@@ -89,4 +95,27 @@ describe("SettingsLayout", () => {
       expect(navBox().top).toBe(sectionBox().top);
     },
   );
+
+  it("shows the first section next to the menu on a wide screen, rather than the list a phone gets", async () => {
+    const { router } = await setup("/app/settings");
+
+    await expect.element(page.getByText("The Profile section")).toBeVisible();
+    expect(router.state.location.pathname).toBe("/app/settings/profile");
+  });
+
+  describe("on a phone", () => {
+    it("lists the sections, and the way to sign out", async () => {
+      const { router, profile } = await setup("/app/settings", {}, 375);
+
+      await expect.element(page.getByRole("heading", { level: 1, name: "Settings" })).toBeVisible();
+      await expect.element(page.getByRole("button", { name: "Sign out" })).toBeVisible();
+      expect(router.state.location.pathname).toBe("/app/settings");
+
+      await profile.click();
+
+      await expect.element(page.getByText("The Profile section")).toBeVisible();
+      expect(page.getByRole("navigation", { name: "Settings" }).elements()).toEqual([]);
+      await expect.element(page.getByRole("button", { name: "Back" })).toBeVisible();
+    });
+  });
 });
