@@ -41,6 +41,9 @@ interface Attempt {
 }
 
 const signUp = attempt("/api/sign-up");
+
+const sessionCookieOf = async (email: string, from: string) =>
+  (await signUp(email, { from })).headers.getSetCookie()[0]?.split(";")[0] ?? "";
 const signIn = attempt("/api/sign-in");
 
 afterAll(dispose);
@@ -65,6 +68,29 @@ describe("server routes", () => {
     const listed = await handler(new Request("http://api.test/api/todos", { headers: { cookie } }));
     expect(listed.status).toBe(200);
     expect(await listed.json()).toEqual([todo]);
+  });
+
+  it("answers 404 TodoNotFound to a user who completes a Todo of another Owner, though they may write Todos", async () => {
+    const owner = await sessionCookieOf("dorothy@example.com", "203.0.113.60");
+    const other = await sessionCookieOf("radia@example.com", "203.0.113.60");
+    const created = await handler(
+      new Request("http://api.test/api/todos", {
+        method: "POST",
+        headers: { "content-type": "application/json", cookie: owner },
+        body: JSON.stringify({ title: "Mine" }),
+      }),
+    );
+    const { id } = (await created.json()) as { id: string };
+
+    const response = await handler(
+      new Request(`http://api.test/api/todos/${id}/complete`, {
+        method: "POST",
+        headers: { cookie: other },
+      }),
+    );
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toMatchObject({ _tag: "TodoNotFound" });
   });
 
   it("answers /api/todos with 401 Unauthenticated when the request has no session cookie", async () => {
@@ -101,8 +127,8 @@ describe("server routes", () => {
 
     expect(responses.map((response) => response.status)).toEqual([403, 403]);
     expect(await Promise.all(responses.map((response) => response.json()))).toEqual([
-      { _tag: "Forbidden" },
-      { _tag: "Forbidden" },
+      { _tag: "Forbidden", permission: "users:list" },
+      { _tag: "Forbidden", permission: "users:list" },
     ]);
   });
 

@@ -45,7 +45,7 @@ The server implements `Api` (`packages/contracts/src/api.ts`) and the web app de
 - `Api` adds the `/api` prefix: a group declares `/todos`.
 - Set an HTTP status on the endpoint (`HttpApiSchema.status(404)` on the error in `*-api.ts`), not on the error class.
 - Protect endpoints with `.middleware(Authentication)`, declared after the endpoints it covers: it skips the ones added later.
-- Reserve endpoints for a Role with `.middleware(RequireRole("admin"))`, declared before `.middleware(Authentication)`, so `Authentication` runs first.
+- Every endpoint behind `Authentication` declares the Permission its caller needs: `.annotate(RequiredPermission, "todos:list")` (`packages/contracts/src/permission.ts`), or `"none"` when any signed-in caller may call it. A context names its Permissions in `<context>-permissions.ts`, added to the `Permission` union. `Authentication` refuses a caller whose Role lacks the Permission with `Forbidden` (403), and every caller of an endpoint that declares nothing, which a test of `Api` catches. Which Role gives which Permission: the identity domain (`apps/server/src/modules/identity/domain/role-permissions.ts`). ADR 0005.
 - A list that pages, sorts, or filters copies `UserListQuery`. It breaks ties on a unique field, so a page is stable from one request to the next.
 
 ## Conventions

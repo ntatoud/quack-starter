@@ -6,7 +6,6 @@ import { Onboarding } from "#/modules/identity/application/onboarding.ts";
 import { devAccountIds, IdentitySeed } from "#/modules/identity/application/identity-seed.ts";
 import { Users } from "#/modules/identity/application/users.ts";
 import { AuthenticationMiddleware } from "#/modules/identity/http/authentication-middleware.ts";
-import { RequireRoleMiddleware } from "#/modules/identity/http/require-role-middleware.ts";
 import { IdentityHandlers } from "#/modules/identity/http/identity-handlers.ts";
 import { SessionCookie } from "#/modules/identity/http/session-cookie.ts";
 import { UsersHandlers } from "#/modules/identity/http/users-handlers.ts";
@@ -20,7 +19,7 @@ export { devAccountIds, IdentitySeed };
 export const IdentityPostgres = Layer.mergeAll(UserRepositoryPostgres, SessionStorePostgres);
 
 export const IdentityModule = Layer.mergeAll(IdentityHandlers, UsersHandlers).pipe(
-  Layer.provideMerge([AuthenticationMiddleware, RequireRoleMiddleware]),
+  Layer.provideMerge(AuthenticationMiddleware),
   Layer.provide([Identity.layer, Users.layer, Onboarding.layer, SessionCookie.layer]),
   Layer.provide([PasswordHasherArgon2, AttemptLimiterMemory]),
   Layer.provide([NodeCrypto.layerSecureRandom, NodeCrypto.layerDigest, NodeCrypto.layerKdf]),

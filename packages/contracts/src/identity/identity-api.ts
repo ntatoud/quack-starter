@@ -10,6 +10,7 @@ import {
 } from "#/identity/identity-errors.ts";
 import { PersonName, Profile } from "#/identity/profile.ts";
 import { Email, Password, User } from "#/identity/user.ts";
+import { RequiredPermission } from "#/permission.ts";
 
 export const SignUpPayload = Schema.Struct({ email: Email, password: Password });
 
@@ -47,16 +48,22 @@ export class IdentityApi extends HttpApiGroup.make("identity").add(
   HttpApiEndpoint.post("signOut", "/sign-out"),
   HttpApiEndpoint.get("me", "/me", {
     success: User,
-  }).middleware(Authentication),
+  })
+    .annotate(RequiredPermission, "none")
+    .middleware(Authentication),
   /** Replaces the whole Profile of the Current User, and answers with their User. */
   HttpApiEndpoint.put("updateProfile", "/me/profile", {
     payload: Profile,
     success: User,
     error: Unauthenticated.pipe(HttpApiSchema.status(401)),
-  }).middleware(Authentication),
+  })
+    .annotate(RequiredPermission, "none")
+    .middleware(Authentication),
   HttpApiEndpoint.post("completeOnboarding", "/me/onboarding", {
     payload: OnboardingPayload,
     success: User,
     error: Unauthenticated.pipe(HttpApiSchema.status(401)),
-  }).middleware(Authentication),
+  })
+    .annotate(RequiredPermission, "none")
+    .middleware(Authentication),
 ) {}

@@ -1,15 +1,14 @@
 import { assert, layer } from "@effect/vitest";
 import { Api } from "@quack/contracts/api";
-import { Authentication, CurrentUser } from "@quack/contracts/identity/authentication";
-import { Unauthenticated } from "@quack/contracts/identity/identity-errors";
-import { RequireRole } from "@quack/contracts/identity/require-role";
+import { Authentication } from "@quack/contracts/identity/authentication";
 import { Email, User, UserId } from "@quack/contracts/identity/user";
 import { TodoId, TodoTitle } from "@quack/contracts/todos/todo";
 import { TodoNotFound } from "@quack/contracts/todos/todo-errors";
-import { DateTime, Effect, Layer, Redacted } from "effect";
+import { DateTime, Effect, Layer } from "effect";
 import { HttpClientRequest, HttpServer } from "effect/http";
 import { HttpApiMiddleware, HttpApiTest } from "effect/http-api";
 
+import { authenticationByUserId } from "#/modules/identity/testing/authentication-by-user-id.ts";
 import { TodosModule } from "#/modules/todos/index.ts";
 import { TodoRepositoryMemory } from "#/modules/todos/testing/todo-repository-memory.ts";
 
@@ -35,25 +34,6 @@ const grace = new User({
 });
 const users: ReadonlyArray<User> = [ada, grace];
 
-// The session cookie is the id of the Current User: these tests need a Current User, not a Session.
-const AuthenticationByUserId = Layer.succeed(
-  Authentication,
-  Authentication.of({
-    session: (httpEffect, { credential }) => {
-      const user = users.find(({ id }) => id === Redacted.value(credential));
-      return user === undefined
-        ? Effect.fail(new Unauthenticated())
-        : Effect.provideService(httpEffect, CurrentUser, user);
-    },
-  }),
-);
-
-// The routes of the users group are built with those of the todos, but no test calls them.
-const RequireAdminUnused = Layer.succeed(
-  RequireRole("admin"),
-  RequireRole("admin").of((httpEffect) => httpEffect),
-);
-
 const clientOf = (user: User) =>
   HttpApiTest.groups(Api, ["todos"]).pipe(
     Effect.provide(
@@ -65,8 +45,7 @@ const clientOf = (user: User) =>
 
 const TodosLayer = TodosModule.pipe(
   Layer.provide(TodoRepositoryMemory),
-  Layer.provideMerge(AuthenticationByUserId),
-  Layer.provideMerge(RequireAdminUnused),
+  Layer.provideMerge(authenticationByUserId(users)),
 );
 
 layer(Layer.mergeAll(TodosLayer, HttpServer.layerServices))("TodosApi", (it) => {
