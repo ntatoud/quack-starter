@@ -16,6 +16,7 @@ import { useMutation } from "@tanstack/react-query";
 import { DateTime } from "effect";
 import { useState } from "react";
 
+import { EditGrantPermissions } from "#/features/grants/edit-grant-permissions.tsx";
 import { api } from "#/lib/api.ts";
 import { invalidating } from "#/lib/invalidate-queries.ts";
 import { listOf } from "#/lib/list-of.ts";
@@ -73,7 +74,10 @@ export function GrantEntry({
           </ul>
         )}
       </div>
-      <RevokeGrant grant={grant} />
+      <div className="flex gap-2">
+        <EditGrantPermissions grant={grant} />
+        <RevokeGrant grant={grant} />
+      </div>
     </li>
   );
 }

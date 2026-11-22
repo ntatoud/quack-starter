@@ -1,3 +1,4 @@
+import { grantablePermissions } from "@quack/contracts/grants/grant";
 import type { TooManyAttempts } from "@quack/contracts/identity/identity-errors";
 import type { UserId } from "@quack/contracts/identity/user";
 import { MCP_PATH } from "@quack/contracts/api";
@@ -25,12 +26,7 @@ import {
   authorizationCodeLifetime,
 } from "#/modules/identity/domain/authorization-code.ts";
 import { AuthorizationCodeStore } from "#/modules/identity/domain/authorization-code-store.ts";
-import {
-  grantableOf,
-  grantablePermissions,
-  grantLifetime,
-  remembersConsent,
-} from "#/modules/identity/domain/grant.ts";
+import { grantableOf, grantLifetime, remembersConsent } from "#/modules/identity/domain/grant.ts";
 import { GrantStore } from "#/modules/identity/domain/grant-store.ts";
 
 export class AuthorizationRequests extends Context.Service<

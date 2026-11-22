@@ -1201,6 +1201,11 @@ const listGrants = Effect.flatMap(client, (api) => api.grants.list());
 const revokeGrant = (id: GrantId) =>
   Effect.flatMap(client, (api) => api.grants.revoke({ params: { id } }));
 
+const changePermissions = (id: GrantId, permissions: readonly [Permission, ...Array<Permission>]) =>
+  Effect.flatMap(client, (api) =>
+    api.grants.changePermissions({ params: { id }, payload: { permissions } }),
+  );
+
 /** Ada's Grant to the AI Client, as her settings list it. */
 const grantListed = (clientId: string) =>
   Effect.map(listGrants, (grants) => grants.find((grant) => grant.aiClient.id === clientId));
@@ -1313,6 +1318,119 @@ layer(withConfig({}))("GrantsApi", (it) => {
       }
 
       assert.isTrue(Option.isSome(yield* store.findOf(others.userId, others.aiClientId)));
+    }),
+  );
+
+  it.effect(
+    "removing Permissions of a Grant takes them from its tokens at once, and from those of a refresh",
+    () =>
+      Effect.gen(function* () {
+        const tokens = yield* tokensOfANewAiClient("todos:list todos:write todos:delete");
+        const grant = yield* grantListed(tokens.clientId);
+
+        const changed = yield* changePermissions(grant?.id ?? GrantId.make(""), [
+          "todos:list",
+          "todos:write",
+        ]);
+
+        assert.deepStrictEqual(changed.permissions, ["todos:list", "todos:write"]);
+        assert.deepStrictEqual((yield* grantListed(tokens.clientId))?.permissions, [
+          "todos:list",
+          "todos:write",
+        ]);
+        assert.deepStrictEqual(yield* permissionsOf(tokens.access_token), [
+          "todos:list",
+          "todos:write",
+        ]);
+
+        const refreshed = yield* token(refreshing(tokens));
+
+        assert.strictEqual(refreshed.scope, "todos:list todos:write");
+      }),
+  );
+
+  it.effect(
+    "adding Permissions to a Grant gives them to its tokens at once, and to those of a refresh",
+    () =>
+      Effect.gen(function* () {
+        const tokens = yield* tokensOfANewAiClient("todos:list");
+        const grant = yield* grantListed(tokens.clientId);
+
+        const changed = yield* changePermissions(grant?.id ?? GrantId.make(""), [
+          "todos:delete",
+          "todos:list",
+        ]);
+
+        assert.deepStrictEqual(changed.permissions, ["todos:list", "todos:delete"]);
+        assert.deepStrictEqual(yield* permissionsOf(tokens.access_token), [
+          "todos:delete",
+          "todos:list",
+        ]);
+
+        const refreshed = yield* token(refreshing(tokens));
+
+        assert.strictEqual(refreshed.scope, "todos:list todos:delete");
+      }),
+  );
+
+  it.effect("refuses to give a Grant a Permission no Grant may hold, and leaves it be", () =>
+    Effect.gen(function* () {
+      const tokens = yield* tokensOfANewAiClient("todos:list todos:write");
+      const id = (yield* grantListed(tokens.clientId))?.id ?? GrantId.make("");
+
+      const error = yield* Effect.flip(changePermissions(id, ["todos:list", "users:list"]));
+
+      assert.deepStrictEqual(
+        error._tag === "PermissionNotGrantable" ? error.permission : error._tag,
+        "users:list",
+      );
+      assert.deepStrictEqual((yield* grantListed(tokens.clientId))?.permissions, [
+        "todos:list",
+        "todos:write",
+      ]);
+    }),
+  );
+
+  it.effect("refuses to change a Grant of another User, an expired one, or an unknown one", () =>
+    Effect.gen(function* () {
+      const store = yield* GrantStore;
+      const now = yield* DateTime.now;
+
+      const draft = {
+        aiClientName: "Claude",
+        redirectUri,
+        resource,
+        permissions: ["todos:list", "todos:write"] as const,
+      };
+
+      const others = yield* store.save({
+        ...draft,
+        userId: grace.id,
+        aiClientId: anAiClient(),
+        expiresAt: DateTime.add(now, { days: 30 }),
+      });
+
+      const expired = yield* store.save({
+        ...draft,
+        userId: ada.id,
+        aiClientId: anAiClient(),
+        expiresAt: now,
+      });
+
+      for (const id of [others.id, expired.id, "unknown"]) {
+        const error = yield* Effect.flip(changePermissions(GrantId.make(id), ["todos:list"]));
+        assert.strictEqual(error._tag, "GrantNotFound");
+      }
+
+      for (const grant of [others, expired]) {
+        assert.deepStrictEqual(
+          Option.map(
+            yield* store.findOf(grant.userId, grant.aiClientId),
+            (kept) => kept.permissions,
+          ),
+          Option.some(["todos:list", "todos:write"] as const),
+        );
+      }
     }),
   );
 });

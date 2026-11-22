@@ -1,3 +1,4 @@
+import { grantablePermissions } from "@quack/contracts/grants/grant";
 import type { AuthorizationRequestParams } from "@quack/contracts/oauth/authorization-request";
 import {
   type AuthorizationErrorCode,
@@ -5,11 +6,7 @@ import {
 } from "@quack/contracts/oauth/oauth-errors";
 import { Context, Effect, Option, Schema } from "effect";
 
-import {
-  type GrantTerms,
-  grantableOf,
-  grantablePermissions,
-} from "#/modules/identity/domain/grant.ts";
+import { type GrantTerms, grantableOf } from "#/modules/identity/domain/grant.ts";
 import { isLoopback, redirectUriMatches } from "#/modules/identity/domain/redirect-uri.ts";
 
 /** The document an AI Client is known by, served at its `client_id` (Client ID Metadata Document). */

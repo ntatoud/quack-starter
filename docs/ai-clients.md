@@ -31,6 +31,8 @@ A Grant ends sooner when:
 
 An expired Grant's tokens get 401 on `/api/mcp` and `invalid_grant` at the token endpoint.
 
+The User may also change the Permissions of a Grant there, fewer or more, but never none, which Revoke covers: the dialog of the AI Client lists every Permission a Grant may hold, and states what it gains and loses before the User confirms (`PATCH /api/grants/:id` with all the `permissions` it now holds; one no Grant may hold is refused). The Grant and its access and refresh tokens change at once, in one statement: a choice in the settings is an approval too. The AI Client's next call needing a removed Permission gets a step-up (403 `insufficient_scope`); one it gained works on its next call, with no consent page.
+
 ## Limits
 
 The `AttemptLimiter` of `docs/identity.md` guards two OAuth routes, with the limits in `ServerConfig.attemptLimits`:
@@ -43,5 +45,5 @@ The `AttemptLimiter` of `docs/identity.md` guards two OAuth routes, with the lim
 
 - Contract: `packages/contracts/src/oauth/` (the `oauth` group: `authorize/*` behind `Authentication`, `token` after it).
 - Server: `apps/server/src/modules/identity/` (`AuthorizationRequests`, `Grants`, the `GrantStore` and `AuthorizationCodeStore` ports), `apps/server/src/mcp/` (the transport and its tools).
-- Contract of the Grants a User sees and revokes: `packages/contracts/src/grants/` (no MCP tool: an AI Client never lists or revokes Grants).
+- Contract of the Grants a User sees, changes, and revokes: `packages/contracts/src/grants/` (no MCP tool: an AI Client never lists, changes, or revokes Grants).
 - Web: `apps/web/src/features/oauth/` (the consent page), `apps/web/src/features/grants/` (the AI Clients section of the settings: each Grant, when it was last used, to the minute, and the ones that need a look).

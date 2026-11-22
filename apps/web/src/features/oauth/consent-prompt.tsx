@@ -32,6 +32,7 @@ import { authorizationCheckOptions } from "#/features/oauth/authorization-check.
 import { consentAsk, consentSentence } from "#/features/oauth/consent-sentence.ts";
 import { userLabel } from "#/features/users/full-name.ts";
 import { api } from "#/lib/api.ts";
+import { toggled } from "#/lib/toggled.ts";
 
 export interface ConsentPromptProps {
   readonly params: AuthorizationRequestParams;
@@ -119,16 +120,6 @@ function ConsentQuestion({
     () => new Set([...request.permissions, ...(grantedPermissions ?? [])]),
   );
 
-  const toggle = (permission: Permission, checked: boolean) =>
-    setTicked((current) => {
-      const next = new Set(current);
-
-      if (checked) next.add(permission);
-      else next.delete(permission);
-
-      return next;
-    });
-
   const decision = { payload: { ...params, csrfToken: request.csrfToken } };
 
   const approval = {
@@ -184,7 +175,9 @@ function ConsentQuestion({
             <Checkbox
               checked={ticked.has(permission)}
               disabled={deciding}
-              onCheckedChange={(checked) => toggle(permission, checked === true)}
+              onCheckedChange={(checked) =>
+                setTicked((current) => toggled(current, permission, checked === true))
+              }
             />
             <FieldContent>
               <FieldLabel>

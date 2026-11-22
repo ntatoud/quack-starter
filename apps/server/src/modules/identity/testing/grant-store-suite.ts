@@ -328,6 +328,59 @@ export const grantStoreSuite = <R>(
         assert.isTrue(Option.isNone(yield* store.findByAccessToken(next.accessToken.tokenHash)));
       }));
 
+    test("changes the Permissions of a Grant and of its tokens, at once", () =>
+      Effect.gen(function* () {
+        const { grant, refreshToken } = yield* aGrantWithARefreshToken;
+        const store = yield* GrantStore;
+        const accessToken = yield* anAccessToken(grant);
+        yield* store.saveAccessToken(accessToken);
+
+        const changed = yield* store.changePermissionsOf(grant.userId, grant.id, [
+          "todos:list",
+          "todos:delete",
+        ]);
+
+        const expected = { ...grant, permissions: ["todos:list", "todos:delete"] as const };
+        assert.deepStrictEqual(changed, Option.some(expected));
+        assert.deepStrictEqual(
+          yield* store.findOf(grant.userId, grant.aiClientId),
+          Option.some(expected),
+        );
+        assert.deepStrictEqual(
+          yield* store.findByAccessToken(accessToken.tokenHash),
+          Option.some({
+            grant: expected,
+            accessToken: { ...accessToken, permissions: expected.permissions },
+          }),
+        );
+        assert.deepStrictEqual(
+          yield* store.findByRefreshToken(refreshToken.tokenHash),
+          Option.some({
+            grant: expected,
+            refreshToken: { ...refreshToken, permissions: expected.permissions },
+          }),
+        );
+      }));
+
+    test("changes the Permissions of a Grant of the User who gave it only", () =>
+      Effect.gen(function* () {
+        const store = yield* GrantStore;
+        const grant = yield* store.save(aDraft(yield* aUser));
+
+        assert.isTrue(
+          Option.isNone(yield* store.changePermissionsOf(yield* aUser, grant.id, ["todos:list"])),
+        );
+        assert.isTrue(
+          Option.isNone(
+            yield* store.changePermissionsOf(grant.userId, "not-a-grant", ["todos:list"]),
+          ),
+        );
+        assert.deepStrictEqual(
+          yield* store.findOf(grant.userId, grant.aiClientId),
+          Option.some(grant),
+        );
+      }));
+
     test("revokes a Grant of the User who gave it only", () =>
       Effect.gen(function* () {
         const store = yield* GrantStore;

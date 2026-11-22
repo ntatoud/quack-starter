@@ -1,12 +1,9 @@
 import type { UserId } from "@quack/contracts/identity/user";
 import { Permission } from "@quack/contracts/permission";
-import { TodosPermission } from "@quack/contracts/todos/todos-permissions";
+import { grantablePermissions } from "@quack/contracts/grants/grant";
 import { type DateTime, Duration, Option } from "effect";
 
 import { redirectUriMatches } from "#/modules/identity/domain/redirect-uri.ts";
-
-/** The Permissions a Grant may hold: those of the contexts exposed to AI Clients, never `users:*`. */
-export const grantablePermissions = TodosPermission.literals;
 
 /**
  * The Permissions `names` give a Grant, once each in the order of `grantablePermissions`. None when they name nothing,

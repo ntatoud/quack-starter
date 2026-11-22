@@ -734,6 +734,37 @@ describe("server routes of an AI Client", () => {
     expect((await callTool("todos_list", access_token)).status).toBe(401);
   });
 
+  it("the User removes a Permission of an AI Client: its next call needing it steps up, its other tools still work", async () => {
+    const cookie = await sessionCookieOf("ai-client-narrowed@example.com", "203.0.113.92");
+    const token = await exchange(await approvedCode(cookie, "todos:list todos:write todos:delete"));
+    const { access_token } = (await token.json()) as Tokens;
+    expect((await callTool("todos_remove", access_token)).status).not.toBe(403);
+
+    const listed = await handler(
+      new Request("http://api.test/api/grants", { headers: { cookie } }),
+    );
+
+    const [grant] = (await listed.json()) as Array<{ id: string }>;
+
+    const narrowed = await handler(
+      new Request(`http://api.test/api/grants/${grant?.id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json", cookie },
+        body: JSON.stringify({ permissions: ["todos:list", "todos:write"] }),
+      }),
+    );
+
+    expect(narrowed.status).toBe(200);
+
+    const refused = await callTool("todos_remove", access_token);
+
+    expect(refused.status).toBe(403);
+    expect(refused.headers.get("www-authenticate")).toBe(
+      'Bearer error="insufficient_scope", scope="todos:list todos:write todos:delete", resource_metadata="https://quack.test/.well-known/oauth-protected-resource/api/mcp"',
+    );
+    expect((await callTool("todos_list", access_token)).status).toBe(200);
+  });
+
   it("an AI Client refreshes its tokens, until it presents a replaced refresh token: then its Grant is revoked", async () => {
     const cookie = await sessionCookieOf("ai-client-refresh@example.com", "203.0.113.83");
     const first = (await (await exchange(await approvedCode(cookie))).json()) as Tokens;

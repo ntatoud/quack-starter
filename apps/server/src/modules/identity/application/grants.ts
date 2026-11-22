@@ -1,5 +1,6 @@
 import { MCP_PATH } from "@quack/contracts/api";
-import { GrantNotFound } from "@quack/contracts/grants/grant-errors";
+import { GrantNotFound, PermissionNotGrantable } from "@quack/contracts/grants/grant-errors";
+import { grantablePermissions } from "@quack/contracts/grants/grant";
 import type { GrantId } from "@quack/contracts/grants/grant";
 import { type TooManyAttempts, Unauthenticated } from "@quack/contracts/identity/identity-errors";
 import type { User, UserId } from "@quack/contracts/identity/user";
@@ -109,6 +110,15 @@ export class Grants extends Context.Service<
     >;
     /** The User's Grants that have not expired, last used first. */
     listOf(userId: UserId): Effect.Effect<ReadonlyArray<Grant>>;
+    /**
+     * Sets the Permissions of the User's active Grant, fewer or more, as the User approves them in their settings:
+     * its tokens hold them from their next use, and so do those of a refresh. Only the User who gave it may.
+     */
+    changePermissions(
+      userId: UserId,
+      grantId: GrantId,
+      permissions: ReadonlyArray<Permission>,
+    ): Effect.Effect<Grant, GrantNotFound | PermissionNotGrantable>;
     /** Only the User who gave it may. */
     revoke(userId: UserId, grantId: GrantId): Effect.Effect<void, GrantNotFound>;
   }
@@ -279,6 +289,15 @@ export class Grants extends Context.Service<
         return tokens.response;
       });
 
+      const activeGrantsOf = (userId: UserId) =>
+        Effect.gen(function* () {
+          const now = yield* DateTime.now;
+
+          return (yield* grants.listOf(userId)).filter((grant) =>
+            DateTime.isLessThan(now, grant.expiresAt),
+          );
+        });
+
       return Grants.of({
         exchange: Effect.fn("Grants.exchange")(function* (params, ip) {
           const failures = AttemptCounter.tokenFailuresOfIp(ip);
@@ -337,12 +356,35 @@ export class Grants extends Context.Service<
           };
         }),
         listOf: Effect.fn("Grants.listOf")(function* (userId) {
-          const now = yield* DateTime.now;
-
-          return (yield* grants.listOf(userId)).filter((grant) =>
-            DateTime.isLessThan(now, grant.expiresAt),
-          );
+          return yield* activeGrantsOf(userId);
         }),
+        changePermissions: Effect.fn("Grants.changePermissions")(
+          function* (userId, grantId, permissions) {
+            const notGrantable = permissions.find(
+              (permission) => !grantablePermissions.some((grantable) => grantable === permission),
+            );
+
+            if (notGrantable !== undefined) {
+              return yield* new PermissionNotGrantable({ permission: notGrantable });
+            }
+
+            const notFound = new GrantNotFound({ id: grantId });
+
+            if (!(yield* activeGrantsOf(userId)).some(({ id }) => id === grantId)) {
+              return yield* notFound;
+            }
+
+            // Revoked since it was read: not found either.
+            return yield* Effect.fromOption(
+              yield* grants.changePermissionsOf(
+                userId,
+                grantId,
+                grantablePermissions.filter((permission) => permissions.includes(permission)),
+              ),
+              () => notFound,
+            );
+          },
+        ),
         revoke: Effect.fn("Grants.revoke")(function* (userId, grantId) {
           // Another User's Grant is not found, so the API never tells it exists.
           if (!(yield* grants.revokeOf(userId, grantId))) {
