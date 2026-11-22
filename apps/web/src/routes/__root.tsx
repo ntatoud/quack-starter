@@ -12,6 +12,9 @@ export const Route = createRootRouteWithContext<RouterContext>()({
   beforeLoad: async ({ context }) => {
     return { currentUser: await context.queryClient.ensureQueryData(currentUserQueryOptions) };
   },
+  // On every page, not the consent page alone: a framed sign-in page would lead to it with no new response,
+  // and the User would approve under a decoy what they cannot see.
+  headers: () => ({ "Content-Security-Policy": "frame-ancestors 'none'" }),
   head: () => ({
     meta: [
       { charSet: "utf-8" },

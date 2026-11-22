@@ -18,6 +18,7 @@ import { Route as AuthenticatedAppRouteRouteImport } from './routes/_authenticat
 import { Route as GuestSignInRouteImport } from './routes/_guest/sign-in'
 import { Route as GuestSignUpRouteImport } from './routes/_guest/sign-up'
 import { Route as ApiSplatRouteImport } from './routes/api/$'
+import { Route as OauthAuthorizeRouteImport } from './routes/oauth/authorize'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app/index'
 import { Route as AuthenticatedAppSettingsRouteRouteImport } from './routes/_authenticated/app/settings/route'
@@ -68,6 +69,11 @@ const GuestSignUpRoute = GuestSignUpRouteImport.update({
 const ApiSplatRoute = ApiSplatRouteImport.update({
   id: '/api/$',
   path: '/api/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OauthAuthorizeRoute = OauthAuthorizeRouteImport.update({
+  id: '/oauth/authorize',
+  path: '/oauth/authorize',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
@@ -125,6 +131,7 @@ export interface FileRoutesByFullPath {
   '/sign-in': typeof GuestSignInRoute
   '/sign-up': typeof GuestSignUpRoute
   '/api/$': typeof ApiSplatRoute
+  '/oauth/authorize': typeof OauthAuthorizeRoute
   '/app/settings': typeof AuthenticatedAppSettingsRouteRouteWithChildren
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/app/': typeof AuthenticatedAppIndexRoute
@@ -140,6 +147,7 @@ export interface FileRoutesByTo {
   '/sign-in': typeof GuestSignInRoute
   '/sign-up': typeof GuestSignUpRoute
   '/api/$': typeof ApiSplatRoute
+  '/oauth/authorize': typeof OauthAuthorizeRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/app': typeof AuthenticatedAppIndexRoute
   '/admin/users/$id': typeof AuthenticatedAdminUsersIdRoute
@@ -159,6 +167,7 @@ export interface FileRoutesById {
   '/_guest/sign-in': typeof GuestSignInRoute
   '/_guest/sign-up': typeof GuestSignUpRoute
   '/api/$': typeof ApiSplatRoute
+  '/oauth/authorize': typeof OauthAuthorizeRoute
   '/_authenticated/app/settings': typeof AuthenticatedAppSettingsRouteRouteWithChildren
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
@@ -178,6 +187,7 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/api/$'
+    | '/oauth/authorize'
     | '/app/settings'
     | '/admin/'
     | '/app/'
@@ -193,6 +203,7 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/api/$'
+    | '/oauth/authorize'
     | '/admin'
     | '/app'
     | '/admin/users/$id'
@@ -211,6 +222,7 @@ export interface FileRouteTypes {
     | '/_guest/sign-in'
     | '/_guest/sign-up'
     | '/api/$'
+    | '/oauth/authorize'
     | '/_authenticated/app/settings'
     | '/_authenticated/admin/'
     | '/_authenticated/app/'
@@ -227,6 +239,7 @@ export interface RootRouteChildren {
   GuestRouteRoute: typeof GuestRouteRouteWithChildren
   DotwellKnownSplatRoute: typeof DotwellKnownSplatRoute
   ApiSplatRoute: typeof ApiSplatRoute
+  OauthAuthorizeRoute: typeof OauthAuthorizeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -292,6 +305,13 @@ declare module '@tanstack/react-router' {
       path: '/api/$'
       fullPath: '/api/$'
       preLoaderRoute: typeof ApiSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/oauth/authorize': {
+      id: '/oauth/authorize'
+      path: '/oauth/authorize'
+      fullPath: '/oauth/authorize'
+      preLoaderRoute: typeof OauthAuthorizeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/admin/': {
@@ -439,6 +459,7 @@ const rootRouteChildren: RootRouteChildren = {
   GuestRouteRoute: GuestRouteRouteWithChildren,
   DotwellKnownSplatRoute: DotwellKnownSplatRoute,
   ApiSplatRoute: ApiSplatRoute,
+  OauthAuthorizeRoute: OauthAuthorizeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -7,6 +7,7 @@ import { HttpClient, HttpServer } from "effect/http";
 
 import { ContractTools } from "#/mcp/contract-tools.ts";
 import { IdentityModule, McpCaller, OAuthModule } from "#/modules/identity/index.ts";
+import { AuthorizationCodeStoreMemory } from "#/modules/identity/testing/authorization-code-store-memory.ts";
 import { SessionStoreMemory } from "#/modules/identity/testing/session-store-memory.ts";
 import { UserRepositoryMemory } from "#/modules/identity/testing/user-repository-memory.ts";
 import { SystemHandlers } from "#/modules/system/http/system-handlers.ts";
@@ -21,7 +22,13 @@ const NoHttpClient = Layer.succeed(
 
 const ApiHandlers = Layer.mergeAll(SystemHandlers, TodosModule, OAuthModule).pipe(
   Layer.provideMerge(IdentityModule),
-  Layer.provide([UserRepositoryMemory, SessionStoreMemory, TodoRepositoryMemory, NoHttpClient]),
+  Layer.provide([
+    UserRepositoryMemory,
+    SessionStoreMemory,
+    AuthorizationCodeStoreMemory,
+    TodoRepositoryMemory,
+    NoHttpClient,
+  ]),
   Layer.provide(
     ConfigProvider.layer(ConfigProvider.fromUnknown({ PUBLIC_URL: "https://quack.test" })),
   ),

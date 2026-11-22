@@ -4,12 +4,14 @@ import { Authentication } from "@quack/contracts/identity/authentication";
 import { Email, User, UserId } from "@quack/contracts/identity/user";
 import type { AuthorizationRequestParams } from "@quack/contracts/oauth/authorization-request";
 import type { AuthorizationErrorCode } from "@quack/contracts/oauth/oauth-errors";
-import { ConfigProvider, DateTime, Effect, Fiber, Layer, Schema } from "effect";
+import { ConfigProvider, DateTime, Effect, Fiber, Layer, Option, Schema } from "effect";
 import { HttpClient, HttpClientRequest, HttpClientResponse, HttpServer } from "effect/http";
 import { HttpApiMiddleware, HttpApiTest } from "effect/http-api";
 import { TestClock } from "effect/testing";
 
+import { AuthorizationCodeStore } from "#/modules/identity/domain/authorization-code-store.ts";
 import { OAuthModule } from "#/modules/identity/index.ts";
+import { AuthorizationCodeStoreMemory } from "#/modules/identity/testing/authorization-code-store-memory.ts";
 import { authenticationByUserId } from "#/modules/identity/testing/authentication-by-user-id.ts";
 
 const ada = new User({
@@ -112,6 +114,7 @@ const withConfig = (env: Record<string, string>) =>
   Layer.mergeAll(
     OAuthModule.pipe(
       Layer.provide(StubHttpClient),
+      Layer.provideMerge(AuthorizationCodeStoreMemory),
       Layer.provideMerge(authenticationByUserId([ada])),
       Layer.provide(
         ConfigProvider.layer(ConfigProvider.fromUnknown({ PUBLIC_URL: publicOrigin, ...env })),
@@ -138,6 +141,7 @@ layer(withConfig({}))("OAuthApi checkAuthorization", (it) => {
       assert.isFalse(request.loopbackOnly);
       assert.deepStrictEqual(request.permissions, ["todos:list", "todos:write"]);
       assert.isNull(request.grantedPermissions);
+      assert.isFalse(request.consentRemembered);
     }),
   );
 
@@ -412,3 +416,149 @@ layer(withConfig({ AI_CLIENT_LOOPBACK_HTTP: "true" }))(
     );
   },
 );
+
+const approve = (payload: AuthorizationRequestParams & { readonly csrfToken: string }) =>
+  Effect.flatMap(client, (api) => api.oauth.approveAuthorization({ payload }));
+
+const deny = (payload: AuthorizationRequestParams & { readonly csrfToken: string }) =>
+  Effect.flatMap(client, (api) => api.oauth.denyAuthorization({ payload }));
+
+/** Checks the request as the consent page does, and answers it with the page's CSRF token. */
+const onTheConsentPage = (payload: AuthorizationRequestParams) =>
+  Effect.map(check(payload), ({ csrfToken }) => ({ ...payload, csrfToken }));
+
+const sha256Hex = (text: string) =>
+  Effect.promise(async () =>
+    Buffer.from(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text))).toString(
+      "hex",
+    ),
+  );
+
+layer(withConfig({}))("OAuthApi approveAuthorization and denyAuthorization", (it) => {
+  it.effect(
+    "approving sends the User back to the AI Client with a code, the state, and Quack as the issuer",
+    () =>
+      Effect.gen(function* () {
+        const clientId = anAiClient();
+        const decision = yield* onTheConsentPage(requestOf(clientId, { state: "xyz 123" }));
+
+        const { redirectTo } = yield* approve(decision);
+
+        const url = new URL(redirectTo);
+        assert.strictEqual(`${url.origin}${url.pathname}`, redirectUri);
+        assert.strictEqual(url.searchParams.get("state"), "xyz 123");
+        assert.strictEqual(url.searchParams.get("iss"), publicOrigin);
+        assert.isNull(url.searchParams.get("error"));
+        assert.match(url.searchParams.get("code") ?? "", /^[A-Za-z0-9_-]{43}$/);
+      }),
+  );
+
+  it.effect("the code redeems once, for what the User approved, for one minute", () =>
+    Effect.gen(function* () {
+      const clientId = anAiClient({
+        redirect_uris: ["http://localhost/callback"],
+      });
+
+      const decision = yield* onTheConsentPage(
+        requestOf(clientId, {
+          redirect_uri: "http://localhost:51234/callback",
+          scope: "todos:delete todos:list",
+        }),
+      );
+
+      const now = yield* DateTime.now;
+
+      const code = new URL((yield* approve(decision)).redirectTo).searchParams.get("code") ?? "";
+      const store = yield* AuthorizationCodeStore;
+      const codeHash = yield* sha256Hex(code);
+
+      assert.deepStrictEqual(
+        yield* store.take(codeHash),
+        Option.some({
+          codeHash,
+          userId: ada.id,
+          aiClientId: clientId,
+          aiClientName: "Claude",
+          redirectUri: "http://localhost:51234/callback",
+          resource,
+          permissions: ["todos:list", "todos:delete"],
+          codeChallenge: "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
+          expiresAt: DateTime.add(now, { minutes: 1 }),
+        }),
+      );
+      assert.isTrue(Option.isNone(yield* store.take(codeHash)));
+    }),
+  );
+
+  it.effect("each approval gets a code of its own", () =>
+    Effect.gen(function* () {
+      const decision = yield* onTheConsentPage(requestOf(anAiClient()));
+
+      const codes = new Set<string | null>();
+
+      for (let i = 0; i < 3; i++) {
+        codes.add(new URL((yield* approve(decision)).redirectTo).searchParams.get("code"));
+      }
+
+      assert.strictEqual(codes.size, 3);
+    }),
+  );
+
+  it.effect("leaves out the state when the AI Client sent none", () =>
+    Effect.gen(function* () {
+      const decision = yield* onTheConsentPage(requestOf(anAiClient()));
+
+      const approved = new URL((yield* approve(decision)).redirectTo);
+      const denied = new URL((yield* deny(decision)).redirectTo);
+
+      assert.isFalse(approved.searchParams.has("state"));
+      assert.isFalse(denied.searchParams.has("state"));
+    }),
+  );
+
+  it.effect("denying sends the User back to the AI Client with access_denied, and no code", () =>
+    Effect.gen(function* () {
+      const decision = yield* onTheConsentPage(requestOf(anAiClient(), { state: "abc" }));
+
+      const url = new URL((yield* deny(decision)).redirectTo);
+
+      assert.strictEqual(`${url.origin}${url.pathname}`, redirectUri);
+      assert.strictEqual(url.searchParams.get("error"), "access_denied");
+      assert.strictEqual(url.searchParams.get("state"), "abc");
+      assert.strictEqual(url.searchParams.get("iss"), publicOrigin);
+      assert.isFalse(url.searchParams.has("code"));
+    }),
+  );
+
+  it.effect("refuses a decision that does not carry the CSRF token of the consent page", () =>
+    Effect.gen(function* () {
+      const request = requestOf(anAiClient());
+      const { csrfToken } = yield* check(request);
+
+      for (const forged of ["", "forged", `${csrfToken}x`, csrfToken.slice(1)]) {
+        const decision = { ...request, csrfToken: forged };
+        assert.strictEqual((yield* Effect.flip(approve(decision)))._tag, "InvalidCsrfToken");
+        assert.strictEqual((yield* Effect.flip(deny(decision)))._tag, "InvalidCsrfToken");
+      }
+    }),
+  );
+
+  it.effect(
+    "validates the request again, so a decision never sends the User where the AI Client does not list",
+    () =>
+      Effect.gen(function* () {
+        const clientId = anAiClient();
+        const { csrfToken } = yield* check(requestOf(clientId));
+
+        const tampered = {
+          ...requestOf(clientId, { redirect_uri: "https://evil.example.com/callback" }),
+          csrfToken,
+        };
+
+        for (const decide of [approve, deny]) {
+          const error = yield* Effect.flip(decide(tampered));
+          assert.strictEqual(error._tag, "AuthorizationRequestRefused");
+        }
+      }),
+  );
+});

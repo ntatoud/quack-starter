@@ -24,3 +24,9 @@ export class AuthorizationRequestRefused extends Schema.TaggedError<
   error_description: Schema.String,
   redirect_uri: Schema.optionalKey(Schema.String),
 }) {}
+
+/** A decision on an authorization request that does not come from the consent page of the User's Session. */
+export class InvalidCsrfToken extends Schema.TaggedError<
+  InvalidCsrfToken,
+  { readonly brand: unique symbol }
+>()("InvalidCsrfToken", {}) {}

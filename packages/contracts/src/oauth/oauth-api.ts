@@ -1,9 +1,19 @@
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from "effect/http-api";
 
 import { Authentication } from "#/identity/authentication.ts";
-import { AuthorizationRequest, AuthorizationRequestParams } from "#/oauth/authorization-request.ts";
-import { AuthorizationRequestRefused } from "#/oauth/oauth-errors.ts";
+import {
+  AuthorizationDecision,
+  AuthorizationRedirect,
+  AuthorizationRequest,
+  AuthorizationRequestParams,
+} from "#/oauth/authorization-request.ts";
+import { AuthorizationRequestRefused, InvalidCsrfToken } from "#/oauth/oauth-errors.ts";
 import { RequiredPermission } from "#/permission.ts";
+
+const decisionErrors = [
+  AuthorizationRequestRefused.pipe(HttpApiSchema.status(400)),
+  InvalidCsrfToken.pipe(HttpApiSchema.status(403)),
+];
 
 export class OAuthApi extends HttpApiGroup.make("oauth")
   .add(
@@ -16,6 +26,21 @@ export class OAuthApi extends HttpApiGroup.make("oauth")
       payload: AuthorizationRequestParams,
       success: AuthorizationRequest,
       error: AuthorizationRequestRefused.pipe(HttpApiSchema.status(400)),
+    }).annotate(RequiredPermission, "none"),
+    /**
+     * The User approves the request: answers with its redirect URI, carrying a single-use
+     * authorization code, the `state`, and `iss`.
+     */
+    HttpApiEndpoint.post("approveAuthorization", "/authorize/approve", {
+      payload: AuthorizationDecision,
+      success: AuthorizationRedirect,
+      error: decisionErrors,
+    }).annotate(RequiredPermission, "none"),
+    /** The User denies the request: answers with its redirect URI, carrying `error=access_denied`. */
+    HttpApiEndpoint.post("denyAuthorization", "/authorize/deny", {
+      payload: AuthorizationDecision,
+      success: AuthorizationRedirect,
+      error: decisionErrors,
     }).annotate(RequiredPermission, "none"),
   )
   .middleware(Authentication)

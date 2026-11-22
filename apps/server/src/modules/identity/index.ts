@@ -9,6 +9,7 @@ import { Users } from "#/modules/identity/application/users.ts";
 import { AuthenticationMiddleware } from "#/modules/identity/http/authentication-middleware.ts";
 import { authorize } from "#/modules/identity/http/authorize.ts";
 import { McpCaller } from "#/modules/identity/http/mcp-caller.ts";
+import { CsrfTokens } from "#/modules/identity/http/csrf-tokens.ts";
 import { IdentityHandlers } from "#/modules/identity/http/identity-handlers.ts";
 import { OAuthHandlers } from "#/modules/identity/http/oauth-handlers.ts";
 import { OAuthMetadataRoutes } from "#/modules/identity/http/oauth-metadata.ts";
@@ -16,6 +17,7 @@ import { SessionCookie } from "#/modules/identity/http/session-cookie.ts";
 import { UsersHandlers } from "#/modules/identity/http/users-handlers.ts";
 import { AiClientDocumentsHttp } from "#/modules/identity/infrastructure/ai-client-documents-http.ts";
 import { AiClientHttpClient } from "#/modules/identity/infrastructure/ai-client-http-client.ts";
+import { AuthorizationCodeStorePostgres } from "#/modules/identity/infrastructure/authorization-code-store-postgres.ts";
 import { AttemptLimiterMemory } from "#/modules/identity/infrastructure/attempt-limiter-memory.ts";
 import { PasswordHasherArgon2 } from "#/modules/identity/infrastructure/password-hasher-argon2.ts";
 import { SessionStorePostgres } from "#/modules/identity/infrastructure/session-store-postgres.ts";
@@ -30,7 +32,11 @@ export {
   OAuthMetadataRoutes,
 };
 
-export const IdentityPostgres = Layer.mergeAll(UserRepositoryPostgres, SessionStorePostgres);
+export const IdentityPostgres = Layer.mergeAll(
+  UserRepositoryPostgres,
+  SessionStorePostgres,
+  AuthorizationCodeStorePostgres,
+);
 
 export const IdentityModule = Layer.mergeAll(IdentityHandlers, UsersHandlers).pipe(
   Layer.provideMerge(AuthenticationMiddleware),
@@ -39,8 +45,12 @@ export const IdentityModule = Layer.mergeAll(IdentityHandlers, UsersHandlers).pi
   Layer.provide([NodeCrypto.layerSecureRandom, NodeCrypto.layerDigest, NodeCrypto.layerKdf]),
 );
 
-/** The authorization server AI Clients go through. Requires the `HttpClient` it fetches their documents with: `AiClientHttpClient`. */
+/**
+ * The authorization server AI Clients go through. Requires the `HttpClient` it fetches their documents with
+ * (`AiClientHttpClient`), and its storage, which `IdentityPostgres` holds.
+ */
 export const OAuthModule = OAuthHandlers.pipe(
-  Layer.provide(AuthorizationRequests.layer),
+  Layer.provide([AuthorizationRequests.layer, CsrfTokens.layer]),
   Layer.provide(AiClientDocumentsHttp),
+  Layer.provide([NodeCrypto.layerSecureRandom, NodeCrypto.layerDigest]),
 );

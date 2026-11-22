@@ -14,6 +14,7 @@ import {
   AttemptLimiter,
   type ClientIp,
 } from "#/modules/identity/domain/attempt-limiter.ts";
+import { sha256Hex } from "#/modules/identity/application/sha256-hex.ts";
 import { PasswordHasher } from "#/modules/identity/domain/password-hasher.ts";
 import {
   expiryFrom,
@@ -70,7 +71,7 @@ export class Identity extends Context.Service<
       const digest = yield* Digest.Digest;
 
       const hashToken = (token: Redacted.Redacted<string>) =>
-        digest.digestHex(Digest.sha256, new TextEncoder().encode(Redacted.value(token)));
+        sha256Hex(digest, Redacted.value(token));
 
       const openSession = Effect.fn("Identity.openSession")(function* (user: User) {
         const token = Redacted.make(Base64Url.encode(yield* random.randomBytes(sessionTokenBytes)));

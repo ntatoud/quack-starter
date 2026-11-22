@@ -1,5 +1,4 @@
 import type { Permission } from "@quack/contracts/permission";
-import { AuthorizationRequest } from "@quack/contracts/oauth/authorization-request";
 import type { AuthorizationRequestParams } from "@quack/contracts/oauth/authorization-request";
 import {
   type AuthorizationErrorCode,
@@ -7,7 +6,8 @@ import {
 } from "@quack/contracts/oauth/oauth-errors";
 import { Context, Effect, Option, Schema } from "effect";
 
-import { grantablePermissions } from "#/modules/identity/domain/grant.ts";
+import { type GrantTerms, grantablePermissions } from "#/modules/identity/domain/grant.ts";
+import { isLoopback, redirectUriMatches } from "#/modules/identity/domain/redirect-uri.ts";
 
 /** The document an AI Client is known by, served at its `client_id` (Client ID Metadata Document). */
 const AiClientDocument = Schema.Struct({
@@ -38,10 +38,6 @@ const refused = (error: AuthorizationErrorCode, description: string, redirectUri
         error_description: description,
         redirect_uri: redirectUri,
       });
-
-// RFC 8252 s7.3: an app on this machine picks its port when it starts.
-const loopbackHosts = new Set(["localhost", "127.0.0.1", "[::1]"]);
-const isLoopback = (url: URL) => loopbackHosts.has(url.hostname);
 
 // What an AI Client that holds a secret uses: one served from a public document cannot keep it.
 const sharedSecretMethods = new Set([
@@ -102,18 +98,6 @@ const isRedirectable = (uri: string) => {
   );
 };
 
-const redirectUriMatches = (listed: string, requested: string) => {
-  if (listed === requested) return true;
-  const a = URL.parse(listed);
-  const b = URL.parse(requested);
-
-  if (a === null || b === null || !isLoopback(a) || !isLoopback(b)) return false;
-  a.port = "";
-  b.port = "";
-
-  return a.href === b.href;
-};
-
 const permissionsOf = (scope: string | undefined): Option.Option<ReadonlyArray<Permission>> => {
   const requested = new Set((scope ?? "").split(" ").filter((name) => name !== ""));
   const grantable: ReadonlySet<string> = new Set(grantablePermissions);
@@ -122,6 +106,19 @@ const permissionsOf = (scope: string | undefined): Option.Option<ReadonlyArray<P
     ? Option.some(grantablePermissions.filter((permission) => requested.has(permission)))
     : Option.none();
 };
+
+/** An authorization request Quack has verified: the AI Client's document lists its redirect URI. */
+export interface ValidAuthorizationRequest extends GrantTerms {
+  readonly aiClient: {
+    readonly id: string;
+    readonly host: string;
+    readonly name: string;
+  };
+  readonly redirectHost: string;
+  readonly loopbackOnly: boolean;
+  readonly codeChallenge: string;
+  readonly state: string | undefined;
+}
 
 export const checkAuthorizationRequest = Effect.fn(function* (
   params: AuthorizationRequestParams,
@@ -168,11 +165,19 @@ export const checkAuthorizationRequest = Effect.fn(function* (
     return yield* refused("unsupported_response_type", "response_type must be code", redirectUri);
   }
 
-  if (params.code_challenge_method !== "S256" || !s256Challenge.test(params.code_challenge ?? "")) {
+  const codeChallenge = params.code_challenge;
+
+  if (
+    params.code_challenge_method !== "S256" ||
+    codeChallenge === undefined ||
+    !s256Challenge.test(codeChallenge)
+  ) {
     return yield* refused("invalid_request", "An S256 code_challenge is required", redirectUri);
   }
 
-  if (params.resource !== server.mcpResource) {
+  const resource = params.resource;
+
+  if (resource !== server.mcpResource) {
     return yield* refused("invalid_target", `resource must be ${server.mcpResource}`, redirectUri);
   }
 
@@ -186,15 +191,19 @@ export const checkAuthorizationRequest = Effect.fn(function* (
     );
   }
 
-  return new AuthorizationRequest({
+  return {
     aiClient: { id: client_id, host: clientId.hostname, name: client_name },
+    aiClientId: client_id,
+    redirectUri,
     redirectHost: new URL(redirectUri).hostname,
     loopbackOnly: redirect_uris.every((listed) => {
       const url = URL.parse(listed);
 
       return url !== null && isLoopback(url);
     }),
+    resource,
     permissions: permissions.value,
-    grantedPermissions: null,
-  });
+    codeChallenge,
+    state: params.state,
+  } satisfies ValidAuthorizationRequest;
 });
