@@ -176,6 +176,9 @@ catalogs:
     '@effect/vitest':
       specifier: 4.1.3
       version: 4.1.3
+    '@react-email/ui':
+      specifier: 6.11.16
+      version: 6.11.16
     '@tailwindcss/vite':
       specifier: 4.3.5
       version: 4.3.5
@@ -218,6 +221,9 @@ catalogs:
     react-dom:
       specifier: 19.3.1
       version: 19.3.1
+    react-email:
+      specifier: 6.11.16
+      version: 6.11.16
     tailwindcss:
       specifier: 4.3.5
       version: 4.3.5
@@ -434,6 +440,9 @@ importers:
       '@quack/brand':
         specifier: workspace:*
         version: link:../brand
+      effect:
+        specifier: 4.1.4
+        version: 4.1.4
       react:
         specifier: 'catalog:'
         version: 19.3.1
@@ -441,11 +450,11 @@ importers:
         specifier: 'catalog:'
         version: 19.3.1(react@19.3.1)
       react-email:
-        specifier: 6.11.16
+        specifier: 'catalog:'
         version: 6.11.16(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
     devDependencies:
       '@react-email/ui':
-        specifier: 6.11.16
+        specifier: 'catalog:'
         version: 6.11.16(@babel/core@7.29.13)(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@types/react':
         specifier: 'catalog:'

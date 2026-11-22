@@ -15,8 +15,8 @@ const mask = (email: string) => `${email.slice(0, 1)}***${email.slice(email.last
 export default function EmailChangeNoticeEmail({ newEmail }: EmailChangeNoticeProps) {
   return (
     <EmailLayout
-      preview={`Someone asked to change the email of your ${brand.name} account`}
-      reason={`You got this email because someone asked for an Email Change of your ${brand.name} account.`}
+      preview="If it was not you, reset your password."
+      reason={`someone asked to change the email of your ${brand.name} account.`}
     >
       <Heading>Your email is changing</Heading>
       <Text>

@@ -15,19 +15,9 @@ import {
   Text,
 } from "react-email";
 
-// The radii of `@quack/ui/globals.css`, from the same `--radius`.
 const tailwindConfig = {
   presets: [pixelBasedPreset],
-  theme: {
-    extend: {
-      colors: emailTheme.colors,
-      borderRadius: {
-        md: `${emailTheme.radius * 0.8}px`,
-        lg: `${emailTheme.radius}px`,
-        xl: `${emailTheme.radius * 1.4}px`,
-      },
-    },
-  },
+  theme: { extend: { colors: emailTheme.colors, borderRadius: emailTheme.radii } },
 };
 
 export function EmailLayout({
@@ -64,7 +54,7 @@ export function EmailLayout({
               {children}
             </Section>
             <Text className="text-muted-foreground mx-0 mt-6 mb-0 text-center text-xs leading-5">
-              {reason}
+              You got this email because {reason}
             </Text>
           </Container>
         </Body>

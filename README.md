@@ -39,7 +39,7 @@ pnpm exec portless proxy start --port 1355 # or no sudo: https://quack.localhost
 
 The first start adds a local certificate authority to the system trust store. `pnpm exec portless doctor` says why a URL does not load.
 
-`PORTLESS=0 pnpm dev` runs the apps without portless: the web app on http://localhost:3000, the API on http://localhost:3001, reached through `API_URL`, with `PUBLIC_URL` from `.env`. `PORTLESS=0 pnpm dev:emails` serves the email preview on http://localhost:3002.
+`PORTLESS=0 pnpm dev` runs the apps without portless: the web app on http://localhost:3000, the API on http://localhost:3001, reached through `API_URL`, with `PUBLIC_URL` from `.env`. `pnpm dev:emails` previews the emails at https://emails.quack.localhost (`pnpm exec portless get emails.quack` in a worktree), or on http://localhost:3002 with `PORTLESS=0`.
 
 ## Connect an AI Client
 
@@ -53,17 +53,17 @@ AI Clients that only register through Dynamic Client Registration, such as Curso
 
 ## Commands
 
-| Command             | What it does                                         |
-| ------------------- | ---------------------------------------------------- |
-| `pnpm dev`          | Run the web app and the server, under portless       |
-| `pnpm dev:emails`   | Preview the emails at https://emails.quack.localhost |
-| `pnpm check`        | Format check and lint                                |
-| `pnpm fmt`          | Format                                               |
-| `pnpm typecheck`    | Typecheck every package with `tsc`                   |
-| `pnpm typecheck:ci` | Typecheck every package with `tsrs`, as CI does      |
-| `pnpm test`         | Run the tests                                        |
-| `pnpm fallow`       | Find unused code, duplicates, and complex functions  |
-| `pnpm build`        | Build the apps                                       |
+| Command             | What it does                                        |
+| ------------------- | --------------------------------------------------- |
+| `pnpm dev`          | Run the web app and the server, under portless      |
+| `pnpm dev:emails`   | Preview the emails, under portless                  |
+| `pnpm check`        | Format check and lint                               |
+| `pnpm fmt`          | Format                                              |
+| `pnpm typecheck`    | Typecheck every package with `tsc`                  |
+| `pnpm typecheck:ci` | Typecheck every package with `tsrs`, as CI does     |
+| `pnpm test`         | Run the tests                                       |
+| `pnpm fallow`       | Find unused code, duplicates, and complex functions |
+| `pnpm build`        | Build the apps                                      |
 
 Typecheck, test, and build are cached per package: a task whose inputs did not change is replayed.
 

@@ -13,8 +13,8 @@ interface PasswordChangedProps {
 export default function PasswordChangedEmail({ resetUrl }: PasswordChangedProps) {
   return (
     <EmailLayout
-      preview={`The password of your ${brand.name} account changed`}
-      reason={`You got this email because the password of your ${brand.name} account changed.`}
+      preview="If it was not you, reset your password now."
+      reason={`the password of your ${brand.name} account changed.`}
     >
       <Heading>Your password changed</Heading>
       <Text>
