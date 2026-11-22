@@ -1,3 +1,4 @@
+import { grantablePermissions } from "@quack/contracts/grants/grant";
 import type { TooManyAttempts } from "@quack/contracts/identity/identity-errors";
 import type { UserId } from "@quack/contracts/identity/user";
 import { MCP_PATH } from "@quack/contracts/api";
@@ -5,6 +6,7 @@ import type {
   AuthorizationRequestParams,
   ConsentDetails,
 } from "@quack/contracts/oauth/authorization-request";
+import type { Permission } from "@quack/contracts/permission";
 import { AuthorizationRequestRefused } from "@quack/contracts/oauth/oauth-errors";
 import { Context, DateTime, Effect, Layer, Option } from "effect";
 import { Digest, SecureRandom } from "effect/crypto";
@@ -24,7 +26,7 @@ import {
   authorizationCodeLifetime,
 } from "#/modules/identity/domain/authorization-code.ts";
 import { AuthorizationCodeStore } from "#/modules/identity/domain/authorization-code-store.ts";
-import { grantLifetime, remembersConsent } from "#/modules/identity/domain/grant.ts";
+import { grantableOf, grantLifetime, remembersConsent } from "#/modules/identity/domain/grant.ts";
 import { GrantStore } from "#/modules/identity/domain/grant-store.ts";
 
 export class AuthorizationRequests extends Context.Service<
@@ -36,6 +38,7 @@ export class AuthorizationRequests extends Context.Service<
     ): Effect.Effect<typeof ConsentDetails.Type, AuthorizationRequestRefused | TooManyAttempts>;
     approve(
       params: AuthorizationRequestParams,
+      chosen: ReadonlyArray<Permission>,
       userId: UserId,
     ): Effect.Effect<string, AuthorizationRequestRefused>;
     deny(params: AuthorizationRequestParams): Effect.Effect<string, AuthorizationRequestRefused>;
@@ -123,13 +126,24 @@ export class AuthorizationRequests extends Context.Service<
             redirectHost: request.redirectHost,
             loopbackOnly: request.loopbackOnly,
             permissions: request.permissions,
+            grantablePermissions,
             grantedPermissions: Option.getOrNull(Option.map(grant, (held) => held.permissions)),
             consentRemembered:
               rememberConsent && Option.exists(grant, (held) => remembersConsent(held, request)),
           };
         }),
-        approve: Effect.fn("AuthorizationRequests.approve")(function* (params, userId) {
+        approve: Effect.fn("AuthorizationRequests.approve")(function* (params, chosen, userId) {
           const request = yield* validate(params);
+
+          const permissions = yield* Effect.fromOption(
+            grantableOf(chosen),
+            () =>
+              new AuthorizationRequestRefused({
+                error: "invalid_scope",
+                error_description: `The approval must name some of: ${grantablePermissions.join(" ")}`,
+              }),
+          );
+
           const code = Base64Url.encode(yield* random.randomBytes(authorizationCodeBytes));
           const now = yield* DateTime.now;
 
@@ -139,7 +153,7 @@ export class AuthorizationRequests extends Context.Service<
             aiClientName: request.aiClient.name,
             redirectUri: request.redirectUri,
             resource: request.resource,
-            permissions: request.permissions,
+            permissions,
             expiresAt: DateTime.addDuration(now, grantLifetime),
           });
 
@@ -150,7 +164,7 @@ export class AuthorizationRequests extends Context.Service<
             aiClientName: request.aiClient.name,
             redirectUri: request.redirectUri,
             resource: request.resource,
-            permissions: request.permissions,
+            permissions,
             codeChallenge: request.codeChallenge,
             expiresAt: DateTime.addDuration(now, authorizationCodeLifetime),
           });

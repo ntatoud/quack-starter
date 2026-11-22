@@ -4,6 +4,7 @@ import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from "effect/http-api";
 import { Authentication } from "#/identity/authentication.ts";
 import { TooManyAttempts } from "#/identity/identity-errors.ts";
 import {
+  AuthorizationApproval,
   AuthorizationDecision,
   AuthorizationRedirect,
   AuthorizationRequest,
@@ -65,11 +66,11 @@ export class OAuthApi extends HttpApiGroup.make("oauth")
       ],
     }).annotate(RequiredPermission, "none"),
     /**
-     * The User approves the request: answers with its redirect URI, carrying a single-use
-     * authorization code, the `state`, and `iss`.
+     * The User approves the request with the Permissions they chose: answers with its redirect URI,
+     * carrying a single-use authorization code, the `state`, and `iss`.
      */
     HttpApiEndpoint.post("approveAuthorization", "/authorize/approve", {
-      payload: AuthorizationDecision,
+      payload: AuthorizationApproval,
       success: AuthorizationRedirect,
       error: decisionErrors,
     }).annotate(RequiredPermission, "none"),

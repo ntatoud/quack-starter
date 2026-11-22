@@ -1,4 +1,5 @@
 import type { UserId } from "@quack/contracts/identity/user";
+import type { Permission } from "@quack/contracts/permission";
 import { Context, type DateTime, type Effect, type Option } from "effect";
 
 import type {
@@ -44,6 +45,15 @@ export class GrantStore extends Context.Service<
         readonly grantExpiresAt: DateTime.Utc;
       },
     ): Effect.Effect<boolean>;
+    /**
+     * At once: sets the Permissions of the Grant, and of its access and refresh tokens, to `permissions`, as the User
+     * approves them in their settings. None when the User gave no Grant of this id.
+     */
+    changePermissionsOf(
+      userId: UserId,
+      grantId: string,
+      permissions: ReadonlyArray<Permission>,
+    ): Effect.Effect<Option.Option<Grant>>;
     revoke(grantId: string): Effect.Effect<void>;
     /** False when the User gave no Grant of this id. */
     revokeOf(userId: UserId, grantId: string): Effect.Effect<boolean>;

@@ -34,6 +34,8 @@ export const ConsentDetails = Schema.Struct({
   /** Every redirect URI of the document is on this machine: anything running here could be the AI Client. */
   loopbackOnly: Schema.Boolean,
   permissions: Schema.Array(Permission),
+  /** Every Permission a Grant may hold, among which the User chooses. */
+  grantablePermissions: Schema.Array(Permission),
   /** Those of the Grant the User already gave this AI Client, `null` if none. */
   grantedPermissions: Schema.NullOr(Schema.Array(Permission)),
   /** The User already gave this consent and Quack remembers it: the page approves without asking. */
@@ -53,6 +55,12 @@ export class AuthorizationRequest extends Schema.Class<
 export const AuthorizationDecision = Schema.Struct({
   ...AuthorizationRequestParams.fields,
   csrfToken: Schema.String,
+});
+
+/** The User approves the request with the Permissions they chose, which may be fewer or more than it asks. */
+export const AuthorizationApproval = Schema.Struct({
+  ...AuthorizationDecision.fields,
+  permissions: Schema.Array(Permission),
 });
 
 /** The authorization response: where the page sends the User, back to the AI Client. */

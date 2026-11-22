@@ -56,17 +56,24 @@ const setup = async (response: typeof respond) => {
   );
 };
 
-/** Answers the Grants listed, and removes a Grant on its DELETE. */
+/** Answers the Grants listed, narrows a Grant on its PATCH, and removes it on its DELETE. */
 const serving = (...grants: Array<ReturnType<typeof grant>>) => {
   const listed = [...grants];
 
-  return (request: Request) => {
+  return async (request: Request) => {
     if (request.method === "GET") return Response.json(listed);
     const id = new URL(request.url).pathname.split("/").at(-1);
-    listed.splice(
-      listed.findIndex((each) => each.id === id),
-      1,
-    );
+    const index = listed.findIndex((each) => each.id === id);
+
+    if (request.method === "PATCH") {
+      const { permissions } = (await request.json()) as Pick<typeof Grant.Encoded, "permissions">;
+      const narrowed = { ...listed[index]!, permissions };
+      listed[index] = narrowed;
+
+      return Response.json(narrowed);
+    }
+
+    listed.splice(index, 1);
 
     return new Response(null, { status: 204 });
   };
@@ -178,6 +185,114 @@ describe("GrantsList", () => {
     ).not.toBe("destructive");
   });
 
+  it("lists every Permission a Grant may hold to edit, those it holds ticked", async () => {
+    await setup(serving(agent));
+
+    await page.getByRole("button", { name: "Edit My Agent's permissions" }).click();
+
+    const dialog = page.getByRole("dialog", { name: "Edit My Agent's permissions" });
+    await expect.element(dialog.getByRole("checkbox", { name: "todos:list" })).toBeChecked();
+    await expect.element(dialog.getByRole("checkbox", { name: "todos:write" })).not.toBeChecked();
+    await expect.element(dialog.getByRole("checkbox", { name: "todos:delete" })).not.toBeChecked();
+  });
+
+  it("reviews nothing unchanged, and never none: revoking covers that", async () => {
+    await setup(serving(agent));
+    await page.getByRole("button", { name: "Edit My Agent's permissions" }).click();
+    const review = page.getByRole("button", { name: "Review" });
+
+    await expect.element(review).toBeDisabled();
+    await page.getByRole("checkbox", { name: "todos:list" }).click();
+    await expect.element(review).toBeDisabled();
+    await page.getByRole("checkbox", { name: "todos:write" }).click();
+    await expect.element(review).toBeEnabled();
+  });
+
+  it("states what the AI Client gains and loses, and makes every change at once on confirm", async () => {
+    await setup(serving(grant("claude", "Claude", { permissions: ["todos:list", "todos:write"] })));
+    const edit = page.getByRole("button", { name: "Edit Claude's permissions" });
+
+    await edit.click();
+    await page.getByRole("checkbox", { name: "todos:write" }).click();
+    await page.getByRole("checkbox", { name: "todos:delete" }).click();
+    await page.getByRole("button", { name: "Review" }).click();
+
+    const review = page.getByRole("dialog", { name: "Change Claude's permissions?" });
+    await expect
+      .element(review)
+      .toHaveAccessibleDescription(
+        "Claude gains todos:delete and loses todos:write, from its next call.",
+      );
+    // Each Permission as the entry shows it: a badge, in the destructive style for a delete.
+    expect(
+      [...review.element().querySelectorAll("[data-variant]")].map((badge) => [
+        badge.textContent,
+        badge.getAttribute("data-variant"),
+      ]),
+    ).toEqual([
+      ["todos:delete", "destructive"],
+      ["todos:write", "secondary"],
+    ]);
+    expect(fetch.mock.calls.filter(([, init]) => init?.method === "PATCH")).toEqual([]);
+
+    await review.getByRole("button", { name: "Confirm" }).click();
+
+    await expect.element(review).not.toBeInTheDocument();
+    const badges = entry("Claude").getByRole("list", { name: "Permissions" }).getByRole("listitem");
+    await expect
+      .poll(() => badges.elements().map((badge) => badge.textContent))
+      .toEqual(["todos:list", "todos:delete"]);
+    await expect.element(edit).toHaveFocus();
+
+    const patched = fetch.mock.calls
+      .map(([input, init]) => new Request(input, init))
+      .filter((request) => request.method === "PATCH");
+
+    expect(patched.map((request) => new URL(request.url).pathname)).toEqual(["/api/grants/claude"]);
+    expect(await patched[0]?.json()).toEqual({ permissions: ["todos:list", "todos:delete"] });
+  });
+
+  it("goes back from the review to the choice, as it was left", async () => {
+    await setup(serving(agent));
+    await page.getByRole("button", { name: "Edit My Agent's permissions" }).click();
+    await page.getByRole("checkbox", { name: "todos:write" }).click();
+    await page.getByRole("button", { name: "Review" }).click();
+
+    await page.getByRole("button", { name: "Back" }).click();
+
+    await expect.element(page.getByRole("checkbox", { name: "todos:list" })).toBeChecked();
+    await expect.element(page.getByRole("checkbox", { name: "todos:write" })).toBeChecked();
+  });
+
+  it("changes nothing on cancel, and gives the focus back", async () => {
+    await setup(serving(agent));
+    const edit = page.getByRole("button", { name: "Edit My Agent's permissions" });
+    await edit.click();
+    await page.getByRole("checkbox", { name: "todos:write" }).click();
+
+    await page.getByRole("button", { name: "Cancel" }).click();
+
+    await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
+    await expect.element(edit).toHaveFocus();
+    expect(fetch.mock.calls.filter(([, init]) => init?.method === "PATCH")).toEqual([]);
+  });
+
+  it("says when the change cannot be made, and keeps the review open to try again", async () => {
+    await setup((request) =>
+      request.method === "GET" ? Response.json([agent]) : new Response(null, { status: 500 }),
+    );
+    await page.getByRole("button", { name: "Edit My Agent's permissions" }).click();
+    await page.getByRole("checkbox", { name: "todos:write" }).click();
+    await page.getByRole("button", { name: "Review" }).click();
+
+    await page.getByRole("button", { name: "Confirm" }).click();
+
+    await expect
+      .element(page.getByRole("dialog").getByRole("alert"))
+      .toHaveTextContent("Could not change My Agent's permissions. Try again.");
+    await expect.element(page.getByRole("button", { name: "Confirm" })).toBeEnabled();
+  });
+
   it("offers to revoke each AI Client on its own, and never all at once", async () => {
     await setup(serving(claude, agent));
 
@@ -231,7 +346,10 @@ describe("GrantsList", () => {
     await page.getByRole("button", { name: "Revoke access" }).click();
 
     await expect.element(entry("My Agent")).not.toBeInTheDocument();
-    await expect.element(page.getByRole("button", { name: "Revoke Claude" })).toHaveFocus();
+    // The first control of the next entry.
+    await expect
+      .element(page.getByRole("button", { name: "Edit Claude's permissions" }))
+      .toHaveFocus();
   });
 
   it("says when a Grant cannot be revoked, and keeps it", async () => {

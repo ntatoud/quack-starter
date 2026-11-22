@@ -3,7 +3,9 @@ import type {
   AuthorizationRequest,
   AuthorizationRequestParams,
 } from "@quack/contracts/oauth/authorization-request";
+import type { Permission } from "@quack/contracts/permission";
 import { Button } from "@quack/ui/components/button";
+import { Checkbox } from "@quack/ui/components/checkbox";
 import {
   Empty,
   EmptyContent,
@@ -11,9 +13,18 @@ import {
   EmptyHeader,
   EmptyTitle,
 } from "@quack/ui/components/empty";
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+} from "@quack/ui/components/field";
 import { Skeleton } from "@quack/ui/components/skeleton";
 import { matchQuery } from "@quack/ui-state/query";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { ChevronDownIcon, TriangleAlertIcon } from "lucide-react";
 
 import { tooManyAttemptsMessage } from "#/features/identity/too-many-attempts-message.ts";
@@ -21,6 +32,7 @@ import { authorizationCheckOptions } from "#/features/oauth/authorization-check.
 import { consentAsk, consentSentence } from "#/features/oauth/consent-sentence.ts";
 import { userLabel } from "#/features/users/full-name.ts";
 import { api } from "#/lib/api.ts";
+import { toggled } from "#/lib/toggled.ts";
 
 export interface ConsentPromptProps {
   readonly params: AuthorizationRequestParams;
@@ -101,8 +113,22 @@ function ConsentQuestion({
   onRedirect,
   onSwitchAccount,
 }: ConsentPromptProps & { readonly request: AuthorizationRequest }) {
-  const { aiClient } = request;
+  const { aiClient, grantedPermissions } = request;
+
+  // Unticking what the Grant holds takes it away, so it starts ticked as what the AI Client asks for.
+  const [ticked, setTicked] = useState<ReadonlySet<Permission>>(
+    () => new Set([...request.permissions, ...(grantedPermissions ?? [])]),
+  );
+
   const decision = { payload: { ...params, csrfToken: request.csrfToken } };
+
+  const approval = {
+    payload: {
+      ...decision.payload,
+      permissions: request.grantablePermissions.filter((permission) => ticked.has(permission)),
+    },
+  };
+
   const onSuccess = ({ redirectTo }: { readonly redirectTo: string }) => onRedirect(redirectTo);
   const approve = useMutation(api.oauth.approveAuthorization.mutationOptions({ onSuccess }));
   const deny = useMutation(api.oauth.denyAuthorization.mutationOptions({ onSuccess }));
@@ -142,12 +168,36 @@ function ConsentQuestion({
           </p>
         </div>
       )}
+      <FieldSet className="gap-3">
+        <FieldLegend variant="label">Permissions</FieldLegend>
+        {request.grantablePermissions.map((permission) => (
+          <Field key={permission} orientation="horizontal">
+            <Checkbox
+              checked={ticked.has(permission)}
+              disabled={deciding}
+              onCheckedChange={(checked) =>
+                setTicked((current) => toggled(current, permission, checked === true))
+              }
+            />
+            <FieldContent>
+              <FieldLabel>
+                <code>{permission}</code>
+              </FieldLabel>
+              {grantedPermissions !== null && (
+                <FieldDescription className="text-xs">
+                  {grantedPermissions.includes(permission) ? "Already given" : "New"}
+                </FieldDescription>
+              )}
+            </FieldContent>
+          </Field>
+        ))}
+      </FieldSet>
       <div className="flex flex-col gap-2">
         <Button
           size="lg"
           className="h-12 w-full text-base"
-          disabled={deciding}
-          onClick={() => approve.mutate(decision)}
+          disabled={deciding || ticked.size === 0}
+          onClick={() => approve.mutate(approval)}
         >
           Approve
         </Button>
@@ -173,21 +223,6 @@ function ConsentQuestion({
             The name “{aiClient.name}” is what the AI Client says it is. Only {aiClient.host} is
             verified.
           </p>
-          <ul className="flex flex-col gap-1">
-            {request.permissions.map((permission) => (
-              <li key={permission} className="flex items-baseline justify-between gap-3">
-                <code className="font-medium">{permission}</code>
-                {ask._tag !== "First" && (
-                  <span className="text-xs text-muted-foreground">
-                    <span className="sr-only">: </span>
-                    {ask._tag === "More" && ask.added.includes(permission)
-                      ? "New"
-                      : "Already given"}
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
         </div>
       </details>
       <p className="text-center text-sm text-muted-foreground">

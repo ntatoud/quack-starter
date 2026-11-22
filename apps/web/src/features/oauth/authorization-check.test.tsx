@@ -15,7 +15,8 @@ const checked = (consentRemembered: boolean) => ({
   redirectHost: "claude.ai",
   loopbackOnly: false,
   permissions: ["todos:list"],
-  grantedPermissions: ["todos:list"],
+  grantablePermissions: ["todos:list", "todos:write", "todos:delete"],
+  grantedPermissions: ["todos:list", "todos:write"],
   consentRemembered,
   csrfToken: "the-csrf-token",
 });
@@ -60,7 +61,7 @@ describe("authorizationParamsOf", () => {
 });
 
 describe("rememberedConsentRedirect", () => {
-  it("approves at once when Quack remembers the consent, and leads back to the AI Client", async () => {
+  it("approves at once, with what the Grant holds, when Quack remembers the consent", async () => {
     expect(
       await redirectFor({
         check: () => Response.json(checked(true)),
@@ -69,7 +70,7 @@ describe("rememberedConsentRedirect", () => {
     ).toBe(approved);
     expect(sent.at(-1)).toEqual({
       path: "/api/oauth/authorize/approve",
-      body: { ...params, csrfToken: "the-csrf-token" },
+      body: { ...params, csrfToken: "the-csrf-token", permissions: ["todos:list", "todos:write"] },
     });
   });
 

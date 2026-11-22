@@ -64,6 +64,28 @@ export const GrantStoreMemory = Layer.sync(GrantStore, () => {
           grants.set(keyOf(grant.userId, grant.aiClientId), { ...grant, lastUsedAt: at });
         }
       }),
+    changePermissionsOf: (userId, grantId, permissions) =>
+      Effect.sync(() =>
+        Option.map(
+          Option.filter(byId(grantId), (grant) => grant.userId === userId),
+          (grant) => {
+            const changed = { ...grant, permissions };
+
+            grants.set(keyOf(grant.userId, grant.aiClientId), changed);
+
+            for (const [tokenHash, token] of accessTokens) {
+              if (token.grantId === grantId) accessTokens.set(tokenHash, { ...token, permissions });
+            }
+
+            for (const [tokenHash, token] of refreshTokens) {
+              if (token.grantId === grantId)
+                refreshTokens.set(tokenHash, { ...token, permissions });
+            }
+
+            return changed;
+          },
+        ),
+      ),
     saveAccessToken: (token) => Effect.sync(() => void accessTokens.set(token.tokenHash, token)),
     findByAccessToken: (tokenHash) =>
       Effect.sync(() =>

@@ -592,7 +592,11 @@ describe("server routes of an AI Client", () => {
     scope: "todos:list todos:write",
   };
 
-  const post = (path: string, body: Readonly<Record<string, string>>, cookie: string) =>
+  const post = (
+    path: string,
+    body: Readonly<Record<string, string | ReadonlyArray<string>>>,
+    cookie: string,
+  ) =>
     handler(
       new Request(new URL(path, "http://api.test"), {
         method: "POST",
@@ -601,13 +605,24 @@ describe("server routes of an AI Client", () => {
       }),
     );
 
-  /** The User of `cookie` approves the AI Client on the consent page: answers the code it gets back. */
+  /**
+   * The User of `cookie` approves the AI Client on the consent page, with the Permissions it asks for: answers the
+   * code it gets back.
+   */
   const approvedCode = async (cookie: string, scope = authorizationRequest.scope) => {
     const request = { ...authorizationRequest, scope };
     const check = await post("/api/oauth/authorize/check", request, cookie);
-    const { csrfToken } = (await check.json()) as { csrfToken: string };
 
-    const approved = await post("/api/oauth/authorize/approve", { ...request, csrfToken }, cookie);
+    const { csrfToken, permissions } = (await check.json()) as {
+      csrfToken: string;
+      permissions: ReadonlyArray<string>;
+    };
+
+    const approved = await post(
+      "/api/oauth/authorize/approve",
+      { ...request, csrfToken, permissions },
+      cookie,
+    );
 
     const { redirectTo } = (await approved.json()) as { redirectTo: string };
 
@@ -654,6 +669,7 @@ describe("server routes of an AI Client", () => {
     name: string,
     accessToken: string,
     overrides: Readonly<Record<string, string | undefined>> = {},
+    toolArguments: Readonly<Record<string, string>> = {},
   ) =>
     handler(
       new Request("http://api.test/api/mcp", {
@@ -673,7 +689,7 @@ describe("server routes of an AI Client", () => {
           method: "tools/call",
           params: {
             name,
-            arguments: {},
+            arguments: toolArguments,
             _meta: statelessMeta,
           },
         }),
@@ -717,6 +733,66 @@ describe("server routes of an AI Client", () => {
 
     expect(revoked.status).toBe(204);
     expect((await callTool("todos_list", access_token)).status).toBe(401);
+  });
+
+  it("the User removes a Permission of an AI Client: its next call needing it steps up, its other tools still work", async () => {
+    const cookie = await sessionCookieOf("ai-client-narrowed@example.com", "203.0.113.92");
+    const token = await exchange(await approvedCode(cookie, "todos:list todos:write todos:delete"));
+    const { access_token } = (await token.json()) as Tokens;
+    expect((await callTool("todos_remove", access_token)).status).not.toBe(403);
+
+    const listed = await handler(
+      new Request("http://api.test/api/grants", { headers: { cookie } }),
+    );
+
+    const [grant] = (await listed.json()) as Array<{ id: string }>;
+
+    const narrowed = await handler(
+      new Request(`http://api.test/api/grants/${grant?.id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json", cookie },
+        body: JSON.stringify({ permissions: ["todos:list", "todos:write"] }),
+      }),
+    );
+
+    expect(narrowed.status).toBe(200);
+
+    const refused = await callTool("todos_remove", access_token);
+
+    expect(refused.status).toBe(403);
+    expect(refused.headers.get("www-authenticate")).toBe(
+      'Bearer error="insufficient_scope", scope="todos:list todos:write todos:delete", resource_metadata="https://quack.test/.well-known/oauth-protected-resource/api/mcp"',
+    );
+    expect((await callTool("todos_list", access_token)).status).toBe(200);
+  });
+
+  it("the User adds a Permission to an AI Client: its next call needing it works, with no consent page", async () => {
+    const cookie = await sessionCookieOf("ai-client-widened@example.com", "203.0.113.93");
+    const token = await exchange(await approvedCode(cookie, "todos:list"));
+    const { access_token } = (await token.json()) as Tokens;
+    const create = () => callTool("todos_create", access_token, {}, { title: "Feed the ducks" });
+    expect((await create()).status).toBe(403);
+
+    const listed = await handler(
+      new Request("http://api.test/api/grants", { headers: { cookie } }),
+    );
+
+    const [grant] = (await listed.json()) as Array<{ id: string }>;
+
+    const changed = await handler(
+      new Request(`http://api.test/api/grants/${grant?.id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json", cookie },
+        body: JSON.stringify({ permissions: ["todos:list", "todos:write"] }),
+      }),
+    );
+
+    expect(changed.status).toBe(200);
+    expect((await create()).status).toBe(200);
+
+    const todos = await handler(new Request("http://api.test/api/todos", { headers: { cookie } }));
+
+    expect(await todos.text()).toContain("Feed the ducks");
   });
 
   it("an AI Client refreshes its tokens, until it presents a replaced refresh token: then its Grant is revoked", async () => {

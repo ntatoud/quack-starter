@@ -1,6 +1,10 @@
 import { Schema } from "effect";
 
 import { Permission } from "#/permission.ts";
+import { TodosPermission } from "#/todos/todos-permissions.ts";
+
+/** The Permissions a Grant may hold: those of the contexts exposed to AI Clients, never `users:*`. */
+export const grantablePermissions = TodosPermission.literals;
 
 export const GrantId = Schema.String.pipe(Schema.brand("GrantId"));
 

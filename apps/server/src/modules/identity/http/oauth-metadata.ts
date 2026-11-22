@@ -1,9 +1,10 @@
+import { grantablePermissions } from "@quack/contracts/grants/grant";
 import { Api, MCP_PATH } from "@quack/contracts/api";
 import { Effect } from "effect";
 import { HttpMiddleware, HttpRouter, HttpServerResponse } from "effect/http";
 
 import { ServerConfig } from "#/config.ts";
-import { basicPermissions, grantablePermissions } from "#/modules/identity/domain/grant.ts";
+import { basicPermissions } from "#/modules/identity/domain/grant.ts";
 
 // AI Clients read them from any origin, a browser among them, and they hold nothing of a User's.
 const readableByAnyOrigin = HttpMiddleware.cors({ allowedMethods: ["GET"] });

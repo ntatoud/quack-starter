@@ -1,4 +1,4 @@
-import type { Permission } from "@quack/contracts/permission";
+import { grantablePermissions } from "@quack/contracts/grants/grant";
 import type { AuthorizationRequestParams } from "@quack/contracts/oauth/authorization-request";
 import {
   type AuthorizationErrorCode,
@@ -6,7 +6,7 @@ import {
 } from "@quack/contracts/oauth/oauth-errors";
 import { Context, Effect, Option, Schema } from "effect";
 
-import { type GrantTerms, grantablePermissions } from "#/modules/identity/domain/grant.ts";
+import { type GrantTerms, grantableOf } from "#/modules/identity/domain/grant.ts";
 import { isLoopback, redirectUriMatches } from "#/modules/identity/domain/redirect-uri.ts";
 
 /** The document an AI Client is known by, served at its `client_id` (Client ID Metadata Document). */
@@ -100,15 +100,6 @@ const isRedirectable = (uri: string) => {
   );
 };
 
-const permissionsOf = (scope: string | undefined): Option.Option<ReadonlyArray<Permission>> => {
-  const requested = new Set((scope ?? "").split(" ").filter((name) => name !== ""));
-  const grantable: ReadonlySet<string> = new Set(grantablePermissions);
-
-  return requested.size > 0 && [...requested].every((name) => grantable.has(name))
-    ? Option.some(grantablePermissions.filter((permission) => requested.has(permission)))
-    : Option.none();
-};
-
 /** An authorization request Quack has verified: the AI Client's document lists its redirect URI. */
 export interface ValidAuthorizationRequest extends GrantTerms {
   readonly aiClient: {
@@ -183,7 +174,7 @@ export const checkAuthorizationRequest = Effect.fn(function* (
     return yield* refused("invalid_target", `resource must be ${server.mcpResource}`, redirectUri);
   }
 
-  const permissions = permissionsOf(params.scope);
+  const permissions = grantableOf((params.scope ?? "").split(" ").filter((name) => name !== ""));
 
   if (Option.isNone(permissions)) {
     return yield* refused(

@@ -24,11 +24,13 @@ export const OAuthHandlers = HttpApiBuilder.group(
 
         return new AuthorizationRequest({ ...prompt, csrfToken: yield* csrf.ofSession });
       }),
-      approveAuthorization: Effect.fn(function* ({ payload: { csrfToken, ...params } }) {
+      approveAuthorization: Effect.fn(function* ({
+        payload: { csrfToken, permissions, ...params },
+      }) {
         yield* csrf.verify(csrfToken);
         const user = yield* CurrentUser;
 
-        return { redirectTo: yield* requests.approve(params, user.id) };
+        return { redirectTo: yield* requests.approve(params, permissions, user.id) };
       }),
       denyAuthorization: Effect.fn(function* ({ payload: { csrfToken, ...params } }) {
         yield* csrf.verify(csrfToken);

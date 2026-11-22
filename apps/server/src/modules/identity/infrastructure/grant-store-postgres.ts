@@ -166,6 +166,26 @@ export const GrantStorePostgres = Layer.effect(
         sql`UPDATE grants SET expires_at = ${expiresAt} WHERE id = ${id}`,
     });
 
+    const changePermissionsOf = SqlSchema.findOneOption({
+      Request: GrantRow.mapFields(Struct.pick(["id", "userId", "permissions"])),
+      Result: GrantRow,
+      // One statement, so no token keeps the Permissions the Grant had.
+      execute: ({ id, userId, permissions }) => sql`
+        WITH changed AS (
+          UPDATE grants SET permissions = ${permissions}::text[]
+          WHERE id = ${id} AND user_id = ${userId}
+          RETURNING ${grantColumns}
+        ), access AS (
+          UPDATE grant_access_tokens SET permissions = ${permissions}::text[]
+          WHERE grant_id IN (SELECT id FROM changed)
+        ), refresh AS (
+          UPDATE grant_refresh_tokens SET permissions = ${permissions}::text[]
+          WHERE grant_id IN (SELECT id FROM changed)
+        )
+        SELECT ${grantColumns} FROM changed
+      `,
+    });
+
     const revoke = SqlSchema.void({
       Request: Schema.String,
       execute: (id) => sql`DELETE FROM grants WHERE id = ${id}`,
@@ -263,6 +283,11 @@ export const GrantStorePostgres = Layer.effect(
             return true;
           }).pipe(sql.withTransaction, Effect.orDie);
         },
+      ),
+      changePermissionsOf: Effect.fn("GrantStore.changePermissionsOf")((userId, id, permissions) =>
+        isStorableId(userId) && isStorableId(id)
+          ? changePermissionsOf({ id, userId, permissions }).pipe(Effect.orDie)
+          : Effect.succeedNone,
       ),
       revoke: Effect.fn("GrantStore.revoke")((id) => revoke(id).pipe(Effect.orDie)),
       revokeOf: Effect.fn("GrantStore.revokeOf")((userId, id) =>
