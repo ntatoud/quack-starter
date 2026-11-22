@@ -223,6 +223,13 @@ describe("GrantsList", () => {
       .toHaveAccessibleDescription(
         "Claude gains todos:delete and loses todos:write, from its next call.",
       );
+    // What it gains, as the entry shows it: a badge, in the destructive style for a delete.
+    expect(
+      [...review.element().querySelectorAll("[data-variant]")].map((badge) => [
+        badge.textContent,
+        badge.getAttribute("data-variant"),
+      ]),
+    ).toEqual([["todos:delete", "destructive"]]);
     expect(fetch.mock.calls.filter(([, init]) => init?.method === "PATCH")).toEqual([]);
 
     await review.getByRole("button", { name: "Confirm" }).click();

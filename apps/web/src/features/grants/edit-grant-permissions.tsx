@@ -15,26 +15,43 @@ import {
 import { Field, FieldLabel, FieldSet } from "@quack/ui/components/field";
 import { useMutation } from "@tanstack/react-query";
 import { Array as Arr } from "effect";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 
+import { PermissionBadge } from "#/features/grants/permission-badge.tsx";
 import { api } from "#/lib/api.ts";
 import { invalidating } from "#/lib/invalidate-queries.ts";
-import { listOf } from "#/lib/list-of.ts";
+import { listOf, listParts } from "#/lib/list-of.ts";
 import { toggled } from "#/lib/toggled.ts";
 
-/** "Claude gains todos:delete and loses todos:write, from its next call." */
-const changeSentence = (
-  name: string,
-  added: ReadonlyArray<Permission>,
-  removed: ReadonlyArray<Permission>,
-) => {
-  const changes = [
-    ...(added.length > 0 ? [`gains ${listOf(added)}`] : []),
-    ...(removed.length > 0 ? [`loses ${listOf(removed)}`] : []),
-  ];
-
-  return `${name} ${changes.join(" and ")}, from its next call.`;
-};
+/** "Claude gains todos:delete and loses todos:write, from its next call.", what it gains as badges. */
+function ChangeSentence({
+  name,
+  added,
+  removed,
+}: {
+  name: string;
+  added: ReadonlyArray<Permission>;
+  removed: ReadonlyArray<Permission>;
+}) {
+  return (
+    <>
+      {name}
+      {added.length > 0 && (
+        <>
+          {" gains "}
+          {listParts(added).map(({ separator, word }) => (
+            <Fragment key={word}>
+              {separator}
+              <PermissionBadge permission={word} />
+            </Fragment>
+          ))}
+        </>
+      )}
+      {added.length > 0 && removed.length > 0 && " and"}
+      {removed.length > 0 && ` loses ${listOf(removed)}`}, from its next call.
+    </>
+  );
+}
 
 /**
  * The User chooses the Permissions of the Grant, fewer or more, then reviews what changes before it does: all at once,
@@ -54,7 +71,12 @@ export function EditGrantPermissions({ grant }: { grant: Grant }) {
   const added = chosen.filter((permission) => !grant.permissions.includes(permission));
   const removed = grant.permissions.filter((permission) => !ticked.has(permission));
   const title = `Change ${name}'s permissions?`;
-  const consequence = changeSentence(name, added, removed);
+
+  // The sentence of `ChangeSentence`, as text for an agent.
+  const consequence = `${name} ${[
+    ...(added.length > 0 ? [`gains ${listOf(added)}`] : []),
+    ...(removed.length > 0 ? [`loses ${listOf(removed)}`] : []),
+  ].join(" and ")}, from its next call.`;
 
   return (
     <Dialog
@@ -80,7 +102,9 @@ export function EditGrantPermissions({ grant }: { grant: Grant }) {
           <>
             <DialogHeader>
               <DialogTitle>{title}</DialogTitle>
-              <DialogDescription>{consequence}</DialogDescription>
+              <DialogDescription>
+                <ChangeSentence name={name} added={added} removed={removed} />
+              </DialogDescription>
             </DialogHeader>
             <p role="alert" className="text-sm text-destructive empty:hidden">
               {change.isError ? `Could not change ${name}'s permissions. Try again.` : ""}

@@ -17,6 +17,7 @@ import { DateTime } from "effect";
 import { useState } from "react";
 
 import { EditGrantPermissions } from "#/features/grants/edit-grant-permissions.tsx";
+import { PermissionBadge } from "#/features/grants/permission-badge.tsx";
 import { api } from "#/lib/api.ts";
 import { invalidating } from "#/lib/invalidate-queries.ts";
 import { listOf } from "#/lib/list-of.ts";
@@ -52,10 +53,7 @@ export function GrantEntry({
         <ul aria-label="Permissions" className="flex flex-wrap gap-1">
           {grant.permissions.map((permission) => (
             <li key={permission}>
-              {/* What a delete removes, a User cannot get back. */}
-              <Badge variant={permission.endsWith(":delete") ? "destructive" : "secondary"}>
-                {permission}
-              </Badge>
+              <PermissionBadge permission={permission} />
             </li>
           ))}
         </ul>
