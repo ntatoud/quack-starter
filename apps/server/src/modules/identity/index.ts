@@ -6,6 +6,8 @@ import { Onboarding } from "#/modules/identity/application/onboarding.ts";
 import { devAccountIds, IdentitySeed } from "#/modules/identity/application/identity-seed.ts";
 import { Users } from "#/modules/identity/application/users.ts";
 import { AuthenticationMiddleware } from "#/modules/identity/http/authentication-middleware.ts";
+import { authorize } from "#/modules/identity/http/authorize.ts";
+import { McpCaller } from "#/modules/identity/http/mcp-caller.ts";
 import { IdentityHandlers } from "#/modules/identity/http/identity-handlers.ts";
 import { OAuthMetadataRoutes } from "#/modules/identity/http/oauth-metadata.ts";
 import { SessionCookie } from "#/modules/identity/http/session-cookie.ts";
@@ -15,7 +17,7 @@ import { PasswordHasherArgon2 } from "#/modules/identity/infrastructure/password
 import { SessionStorePostgres } from "#/modules/identity/infrastructure/session-store-postgres.ts";
 import { UserRepositoryPostgres } from "#/modules/identity/infrastructure/user-repository-postgres.ts";
 
-export { devAccountIds, IdentitySeed, OAuthMetadataRoutes };
+export { authorize, devAccountIds, IdentitySeed, McpCaller, OAuthMetadataRoutes };
 
 export const IdentityPostgres = Layer.mergeAll(UserRepositoryPostgres, SessionStorePostgres);
 

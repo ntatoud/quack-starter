@@ -7,4 +7,8 @@ export class TodoNotFound extends Schema.TaggedError<
   { readonly brand: unique symbol }
 >()("TodoNotFound", {
   id: TodoId,
-}) {}
+}) {
+  override get message() {
+    return `No Todo has the id ${this.id}`;
+  }
+}

@@ -18,6 +18,7 @@
     "@effect/platform-node": "catalog:",
     "@effect/sql-pg": "catalog:",
     "@faker-js/faker": "10.6.0",
+    "@quack/brand": "workspace:*",
     "@quack/contracts": "workspace:*",
     "effect": "catalog:"
   },

@@ -7,5 +7,4 @@ const permissionsOf: Readonly<Record<Role, ReadonlySet<Permission>>> = {
   admin: new Set(Permission.literals),
 };
 
-export const roleAllows = (role: Role, permission: Permission) =>
-  permissionsOf[role].has(permission);
+export const rolePermissions = (role: Role): ReadonlySet<Permission> => permissionsOf[role];
