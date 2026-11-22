@@ -106,6 +106,7 @@ export class Identity extends Context.Service<
 
           yield* users.create(user, yield* hasher.hash(password));
           yield* Effect.logInfo("User signed up").pipe(Effect.annotateLogs("user.id", user.id));
+
           return { user, session: yield* openSession(user) };
         }),
         signIn: Effect.fn("Identity.signIn")(function* (email, password, ip) {
@@ -121,6 +122,7 @@ export class Identity extends Context.Service<
             // The slow step of a sign-in, done for nothing: without it, a fast answer would say that no User has this email.
             yield* hasher.hash(password);
             yield* Effect.logWarning("Sign-in failed: no User has this email");
+
             return yield* new InvalidCredentials();
           }
 
@@ -131,6 +133,7 @@ export class Identity extends Context.Service<
             yield* Effect.logWarning("Sign-in failed").pipe(
               Effect.annotateLogs("user.id", found.value.user.id),
             );
+
             return yield* new InvalidCredentials();
           }
 

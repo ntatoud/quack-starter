@@ -1,4 +1,4 @@
-# 0003: Telemetry through Effect's own OTLP exporters, not the OpenTelemetry SDK
+# 0006: Telemetry through Effect's own OTLP exporters, not the OpenTelemetry SDK
 
 Accepted, 2026-11-21.
 

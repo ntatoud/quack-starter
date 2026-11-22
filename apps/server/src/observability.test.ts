@@ -1,7 +1,9 @@
-import { Cause, Effect, Layer, Logger, References, Tracer } from "effect";
-import { HttpRouter, HttpServer } from "effect/http";
+import { Cause, ConfigProvider, Effect, Layer, Logger, References, Tracer } from "effect";
+import { FetchHttpClient, HttpRouter, HttpServer } from "effect/http";
 import { afterAll, describe, expect, it } from "vite-plus/test";
 
+import { AuthorizationCodeStoreMemory } from "#/modules/identity/testing/authorization-code-store-memory.ts";
+import { GrantStoreMemory } from "#/modules/identity/testing/grant-store-memory.ts";
 import { SessionStoreMemory } from "#/modules/identity/testing/session-store-memory.ts";
 import { UserRepositoryMemory } from "#/modules/identity/testing/user-repository-memory.ts";
 import { TodoRepository } from "#/modules/todos/domain/todo-repository.ts";
@@ -9,36 +11,36 @@ import { requestLogger } from "#/observability.ts";
 import { Routes } from "#/server.ts";
 
 const spans: Array<Tracer.NativeSpan> = [];
+
 const RecordingTracer = Layer.succeed(
   Tracer.Tracer,
   Tracer.make({
     span(options) {
       const span = new Tracer.NativeSpan(options);
       spans.push(span);
+
       return span;
     },
   }),
 );
 
-interface Entry {
-  readonly level: string;
-  readonly message: unknown;
-  readonly cause: Cause.Cause<unknown>;
-  readonly annotations: Readonly<Record<string, unknown>>;
-}
-const entries: Array<Entry> = [];
+const entryOf = ({ logLevel, message, cause, fiber }: Logger.Options<unknown>) => ({
+  level: logLevel,
+  message,
+  cause,
+  annotations: fiber.getRef(References.CurrentLogAnnotations),
+});
+
+const entries: Array<ReturnType<typeof entryOf>> = [];
+
 const RecordingLogger = Logger.layer([
-  Logger.make(({ logLevel, message, cause, fiber }) => {
-    entries.push({
-      level: logLevel,
-      message,
-      cause,
-      annotations: fiber.getRef(References.CurrentLogAnnotations),
-    });
+  Logger.make((options) => {
+    entries.push(entryOf(options));
   }),
 ]);
 
 const todosCrash = "the todos table is on fire";
+
 const BrokenTodoRepository = Layer.succeed(
   TodoRepository,
   TodoRepository.of({
@@ -56,7 +58,11 @@ const { handler, dispose } = HttpRouter.toWebHandler(
       HttpServer.layerServices,
       UserRepositoryMemory,
       SessionStoreMemory,
+      AuthorizationCodeStoreMemory,
+      GrantStoreMemory,
       BrokenTodoRepository,
+      ConfigProvider.layer(ConfigProvider.fromUnknown({ PUBLIC_URL: "https://quack.test" })),
+      FetchHttpClient.layer,
     ]),
     Layer.provideMerge([RecordingTracer, RecordingLogger]),
   ),
@@ -73,7 +79,9 @@ const signUp = async (email: string) => {
       body: JSON.stringify({ email, password: "correct horse battery staple" }),
     }),
   );
+
   const user = (await response.json()) as { id: string };
+
   return { id: user.id, cookie: response.headers.getSetCookie()[0]?.split(";")[0] ?? "" };
 };
 
@@ -121,9 +129,11 @@ describe("observability", () => {
     );
 
     expect(response.status).toBe(500);
+
     const line = entries.find(
       (entry) => entry.annotations["http.path"] === "/api/todos" && entry.level === "Error",
     );
+
     expect(line?.annotations).toMatchObject({
       "http.method": "GET",
       "http.route": "/api/todos",

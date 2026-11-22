@@ -63,6 +63,7 @@ export class Users extends Context.Service<
           yield* Effect.logInfo("Admin changed the access of a User").pipe(
             Effect.annotateLogs({ "user.id": by, "target.user.id": id, changes }),
           );
+
           return user;
         }),
         remove: Effect.fn("Users.remove")(function* (id, by) {

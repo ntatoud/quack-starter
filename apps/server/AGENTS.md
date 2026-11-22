@@ -27,7 +27,7 @@ To add a context, copy `modules/todos`:
 
 ## Logs and traces
 
-`main.ts` provides `Observability` (`observability.ts`): the console, and OTLP when `OTEL_EXPORTER_OTLP_ENDPOINT` is set (`docs/adr/0003-telemetry-through-effect-otlp-exporters.md`). A script provides `ConsoleLogger` instead.
+`main.ts` provides `Observability` (`observability.ts`): the console, and OTLP when `OTEL_EXPORTER_OTLP_ENDPOINT` is set (`docs/adr/0006-telemetry-through-effect-otlp-exporters.md`). A script provides `ConsoleLogger` instead.
 
 - A span comes from each `Effect.fn("Service.method")`, each request, and each SQL statement. Add `Effect.withSpan` only around a step that is none of these and worth timing.
 - The server writes one line per response, at `Error` with its cause for a 5xx. A handler logs no error of its own: an expected error (404, 401, 409) shows in that line's status.
