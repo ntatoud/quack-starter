@@ -67,6 +67,32 @@ describe("server routes", () => {
     expect(await listed.json()).toEqual([todo]);
   });
 
+  it("answers 404 TodoNotFound to a user who completes a Todo of another Owner, though they may write Todos", async () => {
+    const cookieOf = async (email: string) =>
+      (await signUp(email, { from: "203.0.113.60" })).headers.getSetCookie()[0]?.split(";")[0] ??
+      "";
+    const owner = await cookieOf("dorothy@example.com");
+    const other = await cookieOf("hedy@example.com");
+    const created = await handler(
+      new Request("http://api.test/api/todos", {
+        method: "POST",
+        headers: { "content-type": "application/json", cookie: owner },
+        body: JSON.stringify({ title: "Mine" }),
+      }),
+    );
+    const { id } = (await created.json()) as { id: string };
+
+    const response = await handler(
+      new Request(`http://api.test/api/todos/${id}/complete`, {
+        method: "POST",
+        headers: { cookie: other },
+      }),
+    );
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toMatchObject({ _tag: "TodoNotFound" });
+  });
+
   it("answers /api/todos with 401 Unauthenticated when the request has no session cookie", async () => {
     const response = await get("/api/todos");
 

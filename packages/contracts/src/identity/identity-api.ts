@@ -46,7 +46,6 @@ export class IdentityApi extends HttpApiGroup.make("identity").add(
     ],
   }),
   HttpApiEndpoint.post("signOut", "/sign-out"),
-  /** Any signed-in caller may read who they act as. */
   HttpApiEndpoint.get("me", "/me", {
     success: User,
   })
