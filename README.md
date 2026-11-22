@@ -41,6 +41,16 @@ The first start adds a local certificate authority to the system trust store. `p
 
 `PORTLESS=0 pnpm dev` runs the apps without portless: the web app on http://localhost:3000, the API on http://localhost:3001, reached through `API_URL`, with `PUBLIC_URL` from `.env`.
 
+## Connect an AI Client
+
+Quack serves its API to AI Clients over MCP at `<PUBLIC_URL>/api/mcp`: https://quack.localhost/api/mcp under portless (`pnpm exec portless get quack` gives the origin in a worktree). The AI Client sends the User to Quack's consent page, and then acts as them with the Permissions they approved. How it works: [docs/ai-clients.md](docs/ai-clients.md).
+
+- **Claude**: in Settings, Connectors, add a custom connector with the MCP URL. claude.ai reaches it from the internet, so the URL must be public: a dev server on `quack.localhost` is out of its reach.
+- **Claude Code**: `claude mcp add --transport http quack https://quack.localhost/api/mcp`, then `/mcp` in a session to sign in and approve. Node must trust portless's certificate authority: if the connection fails on the certificate, start Claude Code with `NODE_EXTRA_CA_CERTS` pointing at it.
+- **MCP Inspector**: `npx @modelcontextprotocol/inspector`, with the transport Streamable HTTP, the MCP URL, and the connection type Via Proxy: `/api/mcp` refuses a page of another origin. Its document is served over http from this machine, which `AI_CLIENT_LOOPBACK_HTTP=true` (in `.env.example`) allows.
+
+AI Clients that only register through Dynamic Client Registration, such as Cursor, cannot connect (ADR 0004).
+
 ## Commands
 
 | Command             | What it does                                        |

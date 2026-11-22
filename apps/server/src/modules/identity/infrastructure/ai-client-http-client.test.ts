@@ -5,7 +5,10 @@ import { ConfigProvider, Effect, Exit, Layer } from "effect";
 import { HttpClient } from "effect/http";
 import { afterAll, beforeAll, describe, expect, it } from "vite-plus/test";
 
-import { AiClientHttpClient } from "#/modules/identity/infrastructure/ai-client-http-client.ts";
+import {
+  AiClientHttpClient,
+  reachable,
+} from "#/modules/identity/infrastructure/ai-client-http-client.ts";
 
 /** A server on this machine, as one Quack must not reach unless told to: `/redirect` sends elsewhere. */
 const local = Http.createServer((request, response) => {
@@ -85,4 +88,21 @@ describe("AiClientHttpClient", () => {
 
     expect(Exit.isSuccess(exit) && exit.value.status).toBe(302);
   });
+});
+
+describe("reachable", () => {
+  // Without the network, the client itself cannot show that it reaches a public server.
+  it.each(["160.79.104.10", "8.8.8.8", "2606:4700::1111"])(
+    "reaches the public address %s",
+    (address) => {
+      expect(reachable(false)(address)).toBe(true);
+    },
+  );
+
+  it.each(["10.0.0.1", "127.0.0.1", "::1", "::ffff:10.0.0.1", "::ffff:127.0.0.1", "fd00::1"])(
+    "refuses %s",
+    (address) => {
+      expect(reachable(false)(address)).toBe(false);
+    },
+  );
 });

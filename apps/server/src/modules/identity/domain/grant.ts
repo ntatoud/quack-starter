@@ -1,7 +1,9 @@
+import type { UserId } from "@quack/contracts/identity/user";
 import type { Permission } from "@quack/contracts/permission";
+import { TodosPermission } from "@quack/contracts/todos/todos-permissions";
+import { type DateTime, Duration } from "effect";
 
 import { redirectUriMatches } from "#/modules/identity/domain/redirect-uri.ts";
-import { TodosPermission } from "@quack/contracts/todos/todos-permissions";
 
 /** The Permissions a Grant may hold: those of the contexts exposed to AI Clients, never `users:*`. */
 export const grantablePermissions = TodosPermission.literals;
@@ -23,3 +25,34 @@ export const remembersConsent = (grant: GrantTerms, request: GrantTerms) =>
   grant.resource === request.resource &&
   redirectUriMatches(grant.redirectUri, request.redirectUri) &&
   request.permissions.every((permission) => grant.permissions.includes(permission));
+
+/** How long a Grant lasts once the User approves it, as a Session does. */
+export const grantLifetime = Duration.days(30);
+
+/** Short, since an AI Client keeps it where Quack cannot see: a leaked one opens the Grant for an hour at most. */
+export const accessTokenLifetime = Duration.hours(1);
+
+export const accessTokenBytes = 32;
+
+export interface GrantDraft extends GrantTerms {
+  readonly userId: UserId;
+  /** What the AI Client said it was when the User last approved. */
+  readonly aiClientName: string;
+  readonly expiresAt: DateTime.Utc;
+}
+
+export interface Grant extends GrantDraft {
+  readonly id: string;
+}
+
+/** The token lives only with the AI Client: a leaked store opens no Grant. */
+export interface AccessToken {
+  /** SHA-256 of the token, in hex. */
+  readonly tokenHash: string;
+  readonly grantId: string;
+  /** Its audience: the only resource that accepts it (RFC 8707). */
+  readonly resource: string;
+  /** Those of the code it was exchanged for: approving more later gives an earlier code no more. */
+  readonly permissions: ReadonlyArray<Permission>;
+  readonly expiresAt: DateTime.Utc;
+}

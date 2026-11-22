@@ -18,7 +18,11 @@ To add a context, copy `modules/todos`:
 
 ## MCP
 
-`src/mcp/` is a transport, not a module: it serves `/api/mcp` with a tool for each endpoint the contract offers, which calls the `Api` in process as the `McpCaller` of the request, so the Permission check and the Owner rules stay those of the `Api`. A context adds tools through the contract only.
+`src/mcp/` is a transport, not a module: it serves `/api/mcp` with a tool for each endpoint the contract offers, which calls the `Api` in process as the `McpCaller` of the request, so the Permission check and the Owner rules stay those of the `Api`. A context adds tools through the contract only. The flow, from discovery to a tool call: `docs/ai-clients.md`.
+
+- Only `/api/mcp` reads a bearer token (ADR 0003): `Grants.authenticate` turns it into the `McpCaller`, the Grant's User with the token's Permissions that the Grant and their Role still give. Never accept one on `/api`.
+- An HTTP middleware answers 401 or 403 before any JSON-RPC; an `McpServer.middleware` provides the `McpCaller`. The tools are built outside the scope of the HTTP middleware (`mcp-endpoint.ts`): inside it, it would also wrap the in-process routes and challenge every call.
+- A Grant is one per User and AI Client, in identity: `GrantStore` holds it and its access tokens, stored as SHA-256 only. Approving creates or updates it; the token endpoint (`Grants.exchange`) issues its tokens.
 
 ## Database
 
@@ -38,6 +42,7 @@ Migrations (`docs/adr/0002-typescript-migrations-applied-at-startup.md`) live in
 ## Tests
 
 - A storage port states its promises as one suite in `testing/` that takes an adapter's Layer (`todoRepositorySuite(layer)`), run from each adapter's test file. Its memory adapter is a test double, in `testing/` too.
+- `grant-store-postgres.test.ts` runs the suite on Postgres when `TEST_DATABASE_URL` names an empty database it may migrate and fill, and is skipped otherwise: CI has no Postgres.
 - Test handlers through `HttpApiTest`, with no server. It builds the routes of the whole `Api`, so the test Layer provides every middleware the `Api` declares: copy `modules/todos/http/todos-handlers.test.ts`.
 - A client that keeps cookies: `makeBrowser` in `modules/identity/http/identity-handlers.test.ts`.
 - Test on the assembled `Routes` (`server.test.ts`) what `HttpApiTest` cannot see: the docs, CORS, an endpoint that reads the cookie without declaring `Authentication` (`signOut`), and anything that reads `X-Forwarded-For`.

@@ -1,4 +1,4 @@
-import { API_PREFIX, MCP_PATH } from "@quack/contracts/api";
+import { Api, MCP_PATH } from "@quack/contracts/api";
 import { Effect } from "effect";
 import { HttpMiddleware, HttpRouter, HttpServerResponse } from "effect/http";
 
@@ -28,9 +28,9 @@ export const OAuthMetadataRoutes = HttpRouter.addAll(
       ...wellKnownDocument("/.well-known/oauth-authorization-server", {
         issuer: publicOrigin,
         authorization_endpoint: `${publicOrigin}/oauth/authorize`,
-        token_endpoint: `${publicOrigin}${API_PREFIX}/oauth/token`,
+        token_endpoint: `${publicOrigin}${Api.groups.oauth.endpoints.token.path}`,
         response_types_supported: ["code"],
-        grant_types_supported: ["authorization_code", "refresh_token"],
+        grant_types_supported: ["authorization_code"],
         code_challenge_methods_supported: ["S256"],
         token_endpoint_auth_methods_supported: ["none"],
         client_id_metadata_document_supported: true,

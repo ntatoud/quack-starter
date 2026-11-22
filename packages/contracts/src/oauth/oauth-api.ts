@@ -7,7 +7,12 @@ import {
   AuthorizationRequest,
   AuthorizationRequestParams,
 } from "#/oauth/authorization-request.ts";
-import { AuthorizationRequestRefused, InvalidCsrfToken } from "#/oauth/oauth-errors.ts";
+import {
+  AuthorizationRequestRefused,
+  InvalidCsrfToken,
+  TokenRequestRefused,
+} from "#/oauth/oauth-errors.ts";
+import { TokenRequestParams, TokenResponse } from "#/oauth/token-request.ts";
 import { RequiredPermission } from "#/permission.ts";
 
 const decisionErrors = [
@@ -44,4 +49,15 @@ export class OAuthApi extends HttpApiGroup.make("oauth")
     }).annotate(RequiredPermission, "none"),
   )
   .middleware(Authentication)
+  .add(
+    /**
+     * An AI Client exchanges its authorization code for an access token. After `Authentication`, which
+     * it skips: the AI Client has no Session, and proves itself by the code and its PKCE verifier.
+     */
+    HttpApiEndpoint.post("token", "/token", {
+      payload: TokenRequestParams,
+      success: TokenResponse,
+      error: TokenRequestRefused.pipe(HttpApiSchema.status(400)),
+    }),
+  )
   .prefix("/oauth") {}

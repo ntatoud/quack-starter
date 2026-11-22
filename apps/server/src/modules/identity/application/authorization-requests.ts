@@ -22,11 +22,8 @@ import {
   authorizationCodeLifetime,
 } from "#/modules/identity/domain/authorization-code.ts";
 import { AuthorizationCodeStore } from "#/modules/identity/domain/authorization-code-store.ts";
-import { type GrantTerms, remembersConsent } from "#/modules/identity/domain/grant.ts";
-
-// Grants are not stored yet: until they are, no User has one to remember.
-const activeGrantOf = (_userId: UserId, _aiClientId: string) =>
-  Effect.succeed(Option.none<GrantTerms>());
+import { grantLifetime, remembersConsent } from "#/modules/identity/domain/grant.ts";
+import { GrantStore } from "#/modules/identity/domain/grant-store.ts";
 
 export class AuthorizationRequests extends Context.Service<
   AuthorizationRequests,
@@ -47,6 +44,7 @@ export class AuthorizationRequests extends Context.Service<
     Effect.gen(function* () {
       const documents = yield* AiClientDocuments;
       const codes = yield* AuthorizationCodeStore;
+      const grants = yield* GrantStore;
       const random = yield* SecureRandom.SecureRandom;
       const digest = yield* Digest.Digest;
       const issuer = yield* ServerConfig.publicOrigin;
@@ -88,6 +86,15 @@ export class AuthorizationRequests extends Context.Service<
         return url.href;
       };
 
+      const activeGrantOf = (userId: UserId, aiClientId: string) =>
+        Effect.gen(function* () {
+          const now = yield* DateTime.now;
+
+          return Option.filter(yield* grants.findOf(userId, aiClientId), (grant) =>
+            DateTime.isLessThan(now, grant.expiresAt),
+          );
+        });
+
       return AuthorizationRequests.of({
         check: Effect.fn("AuthorizationRequests.check")(function* (params, userId) {
           const request = yield* validate(params);
@@ -106,6 +113,18 @@ export class AuthorizationRequests extends Context.Service<
         approve: Effect.fn("AuthorizationRequests.approve")(function* (params, userId) {
           const request = yield* validate(params);
           const code = Base64Url.encode(yield* random.randomBytes(authorizationCodeBytes));
+          const now = yield* DateTime.now;
+
+          yield* grants.save({
+            userId,
+            aiClientId: request.aiClientId,
+            aiClientName: request.aiClient.name,
+            redirectUri: request.redirectUri,
+            resource: request.resource,
+            permissions: request.permissions,
+            expiresAt: DateTime.addDuration(now, grantLifetime),
+          });
+
           yield* codes.save({
             codeHash: yield* sha256Hex(digest, code),
             userId,
@@ -115,7 +134,7 @@ export class AuthorizationRequests extends Context.Service<
             resource: request.resource,
             permissions: request.permissions,
             codeChallenge: request.codeChallenge,
-            expiresAt: DateTime.addDuration(yield* DateTime.now, authorizationCodeLifetime),
+            expiresAt: DateTime.addDuration(now, authorizationCodeLifetime),
           });
 
           return redirectOf(request, { code });

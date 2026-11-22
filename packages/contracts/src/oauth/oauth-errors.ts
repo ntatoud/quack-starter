@@ -30,3 +30,20 @@ export class InvalidCsrfToken extends Schema.TaggedError<
   InvalidCsrfToken,
   { readonly brand: unique symbol }
 >()("InvalidCsrfToken", {}) {}
+
+/** The codes of RFC 6749 s5.2 and RFC 8707 a token request is refused with. */
+export const TokenErrorCode = Schema.Literals([
+  "invalid_request",
+  "invalid_grant",
+  "unsupported_grant_type",
+  "invalid_target",
+]);
+
+/** A token request Quack refuses, as an OAuth error (RFC 6749 s5.2). */
+export class TokenRequestRefused extends Schema.TaggedError<
+  TokenRequestRefused,
+  { readonly brand: unique symbol }
+>()("TokenRequestRefused", {
+  error: TokenErrorCode,
+  error_description: Schema.String,
+}) {}

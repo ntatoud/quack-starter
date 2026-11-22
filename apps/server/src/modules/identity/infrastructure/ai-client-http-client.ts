@@ -10,8 +10,10 @@ import { ServerConfig } from "#/config.ts";
 const familyOf = (address: string) => (isIP(address) === 6 ? "ipv6" : "ipv4");
 
 // The private, loopback, and special-use ranges of the IANA registries (RFC 6890 and its updates):
-// none is a public server's, and reaching one would let a request probe Quack's own network.
-const notPublic = new BlockList();
+// none is a public server's, and reaching one would let a request probe Quack's own network. One list
+// per family: Node checks an IPv4 address against IPv4-mapped IPv6 rules too, so `::ffff:0:0/96` in a
+// shared list would refuse every IPv4 address.
+const notPublic = { ipv4: new BlockList(), ipv6: new BlockList() };
 
 for (const [network, prefix] of [
   ["0.0.0.0", 8],
@@ -30,7 +32,7 @@ for (const [network, prefix] of [
   ["224.0.0.0", 4],
   ["240.0.0.0", 4],
 ] as const) {
-  notPublic.addSubnet(network, prefix, "ipv4");
+  notPublic.ipv4.addSubnet(network, prefix, "ipv4");
 }
 
 for (const [network, prefix] of [
@@ -49,7 +51,7 @@ for (const [network, prefix] of [
   ["fe80::", 10],
   ["ff00::", 8],
 ] as const) {
-  notPublic.addSubnet(network, prefix, "ipv6");
+  notPublic.ipv6.addSubnet(network, prefix, "ipv6");
 }
 
 const loopback = new BlockList();
@@ -58,9 +60,13 @@ loopback.addSubnet("127.0.0.0", 8, "ipv4");
 
 loopback.addAddress("::1", "ipv6");
 
-const reachable = (allowLoopback: boolean) => (address: string) =>
-  (allowLoopback && loopback.check(address, familyOf(address))) ||
-  !notPublic.check(address, familyOf(address));
+export const reachable = (allowLoopback: boolean) => (address: string) => {
+  const family = familyOf(address);
+
+  return (
+    (allowLoopback && loopback.check(address, family)) || !notPublic[family].check(address, family)
+  );
+};
 
 /** Resolves as Node does, then refuses the host if any of its addresses is not reachable. */
 const guardedLookup =

@@ -8,7 +8,12 @@ import { HttpApiBuilder, HttpApiScalar } from "effect/http-api";
 
 import { ServerConfig } from "#/config.ts";
 import { McpEndpoint } from "#/mcp/mcp-endpoint.ts";
-import { IdentityModule, OAuthMetadataRoutes, OAuthModule } from "#/modules/identity/index.ts";
+import {
+  IdentityModule,
+  OAuthMetadataRoutes,
+  OAuthModule,
+  TokenEndpointHeaders,
+} from "#/modules/identity/index.ts";
 import { SystemHandlers } from "#/modules/system/http/system-handlers.ts";
 import { TodosModule } from "#/modules/todos/index.ts";
 
@@ -25,7 +30,13 @@ const McpRoutes = McpEndpoint.pipe(Layer.provide(ApiHandlers));
 
 const DocsRoute = HttpApiScalar.layer(Api, { path: `${API_PREFIX}/docs` });
 
-export const Routes = Layer.mergeAll(ApiRoutes, DocsRoute, OAuthMetadataRoutes, McpRoutes);
+export const Routes = Layer.mergeAll(
+  ApiRoutes,
+  DocsRoute,
+  OAuthMetadataRoutes,
+  TokenEndpointHeaders,
+  McpRoutes,
+);
 
 const Server = Layer.unwrap(
   Effect.gen(function* () {

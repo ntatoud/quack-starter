@@ -4,14 +4,20 @@ import { Authentication } from "@quack/contracts/identity/authentication";
 import { Email, User, UserId } from "@quack/contracts/identity/user";
 import type { AuthorizationRequestParams } from "@quack/contracts/oauth/authorization-request";
 import type { AuthorizationErrorCode } from "@quack/contracts/oauth/oauth-errors";
-import { ConfigProvider, DateTime, Effect, Fiber, Layer, Option, Schema } from "effect";
+import type { TokenRequestParams } from "@quack/contracts/oauth/token-request";
+import type { Permission } from "@quack/contracts/permission";
+import { ConfigProvider, DateTime, Effect, Fiber, Layer, Option, Redacted, Schema } from "effect";
 import { HttpClient, HttpClientRequest, HttpClientResponse, HttpServer } from "effect/http";
 import { HttpApiMiddleware, HttpApiTest } from "effect/http-api";
 import { TestClock } from "effect/testing";
 
 import { AuthorizationCodeStore } from "#/modules/identity/domain/authorization-code-store.ts";
-import { OAuthModule } from "#/modules/identity/index.ts";
+import { GrantStore } from "#/modules/identity/domain/grant-store.ts";
+import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
+import { Grants, OAuthModule } from "#/modules/identity/index.ts";
 import { AuthorizationCodeStoreMemory } from "#/modules/identity/testing/authorization-code-store-memory.ts";
+import { GrantStoreMemory } from "#/modules/identity/testing/grant-store-memory.ts";
+import { UserRepositoryMemory } from "#/modules/identity/testing/user-repository-memory.ts";
 import { authenticationByUserId } from "#/modules/identity/testing/authentication-by-user-id.ts";
 
 const ada = new User({
@@ -115,6 +121,8 @@ const withConfig = (env: Record<string, string>) =>
     OAuthModule.pipe(
       Layer.provide(StubHttpClient),
       Layer.provideMerge(AuthorizationCodeStoreMemory),
+      Layer.provideMerge(GrantStoreMemory),
+      Layer.provideMerge(UserRepositoryMemory),
       Layer.provideMerge(authenticationByUserId([ada])),
       Layer.provide(
         ConfigProvider.layer(ConfigProvider.fromUnknown({ PUBLIC_URL: publicOrigin, ...env })),
@@ -560,5 +568,232 @@ layer(withConfig({}))("OAuthApi approveAuthorization and denyAuthorization", (it
           assert.strictEqual(error._tag, "AuthorizationRequestRefused");
         }
       }),
+  );
+});
+
+const token = (payload: TokenRequestParams) =>
+  Effect.flatMap(client, (api) => api.oauth.token({ payload }));
+
+const tokenRefusal = (payload: TokenRequestParams) =>
+  token(payload).pipe(
+    Effect.flip,
+    Effect.map((error) => (error._tag === "TokenRequestRefused" ? error.error : error._tag)),
+  );
+
+/** The verifier of the challenge `requestOf` sends (RFC 7636 appendix B). */
+const codeVerifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
+
+/** Ada approves the request: answers the code, and the token request that exchanges it. */
+const approvedCode = (params: ReturnType<typeof requestOf>) =>
+  Effect.gen(function* () {
+    const decision = yield* onTheConsentPage(params);
+    const code = new URL((yield* approve(decision)).redirectTo).searchParams.get("code") ?? "";
+
+    return {
+      grant_type: "authorization_code",
+      code,
+      redirect_uri: params.redirect_uri,
+      client_id: params.client_id,
+      code_verifier: codeVerifier,
+      resource: params.resource,
+    } satisfies TokenRequestParams;
+  });
+
+layer(withConfig({}))("OAuthApi approveAuthorization, the Grant", (it) => {
+  it.effect("approving stores the Grant of the User to the AI Client, for 30 days", () =>
+    Effect.gen(function* () {
+      const clientId = anAiClient();
+      const now = yield* DateTime.now;
+
+      yield* approvedCode(requestOf(clientId));
+
+      const grant = yield* (yield* GrantStore).findOf(ada.id, clientId);
+      assert.deepStrictEqual(
+        Option.map(grant, ({ id: _, ...terms }) => terms),
+        Option.some({
+          userId: ada.id,
+          aiClientId: clientId,
+          aiClientName: "Claude",
+          redirectUri,
+          resource,
+          permissions: ["todos:list", "todos:write"] as ReadonlyArray<Permission>,
+          expiresAt: DateTime.add(now, { days: 30 }),
+        }),
+      );
+    }),
+  );
+
+  it.effect("approving the same AI Client again updates its one Grant", () =>
+    Effect.gen(function* () {
+      const clientId = anAiClient();
+      yield* approvedCode(requestOf(clientId));
+      const store = yield* GrantStore;
+      const first = yield* store.findOf(ada.id, clientId);
+
+      yield* approvedCode(requestOf(clientId, { scope: "todos:delete" }));
+
+      const second = yield* store.findOf(ada.id, clientId);
+      assert.deepStrictEqual(
+        Option.map(second, ({ id, permissions }) => ({ id, permissions })),
+        Option.map(first, ({ id }) => ({
+          id,
+          permissions: ["todos:delete"] as ReadonlyArray<Permission>,
+        })),
+      );
+    }),
+  );
+
+  it.effect("the consent page then knows the Permissions of the Grant", () =>
+    Effect.gen(function* () {
+      const clientId = anAiClient();
+      yield* approvedCode(requestOf(clientId));
+
+      const request = yield* check(requestOf(clientId, { scope: "todos:delete" }));
+
+      assert.deepStrictEqual(request.grantedPermissions, ["todos:list", "todos:write"]);
+      assert.isFalse(request.consentRemembered);
+    }),
+  );
+});
+
+layer(withConfig({}))("OAuthApi token", (it) => {
+  it.effect("exchanges a code for an access token of the Grant, valid one hour", () =>
+    Effect.gen(function* () {
+      const exchange = yield* approvedCode(requestOf(anAiClient()));
+
+      const response = yield* token(exchange);
+
+      assert.deepStrictEqual(
+        { ...response, access_token: response.access_token.length },
+        {
+          access_token: 43,
+          token_type: "Bearer",
+          expires_in: 3600,
+          scope: "todos:list todos:write",
+        },
+      );
+    }),
+  );
+
+  it.effect("exchanges a code for an AI Client on this machine at the port it came back on", () =>
+    Effect.gen(function* () {
+      const clientId = anAiClient({ redirect_uris: ["http://localhost/callback"] });
+
+      const exchange = yield* approvedCode(
+        requestOf(clientId, { redirect_uri: "http://localhost:51234/callback" }),
+      );
+
+      assert.strictEqual((yield* token(exchange)).token_type, "Bearer");
+    }),
+  );
+
+  it.effect("refuses the code of an AI Client on this machine at another port", () =>
+    Effect.gen(function* () {
+      const clientId = anAiClient({ redirect_uris: ["http://localhost/callback"] });
+
+      const exchange = yield* approvedCode(
+        requestOf(clientId, { redirect_uri: "http://localhost:51234/callback" }),
+      );
+
+      assert.strictEqual(
+        yield* tokenRefusal({ ...exchange, redirect_uri: "http://localhost:40001/callback" }),
+        "invalid_grant",
+      );
+    }),
+  );
+
+  it.effect("exchanges a code once", () =>
+    Effect.gen(function* () {
+      const exchange = yield* approvedCode(requestOf(anAiClient()));
+      yield* token(exchange);
+
+      assert.strictEqual(yield* tokenRefusal(exchange), "invalid_grant");
+    }),
+  );
+
+  it.effect("refuses a code past its minute", () =>
+    Effect.gen(function* () {
+      const exchange = yield* approvedCode(requestOf(anAiClient()));
+
+      yield* TestClock.adjust("61 seconds");
+
+      assert.strictEqual(yield* tokenRefusal(exchange), "invalid_grant");
+    }),
+  );
+
+  it.effect.each([
+    ["another grant type", { grant_type: "client_credentials" }, "unsupported_grant_type"],
+    ["no grant type", { grant_type: undefined }, "invalid_request"],
+    ["no code", { code: undefined }, "invalid_request"],
+    ["a code Quack never gave", { code: "not-a-code-of-quack" }, "invalid_grant"],
+    ["no verifier", { code_verifier: undefined }, "invalid_request"],
+    [
+      "a verifier that does not answer the challenge",
+      { code_verifier: `${codeVerifier}x` },
+      "invalid_grant",
+    ],
+    ["another redirect URI", { redirect_uri: "https://claude.ai/other" }, "invalid_grant"],
+    ["another AI Client", { client_id: "https://evil.example.com/client.json" }, "invalid_grant"],
+    ["another resource", { resource: "https://other.test/api/mcp" }, "invalid_target"],
+    ["no resource", { resource: undefined }, "invalid_target"],
+  ] as const)("refuses a code exchanged with %s", ([_, change, error]) =>
+    Effect.gen(function* () {
+      const exchange = yield* approvedCode(requestOf(anAiClient()));
+
+      const changed = Object.fromEntries(
+        Object.entries({ ...exchange, ...change }).filter(([, value]) => value !== undefined),
+      );
+
+      assert.strictEqual(yield* tokenRefusal(changed), error);
+    }),
+  );
+
+  it.effect("a refused exchange spends the code", () =>
+    Effect.gen(function* () {
+      const exchange = yield* approvedCode(requestOf(anAiClient()));
+      yield* tokenRefusal({ ...exchange, code_verifier: `${codeVerifier}x` });
+
+      assert.strictEqual(yield* tokenRefusal(exchange), "invalid_grant");
+    }),
+  );
+});
+
+/** The Permissions an access token opens, as `/api/mcp` will act with them. */
+const permissionsOf = (accessToken: string) =>
+  Effect.gen(function* () {
+    // Ada must be stored for her Grant to act; each test may be the first to need her.
+    yield* (yield* UserRepository).create(ada, "unused").pipe(Effect.ignore);
+
+    const { permissions } = yield* (yield* Grants).authenticate(Redacted.make(accessToken));
+
+    return [...permissions].toSorted();
+  });
+
+layer(withConfig({}))("OAuthApi token, the Permissions of a token", (it) => {
+  it.effect(
+    "a code gives no more than was approved with it, though the User approved more since",
+    () =>
+      Effect.gen(function* () {
+        const clientId = anAiClient();
+        const narrow = yield* approvedCode(requestOf(clientId, { scope: "todos:list" }));
+        yield* approvedCode(requestOf(clientId, { scope: "todos:list todos:delete" }));
+
+        const response = yield* token(narrow);
+
+        assert.strictEqual(response.scope, "todos:list");
+        assert.deepStrictEqual(yield* permissionsOf(response.access_token), ["todos:list"]);
+      }),
+  );
+
+  it.effect("a token loses the Permissions the User no longer approves", () =>
+    Effect.gen(function* () {
+      const clientId = anAiClient();
+      const wide = yield* approvedCode(requestOf(clientId, { scope: "todos:list todos:delete" }));
+      const { access_token } = yield* token(wide);
+
+      yield* approvedCode(requestOf(clientId, { scope: "todos:list" }));
+
+      assert.deepStrictEqual(yield* permissionsOf(access_token), ["todos:list"]);
+    }),
   );
 });

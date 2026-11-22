@@ -8,6 +8,7 @@ import { HttpClient, HttpServer } from "effect/http";
 import { ContractTools } from "#/mcp/contract-tools.ts";
 import { IdentityModule, McpCaller, OAuthModule } from "#/modules/identity/index.ts";
 import { AuthorizationCodeStoreMemory } from "#/modules/identity/testing/authorization-code-store-memory.ts";
+import { GrantStoreMemory } from "#/modules/identity/testing/grant-store-memory.ts";
 import { SessionStoreMemory } from "#/modules/identity/testing/session-store-memory.ts";
 import { UserRepositoryMemory } from "#/modules/identity/testing/user-repository-memory.ts";
 import { SystemHandlers } from "#/modules/system/http/system-handlers.ts";
@@ -26,6 +27,7 @@ const ApiHandlers = Layer.mergeAll(SystemHandlers, TodosModule, OAuthModule).pip
     UserRepositoryMemory,
     SessionStoreMemory,
     AuthorizationCodeStoreMemory,
+    GrantStoreMemory,
     TodoRepositoryMemory,
     NoHttpClient,
   ]),
