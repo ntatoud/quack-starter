@@ -28,6 +28,8 @@ const spawnerAnswering = (exitCodeOf: (commandLine: string) => number) => {
   return { layer, ran };
 };
 
+const composeFails = (line: string) => (line.includes("compose") ? 17 : 0);
+
 describe("devDatabaseUrl", () => {
   it.effect("answers a DATABASE_URL set by hand as given, with no Docker", () => {
     const docker = spawnerAnswering(() => 0);
@@ -54,13 +56,28 @@ describe("devDatabaseUrl", () => {
     }).pipe(Effect.provide(docker.layer));
   });
 
-  it.effect("fails with the exit code of docker compose when Docker runs", () => {
-    const docker = spawnerAnswering((line) => (line.startsWith("docker compose") ? 17 : 0));
+  it.effect("fails with the exit code of compose up when Docker runs", () => {
+    const docker = spawnerAnswering(composeFails);
 
     return Effect.gen(function* () {
       const error = yield* Effect.flip(devDatabaseUrl({}, { seed: true }));
 
       assert.deepStrictEqual(error, new PostgresDidNotStart({ exitCode: 17 }));
     }).pipe(Effect.provide(docker.layer));
+  });
+
+  it.effect("starts the containers through portless, or Docker alone with PORTLESS=0", () => {
+    const portless = spawnerAnswering(composeFails);
+    const docker = spawnerAnswering(composeFails);
+
+    return Effect.gen(function* () {
+      yield* Effect.flip(devDatabaseUrl({}, { seed: true })).pipe(Effect.provide(portless.layer));
+      yield* Effect.flip(devDatabaseUrl({ PORTLESS: "0" }, { seed: true })).pipe(
+        Effect.provide(docker.layer),
+      );
+
+      assert.match(portless.ran[0] ?? "", /^portless compose -f .+compose\.yaml up -d --wait$/);
+      assert.match(docker.ran[0] ?? "", /^docker compose -f .+compose\.yaml up -d --wait$/);
+    });
   });
 });

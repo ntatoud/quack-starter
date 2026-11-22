@@ -21,9 +21,12 @@ services:
       start_period: 60s
       start_interval: 1s
 
-  # Catches every mail the server sends in dev, and shows it at http://localhost:8025.
+  # Catches every mail the server sends in dev. Under portless (`portless compose up`), its inbox is at
+  # https://mailpit.quack.localhost; without it, at http://localhost:8025. SMTP is not HTTP: it keeps its port.
   mailpit:
     image: axllent/mailpit:v1.31
+    labels:
+      portless.ports: "8025"
     ports:
       - "127.0.0.1:10250:1025"
       - "127.0.0.1:8025:8025"
