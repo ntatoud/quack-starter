@@ -7,7 +7,7 @@ import { HttpRouter } from "effect/http";
 import { HttpApiBuilder, HttpApiScalar } from "effect/http-api";
 
 import { ServerConfig } from "#/config.ts";
-import { IdentityModule } from "#/modules/identity/index.ts";
+import { IdentityModule, OAuthMetadataRoutes } from "#/modules/identity/index.ts";
 import { SystemHandlers } from "#/modules/system/http/system-handlers.ts";
 import { TodosModule } from "#/modules/todos/index.ts";
 
@@ -18,11 +18,11 @@ const ApiRoutes = HttpApiBuilder.layer(Api, { openapiPath: `${API_PREFIX}/openap
 
 const DocsRoute = HttpApiScalar.layer(Api, { path: `${API_PREFIX}/docs` });
 
-export const Routes = Layer.mergeAll(ApiRoutes, DocsRoute);
+export const Routes = Layer.mergeAll(ApiRoutes, DocsRoute, OAuthMetadataRoutes);
 
 const Server = Layer.unwrap(
   Effect.gen(function* () {
-    const { port } = yield* ServerConfig;
+    const port = yield* ServerConfig.port;
     return NodeHttpServer.layer(NodeHttp.createServer, { port });
   }),
 );

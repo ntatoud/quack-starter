@@ -229,6 +229,16 @@ describe("ApiRelayHandler", () => {
     expect(response?.status).toBe(502);
   });
 
+  it("relays the paths under the prefix it is given", async () => {
+    const { response } = await new ApiRelayHandler({ url: apiUrl }).handle(
+      new Request("http://web.test/.well-known/oauth-authorization-server"),
+      { prefix: "/.well-known", context: { clientIp: "203.0.113.7" } },
+    );
+
+    expect(response?.status).toBe(200);
+    expect(received[0]?.url).toBe("/.well-known/oauth-authorization-server");
+  });
+
   it.each(["/", "/todos", "/apionly"])("does not relay %s, outside its prefix", async (path) => {
     const result = await handle(apiUrl, path, undefined, "203.0.113.7");
 
