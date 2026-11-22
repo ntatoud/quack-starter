@@ -31,3 +31,5 @@ Slows down the guessing of passwords (port: `domain/attempt-limiter.ts`). The us
 ## Seed
 
 `IdentitySeed` (`application/identity-seed.ts`) creates the Users of `devUsers()` through `UserRepository.create` and logs their credentials. It gives the same Users at every run (ids from a seeded faker, dates spread over the two years before the fixed `seedDate`, every Status, some with no Profile or never signed in; onboarded when they have a Profile and signed in), so the data is in a known state. Every seeded User has the hash `devPasswordHash`, computed once from the dev password, so seeding hashes nothing; a test checks it still verifies. The `user` and `admin` accounts are in `@quack/contracts/identity/dev-accounts`, which the sign-in page reads for its one-click sign-in in dev.
+
+The identity module exports `devAccountIds()`, the ids of those two accounts, so that `seedDatabase` passes them to `TodosSeed`: the todos module gives each a few fixed Todos, some completed, and knows nothing of identity's seed. The random Users get no Todos.

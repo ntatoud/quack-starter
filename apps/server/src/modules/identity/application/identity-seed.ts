@@ -101,6 +101,11 @@ export const devUsers = (): ReadonlyArray<User> => {
   ];
 };
 
+export const devAccountIds = (): ReadonlyArray<UserId> =>
+  devUsers()
+    .filter(({ email }) => Object.values<string>(devAccounts).includes(email))
+    .map(({ id }) => id);
+
 export const IdentitySeed = Layer.effectDiscard(
   Effect.gen(function* () {
     const users = yield* UserRepository;

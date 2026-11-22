@@ -4,7 +4,8 @@ import { SqlClient, SqlSchema } from "effect/sql";
 import type { DatabaseSettings } from "#/config.ts";
 import { databaseAt, withoutPassword } from "#/database/database.ts";
 import { MIGRATIONS_TABLE } from "#/database/rollback.ts";
-import { IdentityPostgres, IdentitySeed } from "#/modules/identity/index.ts";
+import { devAccountIds, IdentityPostgres, IdentitySeed } from "#/modules/identity/index.ts";
+import { TodosPostgres, TodosSeed } from "#/modules/todos/index.ts";
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
 
@@ -44,7 +45,11 @@ const truncateTables = Effect.gen(function* () {
 const reset = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
   yield* sql.withTransaction(
-    truncateTables.pipe(Effect.andThen(Layer.build(IdentitySeed)), Effect.scoped),
+    truncateTables.pipe(
+      Effect.andThen(Layer.build(IdentitySeed)),
+      Effect.andThen(Layer.build(TodosSeed(devAccountIds()))),
+      Effect.scoped,
+    ),
   );
 });
 
@@ -53,5 +58,9 @@ export const seedDatabase = Effect.fn("seedDatabase")(function* (config: Databas
   if (!isLocalDatabaseUrl(url)) {
     return yield* new NotLocalDatabase({ url: withoutPassword(url) });
   }
-  yield* reset.pipe(Effect.provide(IdentityPostgres.pipe(Layer.provideMerge(databaseAt(config)))));
+  yield* reset.pipe(
+    Effect.provide(
+      Layer.mergeAll(IdentityPostgres, TodosPostgres).pipe(Layer.provideMerge(databaseAt(config))),
+    ),
+  );
 });
