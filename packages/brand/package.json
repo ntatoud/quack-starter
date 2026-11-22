@@ -1,0 +1,28 @@
+{
+  "name": "@quack/brand",
+  "private": true,
+  "type": "module",
+  "imports": {
+    "#/*": "./src/*"
+  },
+  "exports": {
+    "./brand": "./src/brand.ts",
+    "./icon": "./src/icon.ts",
+    "./logo": "./src/logo.tsx",
+    "./theme.css": "./src/theme.css"
+  },
+  "scripts": {
+    "typecheck": "effect-tsgo tsc --noEmit",
+    "typecheck:ci": "effect-tsgo tsrs --noEmit"
+  },
+  "dependencies": {
+    "@fontsource-variable/geist": "5.3.0",
+    "cn": "0.5.2"
+  },
+  "devDependencies": {
+    "@types/react": "catalog:"
+  },
+  "peerDependencies": {
+    "react": "catalog:"
+  }
+}

@@ -1,6 +1,5 @@
+import { Logo } from "@quack/brand/logo";
 import { Outlet } from "@tanstack/react-router";
-
-import { Logo } from "#/features/layout/logo.tsx";
 
 export function GuestLayout() {
   return (

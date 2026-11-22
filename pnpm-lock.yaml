@@ -292,6 +292,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@quack/brand':
+        specifier: workspace:*
+        version: link:../../packages/brand
       '@quack/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
@@ -372,6 +375,22 @@ importers:
         specifier: 'catalog:'
         version: 2.3.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@5.1.0)
 
+  packages/brand:
+    dependencies:
+      '@fontsource-variable/geist':
+        specifier: 5.3.0
+        version: 5.3.0
+      cn:
+        specifier: 0.5.2
+        version: 0.5.2
+      react:
+        specifier: 'catalog:'
+        version: 19.3.1
+    devDependencies:
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.3.0
+
   packages/contracts:
     dependencies:
       effect:
@@ -449,9 +468,9 @@ importers:
 
   packages/ui:
     dependencies:
-      '@fontsource-variable/geist':
-        specifier: 5.3.0
-        version: 5.3.0
+      '@quack/brand':
+        specifier: workspace:*
+        version: link:../brand
       '@tanstack/react-table':
         specifier: 'catalog:'
         version: 9.3.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1)

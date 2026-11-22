@@ -1,3 +1,4 @@
+import { iconHref } from "@quack/brand/icon";
 import appCss from "@quack/ui/globals.css?url";
 import { createRootRouteWithContext } from "@tanstack/react-router";
 
@@ -17,7 +18,10 @@ export const Route = createRootRouteWithContext<RouterContext>()({
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { title: pageTitle() },
     ],
-    links: [{ rel: "stylesheet", href: appCss }],
+    links: [
+      { rel: "stylesheet", href: appCss },
+      { rel: "icon", href: iconHref, type: "image/svg+xml" },
+    ],
   }),
   notFoundComponent: NotFound,
   shellComponent: RootDocument,

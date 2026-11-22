@@ -1,3 +1,5 @@
+import { brand } from "@quack/brand/brand";
+import { Logo } from "@quack/brand/logo";
 import {
   Sidebar,
   SidebarFooter,
@@ -15,7 +17,6 @@ import type { ReactNode } from "react";
 
 import { UserMenu } from "#/features/identity/user-menu.tsx";
 import type { LinkTarget } from "#/features/layout/sidebar-link.tsx";
-import { Logo } from "#/features/layout/logo.tsx";
 import { SidebarContentWithMenu } from "#/features/layout/sidebar-context-menu.tsx";
 import type { SidebarProps } from "#/features/layout/sidebar-layout.tsx";
 import { useSidebarSide } from "#/features/preferences/preferences.ts";
@@ -35,7 +36,7 @@ export function SidebarFrame({
         <SidebarTrigger className="size-8 shrink-0" />
         <Link
           to={home}
-          aria-label="Quack, home"
+          aria-label={`${brand.name}, home`}
           className="rounded-md px-1 transition-opacity duration-200 ease-out outline-hidden focus-visible:ring-2 focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:opacity-0"
           inert={collapsed}
           onClick={() => setOpenMobile(false)}

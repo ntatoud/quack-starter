@@ -19,6 +19,10 @@
     "apps/web": {
       "entry": ["src/routes/**/*.tsx"],
     },
+    "packages/brand": {
+      // The JSX of the Logo needs the types of React, which no file imports by name.
+      "ignoreDependencies": ["@types/react"],
+    },
     "packages/ui": {
       // The components are a library: every export is available to the apps.
       "entry": ["src/components/**/*.tsx", "src/lib/**/*.ts", "src/hooks/*.ts"],

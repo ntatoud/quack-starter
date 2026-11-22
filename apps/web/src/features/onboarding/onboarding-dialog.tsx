@@ -1,3 +1,4 @@
+import { brand } from "@quack/brand/brand";
 import { OnboardingPayload } from "@quack/contracts/identity/identity-api";
 import type { User } from "@quack/contracts/identity/user";
 import { schemaFormOptions } from "@quack/form/schema-form-options";
@@ -51,7 +52,7 @@ export function OnboardingDialog({
       <DialogContent showCloseButton={false} className="gap-6 sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold tracking-tight">
-            Welcome to Quack
+            Welcome to {brand.name}
           </DialogTitle>
           <DialogDescription>What should we call you?</DialogDescription>
           <p className="text-xs text-muted-foreground">Signed in as {email}</p>
