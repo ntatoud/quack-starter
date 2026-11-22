@@ -16,8 +16,8 @@ const failureMessage = (cause: unknown) =>
     ? tooManyAttemptsMessage(cause.retryAfter)
     : "Could not send the link. Try again.";
 
-/** Asks for a Password Reset link. What it says next is the same whether a User has the email or not. */
-export function ForgotPasswordForm() {
+/** What it says once sent is the same whether a User has the email or not. */
+export function PasswordResetRequestForm() {
   const requestPasswordReset = useMutation(api.identity.requestPasswordReset.mutationOptions());
   const [sentTo, setSentTo] = useState<Email | null>(null);
 
@@ -37,8 +37,7 @@ export function ForgotPasswordForm() {
   if (sentTo !== null) {
     return (
       <p role="status" className="text-sm">
-        If an account exists for {sentTo}, we sent it a link to choose a new password. The link
-        lasts 1 hour.
+        If an account exists for {sentTo}, we sent it a link to choose a new password.
       </p>
     );
   }

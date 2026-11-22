@@ -12,7 +12,7 @@ const LinkTokenRow = Schema.Struct({
   expiresAt: Schema.DateTimeUtcFromDate,
 });
 
-const OfUser = LinkTokenRow.mapFields(Struct.pick(["userId", "purpose"]));
+const LinksOfUser = LinkTokenRow.mapFields(Struct.pick(["userId", "purpose"]));
 
 export const LinkTokenStorePostgres = Layer.effect(
   LinkTokenStore,
@@ -35,7 +35,7 @@ export const LinkTokenStorePostgres = Layer.effect(
     });
 
     const removeAllOf = SqlSchema.void({
-      Request: OfUser,
+      Request: LinksOfUser,
       execute: ({ userId, purpose }) =>
         sql`DELETE FROM link_tokens WHERE user_id = ${userId} AND purpose = ${purpose}`,
     });

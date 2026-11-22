@@ -1,6 +1,6 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
-import { ForgotPasswordPage } from "#/features/identity/forgot-password-page.tsx";
+import { PasswordResetRequestPage } from "#/features/identity/password-reset-request-page.tsx";
 import { pageTitle } from "#/features/layout/page-title.ts";
 
 export const Route = createFileRoute("/_guest/forgot-password")({
@@ -8,5 +8,5 @@ export const Route = createFileRoute("/_guest/forgot-password")({
     if (context.currentUser !== null) throw redirect({ to: "/app" });
   },
   head: () => ({ meta: [{ title: pageTitle("Reset your password") }] }),
-  component: ForgotPasswordPage,
+  component: PasswordResetRequestPage,
 });

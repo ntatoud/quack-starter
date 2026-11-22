@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { render } from "vitest-browser-react";
 
-import { ForgotPasswordForm } from "#/features/identity/forgot-password-form.tsx";
+import { PasswordResetRequestForm } from "#/features/identity/password-reset-request-form.tsx";
 
 // The API client keeps the `fetch` it first saw, so one stub serves every test and each test sets its response.
 let respond: (request: Request) => Response | Promise<Response>;
@@ -18,7 +18,7 @@ const setup = async (response: typeof respond) => {
   respond = response;
   await render(
     <QueryClientProvider client={new QueryClient()}>
-      <ForgotPasswordForm />
+      <PasswordResetRequestForm />
     </QueryClientProvider>,
   );
 
@@ -38,7 +38,7 @@ afterEach(() => {
   fetch.mockClear();
 });
 
-describe("ForgotPasswordForm", () => {
+describe("PasswordResetRequestForm", () => {
   it("sends the email as the contract spells it, then says a link was sent if an account exists", async () => {
     const requests: Array<{ url: string; body: unknown }> = [];
 

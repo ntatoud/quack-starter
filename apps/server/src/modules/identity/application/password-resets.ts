@@ -45,6 +45,35 @@ export class PasswordResets extends Context.Service<
       const random = yield* SecureRandom.SecureRandom;
       const digest = yield* Digest.Digest;
       const publicOrigin = yield* ServerConfig.publicOrigin;
+      // The fibers live as long as the server, not the request that asked for the link.
+      const scope = yield* Effect.scope;
+
+      const sendLink = Effect.fn("PasswordResets.sendLink")(function* (email: Email) {
+        const found = yield* users.findByEmail(email);
+
+        if (Option.isNone(found) || !canSignIn(found.value.user)) return;
+
+        const { user } = found.value;
+        const token = Base64Url.encode(yield* random.randomBytes(linkTokenBytes));
+
+        // A User has one link at a time: asking again makes the earlier ones useless.
+        yield* links.removeAllOf(user.id, "password_reset");
+        yield* links.save({
+          tokenHash: yield* sha256Hex(digest, token),
+          userId: user.id,
+          purpose: "password_reset",
+          expiresAt: DateTime.addDuration(yield* DateTime.now, passwordResetLifetime),
+        });
+
+        const url = new URL("/reset-password", publicOrigin);
+        url.searchParams.set("token", token);
+
+        const mail = yield* Effect.promise(() =>
+          passwordReset({ url: url.href, lifetime: passwordResetLifetime }),
+        );
+
+        yield* mailer.send({ to: user.email, ...mail });
+      });
 
       return PasswordResets.of({
         request: Effect.fn("PasswordResets.request")(function* (email, ip) {
@@ -54,30 +83,14 @@ export class PasswordResets extends Context.Service<
             AttemptCounter.passwordResetsOfIp(ip),
           ]);
 
-          const found = yield* users.findByEmail(email);
-
-          if (Option.isNone(found) || !canSignIn(found.value.user)) return;
-
-          const { user } = found.value;
-          const token = Base64Url.encode(yield* random.randomBytes(linkTokenBytes));
-
-          // A User has one link at a time: asking again makes the earlier ones useless.
-          yield* links.removeAllOf(user.id, "password_reset");
-          yield* links.save({
-            tokenHash: yield* sha256Hex(digest, token),
-            userId: user.id,
-            purpose: "password_reset",
-            expiresAt: DateTime.addDuration(yield* DateTime.now, passwordResetLifetime),
-          });
-
-          const url = new URL("/reset-password", publicOrigin);
-          url.searchParams.set("token", token);
-
-          const mail = yield* Effect.promise(() =>
-            passwordReset({ url: url.href, lifetime: passwordResetLifetime }),
+          // In the background: the answer would otherwise take longer for a User who gets the mail, and its
+          // timing would tell who has an account.
+          yield* sendLink(email).pipe(
+            Effect.catchCause((cause) =>
+              Effect.logError("A Password Reset link could not be sent", cause),
+            ),
+            Effect.forkIn(scope),
           );
-
-          yield* mailer.send({ to: user.email, ...mail });
         }),
         confirm: Effect.fn("PasswordResets.confirm")(function* (token, password) {
           const link = yield* links.take(yield* sha256Hex(digest, token), "password_reset");

@@ -901,15 +901,27 @@ describe("IdentityApi, attempt limits", () => {
 
 const newPassword = Redacted.make("a brand new password, chosen");
 
-const mailsTo = (email: string) =>
-  Effect.map(
-    Effect.flatMap(Effect.service(SentMails), (sent) => sent.all),
-    (mails) => mails.filter((mail) => mail.to === email),
-  );
+const realPause = Effect.promise(() => new Promise((resolve) => setTimeout(resolve, 10)));
 
-/** The token of the last Password Reset link mailed to `email`. */
-const resetTokenOf = Effect.fn(function* (email: string) {
-  const mails = yield* mailsTo(email);
+/**
+ * The mails sent to `email`, once there are `count` of them, or after a second: the request answers before the
+ * link is mailed, and the mail is rendered in real time, which the TestClock does not drive.
+ */
+const mailsTo = Effect.fn(function* (email: string, count: number) {
+  const sent = yield* SentMails;
+
+  for (let tries = 0; ; tries++) {
+    const mails = (yield* sent.all).filter((mail) => mail.to === email);
+
+    if (mails.length >= count || tries === 100) return mails;
+
+    yield* realPause;
+  }
+});
+
+/** The token of the `nth` Password Reset link mailed to `email`. */
+const resetTokenOf = Effect.fn(function* (email: string, nth = 1) {
+  const mails = yield* mailsTo(email, nth);
 
   const token = /https:\/\/quack\.test\/reset-password\?token=([\w-]+)/.exec(
     mails.at(-1)?.text ?? "",
@@ -953,8 +965,8 @@ layer(withConfig({ SIGN_UPS_PER_IP: "1000", PASSWORD_RESETS_PER_IP: "1000" }))(
 
           assert.strictEqual(known, 202);
           assert.strictEqual(unknown, 202);
-          assert.lengthOf(yield* mailsTo("reset.ada@example.com"), 1);
-          assert.lengthOf(yield* mailsTo("reset.nobody@example.com"), 0);
+          assert.lengthOf(yield* mailsTo("reset.ada@example.com", 1), 1);
+          assert.lengthOf(yield* mailsTo("reset.nobody@example.com", 0), 0);
         }),
     );
 
@@ -965,7 +977,7 @@ layer(withConfig({ SIGN_UPS_PER_IP: "1000", PASSWORD_RESETS_PER_IP: "1000" }))(
 
         yield* browser.requestPasswordReset(asTyped(" Reset.Origin@Example.com "));
 
-        const [mail] = yield* mailsTo("reset.origin@example.com");
+        const [mail] = yield* mailsTo("reset.origin@example.com", 1);
         assert.match(mail?.html ?? "", /https:\/\/quack\.test\/reset-password\?token=/);
         assert.match(mail?.text ?? "", /lasts 1 hour/);
       }),
@@ -976,16 +988,20 @@ layer(withConfig({ SIGN_UPS_PER_IP: "1000", PASSWORD_RESETS_PER_IP: "1000" }))(
         const browser = yield* makeBrowser;
         yield* aUserWithStatus("reset.suspended@example.com", "suspended");
         yield* aUserWithStatus("reset.invited@example.com", "invited");
+        yield* browser.signUp(asTyped("reset.active@example.com"));
 
         const suspended = yield* browser.requestPasswordReset(
           asTyped("reset.suspended@example.com"),
         );
 
         const invited = yield* browser.requestPasswordReset(asTyped("reset.invited@example.com"));
+        // Asked last: once its mail is sent, the requests before it are done.
+        yield* browser.requestPasswordReset(asTyped("reset.active@example.com"));
+        yield* mailsTo("reset.active@example.com", 1);
 
         assert.deepStrictEqual([suspended, invited], [202, 202]);
-        assert.lengthOf(yield* mailsTo("reset.suspended@example.com"), 0);
-        assert.lengthOf(yield* mailsTo("reset.invited@example.com"), 0);
+        assert.lengthOf(yield* mailsTo("reset.suspended@example.com", 0), 0);
+        assert.lengthOf(yield* mailsTo("reset.invited@example.com", 0), 0);
       }),
     );
 
@@ -1077,7 +1093,7 @@ layer(withConfig({ SIGN_UPS_PER_IP: "1000", PASSWORD_RESETS_PER_IP: "1000" }))(
         const first = yield* resetTokenOf("reset.twice@example.com");
 
         yield* browser.requestPasswordReset(asTyped("reset.twice@example.com"));
-        const second = yield* resetTokenOf("reset.twice@example.com");
+        const second = yield* resetTokenOf("reset.twice@example.com", 2);
 
         assert.notStrictEqual(first, second);
         const refused = yield* browser.confirmPasswordReset(first, newPassword).pipe(Effect.flip);
@@ -1103,14 +1119,10 @@ layer(withConfig({ SIGN_UPS_PER_IP: "1000", PASSWORD_RESETS_PER_IP: "1000" }))(
         const browser = yield* makeBrowser;
         const { user } = yield* browser.signUp(asTyped("reset.later.suspended@example.com"));
         yield* browser.requestPasswordReset(asTyped("reset.later.suspended@example.com"));
+        const token = yield* resetTokenOf("reset.later.suspended@example.com");
         yield* (yield* UserRepository).update(new User({ ...user, status: "suspended" }));
 
-        const error = yield* browser
-          .confirmPasswordReset(
-            yield* resetTokenOf("reset.later.suspended@example.com"),
-            newPassword,
-          )
-          .pipe(Effect.flip);
+        const error = yield* browser.confirmPasswordReset(token, newPassword).pipe(Effect.flip);
 
         assert.strictEqual(error._tag, "ExpiredLink");
       }),
@@ -1143,7 +1155,7 @@ describe("IdentityApi, Password Reset limits", () => {
       assert.deepStrictEqual([...known, ...unknown], [202, 202, 202, 202, 202, 202]);
       assert.deepStrictEqual(refusal(refusedKnown), refusal(refusedUnknown));
       assert.strictEqual(refusedKnown._tag, "TooManyAttempts");
-      assert.lengthOf(yield* mailsTo("limit.ada@example.com"), 3);
+      assert.lengthOf(yield* mailsTo("limit.ada@example.com", 3), 3);
     }).pipe(withLimits({ PASSWORD_RESETS_PER_EMAIL: "3" })),
   );
 });
