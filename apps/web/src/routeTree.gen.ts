@@ -23,6 +23,7 @@ import { Route as AuthenticatedAppSettingsRouteRouteImport } from './routes/_aut
 import { Route as AuthenticatedAdminUsersIndexRouteImport } from './routes/_authenticated/admin/users/index'
 import { Route as AuthenticatedAdminUsersIdRouteImport } from './routes/_authenticated/admin/users/$id'
 import { Route as AuthenticatedAppSettingsIndexRouteImport } from './routes/_authenticated/app/settings/index'
+import { Route as AuthenticatedAppSettingsAiClientsRouteImport } from './routes/_authenticated/app/settings/ai-clients'
 import { Route as AuthenticatedAppSettingsPreferencesRouteImport } from './routes/_authenticated/app/settings/preferences'
 import { Route as AuthenticatedAppSettingsProfileRouteImport } from './routes/_authenticated/app/settings/profile'
 
@@ -98,6 +99,12 @@ const AuthenticatedAppSettingsIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedAppSettingsRouteRoute,
   } as any)
+const AuthenticatedAppSettingsAiClientsRoute =
+  AuthenticatedAppSettingsAiClientsRouteImport.update({
+    id: '/ai-clients',
+    path: '/ai-clients',
+    getParentRoute: () => AuthenticatedAppSettingsRouteRoute,
+  } as any)
 const AuthenticatedAppSettingsPreferencesRoute =
   AuthenticatedAppSettingsPreferencesRouteImport.update({
     id: '/preferences',
@@ -122,6 +129,7 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/app/': typeof AuthenticatedAppIndexRoute
   '/admin/users/$id': typeof AuthenticatedAdminUsersIdRoute
+  '/app/settings/ai-clients': typeof AuthenticatedAppSettingsAiClientsRoute
   '/app/settings/preferences': typeof AuthenticatedAppSettingsPreferencesRoute
   '/app/settings/profile': typeof AuthenticatedAppSettingsProfileRoute
   '/admin/users/': typeof AuthenticatedAdminUsersIndexRoute
@@ -135,6 +143,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/app': typeof AuthenticatedAppIndexRoute
   '/admin/users/$id': typeof AuthenticatedAdminUsersIdRoute
+  '/app/settings/ai-clients': typeof AuthenticatedAppSettingsAiClientsRoute
   '/app/settings/preferences': typeof AuthenticatedAppSettingsPreferencesRoute
   '/app/settings/profile': typeof AuthenticatedAppSettingsProfileRoute
   '/admin/users': typeof AuthenticatedAdminUsersIndexRoute
@@ -154,6 +163,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
   '/_authenticated/admin/users/$id': typeof AuthenticatedAdminUsersIdRoute
+  '/_authenticated/app/settings/ai-clients': typeof AuthenticatedAppSettingsAiClientsRoute
   '/_authenticated/app/settings/preferences': typeof AuthenticatedAppSettingsPreferencesRoute
   '/_authenticated/app/settings/profile': typeof AuthenticatedAppSettingsProfileRoute
   '/_authenticated/admin/users/': typeof AuthenticatedAdminUsersIndexRoute
@@ -172,6 +182,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/app/'
     | '/admin/users/$id'
+    | '/app/settings/ai-clients'
     | '/app/settings/preferences'
     | '/app/settings/profile'
     | '/admin/users/'
@@ -185,6 +196,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/app'
     | '/admin/users/$id'
+    | '/app/settings/ai-clients'
     | '/app/settings/preferences'
     | '/app/settings/profile'
     | '/admin/users'
@@ -203,6 +215,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/'
     | '/_authenticated/app/'
     | '/_authenticated/admin/users/$id'
+    | '/_authenticated/app/settings/ai-clients'
     | '/_authenticated/app/settings/preferences'
     | '/_authenticated/app/settings/profile'
     | '/_authenticated/admin/users/'
@@ -316,6 +329,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppSettingsIndexRouteImport
       parentRoute: typeof AuthenticatedAppSettingsRouteRoute
     }
+    '/_authenticated/app/settings/ai-clients': {
+      id: '/_authenticated/app/settings/ai-clients'
+      path: '/ai-clients'
+      fullPath: '/app/settings/ai-clients'
+      preLoaderRoute: typeof AuthenticatedAppSettingsAiClientsRouteImport
+      parentRoute: typeof AuthenticatedAppSettingsRouteRoute
+    }
     '/_authenticated/app/settings/preferences': {
       id: '/_authenticated/app/settings/preferences'
       path: '/preferences'
@@ -352,6 +372,7 @@ const AuthenticatedAdminRouteRouteWithChildren =
   )
 
 interface AuthenticatedAppSettingsRouteRouteChildren {
+  AuthenticatedAppSettingsAiClientsRoute: typeof AuthenticatedAppSettingsAiClientsRoute
   AuthenticatedAppSettingsPreferencesRoute: typeof AuthenticatedAppSettingsPreferencesRoute
   AuthenticatedAppSettingsProfileRoute: typeof AuthenticatedAppSettingsProfileRoute
   AuthenticatedAppSettingsIndexRoute: typeof AuthenticatedAppSettingsIndexRoute
@@ -359,6 +380,8 @@ interface AuthenticatedAppSettingsRouteRouteChildren {
 
 const AuthenticatedAppSettingsRouteRouteChildren: AuthenticatedAppSettingsRouteRouteChildren =
   {
+    AuthenticatedAppSettingsAiClientsRoute:
+      AuthenticatedAppSettingsAiClientsRoute,
     AuthenticatedAppSettingsPreferencesRoute:
       AuthenticatedAppSettingsPreferencesRoute,
     AuthenticatedAppSettingsProfileRoute: AuthenticatedAppSettingsProfileRoute,
