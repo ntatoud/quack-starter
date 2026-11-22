@@ -11,14 +11,14 @@ import { McpEndpoint } from "#/mcp/mcp-endpoint.ts";
 import {
   IdentityModule,
   OAuthMetadataRoutes,
-  OAuthModule,
+  AiClientsModule,
   TokenEndpointHeaders,
 } from "#/modules/identity/index.ts";
 import { SystemHandlers } from "#/modules/system/http/system-handlers.ts";
 import { TodosModule } from "#/modules/todos/index.ts";
 
 // One instance of the handlers serves both the HTTP API and the tools, which call it in process.
-const ApiHandlers = Layer.mergeAll(SystemHandlers, TodosModule, OAuthModule).pipe(
+const ApiHandlers = Layer.mergeAll(SystemHandlers, TodosModule, AiClientsModule).pipe(
   Layer.provideMerge(IdentityModule),
 );
 

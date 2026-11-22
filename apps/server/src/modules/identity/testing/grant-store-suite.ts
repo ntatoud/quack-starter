@@ -328,6 +328,19 @@ export const grantStoreSuite = <R>(
         assert.isTrue(Option.isNone(yield* store.findByAccessToken(next.accessToken.tokenHash)));
       }));
 
+    test("revokes a Grant of the User who gave it only", () =>
+      Effect.gen(function* () {
+        const store = yield* GrantStore;
+        const grant = yield* store.save(aDraft(yield* aUser));
+
+        assert.isFalse(yield* store.revokeOf(yield* aUser, grant.id));
+        assert.isFalse(yield* store.revokeOf(grant.userId, "not-a-grant"));
+        assert.isTrue(Option.isSome(yield* store.findOf(grant.userId, grant.aiClientId)));
+
+        assert.isTrue(yield* store.revokeOf(grant.userId, grant.id));
+        assert.isTrue(Option.isNone(yield* store.findOf(grant.userId, grant.aiClientId)));
+      }));
+
     test("revoking a Grant removes it with its tokens, and leaves the other Grants be", () =>
       Effect.gen(function* () {
         const { store, userId, grant, other } = yield* twoGrantsOfOneUser;

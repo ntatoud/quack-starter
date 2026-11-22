@@ -109,7 +109,7 @@ export class Grants extends Context.Service<
     >;
     /** The User's Grants that have not expired, last used first. */
     listOf(userId: UserId): Effect.Effect<ReadonlyArray<Grant>>;
-    /** Cuts the AI Client off at once: its tokens go with the Grant. Only the User who gave it may. */
+    /** Only the User who gave it may. */
     revoke(userId: UserId, grantId: GrantId): Effect.Effect<void, GrantNotFound>;
   }
 >()("@quack/server/identity/Grants") {
@@ -344,12 +344,10 @@ export class Grants extends Context.Service<
           );
         }),
         revoke: Effect.fn("Grants.revoke")(function* (userId, grantId) {
-          // Looked up among the User's own: another User's Grant is not found, so the API never tells it exists.
-          const owned = (yield* grants.listOf(userId)).some((grant) => grant.id === grantId);
-
-          if (!owned) return yield* new GrantNotFound({ id: grantId });
-
-          yield* grants.revoke(grantId);
+          // Another User's Grant is not found, so the API never tells it exists.
+          if (!(yield* grants.revokeOf(userId, grantId))) {
+            return yield* new GrantNotFound({ id: grantId });
+          }
         }),
       });
     }),

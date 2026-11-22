@@ -45,5 +45,7 @@ export class GrantStore extends Context.Service<
       },
     ): Effect.Effect<boolean>;
     revoke(grantId: string): Effect.Effect<void>;
+    /** False when the User gave no Grant of this id. */
+    revokeOf(userId: UserId, grantId: string): Effect.Effect<boolean>;
   }
 >()("@quack/server/identity/GrantStore") {}

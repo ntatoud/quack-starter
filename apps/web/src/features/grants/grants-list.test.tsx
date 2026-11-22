@@ -131,6 +131,12 @@ describe("GrantsList", () => {
     ).toEqual([]);
   });
 
+  it("says a Grant expired, rather than when, once its end is past", async () => {
+    await setup(serving(grant("gone", "Gone", { expiresAt: ago(2 * 60 * 1000) })));
+
+    await expect.element(entry("Gone").getByText("Expired", { exact: true })).toBeVisible();
+  });
+
   it("shows only the active group when no Grant needs a look", async () => {
     await setup(serving(claude));
 

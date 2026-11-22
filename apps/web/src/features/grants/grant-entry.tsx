@@ -51,8 +51,8 @@ export function GrantEntry({
         <ul aria-label="Permissions" className="flex flex-wrap gap-1">
           {grant.permissions.map((permission) => (
             <li key={permission}>
-              {/* What it removes, a User cannot get back. */}
-              <Badge variant={permission === "todos:delete" ? "destructive" : "secondary"}>
+              {/* What a delete removes, a User cannot get back. */}
+              <Badge variant={permission.endsWith(":delete") ? "destructive" : "secondary"}>
                 {permission}
               </Badge>
             </li>

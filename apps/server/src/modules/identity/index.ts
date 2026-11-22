@@ -53,10 +53,11 @@ export const IdentityModule = Layer.mergeAll(IdentityHandlers, UsersHandlers).pi
 );
 
 /**
- * The authorization server AI Clients go through, and the Grants a User sees and revokes. Requires the `HttpClient` it fetches their documents with
- * (`AiClientHttpClient`), and its storage, which `IdentityPostgres` holds.
+ * What AI Clients go through to act for a User, and the Grants the User sees and revokes. Requires the
+ * `HttpClient` it fetches their documents with (`AiClientHttpClient`), and its storage, which `IdentityPostgres`
+ * holds.
  */
-export const OAuthModule = Layer.mergeAll(OAuthHandlers, GrantsHandlers).pipe(
+export const AiClientsModule = Layer.mergeAll(OAuthHandlers, GrantsHandlers).pipe(
   Layer.provide([AuthorizationRequests.layer, CsrfTokens.layer]),
   Layer.provideMerge(Grants.layer),
   Layer.provide([AiClientDocumentsHttp, AttemptLimiterMemory]),

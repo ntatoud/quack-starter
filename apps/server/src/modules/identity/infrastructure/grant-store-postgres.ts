@@ -171,6 +171,13 @@ export const GrantStorePostgres = Layer.effect(
       execute: (id) => sql`DELETE FROM grants WHERE id = ${id}`,
     });
 
+    const revokeOf = SqlSchema.findAll({
+      Request: GrantRow.mapFields(Struct.pick(["id", "userId"])),
+      Result: Schema.Struct({ id: Schema.String }),
+      execute: ({ id, userId }) =>
+        sql`DELETE FROM grants WHERE id = ${id} AND user_id = ${userId} RETURNING id`,
+    });
+
     return GrantStore.of({
       save: Effect.fn("GrantStore.save")((draft) => upsert(draft).pipe(Effect.orDie)),
       findOf: Effect.fn("GrantStore.findOf")((userId, aiClientId) =>
@@ -258,6 +265,14 @@ export const GrantStorePostgres = Layer.effect(
         },
       ),
       revoke: Effect.fn("GrantStore.revoke")((id) => revoke(id).pipe(Effect.orDie)),
+      revokeOf: Effect.fn("GrantStore.revokeOf")((userId, id) =>
+        isStorableId(userId) && isStorableId(id)
+          ? revokeOf({ id, userId }).pipe(
+              Effect.map((revoked) => revoked.length > 0),
+              Effect.orDie,
+            )
+          : Effect.succeed(false),
+      ),
     });
   }),
 );

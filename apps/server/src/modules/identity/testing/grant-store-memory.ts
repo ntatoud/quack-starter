@@ -20,6 +20,16 @@ export const GrantStoreMemory = Layer.sync(GrantStore, () => {
   const byId = (id: string) =>
     Option.fromNullishOr([...grants.values()].find((grant) => grant.id === id));
 
+  const revoke = (grantId: string) => {
+    for (const { userId, aiClientId } of Option.toArray(byId(grantId))) {
+      grants.delete(keyOf(userId, aiClientId));
+    }
+
+    for (const tokens of [accessTokens, refreshTokens]) {
+      for (const [hash, token] of tokens) if (token.grantId === grantId) tokens.delete(hash);
+    }
+  };
+
   return GrantStore.of({
     save: (draft) =>
       Effect.sync(() => {
@@ -90,15 +100,14 @@ export const GrantStoreMemory = Layer.sync(GrantStore, () => {
 
         return true;
       }),
-    revoke: (grantId) =>
+    revoke: (grantId) => Effect.sync(() => revoke(grantId)),
+    revokeOf: (userId, grantId) =>
       Effect.sync(() => {
-        for (const { userId, aiClientId } of Option.toArray(byId(grantId))) {
-          grants.delete(keyOf(userId, aiClientId));
-        }
+        if (!Option.exists(byId(grantId), (grant) => grant.userId === userId)) return false;
 
-        for (const tokens of [accessTokens, refreshTokens]) {
-          for (const [hash, token] of tokens) if (token.grantId === grantId) tokens.delete(hash);
-        }
+        revoke(grantId);
+
+        return true;
       }),
   });
 });

@@ -12,7 +12,8 @@ export const attentionOf = (grant: Grant, now: Date): ReadonlyArray<string> => {
 
   return [
     ...(expiresAt.getTime() - now.getTime() <= Duration.toMillis(expiresSoon)
-      ? [`Expires ${timeAgo(expiresAt, now)} if unused`]
+      ? // Past already on a page left open: the server lists no expired Grant.
+        [expiresAt > now ? `Expires ${timeAgo(expiresAt, now)} if unused` : "Expired"]
       : []),
     ...(grant.loopbackOnly ? ["Runs on this machine"] : []),
   ];

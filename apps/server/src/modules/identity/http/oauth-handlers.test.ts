@@ -15,7 +15,7 @@ import { TestClock } from "effect/testing";
 import { AuthorizationCodeStore } from "#/modules/identity/domain/authorization-code-store.ts";
 import { GrantStore } from "#/modules/identity/domain/grant-store.ts";
 import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
-import { Grants, OAuthModule } from "#/modules/identity/index.ts";
+import { Grants, AiClientsModule } from "#/modules/identity/index.ts";
 import { AuthorizationCodeStoreMemory } from "#/modules/identity/testing/authorization-code-store-memory.ts";
 import { GrantStoreMemory } from "#/modules/identity/testing/grant-store-memory.ts";
 import { UserRepositoryMemory } from "#/modules/identity/testing/user-repository-memory.ts";
@@ -128,7 +128,7 @@ const refusal = (payload: AuthorizationRequestParams) =>
 
 const withEnv = (env: Record<string, string>) =>
   Layer.mergeAll(
-    OAuthModule.pipe(
+    AiClientsModule.pipe(
       Layer.provide(StubHttpClient),
       Layer.provideMerge(AuthorizationCodeStoreMemory),
       Layer.provideMerge(GrantStoreMemory),

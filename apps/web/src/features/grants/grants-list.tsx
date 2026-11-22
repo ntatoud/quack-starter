@@ -68,29 +68,26 @@ export function GrantsList() {
 
 function Groups({ grants, now }: { grants: ReadonlyArray<Grant>; now: Date }) {
   const entries = grants.map((grant) => ({ grant, attention: attentionOf(grant, now) }));
-  const flagged = entries.filter(({ attention }) => attention.length > 0);
-  const active = entries.filter(({ attention }) => attention.length === 0);
 
-  return (
-    <>
-      {flagged.length > 0 && (
-        <Group
-          title="Needs a look"
-          icon={<CircleAlertIcon aria-hidden className="size-4 text-amber-600" />}
-        >
-          {flagged.map(({ grant, attention }) => (
-            <GrantEntry key={grant.id} grant={grant} attention={attention} now={now} />
-          ))}
-        </Group>
-      )}
-      {active.length > 0 && (
-        <Group title="Active">
-          {active.map(({ grant }) => (
-            <GrantEntry key={grant.id} grant={grant} attention={[]} now={now} />
-          ))}
-        </Group>
-      )}
-    </>
+  const groups = [
+    {
+      title: "Needs a look",
+      icon: <CircleAlertIcon aria-hidden className="size-4 text-amber-600" />,
+      entries: entries.filter(({ attention }) => attention.length > 0),
+    },
+    { title: "Active", entries: entries.filter(({ attention }) => attention.length === 0) },
+  ];
+
+  return groups.flatMap(({ title, icon, entries: grouped }) =>
+    grouped.length === 0
+      ? []
+      : [
+          <Group key={title} title={title} icon={icon}>
+            {grouped.map((entry) => (
+              <GrantEntry key={entry.grant.id} {...entry} now={now} />
+            ))}
+          </Group>,
+        ],
   );
 }
 
