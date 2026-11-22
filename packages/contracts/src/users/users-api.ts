@@ -2,10 +2,10 @@ import { Schema, SchemaTransformation } from "effect";
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from "effect/http-api";
 
 import { Authentication } from "#/identity/authentication.ts";
-import { RequireRole } from "#/identity/require-role.ts";
 import { Team } from "#/identity/profile.ts";
 import { Role, User, UserId, UserStatus } from "#/identity/user.ts";
 import { Paginated, PaginationQuery } from "#/pagination/paginated.ts";
+import { RequiredPermission } from "#/permission.ts";
 import { sortingFields } from "#/sorting/sorting.ts";
 import {
   CannotChangeOwnAccess,
@@ -66,25 +66,24 @@ export class UsersApi extends HttpApiGroup.make("users")
     HttpApiEndpoint.get("list", "/", {
       query: UserListQuery,
       success: UserList,
-    }),
+    }).annotate(RequiredPermission, "users:list"),
     HttpApiEndpoint.get("get", "/:id", {
       params: { id: UserId },
       success: User,
       error: NotFound,
-    }),
+    }).annotate(RequiredPermission, "users:read"),
     /** Suspending ends the Sessions of the User at their next request. */
     HttpApiEndpoint.patch("update", "/:id", {
       params: { id: UserId },
       payload: UserChanges,
       success: User,
       error: [NotFound, OwnAccess, Invited],
-    }),
+    }).annotate(RequiredPermission, "users:write"),
     HttpApiEndpoint.delete("remove", "/:id", {
       params: { id: UserId },
       success: HttpApiSchema.NoContent,
       error: [NotFound, DeleteSelf],
-    }),
+    }).annotate(RequiredPermission, "users:delete"),
   )
-  .middleware(RequireRole("admin"))
   .middleware(Authentication)
   .prefix("/users") {}

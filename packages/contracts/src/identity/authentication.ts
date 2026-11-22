@@ -1,7 +1,7 @@
 import { Context } from "effect";
 import { HttpApiMiddleware, HttpApiSchema, HttpApiSecurity } from "effect/http-api";
 
-import { Unauthenticated } from "#/identity/identity-errors.ts";
+import { Forbidden, Unauthenticated } from "#/identity/identity-errors.ts";
 import type { User } from "#/identity/user.ts";
 
 export class CurrentUser extends Context.Service<CurrentUser, User>()(
@@ -15,5 +15,8 @@ export class Authentication extends HttpApiMiddleware.Service<
   { provides: CurrentUser }
 >()("@quack/contracts/identity/Authentication", {
   security: { session: sessionCookie },
-  error: Unauthenticated.pipe(HttpApiSchema.status(401)),
+  error: [
+    Unauthenticated.pipe(HttpApiSchema.status(401)),
+    Forbidden.pipe(HttpApiSchema.status(403)),
+  ],
 }) {}

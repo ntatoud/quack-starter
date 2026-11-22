@@ -2,7 +2,6 @@ import { assert, layer } from "@effect/vitest";
 import { Api } from "@quack/contracts/api";
 import { Authentication, CurrentUser } from "@quack/contracts/identity/authentication";
 import { Unauthenticated } from "@quack/contracts/identity/identity-errors";
-import { RequireRole } from "@quack/contracts/identity/require-role";
 import { Email, User, UserId } from "@quack/contracts/identity/user";
 import { TodoId, TodoTitle } from "@quack/contracts/todos/todo";
 import { TodoNotFound } from "@quack/contracts/todos/todo-errors";
@@ -48,12 +47,6 @@ const AuthenticationByUserId = Layer.succeed(
   }),
 );
 
-// The routes of the users group are built with those of the todos, but no test calls them.
-const RequireAdminUnused = Layer.succeed(
-  RequireRole("admin"),
-  RequireRole("admin").of((httpEffect) => httpEffect),
-);
-
 const clientOf = (user: User) =>
   HttpApiTest.groups(Api, ["todos"]).pipe(
     Effect.provide(
@@ -66,7 +59,6 @@ const clientOf = (user: User) =>
 const TodosLayer = TodosModule.pipe(
   Layer.provide(TodoRepositoryMemory),
   Layer.provideMerge(AuthenticationByUserId),
-  Layer.provideMerge(RequireAdminUnused),
 );
 
 layer(Layer.mergeAll(TodosLayer, HttpServer.layerServices))("TodosApi", (it) => {

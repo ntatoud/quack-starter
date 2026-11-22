@@ -1,5 +1,7 @@
 import { Schema } from "effect";
 
+import { Permission } from "#/permission.ts";
+
 export class Unauthenticated extends Schema.TaggedError<
   Unauthenticated,
   { readonly brand: unique symbol }
@@ -24,8 +26,11 @@ export class TooManyAttempts extends Schema.TaggedError<
   retryAfter: Schema.Int,
 }) {}
 
-/** The Current User is known, but their Role does not allow the request. */
+/** The caller is known, but lacks the Permission the endpoint requires. */
 export class Forbidden extends Schema.TaggedError<Forbidden, { readonly brand: unique symbol }>()(
   "Forbidden",
-  {},
+  {
+    /** Absent when the endpoint declares no Permission, which refuses every caller. */
+    permission: Schema.optionalKey(Permission),
+  },
 ) {}

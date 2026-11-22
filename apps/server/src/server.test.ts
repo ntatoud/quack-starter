@@ -101,8 +101,8 @@ describe("server routes", () => {
 
     expect(responses.map((response) => response.status)).toEqual([403, 403]);
     expect(await Promise.all(responses.map((response) => response.json()))).toEqual([
-      { _tag: "Forbidden" },
-      { _tag: "Forbidden" },
+      { _tag: "Forbidden", permission: "users:list" },
+      { _tag: "Forbidden", permission: "users:list" },
     ]);
   });
 
