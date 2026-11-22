@@ -592,7 +592,11 @@ describe("server routes of an AI Client", () => {
     scope: "todos:list todos:write",
   };
 
-  const post = (path: string, body: Readonly<Record<string, string>>, cookie: string) =>
+  const post = (
+    path: string,
+    body: Readonly<Record<string, string | ReadonlyArray<string>>>,
+    cookie: string,
+  ) =>
     handler(
       new Request(new URL(path, "http://api.test"), {
         method: "POST",
@@ -601,13 +605,24 @@ describe("server routes of an AI Client", () => {
       }),
     );
 
-  /** The User of `cookie` approves the AI Client on the consent page: answers the code it gets back. */
+  /**
+   * The User of `cookie` approves the AI Client on the consent page, with the Permissions it asks for: answers the
+   * code it gets back.
+   */
   const approvedCode = async (cookie: string, scope = authorizationRequest.scope) => {
     const request = { ...authorizationRequest, scope };
     const check = await post("/api/oauth/authorize/check", request, cookie);
-    const { csrfToken } = (await check.json()) as { csrfToken: string };
 
-    const approved = await post("/api/oauth/authorize/approve", { ...request, csrfToken }, cookie);
+    const { csrfToken, permissions } = (await check.json()) as {
+      csrfToken: string;
+      permissions: ReadonlyArray<string>;
+    };
+
+    const approved = await post(
+      "/api/oauth/authorize/approve",
+      { ...request, csrfToken, permissions },
+      cookie,
+    );
 
     const { redirectTo } = (await approved.json()) as { redirectTo: string };
 

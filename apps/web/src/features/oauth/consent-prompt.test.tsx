@@ -36,6 +36,7 @@ const checked = (fields: Partial<typeof AuthorizationRequest.Encoded> = {}) => (
   redirectHost: "claude.ai",
   loopbackOnly: false,
   permissions: ["todos:list", "todos:write", "todos:delete"],
+  grantablePermissions: ["todos:list", "todos:write", "todos:delete"],
   grantedPermissions: null,
   consentRemembered: false,
   csrfToken: "the-csrf-token",
@@ -90,6 +91,8 @@ const setup = async (given: Answers) => {
 
 const sentence = () => page.getByRole("heading", { level: 1 });
 
+const permission = (name: string) => page.getByRole("checkbox", { name, exact: true });
+
 afterEach(() => {
   fetch.mockClear();
   sent.length = 0;
@@ -136,22 +139,73 @@ describe("ConsentPrompt", () => {
     await expect.element(sentence()).toHaveTextContent("Claude, from claude.ai, wants todos:list");
   });
 
-  it("marks each Permission in the details as already given or new", async () => {
+  it("offers each Permission a Grant may hold by name, those asked for ticked", async () => {
     await setup({
-      check: () => Response.json(checked({ grantedPermissions: ["todos:list"] })),
+      check: () => Response.json(checked({ permissions: ["todos:list", "todos:write"] })),
     });
 
-    await page.getByText("Details").click();
-    const items = page.getByRole("group").getByRole("listitem");
-
-    await expect.element(items.nth(0)).toHaveTextContent("todos:list: Already given");
-    await expect.element(items.nth(1)).toHaveTextContent("todos:write: New");
-    await expect.element(items.nth(2)).toHaveTextContent("todos:delete: New");
+    await expect.element(page.getByRole("group", { name: "Permissions" })).toBeVisible();
+    await expect.element(permission("todos:list")).toBeChecked();
+    await expect.element(permission("todos:write")).toBeChecked();
+    await expect.element(permission("todos:delete")).not.toBeChecked();
+    await expect.element(permission("todos:list")).not.toHaveAccessibleDescription();
   });
 
-  it("leads from the sentence to Approve, then Deny, by keyboard", async () => {
+  it("ticks what the Grant already holds too, and says which ones it holds", async () => {
+    await setup({
+      check: () =>
+        Response.json(
+          checked({ permissions: ["todos:list"], grantedPermissions: ["todos:delete"] }),
+        ),
+    });
+
+    await expect.element(permission("todos:list")).toBeChecked();
+    await expect.element(permission("todos:list")).toHaveAccessibleDescription("New");
+    await expect.element(permission("todos:write")).not.toBeChecked();
+    await expect.element(permission("todos:write")).toHaveAccessibleDescription("New");
+    await expect.element(permission("todos:delete")).toBeChecked();
+    await expect.element(permission("todos:delete")).toHaveAccessibleDescription("Already given");
+  });
+
+  it("approves the Permissions the User ticked, fewer or more than asked", async () => {
+    const { approve } = await setup({
+      check: () => Response.json(checked({ permissions: ["todos:list", "todos:write"] })),
+      approve: () => Response.json({ redirectTo: approved }),
+    });
+
+    await permission("todos:write").click();
+    await permission("todos:delete").click();
+    await approve.click();
+
+    await expect.poll(() => sent.at(-1)?.path).toBe("/api/oauth/authorize/approve");
+    expect(sent.at(-1)?.body).toEqual({
+      ...params,
+      csrfToken: "the-csrf-token",
+      permissions: ["todos:list", "todos:delete"],
+    });
+  });
+
+  it("cannot approve nothing, but can still deny", async () => {
+    const { approve, deny } = await setup({
+      check: () => Response.json(checked({ permissions: ["todos:list"] })),
+    });
+
+    await permission("todos:list").click();
+
+    await expect.element(approve).toBeDisabled();
+    await expect.element(deny).toBeEnabled();
+    await permission("todos:write").click();
+    await expect.element(approve).toBeEnabled();
+  });
+
+  it("leads from the sentence to the Permissions, Approve, then Deny, by keyboard", async () => {
     await setup({ check: () => Response.json(checked()) });
     await expect.element(sentence()).toHaveFocus();
+
+    for (const name of ["todos:list", "todos:write", "todos:delete"]) {
+      await userEvent.tab();
+      await expect.element(permission(name)).toHaveFocus();
+    }
 
     await userEvent.tab();
     await expect.element(page.getByRole("button", { name: "Approve" })).toHaveFocus();
@@ -159,11 +213,11 @@ describe("ConsentPrompt", () => {
     await expect.element(page.getByRole("button", { name: "Deny" })).toHaveFocus();
   });
 
-  it("folds the details: the redirect host, the unverified name, and the Permissions by name", async () => {
+  it("folds the details: the redirect host and the unverified name", async () => {
     await setup({ check: () => Response.json(checked()) });
-    const details = page.getByRole("group");
+    const details = page.getByRole("group").filter({ hasText: /^Details/ });
 
-    await expect.element(details.getByText("todos:delete")).not.toBeVisible();
+    await expect.element(details.getByText(/afterwards/)).not.toBeVisible();
     await page.getByText("Details").click();
 
     await expect.element(details).toMatchTextContent(/You go back to claude\.ai afterwards\./);
@@ -172,10 +226,6 @@ describe("ConsentPrompt", () => {
       .toMatchTextContent(
         /The name “Claude” is what the AI Client says it is\. Only claude\.ai is verified\./,
       );
-
-    for (const name of ["todos:list", "todos:write", "todos:delete"]) {
-      await expect.element(details.getByText(name)).toBeVisible();
-    }
   });
 
   it("warns inline when the AI Client runs on this machine", async () => {
@@ -208,7 +258,11 @@ describe("ConsentPrompt", () => {
     await expect.poll(() => onRedirect.mock.calls).toEqual([[approved]]);
     expect(sent.at(-1)).toEqual({
       path: "/api/oauth/authorize/approve",
-      body: { ...params, csrfToken: "the-csrf-token" },
+      body: {
+        ...params,
+        csrfToken: "the-csrf-token",
+        permissions: ["todos:list", "todos:write", "todos:delete"],
+      },
     });
     await expect.element(page.getByRole("status")).toHaveTextContent("Going back to Claude…");
   });

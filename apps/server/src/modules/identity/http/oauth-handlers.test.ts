@@ -165,6 +165,11 @@ layer(withConfig({}))("OAuthApi checkAuthorization", (it) => {
       assert.strictEqual(request.redirectHost, "claude.ai");
       assert.isFalse(request.loopbackOnly);
       assert.deepStrictEqual(request.permissions, ["todos:list", "todos:write"]);
+      assert.deepStrictEqual(request.grantablePermissions, [
+        "todos:list",
+        "todos:write",
+        "todos:delete",
+      ]);
       assert.isNull(request.grantedPermissions);
       assert.isFalse(request.consentRemembered);
     }),
@@ -442,15 +447,29 @@ layer(withConfig({ AI_CLIENT_LOOPBACK_HTTP: "true" }))(
   },
 );
 
-const approve = (payload: AuthorizationRequestParams & { readonly csrfToken: string }) =>
-  Effect.flatMap(client, (api) => api.oauth.approveAuthorization({ payload }));
+const approve = (
+  payload: AuthorizationRequestParams & {
+    readonly csrfToken: string;
+    readonly permissions: ReadonlyArray<Permission>;
+  },
+) => Effect.flatMap(client, (api) => api.oauth.approveAuthorization({ payload }));
 
 const deny = (payload: AuthorizationRequestParams & { readonly csrfToken: string }) =>
   Effect.flatMap(client, (api) => api.oauth.denyAuthorization({ payload }));
 
-/** Checks the request as the consent page does, and answers it with the page's CSRF token. */
-const onTheConsentPage = (payload: AuthorizationRequestParams) =>
-  Effect.map(check(payload), ({ csrfToken }) => ({ ...payload, csrfToken }));
+/**
+ * Checks the request as the consent page does, and answers it with the page's CSRF token and the Permissions the
+ * User ticks: by default, those the request asks for.
+ */
+const onTheConsentPage = (
+  payload: AuthorizationRequestParams,
+  ticked?: ReadonlyArray<Permission>,
+) =>
+  Effect.map(check(payload), ({ csrfToken, permissions }) => ({
+    ...payload,
+    csrfToken,
+    permissions: ticked ?? permissions,
+  }));
 
 const sha256Hex = (text: string) =>
   Effect.promise(async () =>
@@ -561,7 +580,7 @@ layer(withConfig({}))("OAuthApi approveAuthorization and denyAuthorization", (it
       const { csrfToken } = yield* check(request);
 
       for (const forged of ["", "forged", `${csrfToken}x`, csrfToken.slice(1)]) {
-        const decision = { ...request, csrfToken: forged };
+        const decision = { ...request, csrfToken: forged, permissions: ["todos:list"] as const };
         assert.strictEqual((yield* Effect.flip(approve(decision)))._tag, "InvalidCsrfToken");
         assert.strictEqual((yield* Effect.flip(deny(decision)))._tag, "InvalidCsrfToken");
       }
@@ -578,6 +597,7 @@ layer(withConfig({}))("OAuthApi approveAuthorization and denyAuthorization", (it
         const tampered = {
           ...requestOf(clientId, { redirect_uri: "https://evil.example.com/callback" }),
           csrfToken,
+          permissions: ["todos:list"] as const,
         };
 
         for (const decide of [approve, deny]) {
@@ -600,10 +620,13 @@ const tokenRefusal = (payload: TokenRequestParams) =>
 /** The verifier of the challenge `requestOf` sends (RFC 7636 appendix B). */
 const codeVerifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
 
-/** Ada approves the request: answers the code, and the token request that exchanges it. */
-const approvedCode = (params: ReturnType<typeof requestOf>) =>
+/**
+ * Ada approves the request, with the Permissions she ticks (by default, those it asks for): answers the code, and the
+ * token request that exchanges it.
+ */
+const approvedCode = (params: ReturnType<typeof requestOf>, ticked?: ReadonlyArray<Permission>) =>
   Effect.gen(function* () {
-    const decision = yield* onTheConsentPage(params);
+    const decision = yield* onTheConsentPage(params, ticked);
     const code = new URL((yield* approve(decision)).redirectTo).searchParams.get("code") ?? "";
 
     return {
@@ -658,6 +681,47 @@ layer(withConfig({}))("OAuthApi approveAuthorization, the Grant", (it) => {
           permissions: ["todos:delete"] as ReadonlyArray<Permission>,
         })),
       );
+    }),
+  );
+
+  it.effect.each([
+    { case: "fewer", asked: "todos:list todos:write", ticked: ["todos:write"] },
+    { case: "more", asked: "todos:list", ticked: ["todos:delete", "todos:list"] },
+  ] as const)(
+    "the Grant and its tokens hold what the User ticked, $case than asked, and the scope names it",
+    ({ asked, ticked }) =>
+      Effect.gen(function* () {
+        const clientId = anAiClient();
+        const exchange = yield* approvedCode(requestOf(clientId, { scope: asked }), ticked);
+
+        const grant = yield* (yield* GrantStore).findOf(ada.id, clientId);
+        const response = yield* token(exchange);
+
+        const expected = ticked.length === 1 ? ["todos:write"] : ["todos:list", "todos:delete"];
+        assert.deepStrictEqual(
+          Option.map(grant, ({ permissions }) => permissions),
+          Option.some(expected as ReadonlyArray<Permission>),
+        );
+        assert.strictEqual(response.scope, expected.join(" "));
+      }),
+  );
+
+  it.effect("refuses an approval of nothing, or of a Permission no Grant may hold", () =>
+    Effect.gen(function* () {
+      const clientId = anAiClient();
+
+      for (const ticked of [[], ["users:list"], ["todos:list", "users:list"]] as const) {
+        const error = yield* Effect.flip(
+          approve(yield* onTheConsentPage(requestOf(clientId), ticked)),
+        );
+
+        assert.deepStrictEqual(
+          error._tag === "AuthorizationRequestRefused" ? error.error : error._tag,
+          "invalid_scope",
+        );
+      }
+
+      assert.isTrue(Option.isNone(yield* (yield* GrantStore).findOf(ada.id, clientId)));
     }),
   );
 
@@ -1016,6 +1080,24 @@ layer(withConfig({}))("OAuthApi token, a User no longer active", (it) => {
       assert.isFalse(yield* opens(tokens.access_token));
       assert.isTrue(Option.isNone(yield* (yield* GrantStore).findOf(ada.id, tokens.clientId)));
       assert.strictEqual(yield* tokenRefusal(refreshing(tokens)), "invalid_grant");
+    }),
+  );
+});
+
+layer(withConfig({ OAUTH_REMEMBER_CONSENT: "true" }))("OAuthApi, remembered consent", (it) => {
+  it.effect("remembers the consent to a request the Grant holds all of, though it holds more", () =>
+    Effect.gen(function* () {
+      const clientId = anAiClient();
+      yield* approvedCode(requestOf(clientId, { scope: "todos:list" }), [
+        "todos:list",
+        "todos:write",
+      ]);
+
+      const asked = yield* check(requestOf(clientId, { scope: "todos:write" }));
+      const more = yield* check(requestOf(clientId, { scope: "todos:write todos:delete" }));
+
+      assert.isTrue(asked.consentRemembered);
+      assert.isFalse(more.consentRemembered);
     }),
   );
 });

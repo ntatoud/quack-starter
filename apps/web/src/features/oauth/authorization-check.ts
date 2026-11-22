@@ -43,12 +43,21 @@ export const rememberedConsentRedirect = async (
   if (request?.consentRemembered !== true) return undefined;
 
   // Through the client's cache, as `useMutation` would: its handlers see the call.
-  return queryClient
-    .getMutationCache()
-    .build(queryClient, api.oauth.approveAuthorization.mutationOptions())
-    .execute({ payload: { ...params, csrfToken: request.csrfToken } })
-    .then(
-      ({ redirectTo }) => redirectTo,
-      () => undefined,
-    );
+  return (
+    queryClient
+      .getMutationCache()
+      .build(queryClient, api.oauth.approveAuthorization.mutationOptions())
+      // What the Grant holds, not only what is asked: approving sets the Grant to exactly what is approved.
+      .execute({
+        payload: {
+          ...params,
+          csrfToken: request.csrfToken,
+          permissions: request.grantedPermissions ?? request.permissions,
+        },
+      })
+      .then(
+        ({ redirectTo }) => redirectTo,
+        () => undefined,
+      )
+  );
 };

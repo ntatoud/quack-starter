@@ -9,6 +9,19 @@ import { redirectUriMatches } from "#/modules/identity/domain/redirect-uri.ts";
 export const grantablePermissions = TodosPermission.literals;
 
 /**
+ * The Permissions `names` give a Grant, once each in the order of `grantablePermissions`. None when they name nothing,
+ * or something no Grant may hold.
+ */
+export const grantableOf = (names: Iterable<string>): Option.Option<ReadonlyArray<Permission>> => {
+  const named = new Set(names);
+  const grantable: ReadonlySet<string> = new Set(grantablePermissions);
+
+  return named.size > 0 && [...named].every((name) => grantable.has(name))
+    ? Option.some(grantablePermissions.filter((permission) => named.has(permission)))
+    : Option.none();
+};
+
+/**
  * What an AI Client asks its User for to get `missing` too (RFC 6750 s3.1, step-up): what it `held` as well,
  * since approving sets the Grant to exactly what is approved. None when no Grant may hold `missing`.
  */
