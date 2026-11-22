@@ -17,7 +17,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { ChevronDownIcon, TriangleAlertIcon } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
 
-import { consentSentence, permissionSummaries } from "#/features/oauth/consent-sentence.ts";
+import { consentSentence } from "#/features/oauth/consent-sentence.ts";
 import { userLabel } from "#/features/users/full-name.ts";
 import { api } from "#/lib/api.ts";
 
@@ -181,7 +181,6 @@ function Consent({
             {request.permissions.map((permission) => (
               <li key={permission}>
                 <code className="font-medium">{permission}</code>
-                {permissionSummaries[permission] && `: ${permissionSummaries[permission]}`}
               </li>
             ))}
           </ul>

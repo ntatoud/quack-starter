@@ -101,19 +101,15 @@ describe("ConsentPrompt", () => {
 
     await expect
       .element(sentence())
-      .toHaveTextContent(
-        "Claude, from claude.ai, wants to see, create, complete, and delete your todos",
-      );
+      .toHaveTextContent("Claude, from claude.ai, wants todos:list, todos:write, and todos:delete");
     await expect.element(sentence()).toHaveFocus();
     expect(sent[0]).toEqual({ path: "/api/oauth/authorize/check", body: params });
   });
 
-  it("names a single Permission's verbs with no list", async () => {
+  it("names a single Permission with no list", async () => {
     await setup({ check: () => Response.json(checked({ permissions: ["todos:write"] })) });
 
-    await expect
-      .element(sentence())
-      .toHaveTextContent("Claude, from claude.ai, wants to create and complete your todos");
+    await expect.element(sentence()).toHaveTextContent("Claude, from claude.ai, wants todos:write");
   });
 
   it("leads from the sentence to Approve, then Deny, by keyboard", async () => {
