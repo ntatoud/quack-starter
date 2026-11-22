@@ -1,14 +1,13 @@
-import { base, en, Faker } from "@faker-js/faker";
+import { createHash } from "node:crypto";
+
 import type { UserId } from "@quack/contracts/identity/user";
 import { Todo, TodoId, TodoTitle } from "@quack/contracts/todos/todo";
 import { DateTime, Effect, Layer } from "effect";
 
+import { seedDate } from "#/database/seed-date.ts";
 import { TodoRepository } from "#/modules/todos/domain/todo-repository.ts";
 
-/** Every seeded Todo is created before it, so a seed gives the same Todos whatever day it runs. */
-const seedDate = DateTime.makeUnsafe("2026-06-01T00:00:00Z");
-
-const seededTodos = [
+const drafts = [
   { title: "Read the README", completed: true },
   { title: "Start Postgres with pnpm dev", completed: true },
   { title: "Add a module, copied from todos", completed: false },
@@ -16,23 +15,31 @@ const seededTodos = [
   { title: "Deploy the app", completed: false },
 ] as const;
 
-const devTodos = (owners: ReadonlyArray<UserId>): ReadonlyArray<Todo> => {
-  const faker = new Faker({ locale: [en, base] });
-  // Not identity's faker seed, whose first draws are the ids of the dev accounts.
-  faker.seed(2);
-  return owners.flatMap((ownerId) =>
-    seededTodos.map(
+// A hash of the owner and the place of the draft, laid out as a UUID v5, so that an owner's
+// Todos keep their ids whatever other owners are seeded, and in whatever order.
+const seededId = (ownerId: UserId, index: number): TodoId => {
+  const hex = createHash("sha1").update(`${ownerId}/${index}`).digest("hex");
+  const variant = ((Number.parseInt(hex.charAt(16), 16) & 0x3) | 0x8).toString(16);
+  return TodoId.make(
+    `${hex.slice(0, 8)}-${hex.slice(8, 12)}-5${hex.slice(13, 16)}-${variant}${hex.slice(17, 20)}-${hex.slice(20, 32)}`,
+  );
+};
+
+const devTodos = (owners: ReadonlyArray<UserId>): ReadonlyArray<Todo> =>
+  owners.flatMap((ownerId) =>
+    drafts.map(
       ({ title, completed }, index) =>
         new Todo({
-          id: TodoId.make(faker.string.uuid()),
+          id: seededId(ownerId, index),
           ownerId,
           title: TodoTitle.make(title),
           completed,
-          createdAt: DateTime.subtract(seedDate, { days: seededTodos.length - index }),
+          createdAt: DateTime.subtract(DateTime.fromDateUnsafe(seedDate), {
+            days: drafts.length - index,
+          }),
         }),
     ),
   );
-};
 
 export const TodosSeed = (owners: ReadonlyArray<UserId>) =>
   Layer.effectDiscard(

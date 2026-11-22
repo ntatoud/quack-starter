@@ -43,4 +43,15 @@ describe("TodosSeed", () => {
       assert.deepStrictEqual(twice, once);
     }),
   );
+
+  it.effect("gives an owner the same Todos whoever else is seeded with them", () =>
+    Effect.gen(function* () {
+      const [owner, other] = [anOwner(), anOwner()];
+
+      const [alone] = yield* seededTodos([owner], 1);
+      const [, withOther] = yield* seededTodos([other, owner], 1);
+
+      assert.deepStrictEqual(withOther, alone);
+    }),
+  );
 });
