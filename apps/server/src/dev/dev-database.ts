@@ -59,30 +59,34 @@ const serverUrl = "postgres://quack:quack@127.0.0.1:54320";
 
 const commandNotFound = ChildProcessSpawner.ExitCode(127);
 
-const startPostgres = Effect.gen(function* () {
+// `portless compose` routes the inbox of Mailpit to https://mailpit.quack.localhost, on a free port. It has to
+// start the containers every time: a plain `docker compose up` recreates them with the ports of compose.yaml.
+const composeUp = (env: Readonly<Record<string, string | undefined>>) =>
+  ChildProcess.make(
+    env["PORTLESS"] === "0" ? "docker" : "portless",
+    ["compose", "-f", composeFile, "up", "-d", "--wait"],
+    { stdout: "inherit", stderr: "inherit" },
+  );
+
+const startPostgres = Effect.fn("startPostgres")(function* (
+  env: Readonly<Record<string, string | undefined>>,
+) {
   const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
 
-  const composeUp = yield* spawner
-    .exitCode(
-      ChildProcess.make("docker", ["compose", "-f", composeFile, "up", "-d", "--wait"], {
-        stdout: "inherit",
-        stderr: "inherit",
-      }),
-    )
+  const exitCode = yield* spawner
+    .exitCode(composeUp(env))
     .pipe(Effect.orElseSucceed(() => commandNotFound));
 
-  if (composeUp === 0) return;
+  if (exitCode === 0) return;
 
   const dockerRuns = yield* spawner
     .exitCode(ChildProcess.make("docker", ["info"], { stdout: "ignore", stderr: "ignore" }))
     .pipe(
-      Effect.map((exitCode) => exitCode === 0),
+      Effect.map((code) => code === 0),
       Effect.orElseSucceed(() => false),
     );
 
-  return yield* dockerRuns
-    ? new PostgresDidNotStart({ exitCode: composeUp })
-    : new DockerNotRunning();
+  return yield* dockerRuns ? new PostgresDidNotStart({ exitCode }) : new DockerNotRunning();
 });
 
 const git = (args: ReadonlyArray<string>) =>
@@ -199,7 +203,7 @@ export const devDatabaseUrl = Effect.fn("devDatabaseUrl")(function* (
   const given = env["DATABASE_URL"];
 
   if (given !== undefined && given !== "") return given;
-  yield* startPostgres;
+  yield* startPostgres(env);
   const { name, migrations } = yield* chooseDatabase(env);
   yield* createDatabaseIfMissing(name);
   yield* checkMigrationsRecorded(name, migrations);
