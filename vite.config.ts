@@ -1,6 +1,14 @@
 import { defineConfig } from "vite-plus";
 
-const GENERATED = ["**/routeTree.gen.ts", "pnpm-lock.yaml", "dist", ".output", "node_modules"];
+// .agents/skills: installed by `npx skills`, kept as its authors wrote them.
+const GENERATED = [
+  "**/routeTree.gen.ts",
+  "pnpm-lock.yaml",
+  "dist",
+  ".output",
+  "node_modules",
+  ".agents/skills",
+];
 
 export default defineConfig({
   staged: {
