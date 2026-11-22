@@ -10,6 +10,6 @@ export const emailTheme = {
     "muted-foreground": "#737373",
     border: "#e5e5e5",
   },
-  // `--radius`, at 16 pixels to the rem.
-  radius: "4px",
+  // `--radius`, in pixels at 16 to the rem.
+  radius: 4,
 } as const;

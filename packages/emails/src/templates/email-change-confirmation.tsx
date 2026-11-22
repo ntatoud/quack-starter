@@ -23,7 +23,7 @@ export default function EmailChangeConfirmationEmail({ url }: EmailChangeConfirm
       </Text>
       <Button href={url}>Confirm this email</Button>
       <LinkFallback href={url} />
-      <Text>If you did not ask for it, ignore this email: nothing changes.</Text>
+      <Text muted>If you did not ask for it, ignore this email: nothing changes.</Text>
     </EmailLayout>
   );
 }

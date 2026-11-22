@@ -20,7 +20,7 @@ export default function PasswordResetEmail({ url }: PasswordResetProps) {
       <Text>Open the link below to choose a new password. It lasts 1 hour and works once.</Text>
       <Button href={url}>Choose a new password</Button>
       <LinkFallback href={url} />
-      <Text>If you did not ask for it, ignore this email: your password stays the same.</Text>
+      <Text muted>If you did not ask for it, ignore this email: your password stays the same.</Text>
     </EmailLayout>
   );
 }

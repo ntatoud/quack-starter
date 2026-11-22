@@ -6,7 +6,6 @@ import {
   Column,
   Container,
   Head,
-  Hr,
   Html,
   Preview,
   Row,
@@ -16,12 +15,17 @@ import {
   Text,
 } from "react-email";
 
+// The radii of `@quack/ui/globals.css`, from the same `--radius`.
 const tailwindConfig = {
   presets: [pixelBasedPreset],
   theme: {
     extend: {
       colors: emailTheme.colors,
-      borderRadius: { lg: emailTheme.radius },
+      borderRadius: {
+        md: `${emailTheme.radius * 0.8}px`,
+        lg: `${emailTheme.radius}px`,
+        xl: `${emailTheme.radius * 1.4}px`,
+      },
     },
   },
 };
@@ -40,10 +44,10 @@ export function EmailLayout({
       <Tailwind config={tailwindConfig}>
         <Head />
         <Preview>{preview}</Preview>
-        <Body className="bg-muted m-0 py-10 font-sans">
-          <Container className="bg-background border-border mx-auto max-w-[480px] rounded-lg border border-solid px-10 py-8">
+        <Body className="bg-muted m-0 px-3 py-10 font-sans">
+          <Container className="mx-auto max-w-[480px]">
             {/* The `Logo` of `@quack/brand`, in tables: mail clients lay out no flexbox. */}
-            <Section>
+            <Section className="mb-6">
               <Row>
                 <Column
                   data-skip-in-text
@@ -56,9 +60,12 @@ export function EmailLayout({
                 </Column>
               </Row>
             </Section>
-            {children}
-            <Hr className="border-border my-6" />
-            <Text className="text-muted-foreground m-0 text-xs leading-5">{reason}</Text>
+            <Section className="bg-background border-border rounded-xl border border-solid px-6 py-6">
+              {children}
+            </Section>
+            <Text className="text-muted-foreground mx-0 mt-6 mb-0 text-center text-xs leading-5">
+              {reason}
+            </Text>
           </Container>
         </Body>
       </Tailwind>
