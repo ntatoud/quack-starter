@@ -1,7 +1,6 @@
 import { Button } from "@quack/ui/components/button";
 import {
   Empty,
-  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
@@ -13,6 +12,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Option } from "effect";
 import { ListTodoIcon } from "lucide-react";
 
+import { LoadFailed } from "#/components/load-failed.tsx";
 import { TodoItem } from "#/features/todos/todo-item.tsx";
 import { api } from "#/lib/api.ts";
 
@@ -36,22 +36,11 @@ export function TodosList() {
       </>
     ),
     Error: () => (
-      <Empty className="border border-dashed">
-        <EmptyHeader role="alert">
-          <EmptyTitle>Could not load your todos</EmptyTitle>
-          <EmptyDescription>Check your connection and try again.</EmptyDescription>
-        </EmptyHeader>
-        <EmptyContent>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={todos.isFetching}
-            onClick={() => todos.refetch()}
-          >
-            Try again
-          </Button>
-        </EmptyContent>
-      </Empty>
+      <LoadFailed
+        title="Could not load your todos"
+        retrying={todos.isFetching}
+        onRetry={() => todos.refetch()}
+      />
     ),
     Success: ({ data, refreshError }) => (
       <div className="flex flex-col gap-4">

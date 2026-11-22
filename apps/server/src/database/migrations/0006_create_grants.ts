@@ -13,6 +13,7 @@ export default Effect.gen(function* () {
       resource text NOT NULL,
       permissions text[] NOT NULL,
       expires_at timestamptz NOT NULL,
+      last_used_at timestamptz,
       CONSTRAINT grants_user_id_ai_client_id_key UNIQUE (user_id, ai_client_id)
     )
   `;

@@ -8,7 +8,7 @@ import { HttpClient, HttpServer } from "effect/http";
 
 import { contractTools } from "#/mcp/contract-tools.ts";
 import { deriveTools } from "#/mcp/derive-tools.ts";
-import { IdentityModule, McpCaller, OAuthModule } from "#/modules/identity/index.ts";
+import { IdentityModule, McpCaller, AiClientsModule } from "#/modules/identity/index.ts";
 import { AuthorizationCodeStoreMemory } from "#/modules/identity/testing/authorization-code-store-memory.ts";
 import { GrantStoreMemory } from "#/modules/identity/testing/grant-store-memory.ts";
 import { SessionStoreMemory } from "#/modules/identity/testing/session-store-memory.ts";
@@ -23,7 +23,7 @@ const NoHttpClient = Layer.succeed(
   HttpClient.make(() => Effect.die("these tests fetch nothing")),
 );
 
-const ApiHandlers = Layer.mergeAll(SystemHandlers, TodosModule, OAuthModule).pipe(
+const ApiHandlers = Layer.mergeAll(SystemHandlers, TodosModule, AiClientsModule).pipe(
   Layer.provideMerge(IdentityModule),
   Layer.provide([
     UserRepositoryMemory,

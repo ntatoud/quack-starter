@@ -46,6 +46,12 @@ export const grantLifetime = Duration.days(30);
 /** Short, since an AI Client keeps it where Quack cannot see: a leaked one opens the Grant for an hour at most. */
 export const accessTokenLifetime = Duration.hours(1);
 
+/**
+ * How precisely a Grant remembers its last use: a call within this of the last one recorded writes nothing, so an
+ * AI Client calling tool after tool costs no write each time.
+ */
+export const lastUseResolution = Duration.minutes(1);
+
 export const accessTokenBytes = 32;
 
 export const refreshTokenBytes = 32;
@@ -59,6 +65,8 @@ export interface GrantDraft extends GrantTerms {
 
 export interface Grant extends GrantDraft {
   readonly id: string;
+  /** When an access token of the Grant last opened `/api/mcp`, `null` until one does. */
+  readonly lastUsedAt: DateTime.Utc | null;
 }
 
 /** What a token of a Grant opens, carried from the code it comes from to every token after. */

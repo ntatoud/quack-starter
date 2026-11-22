@@ -33,10 +33,10 @@ const setup = async (path: string, preferences: Partial<PreferenceValues> = {}, 
     component: SettingsLayout,
   });
 
-  const section = (name: string) =>
+  const section = (name: string, path = name.toLowerCase()) =>
     createRoute({
       getParentRoute: () => settings,
-      path: name.toLowerCase(),
+      path,
       component: () => <p>The {name} section</p>,
     });
 
@@ -46,6 +46,7 @@ const setup = async (path: string, preferences: Partial<PreferenceValues> = {}, 
         createRoute({ getParentRoute: () => settings, path: "/", component: SettingsHome }),
         section("Profile"),
         section("Preferences"),
+        section("AI Clients", "ai-clients"),
       ]),
     ]),
     history: createMemoryHistory({ initialEntries: [path] }),
@@ -80,6 +81,22 @@ describe("SettingsLayout", () => {
     await expect.element(page.getByText("The Preferences section")).toBeVisible();
     await expect.element(preferences).toHaveAttribute("aria-current", "page");
     await expect.element(profile).not.toHaveAttribute("aria-current");
+  });
+
+  it("lists the AI Clients next to the Profile and the Preferences", async () => {
+    await setup("/app/settings/ai-clients");
+    const nav = page.getByRole("navigation", { name: "Settings" });
+
+    await expect.element(page.getByText("The AI Clients section")).toBeVisible();
+    expect(
+      nav
+        .getByRole("link")
+        .elements()
+        .map((link) => link.textContent),
+    ).toEqual(["Profile", "Preferences", "AI Clients"]);
+    await expect
+      .element(nav.getByRole("link", { name: "AI Clients" }))
+      .toHaveAttribute("aria-current", "page");
   });
 
   it("leads from one section to another", async () => {

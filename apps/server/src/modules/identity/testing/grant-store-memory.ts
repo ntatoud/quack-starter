@@ -1,7 +1,15 @@
-import { Effect, Layer, Option } from "effect";
+import { DateTime, Effect, Layer, Option, Order } from "effect";
 
 import type { AccessToken, Grant, RefreshToken } from "#/modules/identity/domain/grant.ts";
 import { GrantStore } from "#/modules/identity/domain/grant-store.ts";
+
+// As the Postgres adapter: last used first, never used last, then by id.
+const byLastUse = Order.combine(
+  Order.mapInput(Order.flip(Option.makeOrder(DateTime.Order)), (grant: Grant) =>
+    Option.fromNullishOr(grant.lastUsedAt),
+  ),
+  Order.mapInput(Order.String, (grant: Grant) => grant.id),
+);
 
 export const GrantStoreMemory = Layer.sync(GrantStore, () => {
   const grants = new Map<string, Grant>();
@@ -12,11 +20,28 @@ export const GrantStoreMemory = Layer.sync(GrantStore, () => {
   const byId = (id: string) =>
     Option.fromNullishOr([...grants.values()].find((grant) => grant.id === id));
 
+  const revoke = (grantId: string) => {
+    for (const { userId, aiClientId } of Option.toArray(byId(grantId))) {
+      grants.delete(keyOf(userId, aiClientId));
+    }
+
+    for (const tokens of [accessTokens, refreshTokens]) {
+      for (const [hash, token] of tokens) if (token.grantId === grantId) tokens.delete(hash);
+    }
+  };
+
   return GrantStore.of({
     save: (draft) =>
       Effect.sync(() => {
         const key = keyOf(draft.userId, draft.aiClientId);
-        const grant = { ...draft, id: grants.get(key)?.id ?? crypto.randomUUID() };
+        const saved = grants.get(key);
+
+        const grant = {
+          ...draft,
+          id: saved?.id ?? crypto.randomUUID(),
+          lastUsedAt: saved?.lastUsedAt ?? null,
+        };
+
         grants.set(key, grant);
 
         for (const tokens of [accessTokens, refreshTokens]) {
@@ -29,6 +54,16 @@ export const GrantStoreMemory = Layer.sync(GrantStore, () => {
       }),
     findOf: (userId, aiClientId) =>
       Effect.sync(() => Option.fromNullishOr(grants.get(keyOf(userId, aiClientId)))),
+    listOf: (userId) =>
+      Effect.sync(() =>
+        [...grants.values()].filter((grant) => grant.userId === userId).toSorted(byLastUse),
+      ),
+    markUsed: (grantId, at) =>
+      Effect.sync(() => {
+        for (const grant of Option.toArray(byId(grantId))) {
+          grants.set(keyOf(grant.userId, grant.aiClientId), { ...grant, lastUsedAt: at });
+        }
+      }),
     saveAccessToken: (token) => Effect.sync(() => void accessTokens.set(token.tokenHash, token)),
     findByAccessToken: (tokenHash) =>
       Effect.sync(() =>
@@ -65,15 +100,14 @@ export const GrantStoreMemory = Layer.sync(GrantStore, () => {
 
         return true;
       }),
-    revoke: (grantId) =>
+    revoke: (grantId) => Effect.sync(() => revoke(grantId)),
+    revokeOf: (userId, grantId) =>
       Effect.sync(() => {
-        for (const { userId, aiClientId } of Option.toArray(byId(grantId))) {
-          grants.delete(keyOf(userId, aiClientId));
-        }
+        if (!Option.exists(byId(grantId), (grant) => grant.userId === userId)) return false;
 
-        for (const tokens of [accessTokens, refreshTokens]) {
-          for (const [hash, token] of tokens) if (token.grantId === grantId) tokens.delete(hash);
-        }
+        revoke(grantId);
+
+        return true;
       }),
   });
 });

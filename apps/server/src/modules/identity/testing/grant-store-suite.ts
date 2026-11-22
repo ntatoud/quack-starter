@@ -94,7 +94,7 @@ export const grantStoreSuite = <R>(
 
         const grant = yield* store.save(draft);
 
-        assert.deepStrictEqual(grant, { ...draft, id: grant.id });
+        assert.deepStrictEqual(grant, { ...draft, id: grant.id, lastUsedAt: null });
         assert.deepStrictEqual(
           yield* store.findOf(draft.userId, draft.aiClientId),
           Option.some(grant),
@@ -132,12 +132,57 @@ export const grantStoreSuite = <R>(
 
         const second = yield* store.save(changed);
 
-        assert.deepStrictEqual(second, { ...changed, id: first.id });
+        assert.deepStrictEqual(second, { ...changed, id: first.id, lastUsedAt: null });
         assert.deepStrictEqual(
           yield* store.findOf(userId, changed.aiClientId),
           Option.some(second),
         );
         assert.deepStrictEqual(yield* store.findOf(userId, other.aiClientId), Option.some(other));
+      }));
+
+    test("lists the Grants a User gave, last used first, and no other User's", () =>
+      Effect.gen(function* () {
+        const { store, userId, grant, other } = yield* twoGrantsOfOneUser;
+
+        const third = yield* store.save(
+          aDraft(userId, { aiClientId: "https://third.example.com/client.json" }),
+        );
+
+        yield* store.save(aDraft(yield* aUser));
+        yield* store.markUsed(other.id, at("2026-01-02T00:00:00Z"));
+        yield* store.markUsed(grant.id, at("2026-01-01T00:00:00Z"));
+
+        assert.deepStrictEqual(
+          (yield* store.listOf(userId)).map(({ id }) => id),
+          [other.id, grant.id, third.id],
+        );
+      }));
+
+    test("lists no Grant of a User who gave none", () =>
+      Effect.gen(function* () {
+        const store = yield* GrantStore;
+
+        assert.deepStrictEqual(yield* store.listOf(yield* aUser), []);
+      }));
+
+    test("remembers when a Grant was last used, and keeps it when the Grant is saved again", () =>
+      Effect.gen(function* () {
+        const store = yield* GrantStore;
+        const draft = aDraft(yield* aUser);
+        const grant = yield* store.save(draft);
+        const usedAt = at("2026-01-03T12:34:56Z");
+
+        yield* store.markUsed(grant.id, usedAt);
+        const saved = yield* store.save({ ...draft, permissions: ["todos:list"] });
+
+        assert.deepStrictEqual(saved.lastUsedAt, usedAt);
+        assert.deepStrictEqual(
+          Option.map(
+            yield* store.findOf(draft.userId, draft.aiClientId),
+            (found) => found.lastUsedAt,
+          ),
+          Option.some(usedAt),
+        );
       }));
 
     test("finds a Grant by the hash of an access token it holds, with the token", () =>
@@ -281,6 +326,19 @@ export const grantStoreSuite = <R>(
 
         assert.isFalse(yield* store.rotateRefreshToken(refreshToken.tokenHash, next));
         assert.isTrue(Option.isNone(yield* store.findByAccessToken(next.accessToken.tokenHash)));
+      }));
+
+    test("revokes a Grant of the User who gave it only", () =>
+      Effect.gen(function* () {
+        const store = yield* GrantStore;
+        const grant = yield* store.save(aDraft(yield* aUser));
+
+        assert.isFalse(yield* store.revokeOf(yield* aUser, grant.id));
+        assert.isFalse(yield* store.revokeOf(grant.userId, "not-a-grant"));
+        assert.isTrue(Option.isSome(yield* store.findOf(grant.userId, grant.aiClientId)));
+
+        assert.isTrue(yield* store.revokeOf(grant.userId, grant.id));
+        assert.isTrue(Option.isNone(yield* store.findOf(grant.userId, grant.aiClientId)));
       }));
 
     test("revoking a Grant removes it with its tokens, and leaves the other Grants be", () =>

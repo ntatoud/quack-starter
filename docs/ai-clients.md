@@ -24,6 +24,7 @@ How an AI Client (Claude, Claude Code, the MCP Inspector...) comes to call Quack
 
 A Grant ends sooner when:
 
+- its User revokes it, in the AI Clients section of their settings (`DELETE /api/grants/:id`): the Grant and all its tokens are removed, so the AI Client's next call gets 401;
 - its AI Client presents a replaced refresh token: the Grant and all its tokens are removed;
 - its User is no longer `active`: the next call or refresh gets 401 or `invalid_grant`, and removes the Grant, as their Session ends at its next request;
 - its User is deleted: Grants and their tokens go with them (`ON DELETE CASCADE`).
@@ -42,4 +43,5 @@ The `AttemptLimiter` of `docs/identity.md` guards two OAuth routes, with the lim
 
 - Contract: `packages/contracts/src/oauth/` (the `oauth` group: `authorize/*` behind `Authentication`, `token` after it).
 - Server: `apps/server/src/modules/identity/` (`AuthorizationRequests`, `Grants`, the `GrantStore` and `AuthorizationCodeStore` ports), `apps/server/src/mcp/` (the transport and its tools).
-- Web: `apps/web/src/features/oauth/` (the consent page).
+- Contract of the Grants a User sees and revokes: `packages/contracts/src/grants/` (no MCP tool: an AI Client never lists or revokes Grants).
+- Web: `apps/web/src/features/oauth/` (the consent page), `apps/web/src/features/grants/` (the AI Clients section of the settings: each Grant, when it was last used, to the minute, and the ones that need a look).

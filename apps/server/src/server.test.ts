@@ -697,6 +697,28 @@ describe("server routes of an AI Client", () => {
     expect(await listed.text()).toContain("Feed the ducks");
   });
 
+  it("the User revokes the Grant of an AI Client: its next call gets 401", async () => {
+    const cookie = await sessionCookieOf("ai-client-revoked@example.com", "203.0.113.81");
+    const { access_token } = (await (await exchange(await approvedCode(cookie))).json()) as Tokens;
+    expect((await callTool("todos_list", access_token)).status).toBe(200);
+
+    const listed = await handler(
+      new Request("http://api.test/api/grants", { headers: { cookie } }),
+    );
+
+    const [grant] = (await listed.json()) as Array<{ id: string }>;
+
+    const revoked = await handler(
+      new Request(`http://api.test/api/grants/${grant?.id}`, {
+        method: "DELETE",
+        headers: { cookie },
+      }),
+    );
+
+    expect(revoked.status).toBe(204);
+    expect((await callTool("todos_list", access_token)).status).toBe(401);
+  });
+
   it("an AI Client refreshes its tokens, until it presents a replaced refresh token: then its Grant is revoked", async () => {
     const cookie = await sessionCookieOf("ai-client-refresh@example.com", "203.0.113.83");
     const first = (await (await exchange(await approvedCode(cookie))).json()) as Tokens;
