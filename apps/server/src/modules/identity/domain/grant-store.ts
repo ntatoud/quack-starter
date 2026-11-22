@@ -18,6 +18,9 @@ export class GrantStore extends Context.Service<
      */
     save(grant: GrantDraft): Effect.Effect<Grant>;
     findOf(userId: UserId, aiClientId: string): Effect.Effect<Option.Option<Grant>>;
+    /** Expired ones too, last used first, then those never used. */
+    listOf(userId: UserId): Effect.Effect<ReadonlyArray<Grant>>;
+    markUsed(grantId: string, at: DateTime.Utc): Effect.Effect<void>;
     saveAccessToken(token: AccessToken): Effect.Effect<void>;
     /** Gives back an expired token or Grant as well: their reader judges expiry. */
     findByAccessToken(

@@ -14,9 +14,10 @@ const GrantRow = Schema.Struct({
   resource: Schema.String,
   permissions: Schema.Array(Permission),
   expiresAt: Schema.DateTimeUtcFromDate,
+  lastUsedAt: Schema.NullOr(Schema.DateTimeUtcFromDate),
 });
 
-const GrantDraftRow = GrantRow.mapFields(Struct.omit(["id"]));
+const GrantDraftRow = GrantRow.mapFields(Struct.omit(["id", "lastUsedAt"]));
 
 const AccessTokenRow = Schema.Struct({
   tokenHash: Schema.String,
@@ -58,7 +59,7 @@ export const GrantStorePostgres = Layer.effect(
   GrantStore,
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-    const grantColumns = sql`id, user_id, ai_client_id, ai_client_name, redirect_uri, resource, permissions, expires_at`;
+    const grantColumns = sql`id, user_id, ai_client_id, ai_client_name, redirect_uri, resource, permissions, expires_at, last_used_at`;
 
     const upsert = SqlSchema.findOne({
       Request: GrantDraftRow,
@@ -90,6 +91,21 @@ export const GrantStorePostgres = Layer.effect(
         SELECT ${grantColumns} FROM grants
         WHERE user_id = ${userId} AND ai_client_id = ${aiClientId}
       `,
+    });
+
+    const listOf = SqlSchema.findAll({
+      Request: UserId,
+      Result: GrantRow,
+      execute: (userId) => sql`
+        SELECT ${grantColumns} FROM grants WHERE user_id = ${userId}
+        ORDER BY last_used_at DESC NULLS LAST, id
+      `,
+    });
+
+    const markUsed = SqlSchema.void({
+      Request: GrantRow.mapFields(Struct.pick(["id", "lastUsedAt"])),
+      execute: ({ id, lastUsedAt }) =>
+        sql`UPDATE grants SET last_used_at = ${lastUsedAt} WHERE id = ${id}`,
     });
 
     const insertAccessToken = SqlSchema.void({
@@ -161,6 +177,12 @@ export const GrantStorePostgres = Layer.effect(
         isStorableId(userId)
           ? findOf({ userId, aiClientId }).pipe(Effect.orDie)
           : Effect.succeedNone,
+      ),
+      listOf: Effect.fn("GrantStore.listOf")((userId) =>
+        isStorableId(userId) ? listOf(userId).pipe(Effect.orDie) : Effect.succeed([]),
+      ),
+      markUsed: Effect.fn("GrantStore.markUsed")((id, lastUsedAt) =>
+        markUsed({ id, lastUsedAt }).pipe(Effect.orDie),
       ),
       saveAccessToken: Effect.fn("GrantStore.saveAccessToken")((token) =>
         insertAccessToken(token).pipe(Effect.orDie),

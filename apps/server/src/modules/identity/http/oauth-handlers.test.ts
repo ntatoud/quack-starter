@@ -1,6 +1,7 @@
 import { assert, describe, effect, layer } from "@effect/vitest";
 import { Api } from "@quack/contracts/api";
 import { Authentication } from "@quack/contracts/identity/authentication";
+import { GrantId } from "@quack/contracts/grants/grant";
 import { Email, User, UserId } from "@quack/contracts/identity/user";
 import type { AuthorizationRequestParams } from "@quack/contracts/oauth/authorization-request";
 import type { AuthorizationErrorCode } from "@quack/contracts/oauth/oauth-errors";
@@ -100,7 +101,7 @@ const requestOf = (clientId: string, params: AuthorizationRequestParams = {}) =>
 });
 
 const clientOf = (user: User) =>
-  HttpApiTest.groups(Api, ["oauth"]).pipe(
+  HttpApiTest.groups(Api, ["oauth", "grants"]).pipe(
     Effect.provide(
       HttpApiMiddleware.layerClient(Authentication, ({ next, request }) =>
         next(HttpClientRequest.setHeader(request, "cookie", `session=${user.id}`)),
@@ -634,6 +635,7 @@ layer(withConfig({}))("OAuthApi approveAuthorization, the Grant", (it) => {
           resource,
           permissions: ["todos:list", "todos:write"] as ReadonlyArray<Permission>,
           expiresAt: DateTime.add(now, { days: 30 }),
+          lastUsedAt: null,
         }),
       );
     }),
@@ -1109,5 +1111,126 @@ describe("OAuthApi, attempt limits", () => {
         TOKEN_FAILURES_PER_IP_WINDOW: "30 seconds",
       }),
     ),
+  );
+});
+
+const listGrants = Effect.flatMap(client, (api) => api.grants.list());
+
+const revokeGrant = (id: GrantId) =>
+  Effect.flatMap(client, (api) => api.grants.revoke({ params: { id } }));
+
+/** Ada's Grant to the AI Client, as her settings list it. */
+const grantListed = (clientId: string) =>
+  Effect.map(listGrants, (grants) => grants.find((grant) => grant.aiClient.id === clientId));
+
+layer(withConfig({}))("GrantsApi", (it) => {
+  it.effect("lists the Grants of the Current User, as the AI Clients section shows them", () =>
+    Effect.gen(function* () {
+      const clientId = anAiClient();
+      const now = yield* DateTime.now;
+      yield* approvedCode(requestOf(clientId));
+
+      const grant = yield* grantListed(clientId);
+
+      assert.deepStrictEqual(
+        grant && {
+          aiClient: grant.aiClient,
+          loopbackOnly: grant.loopbackOnly,
+          permissions: grant.permissions,
+          lastUsedAt: grant.lastUsedAt,
+          expiresAt: grant.expiresAt,
+        },
+        {
+          aiClient: { id: clientId, host: new URL(clientId).hostname, name: "Claude" },
+          loopbackOnly: false,
+          permissions: ["todos:list", "todos:write"],
+          lastUsedAt: null,
+          expiresAt: DateTime.add(now, { days: 30 }),
+        },
+      );
+    }),
+  );
+
+  it.effect("says when an AI Client comes back on this machine", () =>
+    Effect.gen(function* () {
+      const clientId = anAiClient({ redirect_uris: ["http://localhost/callback"] });
+      yield* approvedCode(requestOf(clientId, { redirect_uri: "http://localhost:51234/callback" }));
+
+      assert.isTrue((yield* grantListed(clientId))?.loopbackOnly);
+    }),
+  );
+
+  it.effect("lists no Grant of another User, and no expired one", () =>
+    Effect.gen(function* () {
+      const store = yield* GrantStore;
+      const clientId = anAiClient();
+      yield* approvedCode(requestOf(clientId));
+      const grant = yield* store.findOf(ada.id, clientId).pipe(Effect.map(Option.getOrThrow));
+      const now = yield* DateTime.now;
+      const others = anAiClient();
+      yield* store.save({ ...grant, userId: grace.id, aiClientId: others });
+
+      yield* store.save({ ...grant, expiresAt: now });
+
+      assert.isUndefined(yield* grantListed(clientId));
+      assert.isUndefined(yield* grantListed(others));
+    }),
+  );
+
+  it.effect("tells when the AI Client last used its Grant, to the minute", () =>
+    Effect.gen(function* () {
+      const tokens = yield* tokensOfANewAiClient();
+      const first = yield* DateTime.now;
+
+      yield* opens(tokens.access_token);
+      assert.deepStrictEqual((yield* grantListed(tokens.clientId))?.lastUsedAt, first);
+
+      yield* TestClock.adjust("59 seconds");
+      yield* opens(tokens.access_token);
+      assert.deepStrictEqual((yield* grantListed(tokens.clientId))?.lastUsedAt, first);
+
+      yield* TestClock.adjust("1 second");
+      yield* opens(tokens.access_token);
+      assert.deepStrictEqual(
+        (yield* grantListed(tokens.clientId))?.lastUsedAt,
+        DateTime.add(first, { minutes: 1 }),
+      );
+    }),
+  );
+
+  it.effect("revoking a Grant cuts its AI Client off at once", () =>
+    Effect.gen(function* () {
+      const tokens = yield* tokensOfANewAiClient();
+      const grant = yield* grantListed(tokens.clientId);
+
+      yield* revokeGrant(grant?.id ?? GrantId.make(""));
+
+      assert.isUndefined(yield* grantListed(tokens.clientId));
+      assert.isFalse(yield* opens(tokens.access_token));
+      assert.strictEqual(yield* tokenRefusal(refreshing(tokens)), "invalid_grant");
+    }),
+  );
+
+  it.effect("refuses to revoke a Grant of another User, and leaves it be", () =>
+    Effect.gen(function* () {
+      const store = yield* GrantStore;
+
+      const others = yield* store.save({
+        userId: grace.id,
+        aiClientId: anAiClient(),
+        aiClientName: "Claude",
+        redirectUri,
+        resource,
+        permissions: ["todos:list"],
+        expiresAt: DateTime.add(yield* DateTime.now, { days: 30 }),
+      });
+
+      for (const id of [others.id, "unknown"]) {
+        const error = yield* Effect.flip(revokeGrant(GrantId.make(id)));
+        assert.strictEqual(error._tag, "GrantNotFound");
+      }
+
+      assert.isTrue(Option.isSome(yield* store.findOf(others.userId, others.aiClientId)));
+    }),
   );
 });

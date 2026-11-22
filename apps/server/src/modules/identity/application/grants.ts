@@ -1,6 +1,8 @@
 import { MCP_PATH } from "@quack/contracts/api";
+import { GrantNotFound } from "@quack/contracts/grants/grant-errors";
+import type { GrantId } from "@quack/contracts/grants/grant";
 import { type TooManyAttempts, Unauthenticated } from "@quack/contracts/identity/identity-errors";
-import type { User } from "@quack/contracts/identity/user";
+import type { User, UserId } from "@quack/contracts/identity/user";
 import { TokenRequestRefused } from "@quack/contracts/oauth/oauth-errors";
 import type { TokenRequestParams, TokenResponse } from "@quack/contracts/oauth/token-request";
 import type { Permission } from "@quack/contracts/permission";
@@ -21,6 +23,7 @@ import {
   accessTokenLifetime,
   type Grant,
   grantLifetime,
+  lastUseResolution,
   refreshTokenBytes,
   type TokenTerms,
 } from "#/modules/identity/domain/grant.ts";
@@ -104,6 +107,10 @@ export class Grants extends Context.Service<
       { readonly user: User; readonly permissions: ReadonlySet<Permission> },
       Unauthenticated
     >;
+    /** The User's Grants that have not expired, last used first. */
+    listOf(userId: UserId): Effect.Effect<ReadonlyArray<Grant>>;
+    /** Cuts the AI Client off at once: its tokens go with the Grant. Only the User who gave it may. */
+    revoke(userId: UserId, grantId: GrantId): Effect.Effect<void, GrantNotFound>;
   }
 >()("@quack/server/identity/Grants") {
   static readonly layer = Layer.effect(
@@ -311,12 +318,38 @@ export class Grants extends Context.Service<
           const user = yield* revokeUnlessLive(grant);
 
           if (Option.isNone(user)) return yield* new Unauthenticated();
+
+          if (
+            grant.lastUsedAt === null ||
+            DateTime.isGreaterThanOrEqualTo(
+              now,
+              DateTime.addDuration(grant.lastUsedAt, lastUseResolution),
+            )
+          ) {
+            yield* grants.markUsed(grant.id, now);
+          }
+
           const ofRole = [...rolePermissions(user.value.role)];
 
           return {
             user: user.value,
             permissions: new Set(held(accessToken.permissions, grant.permissions, ofRole)),
           };
+        }),
+        listOf: Effect.fn("Grants.listOf")(function* (userId) {
+          const now = yield* DateTime.now;
+
+          return (yield* grants.listOf(userId)).filter((grant) =>
+            DateTime.isLessThan(now, grant.expiresAt),
+          );
+        }),
+        revoke: Effect.fn("Grants.revoke")(function* (userId, grantId) {
+          // Looked up among the User's own: another User's Grant is not found, so the API never tells it exists.
+          const owned = (yield* grants.listOf(userId)).some((grant) => grant.id === grantId);
+
+          if (!owned) return yield* new GrantNotFound({ id: grantId });
+
+          yield* grants.revoke(grantId);
         }),
       });
     }),

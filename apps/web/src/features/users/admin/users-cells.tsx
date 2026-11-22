@@ -6,6 +6,7 @@ import { DateTime } from "effect";
 import { labelOf } from "#/features/users/admin/users-filters.ts";
 import { fullName } from "#/features/users/full-name.ts";
 import { UserAvatar } from "#/features/users/user-avatar.tsx";
+import { timeAgo } from "#/lib/time-ago.ts";
 
 export function NameCell({ user }: { user: User }) {
   const { profile } = user;
@@ -61,31 +62,7 @@ export function CountryCell({ code }: { code: string }) {
 
 const dateFormat = new Intl.DateTimeFormat("en", { dateStyle: "medium" });
 const dateTimeFormat = new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" });
-const relativeFormat = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
-
-const units: ReadonlyArray<[Intl.RelativeTimeFormatUnit, number]> = [
-  ["year", 365 * 24 * 60 * 60],
-  ["month", 30 * 24 * 60 * 60],
-  ["week", 7 * 24 * 60 * 60],
-  ["day", 24 * 60 * 60],
-  ["hour", 60 * 60],
-  ["minute", 60],
-];
-
 const capitalized = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
-
-/** In the largest unit that fits, starting with a capital as the other cells do: "3 days ago", "Last month". */
-const timeAgo = (date: Date, now: Date) => {
-  const seconds = Math.round((date.getTime() - now.getTime()) / 1000);
-
-  for (const [unit, size] of units) {
-    if (Math.abs(seconds) >= size) {
-      return capitalized(relativeFormat.format(Math.round(seconds / size), unit));
-    }
-  }
-
-  return "Just now";
-};
 
 export function DateCell({ date }: { date: DateTime.Utc }) {
   const value = DateTime.toDateUtc(date);
@@ -115,7 +92,7 @@ export function TimeAgoCell({ date, now }: { date: DateTime.Utc | null; now: Dat
       title={dateTimeFormat.format(value)}
       className="whitespace-nowrap"
     >
-      {timeAgo(value, now)}
+      {capitalized(timeAgo(value, now))}
     </time>
   );
 }

@@ -11,6 +11,7 @@ import { AuthenticationMiddleware } from "#/modules/identity/http/authentication
 import { accessTo } from "#/modules/identity/http/authorize.ts";
 import { McpCaller } from "#/modules/identity/http/mcp-caller.ts";
 import { CsrfTokens } from "#/modules/identity/http/csrf-tokens.ts";
+import { GrantsHandlers } from "#/modules/identity/http/grants-handlers.ts";
 import { IdentityHandlers } from "#/modules/identity/http/identity-handlers.ts";
 import { OAuthHandlers } from "#/modules/identity/http/oauth-handlers.ts";
 import { OAuthMetadataRoutes } from "#/modules/identity/http/oauth-metadata.ts";
@@ -52,10 +53,10 @@ export const IdentityModule = Layer.mergeAll(IdentityHandlers, UsersHandlers).pi
 );
 
 /**
- * The authorization server AI Clients go through. Requires the `HttpClient` it fetches their documents with
+ * The authorization server AI Clients go through, and the Grants a User sees and revokes. Requires the `HttpClient` it fetches their documents with
  * (`AiClientHttpClient`), and its storage, which `IdentityPostgres` holds.
  */
-export const OAuthModule = OAuthHandlers.pipe(
+export const OAuthModule = Layer.mergeAll(OAuthHandlers, GrantsHandlers).pipe(
   Layer.provide([AuthorizationRequests.layer, CsrfTokens.layer]),
   Layer.provideMerge(Grants.layer),
   Layer.provide([AiClientDocumentsHttp, AttemptLimiterMemory]),

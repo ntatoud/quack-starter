@@ -1,5 +1,7 @@
 import type { Permission } from "@quack/contracts/permission";
 
+import { listOf } from "#/lib/list-of.ts";
+
 /**
  * What the request asks of the User: a first Grant, more than the Grant they gave (`added`), or that Grant
  * again with nothing new.
@@ -21,9 +23,6 @@ export const consentAsk = ({
 
   return added.length > 0 ? { _tag: "More", added } : { _tag: "Again" };
 };
-
-const listOf = (words: ReadonlyArray<string>) =>
-  words.length <= 2 ? words.join(" and ") : `${words.slice(0, -1).join(", ")}, and ${words.at(-1)}`;
 
 /**
  * The centrepiece of the consent page: "Claude, from claude.ai, wants todos:list and todos:write", or for

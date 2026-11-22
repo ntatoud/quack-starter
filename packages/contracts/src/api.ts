@@ -1,5 +1,6 @@
 import { HttpApi, OpenApi } from "effect/http-api";
 
+import { GrantsApi } from "#/grants/grants-api.ts";
 import { IdentityApi } from "#/identity/identity-api.ts";
 import { OAuthApi } from "#/oauth/oauth-api.ts";
 import { SystemApi } from "#/system/system-api.ts";
@@ -17,5 +18,6 @@ export class Api extends HttpApi.make("quack")
   .add(TodosApi)
   .add(UsersApi)
   .add(OAuthApi)
+  .add(GrantsApi)
   .prefix(API_PREFIX)
   .annotateMerge(OpenApi.annotations({ title: "Quack API" })) {}

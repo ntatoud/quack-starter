@@ -1,0 +1,44 @@
+import { Api } from "@quack/contracts/api";
+import { Grant, GrantablePermission, GrantId } from "@quack/contracts/grants/grant";
+import { CurrentUser } from "@quack/contracts/identity/authentication";
+import { Effect, Schema } from "effect";
+import { HttpApiBuilder } from "effect/http-api";
+
+import { Grants } from "#/modules/identity/application/grants.ts";
+import { isLoopback } from "#/modules/identity/domain/redirect-uri.ts";
+
+export const GrantsHandlers = HttpApiBuilder.group(
+  Api,
+  "grants",
+  Effect.fn(function* (handlers) {
+    const grants = yield* Grants;
+
+    return handlers.handleAll({
+      list: Effect.fn(function* () {
+        const user = yield* CurrentUser;
+
+        return (yield* grants.listOf(user.id)).map(
+          (grant) =>
+            new Grant({
+              id: GrantId.make(grant.id),
+              aiClient: {
+                id: grant.aiClientId,
+                host: new URL(grant.aiClientId).hostname,
+                name: grant.aiClientName,
+              },
+              loopbackOnly: isLoopback(new URL(grant.redirectUri)),
+              // Approving holds a Grant to those already: this only narrows the type.
+              permissions: grant.permissions.filter(Schema.is(GrantablePermission)),
+              lastUsedAt: grant.lastUsedAt,
+              expiresAt: grant.expiresAt,
+            }),
+        );
+      }),
+      revoke: Effect.fn(function* ({ params }) {
+        const user = yield* CurrentUser;
+
+        yield* grants.revoke(user.id, params.id);
+      }),
+    });
+  }),
+);
