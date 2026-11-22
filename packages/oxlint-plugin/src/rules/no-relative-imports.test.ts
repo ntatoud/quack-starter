@@ -4,9 +4,11 @@ import { describe, it } from "vite-plus/test";
 import rule from "#/rules/no-relative-imports.ts";
 
 RuleTester.describe = describe;
+
 RuleTester.it = it;
 
 const filename = "/repo/apps/web/src/features/todos/queries.ts";
+
 const error = (specifier: string) => ({
   message: `Relative import "${specifier}". Use the package alias instead: "#/..." maps to this package's src folder.`,
 });

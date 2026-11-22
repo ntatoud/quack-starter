@@ -22,6 +22,7 @@ const ada = new User({
   onboardedAt: null,
   profile: null,
 });
+
 const grace = new User({
   id: UserId.make("grace"),
   email: Email.make("grace@example.com"),
@@ -32,6 +33,7 @@ const grace = new User({
   onboardedAt: null,
   profile: null,
 });
+
 const users: ReadonlyArray<User> = [ada, grace];
 
 const clientOf = (user: User) =>
@@ -65,9 +67,11 @@ layer(Layer.mergeAll(TodosLayer, HttpServer.layerServices))("TodosApi", (it) => 
     Effect.gen(function* () {
       const asAda = yield* clientOf(ada);
       const asGrace = yield* clientOf(grace);
+
       const ofAda = yield* asAda.todos.create({
         payload: { title: TodoTitle.make("Write the engine") },
       });
+
       const ofGrace = yield* asGrace.todos.create({
         payload: { title: TodoTitle.make("Write the compiler") },
       });
@@ -86,6 +90,7 @@ layer(Layer.mergeAll(TodosLayer, HttpServer.layerServices))("TodosApi", (it) => 
     Effect.gen(function* () {
       const asAda = yield* clientOf(ada);
       const asGrace = yield* clientOf(grace);
+
       const ofAda = yield* asAda.todos.create({
         payload: { title: TodoTitle.make("Keep it private") },
       });
@@ -93,11 +98,14 @@ layer(Layer.mergeAll(TodosLayer, HttpServer.layerServices))("TodosApi", (it) => 
       const seenByGrace = (yield* asGrace.todos.list()).map((todo) => todo.id);
       const params = { id: ofAda.id };
       const completeError = yield* asGrace.todos.complete({ params }).pipe(Effect.flip);
+
       const completeResponse = yield* asGrace.todos.complete({
         params,
         responseMode: "response-only",
       });
+
       const removeError = yield* asGrace.todos.remove({ params }).pipe(Effect.flip);
+
       const removeResponse = yield* asGrace.todos.remove({
         params,
         responseMode: "response-only",
@@ -122,6 +130,7 @@ layer(Layer.mergeAll(TodosLayer, HttpServer.layerServices))("TodosApi", (it) => 
       const created = yield* client.todos.create({
         payload: { title: TodoTitle.make("Ship it") },
       });
+
       assert.isFalse(created.completed);
 
       const completed = yield* client.todos.complete({ params: { id: created.id } });
@@ -140,6 +149,7 @@ layer(Layer.mergeAll(TodosLayer, HttpServer.layerServices))("TodosApi", (it) => 
       const error = yield* client.todos
         .complete({ params: { id: TodoId.make("missing") } })
         .pipe(Effect.flip);
+
       assert.strictEqual(error._tag, "TodoNotFound");
     }),
   );

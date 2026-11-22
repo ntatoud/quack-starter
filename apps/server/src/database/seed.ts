@@ -20,6 +20,7 @@ export class NotLocalDatabase extends Schema.TaggedError<
 
 export const isLocalDatabaseUrl = (url: string): boolean => {
   const parsed = URL.parse(url);
+
   return (
     parsed !== null &&
     ["postgres:", "postgresql:"].includes(parsed.protocol) &&
@@ -32,12 +33,14 @@ export const isLocalDatabaseUrl = (url: string): boolean => {
 
 const truncateTables = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
+
   const tables = yield* SqlSchema.findAll({
     Request: Schema.Void,
     Result: Schema.Struct({ tablename: Schema.String }),
     execute: () =>
       sql`SELECT tablename FROM pg_tables WHERE schemaname = current_schema() AND tablename <> ${MIGRATIONS_TABLE}`,
   })(undefined);
+
   if (tables.length === 0) return;
   yield* sql`TRUNCATE ${sql.csv(tables.map(({ tablename }) => sql`${sql(tablename)}`))} RESTART IDENTITY CASCADE`;
 });
@@ -55,9 +58,11 @@ const reset = Effect.gen(function* () {
 
 export const seedDatabase = Effect.fn("seedDatabase")(function* (config: DatabaseSettings) {
   const url = Redacted.value(config.url);
+
   if (!isLocalDatabaseUrl(url)) {
     return yield* new NotLocalDatabase({ url: withoutPassword(url) });
   }
+
   yield* reset.pipe(
     Effect.provide(
       Layer.mergeAll(IdentityPostgres, TodosPostgres).pipe(Layer.provideMerge(databaseAt(config))),

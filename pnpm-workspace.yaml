@@ -50,7 +50,6 @@ minimumReleaseAgeExclude:
   - "@voidzero-dev/vite-plus-linux-x64-musl@1.6.0"
   - "@voidzero-dev/vite-plus-win32-arm64-msvc@1.6.0"
   - "@voidzero-dev/vite-plus-win32-x64-msvc@1.6.0"
-  - knip@6.45.1
   - tsrs@0.24.0-ts7.1.0-beta
   - vite-plus@1.6.0
   - "@effect/sql-pg@4.1.4"

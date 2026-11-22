@@ -7,6 +7,7 @@ const getMobileQuery = () => (mobileQuery ??= window.matchMedia("(max-width: 767
 function subscribe(onChange: () => void) {
   const query = getMobileQuery();
   query.addEventListener("change", onChange);
+
   return () => query.removeEventListener("change", onChange);
 }
 

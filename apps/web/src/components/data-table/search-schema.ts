@@ -18,6 +18,7 @@ const SearchText = Schema.Union([Schema.String, Schema.Number, Schema.Boolean]).
     SchemaTransformation.transform({
       decode: (value) => {
         const text = String(value);
+
         return text.trim() === "" ? undefined : text;
       },
       encode: (text) => text ?? "",
@@ -26,7 +27,7 @@ const SearchText = Schema.Union([Schema.String, Schema.Number, Schema.Boolean]).
 );
 
 // A filter that needs no service to decode, as `validateSearch` runs without any.
-type DataTableFilterSchemas = Readonly<Record<string, Schema.Decoder<unknown>>>;
+export type DataTableFilterSchemas = Readonly<Record<string, Schema.Decoder<unknown>>>;
 
 type OptionalFilters<Filters extends DataTableFilterSchemas> = {
   readonly [Key in keyof Filters]: ReturnType<typeof orUndefined<Filters[Key]>>;

@@ -167,8 +167,10 @@ function UserActions({ user }: { user: User }) {
   const remove = useDeleteUser(user.id);
   const busy = change.isPending || remove.isPending;
   const [confirming, setConfirming] = useState<Confirmed | null>(null);
+
   const apply = (payload: UserChanges) =>
     change.mutate({ params: { id: user.id }, payload }, { onSuccess: () => setConfirming(null) });
+
   const confirmed = (which: Confirmed, { isError }: { isError: boolean }, failure: string) => ({
     open: confirming === which,
     onOpenChange: (open: boolean) => {
@@ -179,6 +181,7 @@ function UserActions({ user }: { user: User }) {
     busy,
     failure: isError ? failure : undefined,
   });
+
   const name = userLabel(user);
   const atOnce = { variant: "outline", size: "sm", disabled: busy } as const;
 

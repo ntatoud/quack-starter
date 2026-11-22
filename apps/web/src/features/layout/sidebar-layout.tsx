@@ -30,6 +30,7 @@ export function SidebarLayout({
   const side = useSidebarSide();
   const sidebar = <Sidebar currentUser={currentUser} />;
   const HeaderActions = mobileNav?.headerActions;
+
   const mobileHeader = useMemo(
     () =>
       mobileNav === undefined

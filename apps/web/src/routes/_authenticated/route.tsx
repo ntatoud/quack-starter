@@ -9,6 +9,7 @@ export const Route = createFileRoute("/_authenticated")({
     if (context.currentUser === null) {
       throw redirect(signInLocation(location.href));
     }
+
     return { currentUser: context.currentUser, sidebarOpen: readSidebarOpen() };
   },
   component: AuthenticatedLayout,

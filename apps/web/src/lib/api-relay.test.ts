@@ -64,7 +64,9 @@ const relay = async (
   clientIp: string | undefined = "203.0.113.7",
 ) => {
   const { response } = await handle(apiUrl, path, init, clientIp);
+
   if (response === undefined) throw new Error(`${path} was not relayed`);
+
   return response;
 };
 

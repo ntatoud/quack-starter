@@ -40,35 +40,45 @@ export class Users extends Context.Service<
         }),
         get: Effect.fn("Users.get")(function* (id) {
           const found = yield* repository.findById(id);
+
           if (Option.isNone(found)) {
             return yield* new UserNotFound({ id });
           }
+
           return found.value;
         }),
         update: Effect.fn("Users.update")(function* (id, changes, by) {
           if (id === by) return yield* new CannotChangeOwnAccess();
           const found = yield* repository.findById(id);
+
           if (Option.isNone(found)) return yield* new UserNotFound({ id });
+
           if (changes.status !== undefined && !canChangeStatus(found.value)) {
             return yield* new UserInvited({ id });
           }
+
           const user = new User({ ...found.value, ...changes });
           yield* repository.update(user);
+
           return user;
         }),
         remove: Effect.fn("Users.remove")(function* (id, by) {
           if (id === by) return yield* new CannotDeleteSelf();
           const removed = yield* repository.remove(id);
+
           if (!removed) return yield* new UserNotFound({ id });
         }),
         updateProfile: Effect.fn("Users.updateProfile")(function* (id, profile) {
           // Read again rather than taken from the Current User: the write must not bring back what changed since the request was authenticated.
           const found = yield* repository.findById(id);
+
           if (Option.isNone(found)) {
             return yield* new Unauthenticated();
           }
+
           const user = withProfile(found.value, profile);
           yield* repository.update(user);
+
           return user;
         }),
       });

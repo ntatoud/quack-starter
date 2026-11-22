@@ -18,15 +18,19 @@ export const AuthenticationMiddleware = Layer.effect(
         // Only the MCP transport calls the `Api` in process with a caller; no request from the network
         // can put one in the context.
         const mcpCaller = yield* Effect.serviceOption(McpCaller);
+
         if (Option.isSome(mcpCaller)) {
           return yield* callAs(httpEffect, endpoint, mcpCaller.value);
         }
+
         const { user, extendedUntil } = yield* identity
           .authenticate(credential)
           .pipe(Effect.tapError(() => cookie.clear));
+
         if (Option.isSome(extendedUntil)) {
           yield* cookie.set({ token: credential, expiresAt: extendedUntil.value });
         }
+
         return yield* callAs(httpEffect, endpoint, {
           user,
           permissions: rolePermissions(user.role),

@@ -18,4 +18,5 @@ export const UsersSearch = dataTableSearchSchema({
   pageSizes: usersPageSizes,
   filters: { status: UserStatus, role: Role, team: Team, onboarded: Schema.Boolean },
 });
+
 export type UsersSearch = DataTableSearch<typeof UsersSearch>;

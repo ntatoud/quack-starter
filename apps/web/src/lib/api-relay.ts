@@ -1,15 +1,15 @@
-interface ApiRelayHandlerOptions {
+export interface ApiRelayHandlerOptions {
   readonly url: URL;
 }
 
-interface ApiRelayHandleOptions {
+export interface ApiRelayHandleOptions {
   readonly prefix: `/${string}`;
   readonly context: {
     readonly clientIp: string | undefined;
   };
 }
 
-type ApiRelayHandleResult =
+export type ApiRelayHandleResult =
   | { readonly matched: true; readonly response: Response }
   | { readonly matched: false; readonly response: undefined };
 
@@ -33,7 +33,9 @@ const encodingHeaders = ["content-encoding", "content-length"];
 const without = (source: Headers, names: ReadonlyArray<string>) => {
   // Copying keeps each `Set-Cookie` as its own header.
   const headers = new Headers(source);
+
   for (const name of names) headers.delete(name);
+
   return headers;
 };
 
@@ -49,11 +51,13 @@ export class ApiRelayHandler {
     { prefix, context }: ApiRelayHandleOptions,
   ): Promise<ApiRelayHandleResult> {
     const { pathname, search } = new URL(request.url);
+
     if (pathname !== prefix && !pathname.startsWith(`${prefix}/`)) {
       return { matched: false, response: undefined };
     }
 
     const headers = without(request.headers, droppedFromRequest);
+
     if (context.clientIp === undefined) headers.delete("x-forwarded-for");
     else headers.set("x-forwarded-for", context.clientIp);
 
@@ -69,6 +73,7 @@ export class ApiRelayHandler {
     };
 
     let upstream: Response;
+
     try {
       upstream = await fetch(new URL(pathname + search, this.#url), init);
     } catch {

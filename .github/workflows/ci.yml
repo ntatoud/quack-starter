@@ -25,8 +25,8 @@ jobs:
           task-cache-key: lint
       - name: Format and lint
         run: vp check
-      - name: Unused files, exports, and dependencies
-        run: vp run -w knip
+      - name: Unused code, duplication, and complexity
+        run: vp run -w fallow
 
   typecheck:
     name: Typecheck

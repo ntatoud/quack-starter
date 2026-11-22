@@ -110,6 +110,7 @@ describe("makeHttpApiProcedures", () => {
     await queryClient.fetchQuery(list);
     await queryClient.fetchQuery(one);
     await queryClient.fetchQuery(version);
+
     const stale = () =>
       [list.queryKey, one.queryKey, version.queryKey].map(
         (queryKey) => queryClient.getQueryState<unknown>(queryKey)?.isInvalidated,

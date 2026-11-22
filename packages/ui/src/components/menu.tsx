@@ -23,7 +23,7 @@ import {
 import { cn } from "cn";
 import { CheckIcon, ChevronRightIcon } from "lucide-react";
 
-type WithClassName<Props> = Omit<Props, "className" | "children"> & {
+export type WithClassName<Props> = Omit<Props, "className" | "children"> & {
   className?: string | undefined;
   children?: React.ReactNode;
 };

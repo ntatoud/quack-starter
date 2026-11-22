@@ -30,20 +30,26 @@ export class Todos extends Context.Service<
             completed: false,
             createdAt: yield* DateTime.now,
           });
+
           yield* repository.save(todo);
+
           return todo;
         }),
         complete: Effect.fn("Todos.complete")(function* (ownerId, id) {
           const found = yield* repository.findById(ownerId, id);
+
           if (Option.isNone(found)) {
             return yield* new TodoNotFound({ id });
           }
+
           const completed = completeTodo(found.value);
           yield* repository.save(completed);
+
           return completed;
         }),
         remove: Effect.fn("Todos.remove")(function* (ownerId, id) {
           const removed = yield* repository.remove(ownerId, id);
+
           if (!removed) {
             return yield* new TodoNotFound({ id });
           }

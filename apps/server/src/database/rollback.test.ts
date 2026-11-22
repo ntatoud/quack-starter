@@ -57,7 +57,7 @@ describe("rollbackPlan", () => {
   it("runs the down exported by the file of each migration", () => {
     const plan = rollbackPlan({ applied, files, to: 2 });
     expect(Result.map(plan, (steps) => steps.map(({ down }) => down))).toEqual(
-      Result.succeed([files[2]?.exports["down"]]),
+      Result.succeed([files[2]?.exports.down]),
     );
   });
 

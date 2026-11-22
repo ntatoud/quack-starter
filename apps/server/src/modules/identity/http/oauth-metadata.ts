@@ -8,8 +8,11 @@ import { basicPermissions, grantablePermissions } from "#/modules/identity/domai
 // AI Clients read them from any origin, a browser among them, and they hold nothing of a User's.
 const readableByAnyOrigin = HttpMiddleware.cors({ allowedMethods: ["GET"] });
 
-const wellKnownDocument = (path: `/${string}`, body: object) => {
+type WellKnownDocument = Readonly<Record<string, string | boolean | ReadonlyArray<string>>>;
+
+const wellKnownDocument = (path: `/${string}`, body: WellKnownDocument) => {
   const respond = readableByAnyOrigin(Effect.succeed(HttpServerResponse.jsonUnsafe(body)));
+
   return [HttpRouter.route("GET", path, respond), HttpRouter.route("OPTIONS", path, respond)];
 };
 

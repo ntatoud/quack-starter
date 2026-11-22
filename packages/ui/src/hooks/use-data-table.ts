@@ -81,13 +81,16 @@ export function useDataTable<
   filters?: Filters & Record<Exclude<keyof Filters, DataTableFilterKey<S>>, never>;
 }) {
   type Key = keyof Filters & DataTableFilterKey<S>;
+
   const filters: Filters = given ?? ({} as Filters);
   const isKey = (key: string): key is Key => Object.hasOwn(filters, key);
   const keys = Object.keys(filters).filter(isKey);
   const filterOf = (key: Key) => filters[key] as AnyDataTableFilter;
+
   const [history] = React.useState<DataTableHistory>(() => ({
     current: null,
   }));
+
   const searchRef = React.useRef<HTMLInputElement | null>(null);
   const [addFilterButton, setAddFilterButton] = React.useState<HTMLButtonElement | null>(null);
   const [focusRequests, setFocusRequests] = React.useState(0);
@@ -103,6 +106,7 @@ export function useDataTable<
     history,
     ...(defaultPageSize !== undefined && { defaultPageSize }),
   });
+
   const added = useAddedFilters(
     (key: Key) => isKey(key) && !isFilterEmpty(filterOf(key), store.state[key]),
   );
@@ -113,16 +117,20 @@ export function useDataTable<
     focusPending.current = false;
     addFilterButton.focus();
   }, [focusRequests, addFilterButton]);
+
   // `select`, for the Filter of a column header: typing replaces the search. After a removal, the search keeps its text.
   const focusSearch = (select = false) => {
     searchRef.current?.focus();
+
     if (select) searchRef.current?.select();
   };
+
   const focusSearchEvent = React.useEffectEvent(() => focusSearch(true));
   React.useEffect(() => {
     if (searchFocusRequests === 0) return;
     focusSearchEvent();
   }, [searchFocusRequests]);
+
   // After a removal or a reset, the button that had the focus is gone: the search takes it, or in a table with no
   // search, "Add filter".
   const moveFocus = () => {
@@ -149,6 +157,7 @@ export function useDataTable<
       .filter((key) => added.isShown(key))
       .map((key) => {
         const filter = filterOf(key);
+
         return {
           key,
           filter,
@@ -180,6 +189,7 @@ export function useDataTable<
     /** Shows and opens a filter, or focuses the search: what the Filter item of a column header asks for. */
     openFilter: (target: Key | "search") => {
       setRevealRequests((requests) => requests + 1);
+
       if (target !== "search") added.add(target);
       // At once when it shows: a menu that closes gives the focus back to its trigger unless it moved before. The
       // search may also be hidden behind the bar of a selection until the toolbar shows again: it takes the focus

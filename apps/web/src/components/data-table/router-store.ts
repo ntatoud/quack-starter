@@ -11,6 +11,7 @@ export function useRouterDataTableStore<S extends DataTableStateValue>(
 ): DataTableStore<S> {
   const router = useRouter();
   const navigate = useNavigate();
+
   // The router types a search by route; this store keeps the route it is on, whose search is `S`.
   const to = (next: (state: S) => S, replace?: boolean) =>
     ({

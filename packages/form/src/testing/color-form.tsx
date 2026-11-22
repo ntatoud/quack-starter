@@ -22,6 +22,7 @@ const OptionalColor = Schema.Struct({
     Schema.decodeTo(Schema.NullOr(ColorLiteral)),
   ),
 });
+
 const decodeOptionalColor = Schema.decodeSync(OptionalColor);
 
 const colors: ReadonlyArray<FieldOption> = [

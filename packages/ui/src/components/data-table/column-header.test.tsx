@@ -14,6 +14,7 @@ const setup = async () => {
       <input id="filter" aria-label="Filter" />
     </>,
   );
+
   return {
     onSort,
     onFilter,
@@ -73,6 +74,7 @@ describe("DataTableColumnHeader", () => {
     const screen = await render(
       <DataTableColumnHeader title="Email" sorted={undefined} onSort={vi.fn()} />,
     );
+
     const icon = () =>
       page.getByRole("button", { name: "Email" }).element().querySelector("svg")?.classList;
 

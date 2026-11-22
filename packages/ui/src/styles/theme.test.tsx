@@ -17,6 +17,7 @@ afterEach(async () => {
 // `null` is a page whose root has no `data-color-scheme`, as before the Preferences are read.
 const setup = async (choice: "system" | ColorScheme | null, system: ColorScheme) => {
   await emulateColorScheme(system);
+
   if (choice !== null) document.documentElement.setAttribute("data-color-scheme", choice);
   await render(
     <div data-testid="box" className="bg-background dark:border-2">
@@ -24,6 +25,7 @@ const setup = async (choice: "system" | ColorScheme | null, system: ColorScheme)
     </div>,
   );
   const box = page.getByTestId("box").element();
+
   return {
     background: () => getComputedStyle(box).backgroundColor,
     isDarkVariant: () => getComputedStyle(box).borderTopWidth === "2px",

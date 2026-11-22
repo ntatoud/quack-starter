@@ -12,6 +12,7 @@ const familyOf = (address: string) => (isIP(address) === 6 ? "ipv6" : "ipv4");
 // The private, loopback, and special-use ranges of the IANA registries (RFC 6890 and its updates):
 // none is a public server's, and reaching one would let a request probe Quack's own network.
 const notPublic = new BlockList();
+
 for (const [network, prefix] of [
   ["0.0.0.0", 8],
   ["10.0.0.0", 8],
@@ -31,6 +32,7 @@ for (const [network, prefix] of [
 ] as const) {
   notPublic.addSubnet(network, prefix, "ipv4");
 }
+
 for (const [network, prefix] of [
   ["::", 128],
   ["::1", 128],
@@ -51,7 +53,9 @@ for (const [network, prefix] of [
 }
 
 const loopback = new BlockList();
+
 loopback.addSubnet("127.0.0.0", 8, "ipv4");
+
 loopback.addAddress("::1", "ipv6");
 
 const reachable = (allowLoopback: boolean) => (address: string) =>
@@ -65,6 +69,7 @@ const guardedLookup =
     Dns.lookup(hostname, { ...options, all: true }, (error, addresses) => {
       const refused = addresses?.find(({ address }) => !isReachable(address));
       const [first] = addresses ?? [];
+
       if (error !== null || first === undefined) {
         callback(error ?? new Error(`${hostname} has no address`), "", 0);
       } else if (refused !== undefined) {
@@ -105,6 +110,7 @@ export const AiClientHttpClient = Layer.unwrap(
         HttpClient.mapRequestEffect(client, (request) => {
           // Node resolves no name for an address in the URL, so the lookup never sees it.
           const address = new URL(request.url).hostname.replace(/^\[(.*)\]$/, "$1");
+
           return isIP(address) !== 0 && !isReachable(address)
             ? Effect.fail(refusedLiteral(request, address))
             : Effect.succeed(request);

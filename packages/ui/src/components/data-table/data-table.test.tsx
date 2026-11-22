@@ -32,6 +32,7 @@ const columnsOf = (count: number): ReadonlyArray<DataTableColumn<{ id: string }>
 /** The root of the scroll area says whether the content reaches past an edge, and which one the view is at. */
 const hasOverflowX = (viewport: HTMLElement) =>
   elementOf(HTMLElement, viewport.parentElement).hasAttribute("data-overflow-x");
+
 const pastEdge = (root: HTMLElement, edge: "start" | "end") =>
   root.hasAttribute("data-overflow-x") && !root.hasAttribute(`data-at-x-${edge}`);
 
@@ -39,10 +40,13 @@ const pastEdge = (root: HTMLElement, edge: "start" | "end") =>
 const regions = () => {
   const found = [...slot("data-table").querySelectorAll<HTMLElement>("[role=status]")];
   const [sorting, empty] = found;
+
   if (found.length !== 2 || sorting === undefined || empty === undefined)
     throw new Error(`${found.length} live regions.`);
+
   return { sorting, empty };
 };
+
 /** What a live region says, as it is: no matcher folding its spaces. */
 const sortSaid = () => regions().sorting.textContent;
 const emptySaid = () => regions().empty.textContent;
@@ -50,6 +54,7 @@ const emptySaid = () => regions().empty.textContent;
 /** The text size of a column's header: its button's, or its own when it has none. */
 const headerSizeOf = (name: string) => {
   const header = page.getByRole("columnheader", { name, exact: true }).element();
+
   return getComputedStyle(header.querySelector("button") ?? header).fontSize;
 };
 
@@ -63,6 +68,7 @@ const setup = async (columns: number, rows = 1) => {
     </div>,
   );
   await expect.element(page.getByRole("table")).toBeVisible();
+
   return {
     viewport: slot("scroll-area-viewport"),
     shown: (name: "start" | "end") => getComputedStyle(slot(`data-table-overflow-${name}`)).opacity,
@@ -80,6 +86,7 @@ describe("DataTable", () => {
     const toEnd = () => {
       viewport.scrollLeft = viewport.scrollWidth;
     };
+
     await expect.poll(() => (toEnd(), shown("start"))).toBe("1");
     await expect.poll(() => (toEnd(), shown("end"))).toBe("0");
   });
@@ -93,10 +100,12 @@ describe("DataTable", () => {
 
   it("keeps the last row above the horizontal scrollbar once scrolled to the bottom", async () => {
     const { viewport } = await setup(8, 30);
+
     const scrollbar = elementOf(
       HTMLElement,
       document.querySelector("[data-slot=scroll-area-scrollbar][data-orientation=horizontal]"),
     );
+
     await expect.poll(() => scrollbar.getBoundingClientRect().height).toBeGreaterThan(0);
 
     viewport.scrollTop = viewport.scrollHeight;
@@ -109,6 +118,7 @@ describe("DataTable", () => {
   it("builds the header of a titled column: sorting, a shortcut to its filter, and what assistive tech hears", async () => {
     const onSort = vi.fn();
     const openFilter = vi.fn();
+
     const table: DataTableHeaders<"name", "status"> = {
       sorting: { column: "name", direction: "asc" },
       sortHeader: (column) => ({
@@ -119,6 +129,7 @@ describe("DataTable", () => {
       // The toolbar shows no search: the header of Name offers none.
       canFilter: (target) => target !== "search",
     };
+
     await render(
       <DataTable
         table={table}
@@ -166,6 +177,7 @@ describe("DataTable", () => {
       sortHeader: () => ({ sorted: "asc", onSort: () => {} }),
       openFilter: () => {},
     };
+
     await render(
       <DataTable
         table={table}
@@ -186,6 +198,7 @@ describe("DataTable", () => {
   it("puts a group's header over its columns, a column outside it across both header rows, and a filter on the group", async () => {
     const onSort = vi.fn();
     const openFilter = vi.fn();
+
     const table: DataTableHeaders<"net", "price"> = {
       sorting: { column: "net", direction: "desc" },
       sortHeader: (column) => ({
@@ -194,6 +207,7 @@ describe("DataTable", () => {
       }),
       openFilter,
     };
+
     await render(
       <DataTable
         table={table}
@@ -274,6 +288,7 @@ type Person = {
   readonly role: string;
   readonly team: string;
 };
+
 type People = {
   readonly orderBy?: "name" | undefined;
   readonly role?: "admin" | undefined;
@@ -292,18 +307,21 @@ export const columnTyping = (table: DataTableHeaders<"name", "role">) => {
     },
     { id: "role", accessorKey: "role", title: "Role", filter: "role" },
   ];
+
   const team: DataTableColumnFor<Person, People, "role"> = {
     id: "team",
     title: "Team",
     // @ts-expect-error -- the table has no filter on the team.
     filter: "team",
   };
+
   // @ts-expect-error -- the state does not sort by the role.
   const role: DataTableColumnFor<Person, People, "role"> = {
     id: "role",
     title: "Role",
     sortable: true,
   };
+
   const group: DataTableColumnFor<Person, People, "role"> = {
     id: "people",
     title: "People",
@@ -312,11 +330,13 @@ export const columnTyping = (table: DataTableHeaders<"name", "role">) => {
       { id: "team", title: "Team", sortable: true },
     ],
   };
+
   return [<DataTable key="table" table={table} columns={columns} data={[]} />, team, role, group];
 };
 
 describe("DataTable with onRowClick", () => {
   type Person = { id: string; name: string };
+
   const people: ReadonlyArray<Person> = [
     { id: "p-1", name: "Ada" },
     { id: "p-2", name: "Alan" },
@@ -325,6 +345,7 @@ describe("DataTable with onRowClick", () => {
   const setupClickable = async () => {
     const onRowClick = vi.fn();
     const onAction = vi.fn();
+
     const columns: ReadonlyArray<DataTableColumn<Person>> = [
       { id: "name", accessorKey: "name", title: "Name" },
       {
@@ -338,6 +359,7 @@ describe("DataTable with onRowClick", () => {
         ),
       },
     ];
+
     await render(
       <DataTable
         columns={columns}
@@ -347,6 +369,7 @@ describe("DataTable with onRowClick", () => {
         onRowClick={(person) => onRowClick(person.id)}
       />,
     );
+
     return { onRowClick, onAction };
   };
 
@@ -379,6 +402,7 @@ describe("DataTable with onRowClick", () => {
       HTMLElement,
       page.getByRole("button", { name: "Edit Ada" }).element().parentElement,
     );
+
     expect(getComputedStyle(cell).position).toBe("sticky");
   });
 });
@@ -459,6 +483,7 @@ describe("DataTable right to left", () => {
     await expect.element(page.getByRole("table")).toBeVisible();
     const viewport = slot("scroll-area-viewport");
     const root = elementOf(HTMLElement, viewport.parentElement);
+
     const shown = (name: "start" | "end") =>
       getComputedStyle(slot(`data-table-overflow-${name}`)).opacity;
 
@@ -473,6 +498,7 @@ describe("DataTable right to left", () => {
     const toEnd = () => {
       viewport.scrollLeft = -viewport.scrollWidth;
     };
+
     await expect.poll(() => (toEnd(), shown("start"))).toBe("1");
     await expect.poll(() => (toEnd(), shown("end"))).toBe("0");
     expect(pastEdge(root, "start")).toBe(true);
@@ -491,9 +517,11 @@ describe("DataTable with no row", () => {
     const text = page.getByRole("rowgroup").last().getByText("Nothing here");
     await expect.element(text).toBeVisible();
     const viewport = slot("scroll-area-viewport");
+
     const inView = () => {
       const box = text.element().getBoundingClientRect();
       const frame = viewport.getBoundingClientRect();
+
       return box.left >= frame.left && box.right <= frame.right;
     };
 
@@ -571,12 +599,15 @@ describe("DataTable with useDataTable", () => {
   it("goes to the last page from a page past it", async () => {
     function Table() {
       const store = useMemoryDataTableStore<Paged>({ page: 5 });
+
       const table = useDataTable({
         store,
         defaultSorting: { column: "name", direction: "asc" },
       });
+
       return <DataTablePagination table={table} pages={2} aria-label="Pages" />;
     }
+
     await render(<Table />);
 
     await expect
@@ -587,10 +618,12 @@ describe("DataTable with useDataTable", () => {
   it("scrolls back to the top on another page", async () => {
     function Table() {
       const store = useMemoryDataTableStore<Paged>();
+
       const table = useDataTable({
         store,
         defaultSorting: { column: "name", direction: "asc" },
       });
+
       return (
         <div className="flex h-75 flex-col">
           <DataTable
@@ -604,6 +637,7 @@ describe("DataTable with useDataTable", () => {
         </div>
       );
     }
+
     await render(<Table />);
     const viewport = slot("scroll-area-viewport");
     await expect.element(page.getByText("Row 1.0", { exact: true })).toBeVisible();
@@ -622,8 +656,10 @@ describe("DataTable with useDataTable", () => {
         id: String(i),
         name: `Row ${i}`,
       }));
+
     function Table() {
       const [rows, setRows] = useState(() => rowsOf(100));
+
       return (
         <>
           <button type="button" onClick={() => setRows(rowsOf(200))}>
@@ -640,6 +676,7 @@ describe("DataTable with useDataTable", () => {
         </>
       );
     }
+
     await render(<Table />);
     const viewport = slot("scroll-area-viewport");
     viewport.scrollTop = 1000;
@@ -655,10 +692,12 @@ describe("DataTable with useDataTable", () => {
   it("says the new sorting aloud", async () => {
     function Table() {
       const store = useMemoryDataTableStore<Paged>();
+
       const table = useDataTable({
         store,
         defaultSorting: { column: "name", direction: "asc" },
       });
+
       return (
         <DataTable
           table={table}
@@ -667,6 +706,7 @@ describe("DataTable with useDataTable", () => {
         />
       );
     }
+
     await render(<Table />);
     await expect.poll(sortSaid).toBe("");
 
@@ -694,6 +734,7 @@ describe("DataTable rows from the keyboard", () => {
       </>,
     );
     const row = (name: string) => page.getByRole("row", { name });
+
     const tabbable = () =>
       page
         .getByRole("row")
@@ -777,9 +818,11 @@ describe("DataTable details", () => {
       .poll(() => slot("data-table-overflow-end").getBoundingClientRect().right)
       .toBeCloseTo(held?.left ?? 0, 0);
     await expect.poll(() => getComputedStyle(slot("data-table-overflow-end")).opacity).toBe("1");
+
     const scrollbar = root.querySelector<HTMLElement>(
       "[data-orientation=horizontal][data-slot=scroll-area-scrollbar]",
     );
+
     expect(
       Number.parseFloat(getComputedStyle(elementOf(HTMLElement, scrollbar)).paddingInlineEnd),
     ).toBeCloseTo(held?.width ?? 0, 0);
@@ -794,6 +837,7 @@ describe("DataTable details", () => {
         />
       </div>,
     );
+
     await expect
       .poll(() => getComputedStyle(slot("scroll-area-viewport")).overscrollBehaviorY)
       .toBe("none");
@@ -827,17 +871,22 @@ describe("DataTable virtual rows from the keyboard", () => {
     );
     const first = page.getByRole("row", { name: "Row 0", exact: true });
     await expect.element(first).toBeVisible();
+
     return { viewport: slot("scroll-area-viewport"), first };
   };
+
   const tabbable = () =>
-    [...document.querySelectorAll<HTMLElement>("tr[data-row-index]")]
-      .filter((row) => row.tabIndex === 0)
-      .map((row) => row.dataset.rowIndex);
+    [...document.querySelectorAll<HTMLElement>("tr[data-row-index]")].flatMap((row) =>
+      row.tabIndex === 0 ? [row.dataset.rowIndex] : [],
+    );
+
   const firstRendered = () =>
     document.querySelector<HTMLElement>("tr[data-row-index]")?.dataset.rowIndex;
+
   /** The first row wholly in view, below the sticky header: not one of the rows rendered above it. */
   const firstInView = () => {
     const head = document.querySelector("thead")?.getBoundingClientRect().bottom ?? 0;
+
     return [...document.querySelectorAll<HTMLElement>("tr[data-row-index]")].find(
       (row) => row.getBoundingClientRect().top >= head - 0.5,
     )?.dataset.rowIndex;
@@ -867,11 +916,13 @@ describe("DataTable virtual rows from the keyboard", () => {
 
 describe("DataTable rows under its sticky header", () => {
   type Item = { id: string; name: string };
+
   const items = (count: number): ReadonlyArray<Item> =>
     Array.from({ length: count }, (_, i) => ({
       id: String(i),
       name: `Row ${i}`,
     }));
+
   const renderRows = async (virtual: boolean, onRowClick = vi.fn()) => {
     await render(
       <div className="flex h-75 flex-col">
@@ -887,14 +938,18 @@ describe("DataTable rows under its sticky header", () => {
     const first = page.getByRole("row", { name: "Row 0", exact: true });
     await expect.element(first).toBeVisible();
     elementOf(HTMLElement, first.element()).focus();
+
     return onRowClick;
   };
+
   /** How far the focused row's top sits below the header: never under it. */
   const belowHeader = () => {
     const head = document.querySelector("thead")?.getBoundingClientRect();
     const row = document.activeElement?.getBoundingClientRect();
+
     return (row?.top ?? 0) - (head?.bottom ?? 0);
   };
+
   const focusedRow = () => elementOf(HTMLElement, document.activeElement).dataset.rowIndex;
 
   it("keeps a row focused from the keyboard below the header, going up from the end", async () => {
@@ -922,6 +977,7 @@ describe("DataTable rows under its sticky header", () => {
       await expect.poll(focusedRow).toBe(String(row));
       expect(belowHeader()).toBeGreaterThanOrEqual(-0.5);
     }
+
     await userEvent.keyboard("{Home}");
     await expect.poll(focusedRow).toBe("0");
     expect(belowHeader()).toBeGreaterThanOrEqual(-0.5);
@@ -962,6 +1018,7 @@ describe("DataTable horizontal scroll", () => {
         />
       </div>
     );
+
     const screen = await render(table(3));
     const overflows = () => hasOverflowX(slot("scroll-area-viewport"));
     await expect.poll(overflows).toBe(true);
@@ -1000,6 +1057,7 @@ describe("DataTable selected rows", () => {
     await expect.element(selected).toHaveAttribute("data-state", "selected");
     const background = (element: Element) => getComputedStyle(element).backgroundColor;
     const stickyCell = selected.getByRole("cell", { name: "Edit" }).element();
+
     // Every color change of the rows and their cells has run its course.
     const settled = () =>
       expect
@@ -1009,6 +1067,7 @@ describe("DataTable selected rows", () => {
           ),
         )
         .toBe(false);
+
     // The pointer may rest where an earlier test left it, over a row: it leaves the table first.
     await userEvent.unhover(selected);
     await settled();
@@ -1059,9 +1118,12 @@ describe("DataTable hovered rows inside a card", () => {
     const row = page.getByRole("row", { name: /Ada/ });
     await expect.element(row).toBeVisible();
     const cell = row.getByRole("cell", { name: "Edit" }).element();
+
     const background = (element: Element | null) =>
       element === null ? "" : getComputedStyle(element).backgroundColor;
+
     const card = background(document.querySelector("[data-slot=card]"));
+
     const settled = () =>
       expect
         .poll(() => [row.element(), cell].some((e) => e.getAnimations().length > 0))
@@ -1117,6 +1179,7 @@ describe("DataTable focus", () => {
         empty={<button type="button">Retry</button>}
       />
     );
+
     const screen = await render(table(0));
     await page.getByRole("button", { name: "Retry" }).click();
     await expect.element(page.getByRole("button", { name: "Retry" })).toHaveFocus();
@@ -1177,25 +1240,31 @@ describe("DataTable sized by the app", () => {
     await expect
       .poll(() => getComputedStyle(slot("scroll-area-viewport")).scrollPaddingTop)
       .toBe(`${header?.height}px`);
+
     const scrollbar = document.querySelector<HTMLElement>(
       "[data-slot=scroll-area-scrollbar][data-orientation=vertical]",
     );
+
     expect(scrollbar && getComputedStyle(scrollbar).paddingTop).toBe(`${header?.height}px`);
   });
 });
 
 describe("DataTable scroll on other rows", () => {
   it("shows no frame of the new rows at the old scroll", async () => {
-    const api: { goToPage: (page: number) => void } = { goToPage: () => {} };
+    const api = { goToPage: (_page: number) => {} };
+
     function Table() {
       const store = useMemoryDataTableStore<Paged>();
+
       const table = useDataTable({
         store,
         defaultSorting: { column: "name", direction: "asc" },
       });
+
       useEffect(() => {
         api.goToPage = table.goToPage;
       });
+
       return (
         <div className="flex h-75 flex-col">
           <DataTable
@@ -1208,6 +1277,7 @@ describe("DataTable scroll on other rows", () => {
         </div>
       );
     }
+
     await render(<Table />);
     const viewport = slot("scroll-area-viewport");
     await expect.element(page.getByText("Row 1.0", { exact: true })).toBeVisible();
@@ -1253,8 +1323,10 @@ describe("DataTable inside a card", () => {
       </div>,
     );
     await expect.element(page.getByRole("table")).toBeVisible();
+
     const background = (element: Element | null) =>
       element === null ? "" : getComputedStyle(element).backgroundColor;
+
     const card = background(document.querySelector("[data-slot=card]"));
     // The pointer may rest where an earlier test left it, over a row: it leaves the table first.
     await userEvent.unhover(page.getByRole("table"));
@@ -1281,8 +1353,10 @@ describe("DataTable column groups", () => {
       { id: `${id}-b`, accessorKey: "b", title: `${title} B` },
     ],
   });
+
   const shadow = (name: string) =>
     getComputedStyle(page.getByRole("columnheader", { name, exact: true }).element()).boxShadow;
+
   // A side line: a horizontal offset of a pixel. The line under the header, a vertical one, is not.
   const startEdge = /\) 1px 0px 0px/;
   const endEdge = /\) -1px 0px 0px/;
@@ -1315,11 +1389,14 @@ const names = ["Ada", "Alan", "Grace"];
 
 function Searchable() {
   const store = useMemoryDataTableStore<Searched>();
+
   const table = useDataTable({
     store,
     defaultSorting: { column: "name", direction: "asc" },
   });
+
   const q = table.state.q ?? "";
+
   return (
     <>
       <DataTableToolbar table={table} search={{ "aria-label": "Search" }} />
@@ -1333,9 +1410,9 @@ function Searchable() {
             filter: "search",
           },
         ]}
-        data={names
-          .filter((name) => name.toLowerCase().includes(q.toLowerCase()))
-          .map((name) => ({ name }))}
+        data={names.flatMap((name) =>
+          name.toLowerCase().includes(q.toLowerCase()) ? [{ name }] : [],
+        )}
         empty={<DataTableEmptyState searchTerm={q} onReset={table.reset} />}
       />
     </>
@@ -1361,6 +1438,7 @@ describe("DataTable live region", () => {
         empty={<DataTableErrorState />}
       />
     );
+
     const screen = await render(table(2));
 
     await screen.rerender(table(0));
@@ -1371,13 +1449,16 @@ describe("DataTable live region", () => {
 
   it("offers the search from a column header from the first paint", async () => {
     const seen: Array<boolean> = [];
+
     // Reads the header before the browser paints the first frame.
     function FirstFrame() {
       useLayoutEffect(() => {
         requestAnimationFrame(() => seen.push(document.querySelector("thead th button") !== null));
       }, []);
+
       return null;
     }
+
     await render(
       <>
         <Searchable />
@@ -1418,6 +1499,7 @@ describe("DataTable rows, a page at a time", () => {
       bubbles: true,
       cancelable: true,
     });
+
     row.dispatchEvent(space);
     expect(space.defaultPrevented).toBe(true);
 
@@ -1489,6 +1571,7 @@ describe("DataTable live region, exactly", () => {
         empty={<DataTableLoadingState />}
       />
     );
+
     const screen = await render(table(0));
     await expect.poll(said).toBe("Loading…");
 
@@ -1524,6 +1607,7 @@ describe("DataTable focus on rows that go", () => {
         onRowClick={() => {}}
       />
     );
+
     const screen = await render(table(["Ada", "Alan", "Grace"]));
     const alan = page.getByRole("row", { name: "Alan" });
     elementOf(HTMLElement, alan.element()).focus();
@@ -1548,6 +1632,7 @@ describe("DataTable focus on rows that go", () => {
         getRowId={(row) => row.name}
       />
     );
+
     const screen = await render(table(["Ada", "Alan", "Grace"]));
     const remove = page.getByRole("button", { name: "Delete Alan" });
     elementOf(HTMLElement, remove.element()).focus();
@@ -1561,10 +1646,12 @@ describe("DataTable focus on rows that go", () => {
   it("makes the first row the stop of the Tab key again on another page, rows keyed by their index", async () => {
     function Table() {
       const store = useMemoryDataTableStore<Paged>();
+
       const table = useDataTable({
         store,
         defaultSorting: { column: "name", direction: "asc" },
       });
+
       return (
         <DataTable
           table={table}
@@ -1577,11 +1664,14 @@ describe("DataTable focus on rows that go", () => {
         />
       );
     }
+
     await render(<Table />);
+
     const tabbable = () =>
-      [...document.querySelectorAll<HTMLElement>("tr[data-row-index]")]
-        .filter((row) => row.tabIndex === 0)
-        .map((row) => row.textContent);
+      [...document.querySelectorAll<HTMLElement>("tr[data-row-index]")].flatMap((row) =>
+        row.tabIndex === 0 ? [row.textContent] : [],
+      );
+
     const first = page.getByRole("row", { name: "Row 1.0" });
     elementOf(HTMLElement, first.element()).focus();
     await userEvent.keyboard("{ArrowDown}{ArrowDown}");
@@ -1598,12 +1688,15 @@ describe("DataTable live region, sorting and loading", () => {
   it("says the sorting and that rows load, then the sorting alone once they came", async () => {
     function Table() {
       const store = useMemoryDataTableStore<Paged>();
+
       const table = useDataTable({
         store,
         defaultSorting: { column: "name", direction: "asc" },
       });
+
       // The rows of the sorting asked for load until "Finish loading".
       const [loaded, setLoaded] = useState(table.state.dir);
+
       return (
         <>
           <button type="button" onClick={() => setLoaded(table.state.dir)}>
@@ -1625,6 +1718,7 @@ describe("DataTable live region, sorting and loading", () => {
         </>
       );
     }
+
     await render(<Table />);
     expect([sortSaid(), emptySaid()]).toEqual(["", ""]);
 
@@ -1672,9 +1766,11 @@ describe("DataTable rows, a page at a time, in a table taller than the window", 
     row.focus();
     const box = slot("scroll-area-viewport").getBoundingClientRect();
     const header = document.querySelector("thead")?.getBoundingClientRect().height ?? 0;
+
     const shown = Math.floor(
       (Math.min(box.bottom, innerHeight) - Math.max(box.top + header, 0)) / row.offsetHeight,
     );
+
     expect(shown).toBeGreaterThan(1);
     expect(shown).toBeLessThan(20);
 
@@ -1705,6 +1801,7 @@ describe("DataTable rows and the middle button", () => {
         }
       />,
     );
+
     const middle = () =>
       new MouseEvent("auxclick", {
         button: 1,
@@ -1769,13 +1866,16 @@ describe("DataTable rows and modifier keys", () => {
     const row = (name: string) => page.getByRole("row", { name });
     elementOf(HTMLElement, row("Alan").element()).focus();
     await expect.element(row("Alan")).toHaveFocus();
+
     const press = (init: KeyboardEventInit) => {
       const event = new KeyboardEvent("keydown", {
         bubbles: true,
         cancelable: true,
         ...init,
       });
+
       document.activeElement?.dispatchEvent(event);
+
       return event;
     };
 
@@ -1794,13 +1894,16 @@ describe("DataTable rows and modifier keys", () => {
 describe("DataTable live region, an empty slot that changes on its own", () => {
   it("reads the slot again when its text changes", async () => {
     const ticker = { set: (_text: string) => {} };
+
     function Ticker() {
       const [text, setText] = useState("Loading the first batch");
       useEffect(() => {
         ticker.set = setText;
       }, []);
+
       return <p>{text}</p>;
     }
+
     await render(<DataTable columns={columnsOf(1)} data={[]} empty={<Ticker />} />);
     await expect.poll(emptySaid).toBe("Loading the first batch");
 

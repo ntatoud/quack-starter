@@ -7,6 +7,7 @@ export const Permission = Schema.Literals([
   ...TodosPermission.literals,
   ...UsersPermission.literals,
 ]);
+
 export type Permission = typeof Permission.Type;
 
 /**

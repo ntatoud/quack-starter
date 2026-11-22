@@ -35,9 +35,11 @@ const adaProfile = {
 
 // The API client keeps the `fetch` it first saw, so one stub serves every test and each test sets its response.
 let respond: (request: Request) => Response | Promise<Response>;
+
 const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) =>
   respond(new Request(input, init)),
 );
+
 vi.stubGlobal("fetch", fetch);
 
 const echo = async (request: Request) => Response.json({ ...ada, profile: await request.json() });
@@ -46,18 +48,22 @@ const setup = async (currentUser: typeof User.Encoded, response: typeof respond)
   respond = response;
   const queryClient = new QueryClient();
   queryClient.setQueryData(currentUserQueryOptions.queryKey, currentUser);
+
   const rootRoute = createRootRoute({
     component: () => <ProfileForm currentUser={currentUser} />,
   });
+
   const router = createRouter({
     routeTree: rootRoute,
     history: createMemoryHistory({ initialEntries: ["/"] }),
   });
+
   await render(
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
+
   return {
     queryClient,
     firstName: page.getByRole("textbox", { name: "First name" }),
@@ -110,12 +116,14 @@ describe("ProfileForm", () => {
 
   it("sends the Profile trimmed, and makes it the Current User's", async () => {
     const requests: Array<{ method: string; url: string; body: unknown }> = [];
+
     const form = await setup(ada, async (request) => {
       requests.push({
         method: request.method,
         url: request.url,
         body: await request.clone().json(),
       });
+
       return echo(request);
     });
 
@@ -143,8 +151,10 @@ describe("ProfileForm", () => {
 
   it("sends no team and no country once they are emptied", async () => {
     const bodies: Array<unknown> = [];
+
     const form = await setup({ ...ada, profile: adaProfile }, async (request) => {
       bodies.push(await request.clone().json());
+
       return echo(request);
     });
 

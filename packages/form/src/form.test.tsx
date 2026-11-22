@@ -14,6 +14,7 @@ const announcements = () => {
     characterData: true,
     subtree: true,
   });
+
   return texts;
 };
 

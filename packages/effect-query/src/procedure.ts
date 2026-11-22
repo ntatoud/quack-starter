@@ -6,7 +6,7 @@ import type {
 } from "@tanstack/react-query";
 import { Cause, type Effect, Exit, Option } from "effect";
 
-type OperationType = "query" | "mutation";
+export type OperationType = "query" | "mutation";
 
 /** TanStack Query matches keys partially: a shorter path, or no `type` or `input`, matches every entry below it. */
 export type ProcedureKey = readonly [
@@ -20,14 +20,14 @@ export type Run<R, ER> = <A, E>(
   options?: { readonly signal?: AbortSignal },
 ) => Promise<Exit.Exit<A, E | ER>>;
 
-type QueryKeyOf<A, E> = DataTag<ProcedureKey, A, E>;
+export type QueryKeyOf<A, E> = DataTag<ProcedureKey, A, E>;
 
-type QueryOverrides<A, E> = Omit<
+export type QueryOverrides<A, E> = Omit<
   UseQueryOptions<A, E, A, QueryKeyOf<A, E>>,
   "queryKey" | "queryFn"
 >;
 
-type QueryArgs<Input, A, E> = QueryOverrides<A, E> &
+export type QueryArgs<Input, A, E> = QueryOverrides<A, E> &
   (void extends Input ? { readonly input?: Input } : { readonly input: Input });
 
 export interface Procedure<Input, A, E> {
@@ -60,12 +60,13 @@ const unwrap = <A, E>(exit: Exit.Exit<A, E>): A => {
   throw Option.isSome(error) ? error.value : Cause.squash(exit.cause);
 };
 
-const makeKey = (
+const makeKey = <Input>(
   path: ReadonlyArray<string>,
   type: OperationType | undefined,
-  input: unknown,
+  input: Input,
 ): ProcedureKey => {
   if (type === undefined && input === undefined) return [path];
+
   return [path, { ...(type && { type }), ...(input !== undefined && { input }) }];
 };
 
@@ -78,6 +79,7 @@ export const makeProcedure = <Input, A, E, R, ER>(
   // while `Input` is generic.
   const queryOptions = (options?: QueryOverrides<A, E | ER> & { readonly input?: Input }) => {
     const { input, ...overrides } = options ?? {};
+
     return {
       ...overrides,
       queryKey: makeKey(path, "query", input) as QueryKeyOf<A, E | ER>,

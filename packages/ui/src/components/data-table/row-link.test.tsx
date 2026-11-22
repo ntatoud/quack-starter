@@ -9,6 +9,7 @@ import { useMemoryDataTableStore } from "@quack/ui/hooks/use-memory-data-table-s
 import { elementOf, slot } from "@quack/ui/testing/dom";
 
 type Person = { readonly id: string; readonly name: string; readonly city: string };
+
 type State = {
   readonly page?: number | undefined;
   readonly orderBy?: "name" | undefined;
@@ -65,6 +66,7 @@ function People({
   const store = useMemoryDataTableStore<State>(pinned === undefined ? {} : { pinned });
   const table = useDataTable({ store, defaultSorting: { column: "name", direction: "asc" } });
   const selection = useDataTableSelection<Person>();
+
   return (
     <div className="flex h-75 w-100 flex-col">
       <DataTable
@@ -84,12 +86,14 @@ const setup = async (props: { pinned?: ReadonlyArray<string>; selectable?: boole
   const onAction = vi.fn();
   await render(<People onAction={onAction} {...props} />);
   await expect.element(page.getByText("Alan Turing", { exact: true })).toBeVisible();
+
   return { onAction };
 };
 
 /** What a click at the center of `element` lands on. */
 const centerOf = (element: Element) => {
   const box = element.getBoundingClientRect();
+
   return document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
 };
 

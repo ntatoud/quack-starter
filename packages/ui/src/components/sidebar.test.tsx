@@ -40,6 +40,7 @@ describe("Sidebar on a narrow screen", () => {
       await expect
         .poll(() => {
           const { left, right } = sheet.element().getBoundingClientRect();
+
           return side === "left" ? left : window.innerWidth - right;
         })
         .toBe(0);
@@ -53,6 +54,7 @@ describe("Sidebar on a narrow screen", () => {
 describe("Sidebar on a wide screen", () => {
   it("collapses and expands with Mod+B, which its trigger tells assistive tech", async () => {
     await page.viewport(1200, 700);
+
     const screen = await render(
       <SidebarProvider>
         <Sidebar collapsible="icon">
@@ -63,6 +65,7 @@ describe("Sidebar on a wide screen", () => {
         <SidebarTrigger />
       </SidebarProvider>,
     );
+
     const sidebar = () => screen.container.querySelector("[data-slot=sidebar][data-state]");
     const mod = navigator.platform.startsWith("Mac") ? "Meta" : "Control";
 

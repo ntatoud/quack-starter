@@ -10,6 +10,7 @@ const password = Redacted.make("correct horse battery staple");
 // Computed apart from the adapter, with `argon2Sync` of node:crypto and the salt 00 01 02 ... 0f.
 const knownHash =
   "$argon2id$v=19$m=19456,t=2,p=1$AAECAwQFBgcICQoLDA0ODw$gYJZtjEAJqjg26xdLmknq8/bB7MiWPrE9hsYuA+SkIU";
+
 // The same password and salt, hashed with other costs.
 const knownHashOtherCosts =
   "$argon2id$v=19$m=8192,t=3,p=1$AAECAwQFBgcICQoLDA0ODw$lHMS9i5KyG9jybYi8UewBhhGc59T3QDy0iNs0D20E6w";

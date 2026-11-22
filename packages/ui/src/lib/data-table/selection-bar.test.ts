@@ -8,6 +8,7 @@ const markup = `<root><status></status><bar><button type="button">Archive</butto
 describe("selectionBar", () => {
   it("is a region named by the count, hidden while nothing is selected", () => {
     const view = mount(selectionBar, { count: 0 }, markup);
+
     try {
       const bar = view.part("bar");
       expect(bar?.getAttribute("role")).toBe("region");
@@ -20,6 +21,7 @@ describe("selectionBar", () => {
 
   it("is shown, and named, from the first row selected", () => {
     const view = mount(selectionBar, { count: 3 }, markup);
+
     try {
       expect(view.part("bar")?.hasAttribute("hidden")).toBe(false);
       expect(view.part("bar")?.getAttribute("aria-label")).toBe("3 selected");
@@ -31,6 +33,7 @@ describe("selectionBar", () => {
   it("clears the selection through the app's callback", () => {
     const onClear = vi.fn();
     const view = mount(selectionBar, { count: 2, onClear }, markup);
+
     try {
       view.api.clear();
       expect(onClear).toHaveBeenCalledOnce();

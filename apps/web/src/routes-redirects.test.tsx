@@ -23,12 +23,15 @@ const landingOf = async (path: string, who: Role | "visitor") => {
           profile: null,
         },
   );
+
   const router = createRouter({
     routeTree,
     context: { queryClient },
     history: createMemoryHistory({ initialEntries: [path] }),
   });
+
   await router.load();
+
   return router.state.location.pathname;
 };
 

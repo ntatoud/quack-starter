@@ -17,17 +17,18 @@
     "lint": "vp lint --report-unused-disable-directives",
     "fmt": "vp fmt",
     "fmt:check": "vp fmt --check",
-    "knip": "knip",
+    "fallow": "fallow --fail-on-issues",
     "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules apps/*/dist apps/*/.output apps/*/.tanstack"
   },
   "devDependencies": {
     "@effect/tsgo": "catalog:",
     "@quack/oxlint-plugin": "workspace:*",
     "@types/node": "catalog:",
-    "knip": "6.45.1",
+    "fallow": "3.45.0",
     "portless": "0.17.0",
     "tsrs": "catalog:",
     "typescript": "catalog:",
+    "ultracite": "8.3.1",
     "vite-plus": "catalog:"
   },
   "engines": {

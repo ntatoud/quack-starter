@@ -3,7 +3,7 @@ import type { HttpApi, HttpApiClient, HttpApiEndpoint, HttpApiGroup } from "effe
 
 import { makeProcedure, type Procedure, type ProcedureKey } from "#/procedure.ts";
 
-type EndpointProcedure<Endpoint extends HttpApiEndpoint.ConstraintRequest, ER> =
+export type EndpointProcedure<Endpoint extends HttpApiEndpoint.ConstraintRequest, ER> =
   HttpApiClient.Client.MethodReturn<
     Endpoint,
     never,
@@ -24,7 +24,7 @@ type EndpointProcedure<Endpoint extends HttpApiEndpoint.ConstraintRequest, ER> =
       >
     : never;
 
-type GroupProcedures<Group extends HttpApiGroup.Constraint, ER> = {
+export type GroupProcedures<Group extends HttpApiGroup.Constraint, ER> = {
   readonly key: () => ProcedureKey;
 } & (Group["endpoints"] extends infer Endpoints extends Readonly<
   Record<string, HttpApiEndpoint.ConstraintRequest>
@@ -50,7 +50,23 @@ interface RuntimeGroup extends HttpApiGroup.Constraint {
   readonly topLevel: boolean;
 }
 
-type AnyCall = (input: unknown) => Effect.Effect<unknown, unknown>;
+type EndpointRequest = HttpApiEndpoint.ClientRequest<never, never, never, never, "decoded-only">;
+
+/** At runtime an endpoint takes the request its schemas describe, or nothing. */
+type RuntimeInput = EndpointRequest | undefined;
+
+type RuntimeCall = (input: RuntimeInput) => Effect.Effect<unknown, unknown>;
+
+/** The client nests its methods like the groups and endpoints of the API. */
+interface ClientNode {
+  readonly [name: string]: ClientNode | RuntimeCall;
+}
+
+type RuntimeProcedure = Procedure<RuntimeInput, unknown, unknown>;
+
+interface ProcedureNode {
+  [name: string]: ProcedureNode | RuntimeProcedure | (() => ProcedureKey);
+}
 
 export const makeHttpApiProcedures = <
   ApiId extends string,
@@ -64,28 +80,30 @@ export const makeHttpApiProcedures = <
     readonly runtime: ManagedRuntime.ManagedRuntime<R, ER>;
   },
 ): HttpApiProcedures<Groups, ER> => {
-  const root: Record<string, unknown> = {};
+  const root: ProcedureNode = {};
 
   for (const group of Object.values(api.groups) as ReadonlyArray<RuntimeGroup>) {
     const groupPath = group.topLevel ? [] : [group.identifier];
-    const node: Record<string, unknown> = group.topLevel ? root : { key: () => [groupPath] };
+    const node: ProcedureNode = group.topLevel ? root : { key: () => [groupPath] };
+
     if (!group.topLevel) root[group.identifier] = node;
 
     for (const name of Object.keys(group.endpoints)) {
       if (name in node) {
         throw new Error(`Endpoint "${[...groupPath, name].join(".")}" collides with another key.`);
       }
+
       const path = [...groupPath, name];
       node[name] = makeProcedure(
         path,
-        (input: unknown) =>
+        (input: RuntimeInput) =>
           Effect.flatMap(options.client, (client) => {
             // The client nests its methods exactly like the path.
-            const call = path.reduce<unknown>(
-              (target, key) => (target as Record<string, unknown>)[key],
-              client,
-            );
-            return (call as AnyCall)(input);
+            const owner = path
+              .slice(0, -1)
+              .reduce((target, key) => target[key] as ClientNode, client as ClientNode);
+
+            return (owner[name] as RuntimeCall)(input);
           }),
         (effect, runOptions) => options.runtime.runPromiseExit(effect, runOptions),
       );

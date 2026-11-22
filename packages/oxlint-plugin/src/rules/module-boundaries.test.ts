@@ -4,6 +4,7 @@ import { describe, it } from "vite-plus/test";
 import rule from "#/rules/module-boundaries.ts";
 
 RuleTester.describe = describe;
+
 RuleTester.it = it;
 
 const src = "/repo/apps/server/src";
@@ -20,13 +21,17 @@ const routesTest = `${src}/server.test.ts`;
 
 const NO_OTHER_LAYER = { message: "The domain depends on no other layer." };
 const NO_PLATFORM = { message: "The domain stays free of platform and transport code." };
+
 const DOMAIN_ONLY = {
   message: "Use cases depend on the domain only. Adapters are provided as Layers.",
 };
+
 const TESTS_ONLY = {
   message: "Only a test or another testing/ file imports from a testing/ folder.",
 };
+
 const TESTS_ONLY_ACROSS = { message: "Only a test imports another module's testing/ folder." };
+
 const throughIndex = (module: string) => ({
   message: `Import another module through its index.ts (#/modules/${module}/index.ts), not its internals.`,
 });

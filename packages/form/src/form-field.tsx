@@ -20,7 +20,9 @@ export const useFormFieldLayout = () => use(FieldLayoutContext);
 /** The layout of the `field.Root` around a part that has no meaning outside it, such as its label. */
 export const useRequiredFieldLayout = (part: string) => {
   const layout = use(FieldLayoutContext);
+
   if (layout === null) throw new Error(`${part} must be rendered in a field.Root`);
+
   return layout;
 };
 
@@ -34,6 +36,7 @@ export function FormField({
   const id = useId();
   // The control names its description only once it is rendered: a reference to no element describes nothing.
   const [hasDescription, setHasDescription] = useState(false);
+
   const layout = useMemo(
     () => ({ id, size, descriptionId: `${id}-description`, hasDescription, setHasDescription }),
     [id, size, hasDescription],

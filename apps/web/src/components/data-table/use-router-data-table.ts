@@ -23,5 +23,6 @@ export function useRouterDataTable<
   filters?: Filters & Record<Exclude<keyof Filters, DataTableFilterKey<S>>, never>;
 }) {
   const store = useRouterDataTableStore(search);
+
   return useDataTable<S, Filters>({ store, ...options });
 }

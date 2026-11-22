@@ -4,17 +4,21 @@ import { describe, it } from "vite-plus/test";
 import rule from "#/rules/no-useless-comments.ts";
 
 RuleTester.describe = describe;
+
 RuleTester.it = it;
 
 const filename = "/repo/apps/web/src/features/todos/queries.ts";
+
 const RESTATES = {
   message:
     "The comment restates the code next to it. Delete it, or say why the code is the way it is.",
 };
+
 const NARRATES = {
   message:
     "The comment narrates what the code is. Delete it, or say why the code is the way it is.",
 };
+
 const CODE = { message: "Commented-out code. Delete it: git keeps the history." };
 
 new RuleTester().run("no-useless-comments", rule, {

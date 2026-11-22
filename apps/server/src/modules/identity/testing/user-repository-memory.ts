@@ -44,11 +44,13 @@ export const UserRepositoryMemory = Layer.sync(UserRepository, () => {
         if (idsByEmail.has(user.email)) return Effect.fail(new EmailAlreadyTaken());
         idsByEmail.set(user.email, user.id);
         users.set(user.id, { user, passwordHash });
+
         return Effect.void;
       }),
     update: (user) =>
       Effect.sync(() => {
         const stored = users.get(user.id);
+
         if (stored !== undefined) {
           users.set(user.id, { ...stored, user: new User({ ...user, email: stored.user.email }) });
         }
@@ -56,8 +58,10 @@ export const UserRepositoryMemory = Layer.sync(UserRepository, () => {
     remove: (id) =>
       Effect.sync(() => {
         const stored = users.get(id);
+
         if (stored === undefined) return false;
         idsByEmail.delete(stored.user.email);
+
         return users.delete(id);
       }),
     findById: (id) => Effect.sync(() => Option.fromNullishOr(users.get(id)?.user)),
@@ -72,6 +76,7 @@ export const UserRepositoryMemory = Layer.sync(UserRepository, () => {
         const offset = (page - 1) * pageSize;
         const sign = dir === "asc" ? 1 : -1;
         const keyOf = sortKeys[orderBy];
+
         const sorted = Array.from(users.values(), ({ user }) => user)
           .filter(
             (user) =>
@@ -89,6 +94,7 @@ export const UserRepositoryMemory = Layer.sync(UserRepository, () => {
                 : sign * compare(a.key, b.key)) || compare(a.user.email, b.user.email),
           )
           .map(({ user }) => user);
+
         return { items: sorted.slice(offset, offset + pageSize), total: sorted.length };
       }),
   });

@@ -30,6 +30,7 @@ export const Routes = Layer.mergeAll(ApiRoutes, DocsRoute, OAuthMetadataRoutes, 
 const Server = Layer.unwrap(
   Effect.gen(function* () {
     const port = yield* ServerConfig.port;
+
     return NodeHttpServer.layer(NodeHttp.createServer, { port });
   }),
 );

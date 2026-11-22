@@ -1,22 +1,29 @@
 import type { ESTree, Visitor } from "vite-plus/lint/plugins";
 
-type Node = ESTree.Node;
+export type Node = ESTree.Node;
+
+const isString = (value: unknown): value is string => typeof value === "string";
 
 /** Of a template literal, only the text before the first `${}` is known. */
 const specifierOf = (source: Node | null): string | undefined => {
   if (source === null) return undefined;
+
   if (source.type === "Literal") {
-    return typeof source.value === "string" ? source.value : undefined;
+    return isString(source.value) ? source.value : undefined;
   }
+
   if (source.type === "TemplateLiteral") return source.quasis[0]?.value.cooked ?? undefined;
+
   return undefined;
 };
 
 export const forEachImport = (visit: (specifier: string, node: Node) => void): Visitor => {
   const check = (node: Node, source: Node | null) => {
     const specifier = specifierOf(source);
+
     if (specifier !== undefined) visit(specifier, source ?? node);
   };
+
   return {
     ImportDeclaration: (node) => check(node, node.source),
     ExportNamedDeclaration: (node) => check(node, node.source),

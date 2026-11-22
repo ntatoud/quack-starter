@@ -45,30 +45,36 @@ export function DataTableToolbar({
     onSearchShown,
     revealRequests,
   } = table.toolbar;
+
   const searchShown = search !== undefined;
   // Before paint: a column header that filters by the search shows its button from the first frame.
   React.useLayoutEffect(() => {
     onSearchShown(searchShown);
+
     return () => onSearchShown(false);
   }, [onSearchShown, searchShown]);
   const count = selection?.count ?? 0;
+
   // A filter asked for from a column header shows the toolbar again, until the selection changes.
   const [reveal, setReveal] = React.useState({
     request: revealRequests,
     count,
     active: false,
   });
+
   if (revealRequests !== reveal.request)
     setReveal({ request: revealRequests, count, active: true });
   else if (reveal.active && count !== reveal.count) setReveal({ ...reveal, count, active: false });
   const selecting = count > 0 && !(reveal.active && reveal.count === count);
   const root = React.useRef<HTMLDivElement>(null);
   const controls = React.useRef<HTMLDivElement>(null);
+
   const focusOnEmpty = React.useCallback(
     () =>
       controls.current?.querySelector<HTMLElement>("input:not(:disabled), button:not(:disabled)"),
     [],
   );
+
   // Rows selected from a control of the toolbar (an action, a shortcut) hide it: its focus goes to the bar.
   React.useLayoutEffect(() => {
     if (!selecting || !controls.current?.contains(document.activeElement)) return;
@@ -76,6 +82,7 @@ export function DataTableToolbar({
       ?.querySelector<HTMLElement>("[data-slot=data-table-selection-bar] button:not(:disabled)")
       ?.focus();
   }, [selecting]);
+
   // The bar and the controls share one cell: the taller sets its height, so the table does not move when they swap.
   return (
     <div

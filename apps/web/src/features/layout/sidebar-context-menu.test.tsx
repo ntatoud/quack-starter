@@ -6,8 +6,10 @@ import { renderSidebar } from "#/testing/render-sidebar.tsx";
 
 const emptySpace = () => {
   const content = document.querySelector("[data-slot=sidebar-content]");
+
   if (!(content instanceof HTMLElement)) throw new Error("The sidebar has no content.");
   const menu = content.querySelector("[data-sidebar=menu]")?.getBoundingClientRect();
+
   return {
     content,
     below: { x: 40, y: (menu?.bottom ?? 0) - content.getBoundingClientRect().top + 40 },

@@ -8,7 +8,7 @@
    pnpm check
    pnpm typecheck
    pnpm test
-   pnpm knip
+   pnpm fallow
    ```
 
 4. Use a [conventional commit](https://www.conventionalcommits.org) title, such as `fix(web): the todo form keeps its draft on error`.

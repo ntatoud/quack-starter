@@ -18,6 +18,7 @@ const setup = async (shown: ReadonlyArray<{ key: string; title: string }> = filt
       <input id="filter" aria-label="Filter" />
     </>,
   );
+
   return { onAdd, trigger: page.getByRole("button", { name: "Add filter" }) };
 };
 

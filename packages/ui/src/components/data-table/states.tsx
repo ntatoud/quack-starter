@@ -45,6 +45,7 @@ export const DataTableEmptyState = ({
   onReset?: () => void;
 }) => {
   const narrowed = filtered || !!searchTerm;
+
   return (
     <div className="flex flex-col items-center justify-center gap-1 py-4 text-center text-sm text-muted-foreground">
       <div data-slot="data-table-state-message">
@@ -131,6 +132,7 @@ export const DataTableLoadMore = ({
   onLoadMore: () => void;
 }) => {
   const status = React.useRef<HTMLSpanElement>(null);
+
   // The last batch takes the button away: the focus it had goes to the count rather than to the page.
   const button = React.useCallback(
     (node: HTMLButtonElement | null) => () => {
@@ -139,6 +141,7 @@ export const DataTableLoadMore = ({
     },
     [],
   );
+
   return (
     <div className="flex items-center justify-between gap-2">
       <span

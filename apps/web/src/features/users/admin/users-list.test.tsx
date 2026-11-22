@@ -32,19 +32,24 @@ const user = (n: number, role: Role = "user") => ({
 
 // The API client keeps the `fetch` it first saw, so one stub serves every test and each test sets its response.
 let respond: (request: Request) => Response | Promise<Response>;
+
 const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) =>
   respond(new Request(input, init)),
 );
+
 vi.stubGlobal("fetch", fetch);
 
 const total = defaultPageSize + 1;
 const pageOf = (request: Request) => Number(new URL(request.url).searchParams.get("page"));
+
 const firstPage = [
   user(1, "admin"),
   ...Array.from({ length: defaultPageSize - 1 }, (_, i) => user(i + 2)),
 ];
+
 const usersOn = (request: Request) =>
   Response.json({ items: [firstPage, [user(total)]][pageOf(request) - 1] ?? [], total });
+
 const ninePages = () => Response.json({ items: firstPage, total: defaultPageSize * 9 });
 
 // The rows scroll sideways when the table is narrow; the footer must fit.
@@ -93,6 +98,7 @@ const setup = async (
   respond = response;
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const rootRoute = createRootRoute();
+
   const usersRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: "/admin/users",
@@ -105,20 +111,24 @@ const setup = async (
       );
     },
   });
+
   const userRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: "/admin/users/$id",
     component: () => <p>Details of the user</p>,
   });
+
   const router = createRouter({
     routeTree: rootRoute.addChildren([usersRoute, userRoute]),
     history: createMemoryHistory({ initialEntries: [url] }),
   });
+
   await render(
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
+
   return { router };
 };
 
@@ -139,6 +149,7 @@ const sortOf = (column: string) =>
     .element()
     .closest("th")
     ?.getAttribute("aria-sort");
+
 const queryOf = (call = 0) => new URL(String(fetch.mock.calls[call]?.[0])).searchParams;
 
 const defaultViewport = { width: 414, height: 896 };

@@ -10,9 +10,12 @@ const home = "/app";
  */
 export const redirectTarget = (redirect: string | undefined): string => {
   if (redirect === undefined || !redirect.startsWith("/")) return home;
+
   if (!URL.canParse(redirect, appOrigin)) return home;
   const url = new URL(redirect, appOrigin);
+
   if (url.origin !== appOrigin || url.pathname.startsWith("//")) return home;
+
   return url.pathname + url.search + url.hash;
 };
 

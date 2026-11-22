@@ -50,17 +50,21 @@ const contentOf = (comment: Comment) =>
 /** Line comments on consecutive lines read as one. */
 const groupsOf = (comments: ReadonlyArray<Comment>, text: string) => {
   const groups: Array<Array<Comment>> = [];
+
   for (const comment of comments) {
     if (comment.type === "Shebang") continue;
     const last = groups.at(-1)?.at(-1);
+
     const adjacent =
       last !== undefined &&
       last.type === "Line" &&
       comment.type === "Line" &&
       /^[^\S\n]*\n[^\S\n]*$/.test(text.slice(last.end, comment.start));
+
     if (adjacent) groups.at(-1)?.push(comment);
     else groups.push([comment]);
   }
+
   return groups;
 };
 
@@ -68,8 +72,35 @@ const groupsOf = (comments: ReadonlyArray<Comment>, text: string) => {
 const describedCode = (text: string, start: number, end: number) => {
   const lineStart = text.lastIndexOf("\n", start - 1) + 1;
   const before = text.slice(lineStart, start).replace(/[\s{]/g, "");
+
   if (before !== "") return text.slice(lineStart, start);
+
   return text.slice(end).trimStart().split("\n")[0] ?? "";
+};
+
+/** Why a group of comment lines should go, if it should. */
+const complaintAbout = (prose: ReadonlyArray<string>, described: string) => {
+  if (prose.some((line) => CODE.some((pattern) => pattern.test(line)))) {
+    return "Commented-out code. Delete it: git keeps the history.";
+  }
+
+  if (NARRATION.test(prose[0] ?? "")) {
+    return "The comment narrates what the code is. Delete it, or say why the code is the way it is.";
+  }
+
+  const named = new Set(wordsOf(described).map((word) => stem(word)));
+
+  const said = wordsOf(prose.join(" "))
+    .filter((word) => !FILLER.has(word))
+    .map((word) => stem(word));
+
+  const unnamed = said.filter((word) => !named.has(word)).length;
+
+  if (said.length > 0 && unnamed <= Math.floor(said.length / 4)) {
+    return "The comment restates the code next to it. Delete it, or say why the code is the way it is.";
+  }
+
+  return undefined;
 };
 
 export default defineRule({
@@ -84,42 +115,24 @@ export default defineRule({
     Program: () => {
       const { sourceCode } = context;
       const text = sourceCode.text;
+
       for (const group of groupsOf(sourceCode.getAllComments(), text)) {
         const first = group[0];
         const last = group.at(-1);
+
         if (first === undefined || last === undefined) continue;
         const lines = group.flatMap(contentOf);
         const prose = lines.filter((line) => !line.startsWith("@"));
+
         if (prose.length === 0 || DIRECTIVE.test(lines[0] ?? "")) continue;
 
-        const report = (message: string) =>
-          context.report({
-            loc: { start: sourceCode.getLoc(first).start, end: sourceCode.getLoc(last).end },
-            message,
-          });
+        const message = complaintAbout(prose, describedCode(text, first.start, last.end));
 
-        if (prose.some((line) => CODE.some((pattern) => pattern.test(line)))) {
-          report("Commented-out code. Delete it: git keeps the history.");
-          continue;
-        }
-        if (NARRATION.test(prose[0] ?? "")) {
-          report(
-            "The comment narrates what the code is. Delete it, or say why the code is the way it is.",
-          );
-          continue;
-        }
-        const named = new Set(
-          wordsOf(describedCode(text, first.start, last.end)).map((word) => stem(word)),
-        );
-        const said = wordsOf(prose.join(" "))
-          .filter((word) => !FILLER.has(word))
-          .map((word) => stem(word));
-        const unnamed = said.filter((word) => !named.has(word)).length;
-        if (said.length > 0 && unnamed <= Math.floor(said.length / 4)) {
-          report(
-            "The comment restates the code next to it. Delete it, or say why the code is the way it is.",
-          );
-        }
+        if (message === undefined) continue;
+        context.report({
+          loc: { start: sourceCode.getLoc(first).start, end: sourceCode.getLoc(last).end },
+          message,
+        });
       }
     },
   }),

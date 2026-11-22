@@ -40,23 +40,29 @@ const devAccount = (faker: Faker, email: string, role: Role, firstName: string):
 const randomUsers = (faker: Faker, count: number): ReadonlyArray<User> => {
   const emails = new Set<string>();
   const users: Array<User> = [];
+
   while (users.length < count) {
     const firstName = faker.person.firstName();
     const lastName = faker.person.lastName();
     const email = faker.internet.email({ firstName, lastName }).toLowerCase();
+
     if (emails.has(email)) continue;
     emails.add(email);
+
     const status = faker.helpers.weightedArrayElement<UserStatus>([
       { weight: 80, value: "active" },
       { weight: 12, value: "invited" },
       { weight: 8, value: "suspended" },
     ]);
+
     const createdAt = faker.date.past({ years: 2, refDate: seedDate });
     const id = UserId.make(faker.string.uuid());
+
     const lastSignInAt =
       status === "invited"
         ? null
         : DateTime.fromDateUnsafe(faker.date.between({ from: createdAt, to: seedDate }));
+
     const profile = faker.datatype.boolean({ probability: 0.1 })
       ? null
       : new Profile({
@@ -69,6 +75,7 @@ const randomUsers = (faker: Faker, count: number): ReadonlyArray<User> => {
           team: faker.helpers.arrayElement(Team.literals),
           country: CountryCode.make(faker.location.countryCode("alpha-2")),
         });
+
     users.push(
       new User({
         id,
@@ -86,12 +93,14 @@ const randomUsers = (faker: Faker, count: number): ReadonlyArray<User> => {
       }),
     );
   }
+
   return users;
 };
 
 const seededFaker = () => {
   const faker = new Faker({ locale: [en, base] });
   faker.seed(1);
+
   return faker;
 };
 
@@ -103,6 +112,7 @@ const devAccountUsers = (faker: Faker): ReadonlyArray<User> => [
 
 export const devUsers = (): ReadonlyArray<User> => {
   const faker = seededFaker();
+
   return [...devAccountUsers(faker), ...randomUsers(faker, 100)];
 };
 

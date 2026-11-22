@@ -46,6 +46,7 @@ export const selectFilter = <const Value extends string>({
             value={value ?? null}
             onValueChange={(next) => {
               const option = options.find((candidate) => candidate.value === next);
+
               if (option !== undefined) onValueChange(option.value);
             }}
           >

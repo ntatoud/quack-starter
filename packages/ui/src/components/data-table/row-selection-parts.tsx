@@ -14,7 +14,7 @@ const parts = createParts(rowSelection, { root: "div", row: "tr", box: "span" })
 export const RowSelectionRow = parts.Row;
 export const RowSelectionBox = parts.Box;
 
-type Api = ReturnType<typeof rowSelection>["api"];
+export type Api = ReturnType<typeof rowSelection>["api"];
 
 /** What the checkboxes of a table read: the rows, the selection, and the api that changes it. */
 export type SelectionModel = {
@@ -50,15 +50,19 @@ export function RowSelectionRoot({
     children?: React.ReactNode;
   }) {
   const ids = React.useMemo(() => [...selected], [selected]);
+
   const options: RowSelectionOptions = {
     selected: ids,
     rows,
     onSelectedChange: (next) => onSelectedChange(new Set(next)),
   };
+
   const handle = usePrimitive(rowSelection, options);
   const { api } = handle;
+
   const model = React.useMemo<SelectionModel>(() => {
     const labelOf = new Map(rows.flatMap((row) => (row.label ? [[row.value, row.label]] : [])));
+
     return {
       api,
       selected,
@@ -68,7 +72,9 @@ export function RowSelectionRoot({
       allRows,
     };
   }, [api, selected, rows, allRows]);
+
   // `ComponentProps` allows an explicit `undefined` where `PartProps` does not: the props are the table's, a div's.
   const root = usePart(handle, "root", {}, props as PartProps<"div">, "div");
+
   return <SelectionContext value={model}>{root}</SelectionContext>;
 }

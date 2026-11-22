@@ -46,12 +46,15 @@ const clientWith = (name: string, permissions: ReadonlyArray<Permission> = every
       onboardedAt: null,
       profile: null,
     });
+
     const asCaller = McpServer.middleware<{ provides: McpCaller }>()((effect) =>
       Effect.provideService(effect, McpCaller, { user, permissions: new Set(permissions) }),
     );
+
     const client = yield* McpTest.makeClient(ContractTools.pipe(Layer.provide(asCaller.layer)), {
       protocols: [McpProtocol.v2026_07_28],
     });
+
     return { client, user };
   });
 
@@ -118,6 +121,7 @@ layer(Layer.mergeAll(ApiHandlers, HttpServer.layerServices))("ContractTools", (i
         name: "todos_create",
         arguments: { title: "Ship it" },
       });
+
       const listed = yield* client.callTool({ name: "todos_list", arguments: {} });
 
       assert.isFalse(created.isError);
@@ -134,10 +138,12 @@ layer(Layer.mergeAll(ApiHandlers, HttpServer.layerServices))("ContractTools", (i
   it.effect("removes a Todo, and answers with no structured content", () =>
     Effect.gen(function* () {
       const { client } = yield* clientWith("hedy-removes");
+
       const created = yield* client.callTool({
         name: "todos_create",
         arguments: { title: "Gone" },
       });
+
       const { id } = created.structuredContent as { readonly id: string };
 
       const removed = yield* client.callTool({ name: "todos_remove", arguments: { id } });
@@ -153,10 +159,12 @@ layer(Layer.mergeAll(ApiHandlers, HttpServer.layerServices))("ContractTools", (i
     Effect.gen(function* () {
       const owner = yield* clientWith("joan-owns");
       const other = yield* clientWith("radia-other");
+
       const created = yield* owner.client.callTool({
         name: "todos_create",
         arguments: { title: "Mine" },
       });
+
       const { id } = created.structuredContent as { readonly id: string };
 
       const result = yield* other.client.callTool({ name: "todos_complete", arguments: { id } });
@@ -174,9 +182,11 @@ layer(Layer.mergeAll(ApiHandlers, HttpServer.layerServices))("ContractTools", (i
       const { client } = yield* clientWith("mary-lists-only", ["todos:list"]);
 
       const { tools } = yield* client.listTools();
+
       const refused = yield* client
         .callTool({ name: "todos_create", arguments: { title: "Not allowed" } })
         .pipe(Effect.flip);
+
       const listed = yield* client.callTool({ name: "todos_list", arguments: {} });
 
       assert.deepStrictEqual(

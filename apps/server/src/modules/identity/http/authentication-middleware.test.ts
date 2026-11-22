@@ -45,6 +45,7 @@ const ProbeHandlers = HttpApiBuilder.group(ProbeApi, "probe", (handlers) =>
 
 const sessionCookieOf = Effect.fn(function* (email: string) {
   const identity = yield* HttpApiTest.groups(Api, ["identity"]);
+
   const [, response] = yield* identity.identity.signUp({
     payload: {
       email: Email.make(email),
@@ -52,6 +53,7 @@ const sessionCookieOf = Effect.fn(function* (email: string) {
     },
     responseMode: "decoded-and-response",
   });
+
   return Cookies.toCookieHeader(response.cookies);
 });
 
@@ -91,6 +93,7 @@ layer(TestLayer)("AuthenticationMiddleware", (it) => {
     () =>
       Effect.gen(function* () {
         const probe = yield* probeAs("");
+
         const user = new User({
           id: UserId.make("mcp-caller"),
           email: Email.make("mcp-caller@example.com"),
@@ -101,12 +104,14 @@ layer(TestLayer)("AuthenticationMiddleware", (it) => {
           onboardedAt: null,
           profile: null,
         });
+
         const as = (permissions: ReadonlyArray<"todos:list" | "todos:write">) =>
           Effect.provideService(McpCaller, { user, permissions: new Set(permissions) });
 
         const allowed = yield* probe.probe
           .listTodos({ responseMode: "response-only" })
           .pipe(as(["todos:list"]));
+
         const error = yield* probe.probe.listTodos().pipe(as(["todos:write"]), Effect.flip);
 
         assert.strictEqual(allowed.status, 204);

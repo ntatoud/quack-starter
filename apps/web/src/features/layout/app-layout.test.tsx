@@ -21,6 +21,7 @@ const columns: ReadonlyArray<DataTableColumn<{ id: string }>> = Array.from(
 const setup = async (width: number) => {
   await page.viewport(width, 800);
   const rootRoute = createRootRoute();
+
   const authenticated = createRoute({
     getParentRoute: () => rootRoute,
     id: "_authenticated",
@@ -33,20 +34,24 @@ const setup = async (width: number) => {
       },
     }),
   });
+
   const app = createRoute({
     getParentRoute: () => authenticated,
     path: "app",
     component: AppLayout,
   });
+
   const wide = createRoute({
     getParentRoute: () => app,
     path: "/",
     component: () => <DataTable columns={columns} data={[{ id: "1" }]} />,
   });
+
   const router = createRouter({
     routeTree: rootRoute.addChildren([authenticated.addChildren([app.addChildren([wide])])]),
     history: createMemoryHistory({ initialEntries: ["/app"] }),
   });
+
   const { Providers } = testProviders();
   await render(
     <Providers>
@@ -63,10 +68,12 @@ describe("AppLayout", () => {
       await expect.element(page.getByRole("table")).toBeVisible();
 
       expect(document.documentElement.scrollWidth).toBe(window.innerWidth);
+
       const viewport = page
         .getByRole("table")
         .element()
         .closest("[data-slot=scroll-area-viewport]");
+
       if (!(viewport instanceof HTMLElement)) throw new Error("The table scrolls in no viewport.");
       expect(viewport.scrollWidth).toBeGreaterThan(viewport.clientWidth);
       expect(viewport.getBoundingClientRect().right).toBeLessThanOrEqual(window.innerWidth);

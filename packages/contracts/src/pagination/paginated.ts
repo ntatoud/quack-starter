@@ -10,11 +10,13 @@ export const PaginationQuery = Schema.Struct({
     Schema.withDecodingDefaultKey(Effect.succeed(defaultPageSize)),
   ),
 });
+
 export type PaginationQuery = typeof PaginationQuery.Type;
 
 /** `total` counts every item, not only those of the page. */
 export const Paginated = <Item extends Schema.Top>(item: Item) =>
   Schema.Struct({ items: Schema.Array(item), total: Schema.Int });
+
 export interface Paginated<A> {
   readonly items: ReadonlyArray<A>;
   readonly total: number;

@@ -26,9 +26,11 @@ const sha256Hex = (text: string) => createHash("sha256").update(text).digest("he
 
 /** How many passwords the hasher hashed or verified: the slow step, which decides how long a sign-in takes. */
 const hasherWork = { count: 0 };
+
 const counted = <A>(effect: Effect.Effect<A>) =>
   Effect.suspend(() => {
     hasherWork.count += 1;
+
     return effect;
   });
 
@@ -80,6 +82,7 @@ layer(IdentityLayer)("Identity", (it) => {
         password,
         anAddress(),
       );
+
       const token = Redacted.value(session.token);
 
       const stored = yield* store.findByTokenHash(sha256Hex(token));
@@ -94,6 +97,7 @@ layer(IdentityLayer)("Identity", (it) => {
       const store = yield* SessionStore;
 
       const now = yield* DateTime.now;
+
       const { session } = yield* identity.signUp(
         Email.make("margaret@example.com"),
         password,
@@ -139,6 +143,7 @@ layer(IdentityLayer)("Identity", (it) => {
       const email = Email.make("hedy@example.com");
       const from = "203.0.113.2";
       yield* identity.signUp(email, password, from);
+
       for (let failure = 0; failure < 5; failure++) {
         yield* identity
           .signIn(email, Redacted.make("not the password of hedy"), from)
@@ -157,11 +162,13 @@ layer(IdentityLayer)("Identity", (it) => {
     Effect.gen(function* () {
       const identity = yield* Identity;
       const from = "203.0.113.3";
+
       for (let signUp = 0; signUp < 10; signUp++) {
         yield* identity.signUp(Email.make(`visitor-${signUp}@example.com`), password, from);
       }
 
       const before = hasherWork.count;
+
       const error = yield* identity
         .signUp(Email.make("visitor-10@example.com"), password, from)
         .pipe(Effect.flip);
@@ -175,6 +182,7 @@ layer(IdentityLayer)("Identity", (it) => {
     Effect.gen(function* () {
       const identity = yield* Identity;
       const store = yield* SessionStore;
+
       const { session } = yield* identity.signUp(
         Email.make("radia@example.com"),
         password,
@@ -194,11 +202,13 @@ layer(IdentityLayer)("Identity", (it) => {
     Effect.gen(function* () {
       const identity = yield* Identity;
       const store = yield* SessionStore;
+
       const { session } = yield* identity.signUp(
         Email.make("lynn@example.com"),
         password,
         anAddress(),
       );
+
       const tokenHash = sha256Hex(Redacted.value(session.token));
       yield* TestClock.adjust("30 days");
       assert.isTrue(Option.isSome(yield* store.findByTokenHash(tokenHash)));
@@ -214,11 +224,13 @@ layer(IdentityLayer)("Identity", (it) => {
     Effect.gen(function* () {
       const identity = yield* Identity;
       const store = yield* SessionStore;
+
       const { session } = yield* identity.signUp(
         Email.make("adele@example.com"),
         password,
         anAddress(),
       );
+
       const tokenHash = sha256Hex(Redacted.value(session.token));
       yield* identity.signOut(session.token);
 
@@ -281,11 +293,13 @@ layer(IdentityLayer)("Identity", (it) => {
       const identity = yield* Identity;
       const users = yield* UserRepository;
       const store = yield* SessionStore;
+
       const { user, session } = yield* identity.signUp(
         Email.make("barbara@example.com"),
         password,
         anAddress(),
       );
+
       yield* users.update(new User({ ...user, status: "suspended" }));
 
       const error = yield* identity.authenticate(session.token).pipe(Effect.flip);

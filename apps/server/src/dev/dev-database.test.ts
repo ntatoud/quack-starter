@@ -10,6 +10,7 @@ const commandLine = (command: ChildProcess.Command) =>
 
 const spawnerAnswering = (exitCodeOf: (commandLine: string) => number) => {
   const ran: Array<string> = [];
+
   const layer = Layer.succeed(
     ChildProcessSpawner.ChildProcessSpawner,
     ChildProcessSpawner.ChildProcessSpawner.of({
@@ -18,16 +19,19 @@ const spawnerAnswering = (exitCodeOf: (commandLine: string) => number) => {
         Effect.sync(() => {
           const line = commandLine(command);
           ran.push(line);
+
           return ChildProcessSpawner.ExitCode(exitCodeOf(line));
         }),
     }),
   );
+
   return { layer, ran };
 };
 
 describe("devDatabaseUrl", () => {
   it.effect("answers a DATABASE_URL set by hand as given, with no Docker", () => {
     const docker = spawnerAnswering(() => 0);
+
     return Effect.gen(function* () {
       const url = yield* devDatabaseUrl(
         { DATABASE_URL: "postgres://me:pw@db.example/mine" },
@@ -41,6 +45,7 @@ describe("devDatabaseUrl", () => {
 
   it.effect("fails with a message to start Docker when Docker does not run", () => {
     const docker = spawnerAnswering(() => 1);
+
     return Effect.gen(function* () {
       const error = yield* Effect.flip(devDatabaseUrl({}, { seed: true }));
 
@@ -51,6 +56,7 @@ describe("devDatabaseUrl", () => {
 
   it.effect("fails with the exit code of docker compose when Docker runs", () => {
     const docker = spawnerAnswering((line) => (line.startsWith("docker compose") ? 17 : 0));
+
     return Effect.gen(function* () {
       const error = yield* Effect.flip(devDatabaseUrl({}, { seed: true }));
 

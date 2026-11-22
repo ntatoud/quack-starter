@@ -9,6 +9,7 @@ export const Team = Schema.Literals([
   "support",
   "operations",
 ]);
+
 export type Team = typeof Team.Type;
 
 /** ISO 3166-1 alpha-2: the codes assigned to a country or territory. */
@@ -271,6 +272,7 @@ export const CountryCode = Schema.String.check(
     message: "Enter the ISO 3166-1 alpha-2 code of a country",
   }),
 ).pipe(Schema.brand("CountryCode"));
+
 export type CountryCode = typeof CountryCode.Type;
 
 export const PersonName = Schema.Trimmed.check(

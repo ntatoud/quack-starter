@@ -13,6 +13,7 @@ describe("Api", () => {
       onGroup: () => {},
       onEndpoint: ({ group, endpoint, middleware }) => {
         const isProtected = [...middleware].some(({ key }) => key === Authentication.key);
+
         if (
           isProtected &&
           Option.isNone(Context.getOption(endpoint.annotations, RequiredPermission))

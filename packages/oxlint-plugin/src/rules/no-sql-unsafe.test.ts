@@ -4,10 +4,12 @@ import { describe, it } from "vite-plus/test";
 import rule from "#/rules/no-sql-unsafe.ts";
 
 RuleTester.describe = describe;
+
 RuleTester.it = it;
 
 const adapter = "/repo/apps/server/src/modules/todos/infrastructure/todo-repository-postgres.ts";
 const migration = "/repo/apps/server/src/database/migrations/0001_create_todos.ts";
+
 const error = {
   message:
     "sql.unsafe sends its text unescaped. Write a sql`...` template, whose values are bound parameters; only a migration, in database/migrations/, may use sql.unsafe.",

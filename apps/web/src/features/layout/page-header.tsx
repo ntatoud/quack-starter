@@ -28,7 +28,9 @@ export function PageHeader({
       {/* Pulled out by their padding, so the icon, not the button, lines up with what the page shows. */}
       {mobileHeader === null && <SidebarTrigger className="-ml-1.5 md:hidden" />}
       {back === true && <BackButton className="md:-ml-1.5" />}
-      {typeof back === "object" && <BackButton fallback={back.fallback} className="md:-ml-1.5" />}
+      {back !== false && back !== true && (
+        <BackButton fallback={back.fallback} className="md:-ml-1.5" />
+      )}
       <AppBreadcrumb title={title} trail={trail} />
       {children}
       {mobileHeader?.actions && (

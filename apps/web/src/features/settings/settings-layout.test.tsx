@@ -18,6 +18,7 @@ import { testProviders } from "#/testing/test-providers.tsx";
 
 const setup = async (path: string, preferences: Partial<PreferenceValues> = {}, width = 1280) => {
   await page.viewport(width, 800);
+
   const rootRoute = createRootRoute({
     component: () => (
       <SidebarProvider>
@@ -25,17 +26,20 @@ const setup = async (path: string, preferences: Partial<PreferenceValues> = {}, 
       </SidebarProvider>
     ),
   });
+
   const settings = createRoute({
     getParentRoute: () => rootRoute,
     path: "/app/settings",
     component: SettingsLayout,
   });
+
   const section = (name: string) =>
     createRoute({
       getParentRoute: () => settings,
       path: name.toLowerCase(),
       component: () => <p>The {name} section</p>,
     });
+
   const router = createRouter({
     routeTree: rootRoute.addChildren([
       settings.addChildren([
@@ -46,6 +50,7 @@ const setup = async (path: string, preferences: Partial<PreferenceValues> = {}, 
     ]),
     history: createMemoryHistory({ initialEntries: [path] }),
   });
+
   const { Providers } = testProviders(preferences);
   await render(
     <Providers>
@@ -53,6 +58,7 @@ const setup = async (path: string, preferences: Partial<PreferenceValues> = {}, 
     </Providers>,
   );
   const nav = page.getByRole("navigation", { name: "Settings" });
+
   return {
     router,
     profile: nav.getByRole("link", { name: "Profile" }),

@@ -27,14 +27,18 @@ const accessToken = (publicOrigin: string) => {
       "www-authenticate": `Bearer resource_metadata="${publicOrigin}/.well-known/oauth-protected-resource${MCP_PATH}"`,
     },
   });
+
   return HttpRouter.middleware<{ provides: McpCaller }>()((toMcpServer) =>
     Effect.gen(function* () {
       const { headers } = yield* HttpServerRequest.HttpServerRequest;
+
       // A page of another origin is refused before anything else: a browser sends its Origin (DNS rebinding).
       if (headers.origin !== undefined && headers.origin !== publicOrigin) {
         return HttpServerResponse.empty({ status: 403 });
       }
+
       const caller = yield* callerOf(headers.authorization);
+
       return Option.isSome(caller)
         ? yield* Effect.provideService(toMcpServer, McpCaller, caller.value)
         : challenge;
@@ -45,6 +49,7 @@ const accessToken = (publicOrigin: string) => {
 export const McpEndpoint = Layer.unwrap(
   Effect.gen(function* () {
     const publicOrigin = yield* ServerConfig.publicOrigin;
+
     return McpServer.layerHttp({
       name: brand.name,
       version: "1.0.0",

@@ -14,18 +14,22 @@ export const TodosHandlers = HttpApiBuilder.group(
     return handlers.handleAll({
       list: Effect.fn(function* () {
         const owner = yield* CurrentUser;
+
         return yield* todos.list(owner.id);
       }),
       create: Effect.fn(function* ({ payload }) {
         const owner = yield* CurrentUser;
+
         return yield* todos.create(owner.id, payload.title);
       }),
       complete: Effect.fn(function* ({ params }) {
         const owner = yield* CurrentUser;
+
         return yield* todos.complete(owner.id, params.id);
       }),
       remove: Effect.fn(function* ({ params }) {
         const owner = yield* CurrentUser;
+
         return yield* todos.remove(owner.id, params.id);
       }),
     });

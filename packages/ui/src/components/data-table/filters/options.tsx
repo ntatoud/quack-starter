@@ -46,6 +46,7 @@ export function UnknownValue({
     : status.error === undefined
       ? "not an option"
       : "could not load";
+
   return (
     <span className="text-muted-foreground italic">
       {value}
@@ -80,6 +81,7 @@ export function OptionsStatusItems({
   count: number;
 }) {
   const empty = count === 0;
+
   if (status.error !== undefined)
     return (
       <>
@@ -98,6 +100,7 @@ export function OptionsStatusItems({
         {!empty && <MenuSeparator />}
       </>
     );
+
   if (status.loading === true && empty)
     return (
       <MenuItem disabled>
@@ -105,7 +108,9 @@ export function OptionsStatusItems({
         Loading…
       </MenuItem>
     );
+
   if (empty) return <MenuItem disabled>No options</MenuItem>;
+
   return null;
 }
 
@@ -128,6 +133,7 @@ export function OptionsAnnouncement({
     : status.error === undefined
       ? `${count} option${count === 1 ? "" : "s"}`
       : "Could not load the options";
+
   return (
     // Mounted while closed too, empty: a live region already in place is the one screen readers follow.
     <span role="status" className="sr-only">

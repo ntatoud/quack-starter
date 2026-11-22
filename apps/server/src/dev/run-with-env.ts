@@ -13,6 +13,7 @@ export const runWithEnv = <E>(
 ) =>
   Effect.gen(function* () {
     const [command, ...args] = argv;
+
     if (command === undefined) return yield* Effect.die(`Usage: ${usage}`);
     const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
     process.exitCode = yield* spawner.exitCode(

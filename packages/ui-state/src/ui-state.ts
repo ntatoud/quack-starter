@@ -14,15 +14,15 @@ interface UiStateDefinition extends Data.TaggedEnum.WithGenerics<2> {
 
 const { Idle, Pending, Error: ErrorState, Success } = Data.taggedEnum<UiStateDefinition>();
 
-type AnyUiState = UiState<unknown, unknown>;
+export type AnyUiState = UiState<unknown, unknown>;
 
 type Variant<A, E, Tag extends UiState<A, E>["_tag"]> = Extract<
   UiState<A, E>,
   { readonly _tag: Tag }
 >;
 
-export type UiStateCases<S extends AnyUiState> = {
-  readonly [Tag in S["_tag"]]: (state: Extract<S, { readonly _tag: Tag }>) => unknown;
+export type UiStateCases<S extends AnyUiState, Result = unknown> = {
+  readonly [Tag in S["_tag"]]: (state: Extract<S, { readonly _tag: Tag }>) => Result;
 };
 
 export type NoExtraCases<S extends AnyUiState, C> = {
@@ -47,6 +47,7 @@ export const UiState = {
     cases: C & NoExtraCases<S, C>,
   ): ReturnType<C[S["_tag"]]> => {
     const handle = cases[state._tag as S["_tag"]] as (state: S) => ReturnType<C[S["_tag"]]>;
+
     return handle(state);
   },
 };

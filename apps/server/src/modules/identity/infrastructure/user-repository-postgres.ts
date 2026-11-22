@@ -78,6 +78,7 @@ export const UserRepositoryPostgres = Layer.effect(
       Result: UserList,
       execute: ({ page, pageSize, orderBy, dir, search = "", status, role, team, onboarded }) => {
         const pattern = `%${escapeLike(search)}%`;
+
         const filters = [
           ...(search === ""
             ? []
@@ -89,11 +90,14 @@ export const UserRepositoryPostgres = Layer.effect(
             ? []
             : [onboarded ? sql`onboarded_at IS NOT NULL` : sql`onboarded_at IS NULL`]),
         ];
+
         const direction = dir === "asc" ? sql`ASC` : sql`DESC`;
+
         const order = sql.csv([
           ...sortKeys[orderBy].map((key) => sql`${key} ${direction} NULLS LAST`),
           sql`email ASC`,
         ]);
+
         return sql`WITH matching AS (
               SELECT * FROM ${usersWithProfiles} WHERE ${sql.and(filters)}
             ),

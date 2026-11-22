@@ -4,14 +4,16 @@ import { selectFilter } from "@quack/ui/components/data-table/filters/select-fil
 import type { UsersSearch } from "#/features/users/admin/users-search.ts";
 import { teamOptions } from "#/features/identity/team-options.ts";
 
-type UsersFilterKey = "status" | "role" | "team";
+export type UsersFilterKey = "status" | "role" | "team";
 
-const usersFilterOptions: {
+type UsersFilterOptions = {
   readonly [Key in UsersFilterKey]: ReadonlyArray<{
     readonly value: NonNullable<UsersSearch[Key]>;
     readonly label: string;
   }>;
-} = {
+};
+
+const usersFilterOptions: UsersFilterOptions = {
   status: [
     { value: "active", label: "Active" },
     { value: "invited", label: "Invited" },

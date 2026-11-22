@@ -43,10 +43,12 @@ export class MigrationsDiverged extends Schema.TaggedError<
           `migration ${id} is recorded as ${recorded}, the branch has ${file}`,
       )
       .join("; ");
+
     const way =
       this.database === sharedDatabase
         ? "renumber the branch's migrations after those of the default branch, or set DEV_DATABASE=own"
         : `drop the database ${this.database}, which the launcher then creates again empty`;
+
     return `The database ${this.database} and this branch have diverged: ${clashes}. To start, ${way}.`;
   }
 }
@@ -59,6 +61,7 @@ const commandNotFound = ChildProcessSpawner.ExitCode(127);
 
 const startPostgres = Effect.gen(function* () {
   const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
+
   const composeUp = yield* spawner
     .exitCode(
       ChildProcess.make("docker", ["compose", "-f", composeFile, "up", "-d", "--wait"], {
@@ -67,13 +70,16 @@ const startPostgres = Effect.gen(function* () {
       }),
     )
     .pipe(Effect.orElseSucceed(() => commandNotFound));
+
   if (composeUp === 0) return;
+
   const dockerRuns = yield* spawner
     .exitCode(ChildProcess.make("docker", ["info"], { stdout: "ignore", stderr: "ignore" }))
     .pipe(
       Effect.map((exitCode) => exitCode === 0),
       Effect.orElseSucceed(() => false),
     );
+
   return yield* dockerRuns
     ? new PostgresDidNotStart({ exitCode: composeUp })
     : new DockerNotRunning();
@@ -94,12 +100,15 @@ const worktreeBranch = Effect.map(
 
 const defaultBranchMigrations = Effect.gen(function* () {
   const known = yield* git(["rev-parse", "--verify", "-q", "origin/HEAD"]);
+
   if (known.length === 0) {
     yield* Effect.logWarning(
       "origin/HEAD is not known, so every migration counts as new: run git remote set-head origin --auto",
     );
+
     return [];
   }
+
   return yield* git([
     "ls-tree",
     "--name-only",
@@ -113,17 +122,20 @@ const chooseDatabase = Effect.fn("chooseDatabase")(function* (
   env: Readonly<Record<string, string | undefined>>,
 ) {
   const migrations = yield* branchMigrations;
+
   const name = databaseFor({
     devDatabase: env["DEV_DATABASE"],
     branch: yield* worktreeBranch,
     migrations,
     defaultMigrations: yield* defaultBranchMigrations,
   });
+
   yield* Effect.logInfo(
     name === sharedDatabase
       ? `Using the shared database ${name}`
       : `Using the database ${name} of this worktree: its branch adds migrations, or DEV_DATABASE=own`,
   );
+
   return { name, migrations };
 });
 
@@ -139,9 +151,11 @@ const checkMigrationsRecorded = Effect.fn("checkMigrationsRecorded")(
   function* (database: string, migrations: ReadonlyArray<string>) {
     const recorded = (yield* migrationsTableExists) ? yield* appliedMigrations : [];
     const { behind, diverged } = checkRecorded({ migrations, recorded });
+
     if (diverged.length > 0) {
       return yield* new MigrationsDiverged({ database, divergences: diverged });
     }
+
     if (behind.length > 0) {
       yield* Effect.logWarning(
         `The database ${database} records migrations this branch lacks: ${behind
@@ -156,15 +170,18 @@ const checkMigrationsRecorded = Effect.fn("checkMigrationsRecorded")(
 const recordsNoMigration = (database: string) =>
   Effect.gen(function* () {
     if (!(yield* migrationsTableExists)) return true;
+
     return (yield* appliedMigrations).length === 0;
   }).pipe(onServer(database), Effect.scoped);
 
 const createDatabaseIfMissing = (name: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient;
+
     const exists = sql`SELECT 1 FROM pg_database WHERE datname = ${name}`.pipe(
       Effect.map((rows) => rows.length > 0),
     );
+
     if (yield* exists) return;
     yield* Effect.logInfo(`Creating the database ${name}`);
     // Another worktree may create it at the same moment: then it exists, and that is enough.
@@ -180,15 +197,18 @@ export const devDatabaseUrl = Effect.fn("devDatabaseUrl")(function* (
   { seed }: { readonly seed: boolean },
 ) {
   const given = env["DATABASE_URL"];
+
   if (given !== undefined && given !== "") return given;
   yield* startPostgres;
   const { name, migrations } = yield* chooseDatabase(env);
   yield* createDatabaseIfMissing(name);
   yield* checkMigrationsRecorded(name, migrations);
   const url = `${serverUrl}/${name}`;
+
   // Just created, or rolled back to 0: either way it holds no data to keep.
   if (seed && (yield* recordsNoMigration(name))) {
     yield* seedDatabase({ url: Redacted.make(url), maxConnections: 1 });
   }
+
   return url;
 });

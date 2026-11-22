@@ -7,6 +7,7 @@ import { api } from "#/lib/api.ts";
 export const useSignOut = () => {
   const setCurrentUser = useSetCurrentUser();
   const navigate = useNavigate();
+
   return useMutation(
     api.identity.signOut.mutationOptions({
       onSuccess: async () => {

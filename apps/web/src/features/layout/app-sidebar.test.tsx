@@ -38,10 +38,13 @@ describe("AppSidebar", () => {
 
       const edgeOf = () => {
         const panel = document.querySelector("[data-slot=sidebar-container]");
+
         if (!(panel instanceof HTMLElement)) throw new Error("No sidebar is drawn.");
         const { left, right } = panel.getBoundingClientRect();
+
         return side === "left" ? left : window.innerWidth - right;
       };
+
       await expect.poll(edgeOf).toBe(0);
     },
   );

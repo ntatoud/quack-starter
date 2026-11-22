@@ -2,7 +2,7 @@ import { XIcon } from "lucide-react";
 import * as React from "react";
 
 import { Button } from "@quack/ui/components/button";
-import { isEmptyValue } from "@quack/ui/lib/data-table/state";
+import { type DataTableValue, isEmptyValue } from "@quack/ui/lib/data-table/state";
 import { Popover, PopoverContent, PopoverTrigger } from "@quack/ui/components/popover";
 
 export type DataTableFilterValueChange<Read, Write> =
@@ -38,7 +38,7 @@ export type DataTableFilterEditorProps<Read, Write = Read> = {
  * field may hold and writes only what the field accepts. A select reads any text, since the URL may hold a value
  * its options lack, and writes one of its options.
  */
-export type DataTableFilter<in Read, out Write = Read> = {
+export type DataTableFilter<in Read extends DataTableValue, out Write = Read> = {
   readonly title: string;
   /** What the chip shows while the filter is empty. Defaults to "Select". */
   readonly placeholder?: string | undefined;
@@ -52,7 +52,7 @@ export type DataTableFilter<in Read, out Write = Read> = {
 // oxlint-disable-next-line typescript/no-explicit-any -- the filters of one table hold values of different types
 export type AnyDataTableFilter = DataTableFilter<any, any>;
 
-export const isFilterEmpty = <Read,>(
+export const isFilterEmpty = <Read extends DataTableValue>(
   filter: { readonly isEmpty?: ((value: Read) => boolean) | undefined },
   value: Read | null | undefined,
 ) =>
@@ -66,8 +66,10 @@ function useOpenOnceMounted(open: boolean) {
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => {
     const frame = requestAnimationFrame(() => setMounted(true));
+
     return () => cancelAnimationFrame(frame);
   }, []);
+
   return open && mounted;
 }
 
@@ -97,7 +99,7 @@ const triggerClassName =
   "flex h-full min-w-0 cursor-pointer items-center gap-1 rounded-s-md ps-2.5 pe-1 outline-none hover:bg-foreground/5 focus-visible:ring-3 focus-visible:ring-ring/50 data-open:bg-foreground/5";
 
 /** A filter shown above a table: its title, what it holds, its editor, and a button to remove it. */
-export function DataTableFilterChip<Read, Write>({
+export function DataTableFilterChip<Read extends DataTableValue, Write>({
   filter,
   value,
   onValueChange,
@@ -121,6 +123,7 @@ export function DataTableFilterChip<Read, Write>({
     if (editorOpen && root.current?.contains(document.activeElement) === false)
       root.current.querySelector<HTMLElement>("button")?.focus();
   }, [editorOpen]);
+
   return (
     <div
       ref={root}

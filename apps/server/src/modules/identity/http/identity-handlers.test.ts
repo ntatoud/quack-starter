@@ -47,6 +47,7 @@ const makeBrowser = Effect.gen(function* () {
         Authentication,
         Effect.fn(function* ({ next, request }) {
           const cookies = yield* Ref.get(jar);
+
           return yield* next(
             Cookies.isEmpty(cookies)
               ? request
@@ -67,6 +68,7 @@ const makeBrowser = Effect.gen(function* () {
         ),
       ),
     );
+
     return Cookies.toSetCookieHeaders(response.cookies);
   });
 
@@ -75,6 +77,7 @@ const makeBrowser = Effect.gen(function* () {
       payload: { email, password },
       responseMode: "decoded-and-response",
     });
+
     return { user, setCookie: yield* keepCookies(response) };
   });
 
@@ -83,11 +86,13 @@ const makeBrowser = Effect.gen(function* () {
       payload: { email, password: withPassword },
       responseMode: "decoded-and-response",
     });
+
     return { user, setCookie: yield* keepCookies(response) };
   });
 
   const signOut = Effect.gen(function* () {
     const response = yield* client.identity.signOut({ responseMode: "response-only" });
+
     return { status: response.status, setCookie: yield* keepCookies(response) };
   });
 
@@ -102,6 +107,7 @@ const makeBrowser = Effect.gen(function* () {
       client.identity.completeOnboarding({ payload }),
     meResponse: Effect.gen(function* () {
       const response = yield* client.identity.me({ responseMode: "response-only" });
+
       return { status: response.status, setCookie: yield* keepCookies(response) };
     }),
     setCookie: (name: string, value: string) => Ref.update(jar, Cookies.setUnsafe(name, value)),
@@ -239,6 +245,7 @@ layer(withConfig({ SIGN_UPS_PER_IP: "1000" }))("IdentityApi", (it) => {
     Effect.gen(function* () {
       const browser = yield* makeBrowser;
       yield* (yield* makeBrowser).signUp(asTyped("joan@example.com"));
+
       const wrongPassword = yield* browser
         .signIn(asTyped("joan@example.com"), Redacted.make("not the password of joan"))
         .pipe(Effect.flip);
@@ -264,6 +271,7 @@ layer(withConfig({ SIGN_UPS_PER_IP: "1000" }))("IdentityApi", (it) => {
       const atSecondSignIn = Option.getOrThrow(yield* browser.session);
 
       assert.lengthOf(new Set([atSignUp, atFirstSignIn, atSecondSignIn]), 3);
+
       for (const session of [atSignUp, atFirstSignIn, atSecondSignIn]) {
         const other = yield* makeBrowser;
         yield* other.setCookie("session", session);
@@ -768,15 +776,18 @@ describe("IdentityApi, attempt limits", () => {
       Effect.gen(function* () {
         const browser = yield* makeBrowser;
         const { user } = yield* browser.signUp(asTyped("ada@example.com"));
+
         for (let guessed = 0; guessed < 4; guessed++) {
           yield* failSignIn(browser, `guessed-${guessed}@example.com`, 4);
         }
+
         yield* failSignIn(browser, "guessed-4@example.com", 3);
         // A sign-in that succeeds leaves the counter of the address as it is: 19 failures.
         assert.strictEqual((yield* browser.signIn(asTyped("ada@example.com"))).user.id, user.id);
         const twentieth = yield* failSignIn(browser, "guessed-4@example.com", 1);
 
         const onAnotherEmail = yield* failSignIn(browser, "guessed-5@example.com", 1);
+
         const withTheRightPassword = yield* browser
           .signIn(asTyped("ada@example.com"))
           .pipe(Effect.flip);
@@ -799,15 +810,18 @@ describe("IdentityApi, attempt limits", () => {
   effect("refuses a sign-up after 10 from the address in one hour, the failed ones included", () =>
     Effect.gen(function* () {
       const browser = yield* makeBrowser;
+
       for (let visitor = 0; visitor < 8; visitor++) {
         yield* browser.signUp(asTyped(`visitor-${visitor}@example.com`));
       }
+
       const taken = yield* Effect.forEach(Array.from({ length: 2 }), () =>
         Effect.flip(browser.signUp(asTyped("visitor-0@example.com"))),
       );
 
       yield* TestClock.adjust("20 minutes");
       const eleventh = yield* browser.signUp(asTyped("visitor-8@example.com")).pipe(Effect.flip);
+
       // The same answer for an email a User has: it does not say so.
       const onTakenEmail = yield* browser
         .signUp(asTyped("visitor-0@example.com"))

@@ -68,29 +68,34 @@ const grace = userOf("grace", {
   onboardedOn: 1,
   profile: { lastName: "Hopper", team: "engineering", country: "US" },
 });
+
 const ada = userOf("ada", {
   createdOn: 2,
   lastSignInOn: 9,
   onboardedOn: 3,
   profile: { lastName: "Lovelace", team: "product", country: "GB" },
 });
+
 const linus = userOf("linus", {
   status: "suspended",
   createdOn: 3,
   lastSignInOn: 5,
   profile: { lastName: "Torvalds", team: "engineering", country: "FI" },
 });
+
 const edsger = userOf("edsger", {
   status: "invited",
   createdOn: 5,
   lastSignInOn: null,
   profile: null,
 });
+
 const barbara = userOf("barbara", {
   createdOn: 4,
   lastSignInOn: 8,
   profile: { lastName: "Liskov", team: "design", country: "US" },
 });
+
 const users: ReadonlyArray<User> = [grace, linus, ada, edsger, barbara];
 const emailsOf = (...list: ReadonlyArray<User>) => list.map(({ email }) => email);
 const firstPage = { page: 1, pageSize: 20, orderBy: "email", dir: "asc" } as const;
@@ -140,6 +145,7 @@ layer(Layer.mergeAll(UsersLayer, HttpServer.layerServices))("UsersApi", (it) => 
   it.effect("pages the Users: the last page is partial, a page beyond it is empty", () =>
     Effect.gen(function* () {
       const client = yield* clientOf(grace);
+
       const pageOf = (page: number) =>
         client.users
           .list({ query: { ...firstPage, page, pageSize: 2 } })
@@ -157,10 +163,12 @@ layer(Layer.mergeAll(UsersLayer, HttpServer.layerServices))("UsersApi", (it) => 
   it.effect("sorts by the field and in the direction asked, ties by email, ascending", () =>
     Effect.gen(function* () {
       const client = yield* clientOf(grace);
+
       const emailsBy = (orderBy: "email" | "role", dir: "asc" | "desc") =>
         client.users
           .list({ query: { ...firstPage, orderBy, dir } })
           .pipe(Effect.map(({ items }) => items.map(({ email }) => email)));
+
       const userEmails = emailsSorted.filter((email) => email !== grace.email);
 
       assert.deepStrictEqual(yield* emailsBy("email", "desc"), emailsSorted.toReversed());
@@ -172,6 +180,7 @@ layer(Layer.mergeAll(UsersLayer, HttpServer.layerServices))("UsersApi", (it) => 
   it.effect("keeps the Users whose email or full name contains the search, whatever its case", () =>
     Effect.gen(function* () {
       const client = yield* clientOf(grace);
+
       const search = (text: string, page = 1) =>
         client.users
           .list({ query: { ...firstPage, page, pageSize: 1, search: text } })
@@ -192,6 +201,7 @@ layer(Layer.mergeAll(UsersLayer, HttpServer.layerServices))("UsersApi", (it) => 
   it.effect("keeps the Users of the Role asked, along with the search", () =>
     Effect.gen(function* () {
       const client = yield* clientOf(grace);
+
       const filter = (query: { role: Role; search?: string }) =>
         client.users
           .list({ query: { ...firstPage, ...query } })
@@ -214,6 +224,7 @@ layer(Layer.mergeAll(UsersLayer, HttpServer.layerServices))("UsersApi", (it) => 
   it.effect("sorts by status, then by email", () =>
     Effect.gen(function* () {
       const client = yield* clientOf(grace);
+
       const emailsBy = (dir: "asc" | "desc") =>
         client.users
           .list({ query: { ...firstPage, orderBy: "status", dir } })
@@ -232,6 +243,7 @@ layer(Layer.mergeAll(UsersLayer, HttpServer.layerServices))("UsersApi", (it) => 
   it.effect("sorts by a date, and puts the Users who have none last in either direction", () =>
     Effect.gen(function* () {
       const client = yield* clientOf(grace);
+
       const emailsBy = (orderBy: "createdAt" | "lastSignInAt", dir: "asc" | "desc") =>
         client.users
           .list({ query: { ...firstPage, orderBy, dir } })
@@ -255,6 +267,7 @@ layer(Layer.mergeAll(UsersLayer, HttpServer.layerServices))("UsersApi", (it) => 
   it.effect("keeps the Users of the status asked", () =>
     Effect.gen(function* () {
       const client = yield* clientOf(grace);
+
       const emailsWith = (status: UserStatus) =>
         client.users
           .list({ query: { ...firstPage, status } })
@@ -268,6 +281,7 @@ layer(Layer.mergeAll(UsersLayer, HttpServer.layerServices))("UsersApi", (it) => 
   it.effect("sorts by name, last name first, and by country, those with no Profile last", () =>
     Effect.gen(function* () {
       const client = yield* clientOf(grace);
+
       const emailsBy = (orderBy: UserOrder, dir: "asc" | "desc") =>
         client.users
           .list({ query: { ...firstPage, orderBy, dir } })
@@ -291,6 +305,7 @@ layer(Layer.mergeAll(UsersLayer, HttpServer.layerServices))("UsersApi", (it) => 
   it.effect("keeps the Users of the team asked, along with the status", () =>
     Effect.gen(function* () {
       const client = yield* clientOf(grace);
+
       const emailsWhere = (filters: { status?: UserStatus; team: Team }) =>
         client.users
           .list({ query: { ...firstPage, ...filters } })
@@ -309,6 +324,7 @@ layer(Layer.mergeAll(UsersLayer, HttpServer.layerServices))("UsersApi", (it) => 
   it.effect("keeps the Users onboarded, or those not yet", () =>
     Effect.gen(function* () {
       const client = yield* clientOf(grace);
+
       const emailsWhere = (onboarded: boolean) =>
         client.users
           .list({ query: { ...firstPage, onboarded } })
@@ -360,6 +376,7 @@ layer(Layer.mergeAll(UsersLayer, HttpServer.layerServices))("UsersApi", (it) => 
       const client = yield* clientOf(ada);
 
       const error = yield* client.users.list({ query: firstPage }).pipe(Effect.flip);
+
       const response = yield* client.users.list({
         query: firstPage,
         responseMode: "response-only",
@@ -375,6 +392,7 @@ layer(Layer.mergeAll(UsersLayer, HttpServer.layerServices))("UsersApi", (it) => 
       const client = yield* clientOf(undefined);
 
       const error = yield* client.users.list({ query: firstPage }).pipe(Effect.flip);
+
       const response = yield* client.users.list({
         query: firstPage,
         responseMode: "response-only",
@@ -391,6 +409,7 @@ const ownUser = (name: string, status: UserStatus = "active") =>
   Effect.gen(function* () {
     const user = userOf(name, { status, createdOn: 6, lastSignInOn: null, profile: null });
     yield* (yield* UserRepository).create(user, "no password");
+
     return user;
   });
 
@@ -435,6 +454,7 @@ layer(Layer.mergeAll(UsersLayer, HttpServer.layerServices))("UsersApi changes", 
       const error = yield* client.users
         .update({ params, payload: { role: "admin", status: "suspended" } })
         .pipe(Effect.flip);
+
       const response = yield* client.users.update({
         params,
         payload: { status: "active" },
@@ -469,6 +489,7 @@ layer(Layer.mergeAll(UsersLayer, HttpServer.layerServices))("UsersApi changes", 
       const error = yield* client.users
         .update({ params, payload: { status: "suspended" } })
         .pipe(Effect.flip);
+
       const response = yield* client.users.update({
         params,
         payload: { role: "user" },

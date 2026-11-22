@@ -43,16 +43,16 @@ The first start adds a local certificate authority to the system trust store. `p
 
 ## Commands
 
-| Command             | What it does                                    |
-| ------------------- | ----------------------------------------------- |
-| `pnpm dev`          | Run the web app and the server, under portless  |
-| `pnpm check`        | Format check and lint                           |
-| `pnpm fmt`          | Format                                          |
-| `pnpm typecheck`    | Typecheck every package with `tsc`              |
-| `pnpm typecheck:ci` | Typecheck every package with `tsrs`, as CI does |
-| `pnpm test`         | Run the tests                                   |
-| `pnpm knip`         | Find unused files, exports, and dependencies    |
-| `pnpm build`        | Build the apps                                  |
+| Command             | What it does                                        |
+| ------------------- | --------------------------------------------------- |
+| `pnpm dev`          | Run the web app and the server, under portless      |
+| `pnpm check`        | Format check and lint                               |
+| `pnpm fmt`          | Format                                              |
+| `pnpm typecheck`    | Typecheck every package with `tsc`                  |
+| `pnpm typecheck:ci` | Typecheck every package with `tsrs`, as CI does     |
+| `pnpm test`         | Run the tests                                       |
+| `pnpm fallow`       | Find unused code, duplicates, and complex functions |
+| `pnpm build`        | Build the apps                                      |
 
 Typecheck, test, and build are cached per package: a task whose inputs did not change is replayed.
 

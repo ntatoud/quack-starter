@@ -27,12 +27,14 @@ const schema = dataTableSearchSchema({
 
 const setup = async (entries: Array<string>) => {
   const root = createRootRoute();
+
   const people = createRoute({
     getParentRoute: () => root,
     path: "/",
     validateSearch: Schema.toStandardSchemaV1(schema),
     component: function People() {
       const search: DataTableSearch<typeof schema> = people.useSearch();
+
       const table = useRouterDataTable({
         search,
         defaultSorting: { column: "name", direction: "asc" },
@@ -46,6 +48,7 @@ const setup = async (entries: Array<string>) => {
           }),
         },
       });
+
       return (
         <>
           <DataTableToolbar table={table} search={{ "aria-label": "Search" }} />
@@ -58,19 +61,24 @@ const setup = async (entries: Array<string>) => {
       );
     },
   });
+
   const history = createMemoryHistory({
     initialEntries: entries,
     initialIndex: entries.length - 1,
   });
+
   const router = createRouter({
     routeTree: root.addChildren([people]),
     history,
   });
+
   await render(<RouterProvider router={router} />);
+
   return { history };
 };
 
 const state = () => page.getByRole("status", { name: "State" });
+
 const pageLink = (n: number) =>
   page
     .getByRole("navigation", { name: "Pages" })

@@ -16,7 +16,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "cn";
 import { CheckIcon, ChevronDownIcon } from "lucide-react";
 
-type WithClassName<Props> = Omit<Props, "className"> & { className?: string | undefined };
+export type WithClassName<Props> = Omit<Props, "className"> & { className?: string | undefined };
 
 function SelectValue({
   className,

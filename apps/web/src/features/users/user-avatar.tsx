@@ -4,7 +4,7 @@ import type { ComponentProps } from "react";
 
 const avatarColors = ["#7c3aed", "#ddd6fe"];
 
-type UserAvatarProps = {
+export type UserAvatarProps = {
   user: { readonly id: string; readonly profile: { readonly avatarUrl: string | null } | null };
 } & ComponentProps<typeof Avatar>;
 

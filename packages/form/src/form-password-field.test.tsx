@@ -12,6 +12,7 @@ const Credentials = Schema.Struct({
 
 function PasswordForm() {
   const form = useAppForm(schemaFormOptions(Credentials, { password: "" }));
+
   return (
     <form.AppForm>
       <form.Root className="flex w-80 flex-col gap-2 p-4">

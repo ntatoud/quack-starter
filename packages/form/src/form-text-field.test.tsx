@@ -11,6 +11,7 @@ const Search = Schema.Struct({ query: Schema.String });
 
 function SearchForm() {
   const form = useAppForm(schemaFormOptions(Search, { query: "" }));
+
   return (
     <form.AppField name="query">{(field) => <field.Text aria-label="Search" />}</form.AppField>
   );

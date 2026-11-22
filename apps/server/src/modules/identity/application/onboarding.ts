@@ -21,11 +21,14 @@ export class Onboarding extends Context.Service<
         complete: Effect.fn("Onboarding.complete")(function* (id, name) {
           // Read again rather than taken from the Current User: the write must not bring back what changed since the request was authenticated.
           const found = yield* repository.findById(id);
+
           if (Option.isNone(found)) {
             return yield* new Unauthenticated();
           }
+
           const user = onboarded(found.value, name, yield* DateTime.now);
           yield* repository.update(user);
+
           return user;
         }),
       });

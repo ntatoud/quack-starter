@@ -7,7 +7,9 @@ export type QueryUiState<A, E> = Exclude<UiState<A, E>, { readonly _tag: "Idle" 
 
 export const fromQuery = <A, E>(result: QueryObserverResult<A, E>): QueryUiState<A, E> => {
   if (result.isPending) return UiState.pending();
+
   if (result.isLoadingError) return UiState.error(result.error);
+
   return UiState.success(
     result.data,
     result.isRefetchError ? Option.some(result.error) : Option.none(),

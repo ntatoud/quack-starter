@@ -12,9 +12,11 @@ const clear = () => page.getByRole("button", { name: "Clear search" });
 
 const setup = async (props: { defaultValue?: string; delay?: number } = {}) => {
   const onSearch = vi.fn();
+
   const screen = await render(
     <SearchInput aria-label="Search users" delay={delay} onSearch={onSearch} {...props} />,
   );
+
   return { onSearch, screen };
 };
 
@@ -111,9 +113,11 @@ describe("SearchInput", () => {
 
   it("shows a new defaultValue and the Clear button that goes with it", async () => {
     const onSearch = vi.fn();
+
     const screen = await render(
       <SearchInput aria-label="Search users" onSearch={onSearch} defaultValue="" />,
     );
+
     await expect.element(clear()).not.toBeInTheDocument();
 
     await screen.rerender(
@@ -144,11 +148,13 @@ describe("SearchInput", () => {
       .snapshot()
       .filter((entry) => !entry.offPage)
       .map((entry) => entry.label);
+
     expect(labels).toContain("Search users");
 
     const filled = await agent.act({
       steps: [{ ref: "Search users", action: "setValue", args: ["Ada"] }],
     });
+
     expect(filled.ok, filled.error?.message).toBe(true);
     await expect.element(searchbox()).toHaveValue("Ada");
 

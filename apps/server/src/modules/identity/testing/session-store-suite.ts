@@ -24,6 +24,7 @@ const aSavedSession = (fields: Partial<Session> = {}) =>
   Effect.gen(function* () {
     const session = yield* aSession(fields);
     yield* (yield* SessionStore).save(session);
+
     return session;
   });
 

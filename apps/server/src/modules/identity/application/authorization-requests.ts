@@ -26,6 +26,7 @@ export class AuthorizationRequests extends Context.Service<
     Effect.gen(function* () {
       const documents = yield* AiClientDocuments;
       const issuer = yield* ServerConfig.publicOrigin;
+
       const server = {
         issuer,
         mcpResource: `${issuer}${MCP_PATH}`,
@@ -35,6 +36,7 @@ export class AuthorizationRequests extends Context.Service<
       return AuthorizationRequests.of({
         check: Effect.fn("AuthorizationRequests.check")(function* (params) {
           const url = yield* aiClientUrlOf(params.client_id, server);
+
           const document = yield* documents.fetch(url).pipe(
             Effect.mapError(
               ({ reason }) =>
@@ -44,6 +46,7 @@ export class AuthorizationRequests extends Context.Service<
                 }),
             ),
           );
+
           return yield* checkAuthorizationRequest(params, url, document, server);
         }),
       });
