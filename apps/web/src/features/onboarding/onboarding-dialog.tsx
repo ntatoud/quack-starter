@@ -16,7 +16,7 @@ import { useMutation } from "@tanstack/react-query";
 import { Schema } from "effect";
 import { useId } from "react";
 
-import { useSignOut } from "#/features/identity/use-sign-out.ts";
+import { signOutFailed, signOutLabel, useSignOut } from "#/features/identity/use-sign-out.ts";
 import { api } from "#/lib/api.ts";
 
 const decodeOnboardingPayload = Schema.decodeSync(OnboardingPayload);
@@ -79,7 +79,7 @@ export function OnboardingDialog({
           </form.Root>
           {signOut.isError && (
             <p role="alert" className="text-sm text-destructive">
-              Could not sign out. Try again.
+              {signOutFailed}
             </p>
           )}
           <DialogFooter>
@@ -89,7 +89,7 @@ export function OnboardingDialog({
               disabled={signOut.isPending}
               onClick={() => signOut.mutate(undefined)}
             >
-              {signOut.isPending ? "Signing out…" : "Sign out"}
+              {signOutLabel(signOut)}
             </Button>
             {/* Outside the form, so the footer stays the last part of the dialog: `form` ties it to the fields. */}
             <form.SubmitButton form={formId}>Get started</form.SubmitButton>

@@ -17,7 +17,7 @@ import {
 import { Link } from "@tanstack/react-router";
 import { ChevronsUpDownIcon, LogOutIcon, SettingsIcon } from "lucide-react";
 
-import { useSignOut } from "#/features/identity/use-sign-out.ts";
+import { signOutFailed, signOutLabel, useSignOut } from "#/features/identity/use-sign-out.ts";
 import { useSidebarSide } from "#/features/preferences/preferences.ts";
 import { fullName } from "#/features/users/full-name.ts";
 import { UserAvatar } from "#/features/users/user-avatar.tsx";
@@ -71,11 +71,11 @@ export function UserMenu({ currentUser }: { currentUser: typeof User.Encoded }) 
               onSelect={() => signOut.mutate(undefined)}
             >
               <LogOutIcon />
-              {signOut.isPending ? "Signing out…" : "Sign out"}
+              {signOutLabel(signOut)}
             </MenuItem>
             {signOut.isError && (
               <p role="alert" className="px-2 py-1.5 text-xs text-destructive">
-                Could not sign out. Try again.
+                {signOutFailed}
               </p>
             )}
           </MenuContent>
