@@ -40,7 +40,7 @@ describe("authorize", () => {
   it.effect("lets through any caller to an endpoint that needs no Permission", () =>
     authorize(
       HttpApiEndpoint.get("me", "/me")
-        .annotate(RequiredPermission, null)
+        .annotate(RequiredPermission, "none")
         .middleware(Authentication),
       callerWith("user"),
     ),

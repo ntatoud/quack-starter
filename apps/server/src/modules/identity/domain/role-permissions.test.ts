@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { roleAllows } from "#/modules/identity/domain/permission.ts";
+import { roleAllows } from "#/modules/identity/domain/role-permissions.ts";
 
 describe("roleAllows", () => {
   it("gives a user the Permissions on Todos, and none on Users", () => {

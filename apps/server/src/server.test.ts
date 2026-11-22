@@ -41,6 +41,9 @@ interface Attempt {
 }
 
 const signUp = attempt("/api/sign-up");
+
+const sessionCookieOf = async (email: string, from: string) =>
+  (await signUp(email, { from })).headers.getSetCookie()[0]?.split(";")[0] ?? "";
 const signIn = attempt("/api/sign-in");
 
 afterAll(dispose);
@@ -68,11 +71,8 @@ describe("server routes", () => {
   });
 
   it("answers 404 TodoNotFound to a user who completes a Todo of another Owner, though they may write Todos", async () => {
-    const cookieOf = async (email: string) =>
-      (await signUp(email, { from: "203.0.113.60" })).headers.getSetCookie()[0]?.split(";")[0] ??
-      "";
-    const owner = await cookieOf("dorothy@example.com");
-    const other = await cookieOf("hedy@example.com");
+    const owner = await sessionCookieOf("dorothy@example.com", "203.0.113.60");
+    const other = await sessionCookieOf("radia@example.com", "203.0.113.60");
     const created = await handler(
       new Request("http://api.test/api/todos", {
         method: "POST",

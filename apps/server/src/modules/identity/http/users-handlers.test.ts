@@ -1,6 +1,6 @@
 import { assert, layer } from "@effect/vitest";
 import { Api } from "@quack/contracts/api";
-import { Authentication, CurrentUser } from "@quack/contracts/identity/authentication";
+import { Authentication } from "@quack/contracts/identity/authentication";
 import { Forbidden, Unauthenticated } from "@quack/contracts/identity/identity-errors";
 import { CountryCode, Profile, type Team } from "@quack/contracts/identity/profile";
 import { Email, type Role, User, UserId, type UserStatus } from "@quack/contracts/identity/user";
@@ -11,15 +11,15 @@ import {
   UserNotFound,
 } from "@quack/contracts/users/user-errors";
 import type { UserOrder } from "@quack/contracts/users/users-api";
-import { Effect, Layer, Redacted } from "effect";
+import { Effect, Layer } from "effect";
 import { HttpClientRequest, HttpServer } from "effect/http";
 import { HttpApiMiddleware, HttpApiTest } from "effect/http-api";
 
 import { Users } from "#/modules/identity/application/users.ts";
 import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
 import { day, dayOrNull } from "#/modules/identity/testing/days.ts";
-import { authorize } from "#/modules/identity/http/authorize.ts";
 import { UsersHandlers } from "#/modules/identity/http/users-handlers.ts";
+import { authenticationByUserId } from "#/modules/identity/testing/authentication-by-user-id.ts";
 import { UserRepositoryMemory } from "#/modules/identity/testing/user-repository-memory.ts";
 
 const userOf = (
@@ -103,21 +103,6 @@ const SeededUsers = Layer.effectDiscard(
   }),
 );
 
-// The session cookie is the id of the Current User: these tests need a Current User, not a Session.
-const AuthenticationByUserId = Layer.succeed(
-  Authentication,
-  Authentication.of({
-    session: (httpEffect, { credential, endpoint }) => {
-      const user = users.find(({ id }) => id === Redacted.value(credential));
-      return user === undefined
-        ? Effect.fail(new Unauthenticated())
-        : authorize(endpoint, user).pipe(
-            Effect.andThen(Effect.provideService(httpEffect, CurrentUser, user)),
-          );
-    },
-  }),
-);
-
 const clientOf = (user: User | undefined) =>
   HttpApiTest.groups(Api, ["users"]).pipe(
     Effect.provide(
@@ -134,7 +119,7 @@ const clientOf = (user: User | undefined) =>
 const UsersLayer = UsersHandlers.pipe(
   Layer.provide(Users.layer),
   Layer.provideMerge(Layer.provideMerge(SeededUsers, UserRepositoryMemory)),
-  Layer.provideMerge(AuthenticationByUserId),
+  Layer.provideMerge(authenticationByUserId(users)),
 );
 
 layer(Layer.mergeAll(UsersLayer, HttpServer.layerServices))("UsersApi", (it) => {

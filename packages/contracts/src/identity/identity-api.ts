@@ -49,7 +49,7 @@ export class IdentityApi extends HttpApiGroup.make("identity").add(
   HttpApiEndpoint.get("me", "/me", {
     success: User,
   })
-    .annotate(RequiredPermission, null)
+    .annotate(RequiredPermission, "none")
     .middleware(Authentication),
   /** Replaces the whole Profile of the Current User, and answers with their User. */
   HttpApiEndpoint.put("updateProfile", "/me/profile", {
@@ -57,13 +57,13 @@ export class IdentityApi extends HttpApiGroup.make("identity").add(
     success: User,
     error: Unauthenticated.pipe(HttpApiSchema.status(401)),
   })
-    .annotate(RequiredPermission, null)
+    .annotate(RequiredPermission, "none")
     .middleware(Authentication),
   HttpApiEndpoint.post("completeOnboarding", "/me/onboarding", {
     payload: OnboardingPayload,
     success: User,
     error: Unauthenticated.pipe(HttpApiSchema.status(401)),
   })
-    .annotate(RequiredPermission, null)
+    .annotate(RequiredPermission, "none")
     .middleware(Authentication),
 ) {}

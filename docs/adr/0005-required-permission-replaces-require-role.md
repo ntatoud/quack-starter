@@ -9,7 +9,7 @@ The Admin's endpoints (`/api/users/*`) were guarded by `RequireRole("admin")`, a
 ## Decision
 
 - Each context names its Permissions in the contract (`todos:list`, `todos:write`, `todos:delete`; `users:list`, `users:read`, `users:write`, `users:delete`), and `packages/contracts/src/permission.ts` gathers them into the `Permission` union.
-- Each endpoint behind `Authentication` carries a `RequiredPermission` annotation, on the endpoint itself: no default for a group, so adding an endpoint means choosing its Permission. `null` declares that any signed-in caller may call it (`me`, and the Current User's own Profile and onboarding).
+- Each endpoint behind `Authentication` carries a `RequiredPermission` annotation, on the endpoint itself: no default for a group, so adding an endpoint means choosing its Permission. `"none"` declares that any signed-in caller may call it (`me`, and the Current User's own Profile and onboarding).
 - The `Authentication` middleware checks it right after it finds the Current User, from the `endpoint` it receives for each request. A caller without the Permission gets `Forbidden` (403), naming the Permission. A Todo of another Owner still answers 404: that is ownership, checked by the repository, not Permission.
 - It fails closed: an endpoint behind `Authentication` that declares nothing answers 403 to everyone, Admin included, and a test that reflects `Api` fails on such an endpoint.
 - Which Role gives which Permission is behavior, so it lives in the server's identity domain: `admin` has every Permission, `user` the `todos:*` ones. The web app does not learn the Permissions; it keeps reading `role` from the User for `/admin`.
