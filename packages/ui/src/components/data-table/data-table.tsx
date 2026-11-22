@@ -489,7 +489,7 @@ const useRowVirtualizer = (
   viewport: React.RefObject<HTMLDivElement | null>,
   headerHeight: number,
 ) =>
-  // oxlint-disable-next-line react/incompatible-library -- the app builds without the React Compiler, which would skip this component
+  // oxlint-disable-next-line react/incompatible-library -- the hooks that read the virtualizer opt out of the compiler
   useVirtualizer({
     enabled: virtual !== undefined,
     count: rowCount,
@@ -568,6 +568,10 @@ function useRowsView<TData extends RowData>({
   rowLink: RowLink<TData> | undefined;
   onRowClick: View<TData>["onRowClick"];
 }): View<TData> {
+  // The virtualizer changes inside and keeps its identity: memoized by it, its rows would never change. The table is
+  // a new object whenever its options or its state change.
+  "use no memo";
+
   const rows = table.getRowModel().rows;
   const isVirtual = virtualizer.options.enabled;
 
@@ -1033,6 +1037,10 @@ function useGrid<TData extends RowData>({
   onRowClick: View<TData>["onRowClick"];
   empty: ReactNode;
 }) {
+  // The virtualizer changes inside and keeps its identity: memoized by it, its rows would never change. The table is
+  // a new object whenever its options or its state change.
+  "use no memo";
+
   const selectable = selection !== undefined;
   const { definitions, pinned } = useColumnDefinitions(columns, headers, selectable);
 

@@ -61,17 +61,14 @@ export function useEmptySlot({
   }, [rowCount, empty]);
 
   // The slot goes once rows come (a retry that worked): the focus it held (its button) goes to the scroll area.
-  const keepFocusInTable = React.useCallback(
-    (node: HTMLDivElement | null) => {
-      slotRef.current = node;
+  const keepFocusInTable = (node: HTMLDivElement | null) => {
+    slotRef.current = node;
 
-      return () => {
-        slotRef.current = null;
-        releaseFocusTo(viewport, node);
-      };
-    },
-    [viewport],
-  );
+    return () => {
+      slotRef.current = null;
+      releaseFocusTo(viewport, node);
+    };
+  };
 
   return { keepFocusInTable, message };
 }

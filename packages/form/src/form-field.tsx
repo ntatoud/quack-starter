@@ -1,6 +1,6 @@
 import { Field } from "@quack/ui/components/field";
 import { useStore } from "@tanstack/react-form";
-import { type ComponentProps, createContext, use, useId, useMemo, useState } from "react";
+import { type ComponentProps, createContext, use, useId, useState } from "react";
 
 import { useFieldContext } from "#/context.ts";
 import type { Size } from "#/size.ts";
@@ -37,10 +37,13 @@ export function FormField({
   // The control names its description only once it is rendered: a reference to no element describes nothing.
   const [hasDescription, setHasDescription] = useState(false);
 
-  const layout = useMemo(
-    () => ({ id, size, descriptionId: `${id}-description`, hasDescription, setHasDescription }),
-    [id, size, hasDescription],
-  );
+  const layout = {
+    id,
+    size,
+    descriptionId: `${id}-description`,
+    hasDescription,
+    setHasDescription,
+  };
 
   return (
     <FieldLayoutContext value={layout}>

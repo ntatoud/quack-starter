@@ -73,19 +73,16 @@ function SearchInput({
     onSearch(trimmed);
   };
 
-  // A search that is still waiting must not run once the input is gone. Stable while `ref` is, so React runs its
-  // cleanup on unmount only, not on every render.
-  const attach = React.useCallback(
-    (node: HTMLInputElement | null) => {
-      const detach = setRef(ref, node);
+  // A search that is still waiting must not run once the input is gone. The compiler keeps it stable while `ref` is,
+  // so React runs its cleanup on unmount only, not on every render.
+  const attach = (node: HTMLInputElement | null) => {
+    const detach = setRef(ref, node);
 
-      return () => {
-        clearTimeout(timer.current);
-        detach();
-      };
-    },
-    [ref],
-  );
+    return () => {
+      clearTimeout(timer.current);
+      detach();
+    };
+  };
 
   return (
     <InputGroup size={size} className={className}>

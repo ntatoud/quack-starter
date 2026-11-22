@@ -1,7 +1,7 @@
 import type { User } from "@quack/contracts/identity/user";
 import { SidebarInset, SidebarProvider } from "@quack/ui/components/sidebar";
 import { Outlet, useRouteContext } from "@tanstack/react-router";
-import { type ComponentType, createContext, type ReactNode, use, useMemo } from "react";
+import { type ComponentType, createContext, type ReactNode, use } from "react";
 
 import { useSidebarSide } from "#/features/preferences/preferences.ts";
 
@@ -31,13 +31,10 @@ export function SidebarLayout({
   const sidebar = <Sidebar currentUser={currentUser} />;
   const HeaderActions = mobileNav?.headerActions;
 
-  const mobileHeader = useMemo(
-    () =>
-      mobileNav === undefined
-        ? null
-        : { actions: HeaderActions && <HeaderActions currentUser={currentUser} /> },
-    [mobileNav, HeaderActions, currentUser],
-  );
+  const mobileHeader =
+    mobileNav === undefined
+      ? null
+      : { actions: HeaderActions && <HeaderActions currentUser={currentUser} /> };
 
   return (
     <SidebarProvider defaultOpen={sidebarOpen}>

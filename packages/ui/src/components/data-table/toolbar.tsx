@@ -69,11 +69,8 @@ export function DataTableToolbar({
   const root = React.useRef<HTMLDivElement>(null);
   const controls = React.useRef<HTMLDivElement>(null);
 
-  const focusOnEmpty = React.useCallback(
-    () =>
-      controls.current?.querySelector<HTMLElement>("input:not(:disabled), button:not(:disabled)"),
-    [],
-  );
+  const focusOnEmpty = () =>
+    controls.current?.querySelector<HTMLElement>("input:not(:disabled), button:not(:disabled)");
 
   // Rows selected from a control of the toolbar (an action, a shortcut) hide it: its focus goes to the bar.
   React.useLayoutEffect(() => {

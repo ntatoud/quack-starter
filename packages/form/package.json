@@ -25,7 +25,9 @@
     "@tailwindcss/vite": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
+    "@vitejs/plugin-react": "catalog:",
     "@vitest/browser-playwright": "catalog:",
+    "oxc-transform-react": "catalog:",
     "playwright": "catalog:",
     "vite-plus": "catalog:",
     "vitest-browser-react": "catalog:"

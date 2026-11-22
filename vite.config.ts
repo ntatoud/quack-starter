@@ -37,7 +37,21 @@ export default defineConfig({
         "error",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" },
       ],
-      "react/exhaustive-deps": "error",
+      // The web app compiles with the React Compiler, and these rules are its diagnostics: `correctness` holds only
+      // some of them. The restriction ones report code the compiler gives up on, which then runs without memoization.
+      "react/capitalized-calls": "error",
+      "react/exhaustive-effect-dependencies": "error",
+      "react/hooks": "error",
+      "react/invariant": "error",
+      "react/memo-dependencies": "error",
+      "react/no-deriving-state-in-effects": "error",
+      "react/rule-suppression": "error",
+      "react/syntax": "error",
+      "react/todo": "error",
+      "react/unsupported-syntax": "error",
+      // `exhaustive-effect-dependencies` checks the dependencies against what the compiler memoizes; this one takes
+      // every value computed in render for new on each, and asks for the useMemo the compiler makes needless.
+      "react/exhaustive-deps": "off",
       "react/no-array-index-key": "error",
       "react/react-in-jsx-scope": "off",
       "unicorn/no-array-sort": "off",

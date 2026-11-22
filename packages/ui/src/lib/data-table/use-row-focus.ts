@@ -62,32 +62,30 @@ export function useRowFocus({
     const retry = () => {
       const found = find();
 
-      if (found !== null && found !== undefined) found.focus();
-      else if (++frames < 10) focusFrame.current = requestAnimationFrame(retry);
+      if (found !== null && found !== undefined) return found.focus();
+
+      // `+= 1`, not `++`: the compiler does not handle `++` on a variable a closure captures.
+      frames += 1;
+
+      if (frames < 10) focusFrame.current = requestAnimationFrame(retry);
     };
 
     focusFrame.current = requestAnimationFrame(retry);
   };
 
   // A row that goes (deleted, filtered out) with the focus, on it or on a control of its own (an action).
-  const keepRowFocus = React.useCallback(
-    (node: HTMLTableRowElement | null) => () => releaseFocusTo(viewport, node),
-    [viewport],
-  );
+  const keepRowFocus = (node: HTMLTableRowElement | null) => () => releaseFocusTo(viewport, node);
 
   // A focused row scrolled out of a virtual table leaves it too.
-  const measureRow = React.useCallback(
-    (node: HTMLTableRowElement | null) => {
-      virtualizer.measureElement(node);
+  const measureRow = (node: HTMLTableRowElement | null) => {
+    virtualizer.measureElement(node);
 
-      return () => {
-        releaseFocusTo(viewport, node);
-        // Lets the virtualizer forget the rows gone from the page.
-        virtualizer.measureElement(null);
-      };
-    },
-    [virtualizer, viewport],
-  );
+    return () => {
+      releaseFocusTo(viewport, node);
+      // Lets the virtualizer forget the rows gone from the page.
+      virtualizer.measureElement(null);
+    };
+  };
 
   return { activeRow, setActiveRow, focusRow, keepRowFocus, measureRow };
 }

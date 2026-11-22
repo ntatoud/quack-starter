@@ -198,14 +198,14 @@ export function DataTablePagination({
   // The current page shows in two lists, one for narrow footers: the one shown takes the focus.
   const currentLinks = React.useRef(new Set<HTMLAnchorElement | HTMLButtonElement>());
 
-  const currentLink = React.useCallback((node: HTMLAnchorElement | HTMLButtonElement | null) => {
+  const currentLink = (node: HTMLAnchorElement | HTMLButtonElement | null) => {
     if (node === null) return;
     currentLinks.current.add(node);
 
     return () => {
       currentLinks.current.delete(node);
     };
-  }, []);
+  };
 
   // Previous or Next, disabled once it reaches its end, can no longer hold the focus it had.
   const refocusOn = React.useRef<number | null>(null);
