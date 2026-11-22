@@ -1,4 +1,4 @@
-import { Cache, Clock, Duration, Effect, Exit, Layer, Schema, Stream } from "effect";
+import { Cache, Clock, Duration, Effect, Exit, Layer, Option, Schema, Stream } from "effect";
 import { HttpClient, HttpClientRequest, type HttpClientResponse } from "effect/http";
 
 import {
@@ -124,6 +124,11 @@ export const AiClientDocumentsHttp = Layer.effect(
 
     return AiClientDocuments.of({
       fetch: (url) => Effect.map(Cache.get(cache, url.href), ({ document }) => document),
+      cached: (url) =>
+        Effect.map(
+          Cache.getSuccess(cache, url.href),
+          Option.map(({ document }) => document),
+        ),
     });
   }),
 );

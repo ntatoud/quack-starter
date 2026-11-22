@@ -16,6 +16,7 @@ import { matchQuery } from "@quack/ui-state/query";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ChevronDownIcon, TriangleAlertIcon } from "lucide-react";
 
+import { tooManyAttemptsMessage } from "#/features/identity/too-many-attempts-message.ts";
 import { authorizationCheckOptions } from "#/features/oauth/authorization-check.ts";
 import { consentAsk, consentSentence } from "#/features/oauth/consent-sentence.ts";
 import { userLabel } from "#/features/users/full-name.ts";
@@ -63,7 +64,11 @@ export function ConsentPrompt({
             <EmptyTitle>
               <h1>Could not load the request</h1>
             </EmptyTitle>
-            <EmptyDescription>Check your connection and try again.</EmptyDescription>
+            <EmptyDescription>
+              {error._tag === "TooManyAttempts"
+                ? tooManyAttemptsMessage(error.retryAfter)
+                : "Check your connection and try again."}
+            </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
             <Button

@@ -20,7 +20,7 @@ The rules of `modules/identity` that its code does not show on its own. The dura
 
 ## AttemptLimiter
 
-Slows down the guessing of passwords (port: `domain/attempt-limiter.ts`). The use cases `signIn` and `signUp` call it with the client's address, which the handler reads in `X-Forwarded-For`; there is no HTTP middleware for it.
+Slows down the guessing of passwords and of OAuth secrets (port: `domain/attempt-limiter.ts`). The use cases `signIn` and `signUp` call it with the client's address, which the handler reads in `X-Forwarded-For` (`http/client-ip.ts`); there is no HTTP middleware for it. For the OAuth routes, see `docs/ai-clients.md`.
 
 - It counts the failed sign-ins per email and per address, and the sign-ups per address, failed ones included. The limits and windows are in `ServerConfig` (`attemptLimits`).
 - Past a limit the use case fails with `TooManyAttempts` (429) and its `retryAfter` in seconds, before the password is hashed, and the same whether a User has the email or not.

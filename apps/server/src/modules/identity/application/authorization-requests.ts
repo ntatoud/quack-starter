@@ -1,3 +1,4 @@
+import type { TooManyAttempts } from "@quack/contracts/identity/identity-errors";
 import type { UserId } from "@quack/contracts/identity/user";
 import { MCP_PATH } from "@quack/contracts/api";
 import type {
@@ -17,6 +18,7 @@ import {
   checkAuthorizationRequest,
   type ValidAuthorizationRequest,
 } from "#/modules/identity/domain/ai-client.ts";
+import { AttemptCounter, AttemptLimiter } from "#/modules/identity/domain/attempt-limiter.ts";
 import {
   authorizationCodeBytes,
   authorizationCodeLifetime,
@@ -31,7 +33,7 @@ export class AuthorizationRequests extends Context.Service<
     check(
       params: AuthorizationRequestParams,
       userId: UserId,
-    ): Effect.Effect<typeof ConsentDetails.Type, AuthorizationRequestRefused>;
+    ): Effect.Effect<typeof ConsentDetails.Type, AuthorizationRequestRefused | TooManyAttempts>;
     approve(
       params: AuthorizationRequestParams,
       userId: UserId,
@@ -45,6 +47,7 @@ export class AuthorizationRequests extends Context.Service<
       const documents = yield* AiClientDocuments;
       const codes = yield* AuthorizationCodeStore;
       const grants = yield* GrantStore;
+      const limiter = yield* AttemptLimiter;
       const random = yield* SecureRandom.SecureRandom;
       const digest = yield* Digest.Digest;
       const issuer = yield* ServerConfig.publicOrigin;
@@ -56,20 +59,31 @@ export class AuthorizationRequests extends Context.Service<
         allowLoopbackHttpDocuments: yield* ServerConfig.allowLoopbackHttpAiClients,
       };
 
-      const validate = Effect.fn("AuthorizationRequests.validate")(function* (
+      /**
+       * `beforeFetch` runs when the document is not in the cache, before Quack fetches it: only `check`
+       * counts the fetches, since `approve` and `deny` follow a request `check` already counted.
+       */
+      const validate = Effect.fn("AuthorizationRequests.validate")(function* <E = never>(
         params: AuthorizationRequestParams,
+        beforeFetch: Effect.Effect<void, E> = Effect.void,
       ) {
         const url = yield* aiClientUrlOf(params.client_id, server);
+        const cached = yield* documents.cached(url);
 
-        const document = yield* documents.fetch(url).pipe(
-          Effect.mapError(
-            ({ reason }) =>
-              new AuthorizationRequestRefused({
-                error: "invalid_client",
-                error_description: `Could not fetch the AI Client's document: ${reason}`,
-              }),
-          ),
-        );
+        const document = Option.isSome(cached)
+          ? cached.value
+          : yield* Effect.andThen(
+              beforeFetch,
+              documents.fetch(url).pipe(
+                Effect.mapError(
+                  ({ reason }) =>
+                    new AuthorizationRequestRefused({
+                      error: "invalid_client",
+                      error_description: `Could not fetch the AI Client's document: ${reason}`,
+                    }),
+                ),
+              ),
+            );
 
         return yield* checkAuthorizationRequest(params, url, document, server);
       });
@@ -97,7 +111,11 @@ export class AuthorizationRequests extends Context.Service<
 
       return AuthorizationRequests.of({
         check: Effect.fn("AuthorizationRequests.check")(function* (params, userId) {
-          const request = yield* validate(params);
+          const request = yield* validate(
+            params,
+            limiter.take([AttemptCounter.clientDocumentFetchesOfUser(userId)]),
+          );
+
           const grant = yield* activeGrantOf(userId, request.aiClientId);
 
           return {

@@ -1,4 +1,4 @@
-import { assert, layer } from "@effect/vitest";
+import { assert, describe, effect, layer } from "@effect/vitest";
 import { Api } from "@quack/contracts/api";
 import { Authentication } from "@quack/contracts/identity/authentication";
 import { Email, User, UserId } from "@quack/contracts/identity/user";
@@ -29,6 +29,12 @@ const ada = new User({
   lastSignInAt: null,
   onboardedAt: null,
   profile: null,
+});
+
+const grace = new User({
+  ...ada,
+  id: UserId.make("grace"),
+  email: Email.make("grace@example.com"),
 });
 
 const publicOrigin = "https://quack.test";
@@ -93,13 +99,16 @@ const requestOf = (clientId: string, params: AuthorizationRequestParams = {}) =>
   ...params,
 });
 
-const client = HttpApiTest.groups(Api, ["oauth"]).pipe(
-  Effect.provide(
-    HttpApiMiddleware.layerClient(Authentication, ({ next, request }) =>
-      next(HttpClientRequest.setHeader(request, "cookie", `session=${ada.id}`)),
+const clientOf = (user: User) =>
+  HttpApiTest.groups(Api, ["oauth"]).pipe(
+    Effect.provide(
+      HttpApiMiddleware.layerClient(Authentication, ({ next, request }) =>
+        next(HttpClientRequest.setHeader(request, "cookie", `session=${user.id}`)),
+      ),
     ),
-  ),
-);
+  );
+
+const client = clientOf(ada);
 
 const check = (payload: AuthorizationRequestParams) =>
   Effect.flatMap(client, (api) => api.oauth.checkAuthorization({ payload }));
@@ -116,20 +125,27 @@ const refusal = (payload: AuthorizationRequestParams) =>
     }),
   );
 
-const withConfig = (env: Record<string, string>) =>
+const withEnv = (env: Record<string, string>) =>
   Layer.mergeAll(
     OAuthModule.pipe(
       Layer.provide(StubHttpClient),
       Layer.provideMerge(AuthorizationCodeStoreMemory),
       Layer.provideMerge(GrantStoreMemory),
       Layer.provideMerge(UserRepositoryMemory),
-      Layer.provideMerge(authenticationByUserId([ada])),
+      Layer.provideMerge(authenticationByUserId([ada, grace])),
       Layer.provide(
         ConfigProvider.layer(ConfigProvider.fromUnknown({ PUBLIC_URL: publicOrigin, ...env })),
       ),
     ),
     HttpServer.layerServices,
   );
+
+// The tests of one layer share its AttemptLimiter, and would count each other's attempts.
+const withConfig = (env: Record<string, string>) =>
+  withEnv({ CLIENT_DOCUMENT_FETCHES_PER_USER: "10000", TOKEN_FAILURES_PER_IP: "10000", ...env });
+
+/** Services of the test's own, with the limits of the config. */
+const withLimits = (env: Record<string, string> = {}) => Effect.provide(withEnv(env));
 
 const redirectUri = "https://claude.ai/api/mcp/auth_callback";
 
@@ -999,5 +1015,99 @@ layer(withConfig({}))("OAuthApi token, a User no longer active", (it) => {
       assert.isTrue(Option.isNone(yield* (yield* GrantStore).findOf(ada.id, tokens.clientId)));
       assert.strictEqual(yield* tokenRefusal(refreshing(tokens)), "invalid_grant");
     }),
+  );
+});
+
+describe("OAuthApi, attempt limits", () => {
+  effect(
+    "refuses a check after 30 fetches of a document for one User in 15 minutes: TooManyAttempts",
+    () =>
+      Effect.gen(function* () {
+        const cached = anAiClient({}, { "cache-control": "max-age=3600" });
+        yield* check(requestOf(cached));
+
+        for (let fetch = 1; fetch < 30; fetch++) {
+          yield* TestClock.adjust("10 seconds");
+          yield* check(requestOf(anAiClient()));
+        }
+
+        const fresh = anAiClient();
+        const refused = yield* check(requestOf(fresh)).pipe(Effect.flip);
+        const fromCache = yield* check(requestOf(cached));
+
+        const forGrace = yield* Effect.flatMap(clientOf(grace), (api) =>
+          api.oauth.checkAuthorization({ payload: requestOf(fresh) }),
+        );
+
+        assert.deepStrictEqual(
+          { _tag: refused._tag, retryAfter: "retryAfter" in refused ? refused.retryAfter : 0 },
+          { _tag: "TooManyAttempts", retryAfter: 900 - 290 },
+        );
+        assert.strictEqual(fromCache.aiClient.id, cached);
+        assert.strictEqual(forGrace.aiClient.id, fresh);
+        assert.strictEqual(fetchesOf(fresh), 1);
+      }).pipe(withLimits()),
+  );
+
+  effect(
+    "refuses a token request after 20 failed exchanges in 15 minutes, and counts no success",
+    () =>
+      Effect.gen(function* () {
+        const tokens = yield* tokensOfANewAiClient();
+
+        for (let refresh = 0; refresh < 25; refresh++) {
+          Object.assign(tokens, yield* token(refreshing(tokens)));
+        }
+
+        const failures = yield* Effect.forEach(Array.from({ length: 20 }), () =>
+          tokenRefusal(refreshing(tokens, { refresh_token: "not-a-token-of-quack" })),
+        );
+
+        yield* TestClock.adjust("5 minutes");
+        const refused = yield* token(refreshing(tokens)).pipe(Effect.flip);
+        yield* TestClock.adjust("10 minutes");
+        const afterTheWindow = yield* token(refreshing(tokens));
+
+        assert.deepStrictEqual(
+          failures,
+          Array.from({ length: 20 }, () => "invalid_grant"),
+        );
+        assert.deepStrictEqual(
+          { _tag: refused._tag, retryAfter: "retryAfter" in refused ? refused.retryAfter : 0 },
+          { _tag: "TooManyAttempts", retryAfter: 600 },
+        );
+        assert.isTrue(yield* opens(afterTheWindow.access_token));
+      }).pipe(withLimits()),
+  );
+
+  effect("takes the limits of the OAuth routes and their windows from the config", () =>
+    Effect.gen(function* () {
+      const fetchedOnce = anAiClient();
+      yield* check(requestOf(fetchedOnce));
+      const refusedCheck = yield* check(requestOf(anAiClient())).pipe(Effect.flip);
+      yield* tokenRefusal(refreshing({ clientId: fetchedOnce, refresh_token: "unknown" }));
+
+      const refusedToken = yield* token(
+        refreshing({ clientId: fetchedOnce, refresh_token: "unknown" }),
+      ).pipe(Effect.flip);
+
+      assert.deepStrictEqual(
+        [refusedCheck, refusedToken].map((error) => ({
+          _tag: error._tag,
+          retryAfter: "retryAfter" in error ? error.retryAfter : 0,
+        })),
+        [
+          { _tag: "TooManyAttempts", retryAfter: 60 },
+          { _tag: "TooManyAttempts", retryAfter: 30 },
+        ],
+      );
+    }).pipe(
+      withLimits({
+        CLIENT_DOCUMENT_FETCHES_PER_USER: "1",
+        CLIENT_DOCUMENT_FETCHES_PER_USER_WINDOW: "1 minute",
+        TOKEN_FAILURES_PER_IP: "1",
+        TOKEN_FAILURES_PER_IP_WINDOW: "30 seconds",
+      }),
+    ),
   );
 });

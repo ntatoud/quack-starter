@@ -1,15 +1,20 @@
 import { MCP_PATH } from "@quack/contracts/api";
-import { Unauthenticated } from "@quack/contracts/identity/identity-errors";
+import { type TooManyAttempts, Unauthenticated } from "@quack/contracts/identity/identity-errors";
 import type { User } from "@quack/contracts/identity/user";
 import { TokenRequestRefused } from "@quack/contracts/oauth/oauth-errors";
 import type { TokenRequestParams, TokenResponse } from "@quack/contracts/oauth/token-request";
 import type { Permission } from "@quack/contracts/permission";
-import { Context, DateTime, Duration, Effect, Layer, Option, Redacted } from "effect";
+import { Context, DateTime, Duration, Effect, Exit, Layer, Option, Redacted } from "effect";
 import { Digest, SecureRandom } from "effect/crypto";
 import { Base64Url } from "effect/encoding";
 
 import { ServerConfig } from "#/config.ts";
 import { sha256Hex } from "#/modules/identity/application/sha256-hex.ts";
+import {
+  AttemptCounter,
+  AttemptLimiter,
+  type ClientIp,
+} from "#/modules/identity/domain/attempt-limiter.ts";
 import { AuthorizationCodeStore } from "#/modules/identity/domain/authorization-code-store.ts";
 import {
   accessTokenBytes,
@@ -66,6 +71,12 @@ const secretsOf = (
   }
 };
 
+/** The refusals that count against the address: a guess at a code or a refresh token, not a malformed request. */
+const countedFailures: ReadonlySet<TokenRequestRefused["error"]> = new Set(["invalid_grant"]);
+
+const isCountedFailure = (exit: Exit.Exit<unknown, TokenRequestRefused>) =>
+  Option.exists(Exit.findErrorOption(exit), ({ error }) => countedFailures.has(error));
+
 /** The Permissions in every one of `sets`, in the order of the first. */
 const held = (
   first: ReadonlyArray<Permission>,
@@ -77,9 +88,13 @@ export class Grants extends Context.Service<
   {
     /**
      * Exchanges an authorization code for tokens of the Grant the User approved (RFC 6749 s4.1.3), or a
-     * refresh token for new ones (s6), which extends the Grant.
+     * refresh token for new ones (s6), which extends the Grant. Refused with `TooManyAttempts` once the
+     * address `ip` has failed too many.
      */
-    exchange(params: TokenRequestParams): Effect.Effect<TokenResponse, TokenRequestRefused>;
+    exchange(
+      params: TokenRequestParams,
+      ip: ClientIp,
+    ): Effect.Effect<TokenResponse, TokenRequestRefused | TooManyAttempts>;
     /**
      * Who an access token acts for: the User of its active Grant, with the token's Permissions that the
      * Grant and the User's Role still give. Only a token whose audience is the MCP endpoint opens it.
@@ -98,6 +113,7 @@ export class Grants extends Context.Service<
       const codes = yield* AuthorizationCodeStore;
       const grants = yield* GrantStore;
       const users = yield* UserRepository;
+      const limiter = yield* AttemptLimiter;
       const random = yield* SecureRandom.SecureRandom;
       const digest = yield* Digest.Digest;
       const mcpResource = `${yield* ServerConfig.publicOrigin}${MCP_PATH}`;
@@ -258,12 +274,23 @@ export class Grants extends Context.Service<
       });
 
       return Grants.of({
-        exchange: Effect.fn("Grants.exchange")(function* (params) {
-          const secrets = yield* secretsOf(params);
+        exchange: Effect.fn("Grants.exchange")(function* (params, ip) {
+          const failures = AttemptCounter.tokenFailuresOfIp(ip);
+          // Counted as a failure before it is tried, in one step with the refusal, so concurrent guesses do not
+          // all get through; given back unless it fails as one.
+          yield* limiter.take([failures]);
 
-          return yield* secrets._tag === "Code"
-            ? exchangeCode(params, secrets)
-            : refresh(params, secrets.refreshToken);
+          return yield* Effect.gen(function* () {
+            const secrets = yield* secretsOf(params);
+
+            return yield* secrets._tag === "Code"
+              ? exchangeCode(params, secrets)
+              : refresh(params, secrets.refreshToken);
+          }).pipe(
+            Effect.onExit((exit) =>
+              isCountedFailure(exit) ? Effect.void : limiter.giveBack(failures),
+            ),
+          );
         }),
         authenticate: Effect.fn("Grants.authenticate")(function* (token) {
           const now = yield* DateTime.now;

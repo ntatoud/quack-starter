@@ -6,6 +6,7 @@ import { HttpApiBuilder } from "effect/http-api";
 
 import { AuthorizationRequests } from "#/modules/identity/application/authorization-requests.ts";
 import { Grants } from "#/modules/identity/application/grants.ts";
+import { clientIp } from "#/modules/identity/http/client-ip.ts";
 import { CsrfTokens } from "#/modules/identity/http/csrf-tokens.ts";
 
 export const OAuthHandlers = HttpApiBuilder.group(
@@ -34,7 +35,9 @@ export const OAuthHandlers = HttpApiBuilder.group(
 
         return { redirectTo: yield* requests.deny(params) };
       }),
-      token: ({ payload }) => grants.exchange(payload),
+      token: Effect.fn(function* ({ payload }) {
+        return yield* grants.exchange(payload, yield* clientIp);
+      }),
     });
   }),
 );

@@ -1,6 +1,8 @@
+import { Schema } from "effect";
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from "effect/http-api";
 
 import { Authentication } from "#/identity/authentication.ts";
+import { TooManyAttempts } from "#/identity/identity-errors.ts";
 import {
   AuthorizationDecision,
   AuthorizationRedirect,
@@ -14,6 +16,32 @@ import {
 } from "#/oauth/oauth-errors.ts";
 import { TokenRequestParams, TokenResponse } from "#/oauth/token-request.ts";
 import { RequiredPermission } from "#/permission.ts";
+
+/**
+ * `TooManyAttempts` as the token endpoint answers it: an OAuth error (RFC 6749 s5.2), whose AI Client may not
+ * know Quack's errors, with 429 and `Retry-After` (RFC 6585 s4).
+ */
+const TokenRequestThrottled = TooManyAttempts.pipe(
+  HttpApiSchema.encodeToWithHeaders(
+    {
+      body: Schema.Struct({
+        error: Schema.Literal("invalid_request"),
+        error_description: Schema.String,
+      }).pipe(HttpApiSchema.status(429)),
+      headers: { "retry-after": Schema.Int },
+    },
+    {
+      decode: ({ headers }) => new TooManyAttempts({ retryAfter: headers["retry-after"] }),
+      encode: ({ retryAfter }) => ({
+        body: {
+          error: "invalid_request" as const,
+          error_description: `Too many attempts, retry in ${retryAfter} seconds`,
+        },
+        headers: { "retry-after": retryAfter },
+      }),
+    },
+  ),
+);
 
 const decisionErrors = [
   AuthorizationRequestRefused.pipe(HttpApiSchema.status(400)),
@@ -30,7 +58,11 @@ export class OAuthApi extends HttpApiGroup.make("oauth")
     HttpApiEndpoint.post("checkAuthorization", "/authorize/check", {
       payload: AuthorizationRequestParams,
       success: AuthorizationRequest,
-      error: AuthorizationRequestRefused.pipe(HttpApiSchema.status(400)),
+      error: [
+        AuthorizationRequestRefused.pipe(HttpApiSchema.status(400)),
+        // Past the fetches of documents a User may cause: the cached ones do not count.
+        TooManyAttempts.pipe(HttpApiSchema.status(429)),
+      ],
     }).annotate(RequiredPermission, "none"),
     /**
      * The User approves the request: answers with its redirect URI, carrying a single-use
@@ -57,7 +89,7 @@ export class OAuthApi extends HttpApiGroup.make("oauth")
     HttpApiEndpoint.post("token", "/token", {
       payload: TokenRequestParams,
       success: TokenResponse,
-      error: TokenRequestRefused.pipe(HttpApiSchema.status(400)),
+      error: [TokenRequestRefused.pipe(HttpApiSchema.status(400)), TokenRequestThrottled],
     }),
   )
   .prefix("/oauth") {}
