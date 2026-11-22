@@ -1,15 +1,12 @@
 import { assert, describe, it } from "@effect/vitest";
 import { Authentication } from "@quack/contracts/identity/authentication";
 import { Forbidden } from "@quack/contracts/identity/identity-errors";
-import type { Role } from "@quack/contracts/identity/user";
-import { type Permission, RequiredPermission } from "@quack/contracts/permission";
+import { RequiredPermission } from "@quack/contracts/permission";
 import { Effect } from "effect";
 import { HttpApiEndpoint } from "effect/http-api";
 
-import { roleAllows } from "#/modules/identity/domain/role-permissions.ts";
+import { rolePermissions } from "#/modules/identity/domain/role-permissions.ts";
 import { authorize } from "#/modules/identity/http/authorize.ts";
-
-const callerWith = (role: Role) => (permission: Permission) => roleAllows(role, permission);
 
 const listUsers = HttpApiEndpoint.get("listUsers", "/users")
   .annotate(RequiredPermission, "users:list")
@@ -17,12 +14,12 @@ const listUsers = HttpApiEndpoint.get("listUsers", "/users")
 
 describe("authorize", () => {
   it.effect("lets through a caller whose Role gives the Permission of the endpoint", () =>
-    authorize(listUsers, callerWith("admin")),
+    authorize(listUsers, rolePermissions("admin")),
   );
 
   it.effect("refuses a caller whose Role lacks it with Forbidden, naming the Permission", () =>
     Effect.gen(function* () {
-      const error = yield* Effect.flip(authorize(listUsers, callerWith("user")));
+      const error = yield* Effect.flip(authorize(listUsers, rolePermissions("user")));
 
       assert.deepStrictEqual(error, new Forbidden({ permission: "users:list" }));
     }),
@@ -33,7 +30,7 @@ describe("authorize", () => {
       HttpApiEndpoint.get("me", "/me")
         .annotate(RequiredPermission, "none")
         .middleware(Authentication),
-      callerWith("user"),
+      rolePermissions("user"),
     ),
   );
 
@@ -43,7 +40,7 @@ describe("authorize", () => {
         Authentication,
       );
 
-      const error = yield* Effect.flip(authorize(undeclared, callerWith("admin")));
+      const error = yield* Effect.flip(authorize(undeclared, rolePermissions("admin")));
 
       assert.deepStrictEqual(error, new Forbidden({}));
     }),

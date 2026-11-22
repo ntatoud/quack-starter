@@ -8,7 +8,7 @@ import { ServerConfig } from "#/config.ts";
 import { ContractTools } from "#/mcp/contract-tools.ts";
 import { McpCaller } from "#/modules/identity/index.ts";
 
-const instructions = `${brand.name} manages the Todos of the User who connected you: each has a title and is completed or not. Call todos_list first, to learn the Todos and their ids, before you create, complete, or remove one.`;
+const instructions = `${brand.name} manages the Todos of the User who connected you. Call todos_list first.`;
 
 const callerOf = (
   _authorization: string | undefined,
@@ -42,7 +42,6 @@ const accessToken = (publicOrigin: string) => {
   );
 };
 
-/** `MCP_PATH`, speaking MCP `2026-07-28`, with the tools derived from the `Api`. */
 export const McpEndpoint = Layer.unwrap(
   Effect.gen(function* () {
     const publicOrigin = yield* ServerConfig.publicOrigin;
@@ -52,6 +51,8 @@ export const McpEndpoint = Layer.unwrap(
       instructions,
       path: MCP_PATH,
       protocols: [McpProtocol.v2026_07_28],
+      // The middleware answers another origin first; the server, which refuses any origin it is not
+      // told of, must still let the public one through.
       allowedOrigins: [publicOrigin],
       registrations: ContractTools,
     }).pipe(Layer.provide(accessToken(publicOrigin).layer));

@@ -1,25 +1,25 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { roleAllows } from "#/modules/identity/domain/role-permissions.ts";
+import { rolePermissions } from "#/modules/identity/domain/role-permissions.ts";
 
-describe("roleAllows", () => {
+describe("rolePermissions", () => {
   it("gives a user the Permissions on Todos, and none on Users", () => {
-    expect(roleAllows("user", "todos:list")).toBe(true);
-    expect(roleAllows("user", "todos:write")).toBe(true);
-    expect(roleAllows("user", "todos:delete")).toBe(true);
-    expect(roleAllows("user", "users:list")).toBe(false);
-    expect(roleAllows("user", "users:read")).toBe(false);
-    expect(roleAllows("user", "users:write")).toBe(false);
-    expect(roleAllows("user", "users:delete")).toBe(false);
+    expect(rolePermissions("user").has("todos:list")).toBe(true);
+    expect(rolePermissions("user").has("todos:write")).toBe(true);
+    expect(rolePermissions("user").has("todos:delete")).toBe(true);
+    expect(rolePermissions("user").has("users:list")).toBe(false);
+    expect(rolePermissions("user").has("users:read")).toBe(false);
+    expect(rolePermissions("user").has("users:write")).toBe(false);
+    expect(rolePermissions("user").has("users:delete")).toBe(false);
   });
 
   it("gives an admin every Permission", () => {
-    expect(roleAllows("admin", "todos:list")).toBe(true);
-    expect(roleAllows("admin", "todos:write")).toBe(true);
-    expect(roleAllows("admin", "todos:delete")).toBe(true);
-    expect(roleAllows("admin", "users:list")).toBe(true);
-    expect(roleAllows("admin", "users:read")).toBe(true);
-    expect(roleAllows("admin", "users:write")).toBe(true);
-    expect(roleAllows("admin", "users:delete")).toBe(true);
+    expect(rolePermissions("admin").has("todos:list")).toBe(true);
+    expect(rolePermissions("admin").has("todos:write")).toBe(true);
+    expect(rolePermissions("admin").has("todos:delete")).toBe(true);
+    expect(rolePermissions("admin").has("users:list")).toBe(true);
+    expect(rolePermissions("admin").has("users:read")).toBe(true);
+    expect(rolePermissions("admin").has("users:write")).toBe(true);
+    expect(rolePermissions("admin").has("users:delete")).toBe(true);
   });
 });

@@ -33,4 +33,10 @@ export class Forbidden extends Schema.TaggedError<Forbidden, { readonly brand: u
     /** Absent when the endpoint declares no Permission, which refuses every caller. */
     permission: Schema.optionalKey(Permission),
   },
-) {}
+) {
+  override get message() {
+    return this.permission === undefined
+      ? "No Permission opens this endpoint"
+      : `The Permission ${this.permission} is required`;
+  }
+}

@@ -1,9 +1,9 @@
-import { Authentication, CurrentUser } from "@quack/contracts/identity/authentication";
+import { Authentication } from "@quack/contracts/identity/authentication";
 import { Effect, Layer, Option } from "effect";
 
 import { Identity } from "#/modules/identity/application/identity.ts";
-import { roleAllows } from "#/modules/identity/domain/role-permissions.ts";
-import { authorize } from "#/modules/identity/http/authorize.ts";
+import { rolePermissions } from "#/modules/identity/domain/role-permissions.ts";
+import { callAs } from "#/modules/identity/http/authorize.ts";
 import { McpCaller } from "#/modules/identity/http/mcp-caller.ts";
 import { SessionCookie } from "#/modules/identity/http/session-cookie.ts";
 
@@ -19,9 +19,7 @@ export const AuthenticationMiddleware = Layer.effect(
         // can put one in the context.
         const mcpCaller = yield* Effect.serviceOption(McpCaller);
         if (Option.isSome(mcpCaller)) {
-          const { user, permissions } = mcpCaller.value;
-          yield* authorize(endpoint, (permission) => permissions.has(permission));
-          return yield* Effect.provideService(httpEffect, CurrentUser, user);
+          return yield* callAs(httpEffect, endpoint, mcpCaller.value);
         }
         const { user, extendedUntil } = yield* identity
           .authenticate(credential)
@@ -29,8 +27,10 @@ export const AuthenticationMiddleware = Layer.effect(
         if (Option.isSome(extendedUntil)) {
           yield* cookie.set({ token: credential, expiresAt: extendedUntil.value });
         }
-        yield* authorize(endpoint, (permission) => roleAllows(user.role, permission));
-        return yield* Effect.provideService(httpEffect, CurrentUser, user);
+        return yield* callAs(httpEffect, endpoint, {
+          user,
+          permissions: rolePermissions(user.role),
+        });
       }),
     });
   }),

@@ -47,34 +47,16 @@ const inProcessClient = Effect.gen(function* () {
   return client as unknown as Readonly<Record<string, Readonly<Record<string, Endpoint>>>>;
 });
 
-const pick = (input: Readonly<Record<string, unknown>>, names: ReadonlyArray<string>) =>
-  Object.fromEntries(
-    names.flatMap((name) => (input[name] === undefined ? [] : [[name, input[name]]])),
-  );
-
 const callEndpoint = (
   client: Effect.Success<typeof inProcessClient>,
-  { group, endpoint, input, success, errors }: DerivedTool,
+  { group, endpoint, errors, toRequest, toResult }: DerivedTool,
 ) => {
   const call = client[group.identifier]![endpoint.identifier]!;
   const isDeclared = Schema.is(Schema.Union(errors));
 
   return (args: Readonly<Record<string, unknown>>) =>
-    call({
-      ...(endpoint.params === undefined ? {} : { params: pick(args, input.params) }),
-      ...(endpoint.query === undefined ? {} : { query: pick(args, input.query) }),
-      ...(endpoint.payload.size === 0 ? {} : { payload: pick(args, input.payload) }),
-    }).pipe(
-      Effect.map((result) => {
-        switch (success) {
-          case "items":
-            return { items: result };
-          case "none":
-            return undefined;
-          case "object":
-            return result;
-        }
-      }),
+    call(toRequest(args)).pipe(
+      Effect.map(toResult),
       // Every error an endpoint declares, its middleware's included, is a `Schema.TaggedError`.
       Effect.catch((error) => {
         if (!isDeclared(error)) return Effect.die(error);
@@ -92,9 +74,9 @@ const visibleToCaller = (tools: ReadonlyArray<DerivedTool>) => {
       const endpoint = endpoints.get(target);
       if (endpoint === undefined) return false;
       const { permissions } = yield* McpCaller;
-      return yield* authorize(endpoint, (permission) => permissions.has(permission)).pipe(
+      return yield* authorize(endpoint, permissions).pipe(
         Effect.as(true),
-        Effect.catch(() => Effect.succeed(false)),
+        Effect.orElseSucceed(() => false),
       );
     }),
   );
@@ -113,7 +95,7 @@ const register = (
     yield* McpServer.registerToolkit(toolkit).pipe(
       Effect.provide(toolkit.toLayer(handlers as never)),
     );
-  }) as never;
+  });
 
 /**
  * The tools derived from the `Api`, each calling its endpoint in process as the McpCaller of the MCP
