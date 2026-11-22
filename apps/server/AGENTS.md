@@ -25,6 +25,17 @@ To add a context, copy `modules/todos`:
 - An HTTP middleware answers 401 or 403 before any JSON-RPC; an `McpServer.middleware` provides the `McpCaller`. The tools are built outside the scope of the HTTP middleware (`mcp-endpoint.ts`): inside it, it would also wrap the in-process routes and challenge every call.
 - A Grant is one per User and AI Client, in identity: `GrantStore` holds it and its access and refresh tokens, stored as SHA-256 only. Approving creates or updates it, and revokes its tokens; the token endpoint (`Grants.exchange`) issues its tokens, for a code or a refresh token. A replaced refresh token presented again revokes the Grant; lifetimes: `docs/ai-clients.md`.
 
+## Logs and traces
+
+`main.ts` provides `Observability` (`observability.ts`): the console, and OTLP when `OTEL_EXPORTER_OTLP_ENDPOINT` is set (`docs/adr/0006-telemetry-through-effect-otlp-exporters.md`). A script provides `ConsoleLogger` instead.
+
+- A span comes from each `Effect.fn("Service.method")`, each request, and each SQL statement. Add `Effect.withSpan` only around a step that is none of these and worth timing.
+- The server writes one line per response, at `Error` with its cause for a 5xx. A handler logs no error of its own: an expected error (404, 401, 409) shows in that line's status.
+- Every MCP request answers `/api/mcp` with 200, so `asGrantCaller` (`mcp-endpoint.ts`) writes a line per tool call: `mcp.tool`, `user.id`, and `mcp.result` (`ok`, `tool_error`, `rejected`). A defect of a tool is logged at `Error` by Effect, with the same annotations, and reaches the AI Client only as a `tool_error`.
+- Log what an operator acts on: `Warn` for a refused attempt (a failed sign-in, an attempt limit reached), `Info` for a change of state worth finding again (a sign-up, an Admin changing a User, a migration applied). Put the ids in `Effect.annotateLogs`, keyed like `user.id`, not in the message.
+- Never log nor put on a span a password, a session token, a cookie, or an email: a User is known by their id. A client address appears only on an attempt limit reached, the only place an operator acts on it.
+- The tests do not assert on logs, except the line of a 5xx and of a tool call (`observability.test.ts`).
+
 ## Database
 
 Plain `sql` templates, no ORM (`docs/adr/0001-postgres-through-effect-sql-templates.md`). Which database a worktree uses: README.

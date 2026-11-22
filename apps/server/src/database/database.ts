@@ -52,7 +52,17 @@ const connectionTo = ({ url, maxConnections }: DatabaseSettings) => ({
 
 const connection = Effect.map(DatabaseConfig, connectionTo);
 
-const Migrations = PgMigrator.layer({ loader: PgMigrator.fromFileSystem(migrationsDirectory) });
+const Migrations = Layer.effectDiscard(
+  PgMigrator.run({ loader: PgMigrator.fromFileSystem(migrationsDirectory) }).pipe(
+    Effect.tap((applied) =>
+      Effect.forEach(applied, ([id, name]) =>
+        Effect.logInfo("Migration applied").pipe(
+          Effect.annotateLogs({ "migration.id": id, "migration.name": name }),
+        ),
+      ),
+    ),
+  ),
+);
 
 export const databaseAt = (config: DatabaseSettings) => {
   const { url, client } = connectionTo(config);

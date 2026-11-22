@@ -53,19 +53,26 @@ Quack serves its API to AI Clients over MCP at `<PUBLIC_URL>/api/mcp`: https://q
 
 AI Clients that only register through Dynamic Client Registration, such as Cursor, cannot connect (ADR 0004).
 
+## Logs and traces
+
+The server writes its logs to the console, readable in dev. In production, set `LOG_FORMAT=json` for one JSON line per entry. With `OTEL_EXPORTER_OTLP_ENDPOINT` set, it also sends its logs and traces over OTLP/HTTP to that collector, of any vendor (`docs/adr/0006-telemetry-through-effect-otlp-exporters.md`).
+
+`pnpm dev:telemetry` is `pnpm dev` with them: it starts Grafana's `otel-lgtm` container through `portless compose` and points the server at it. Grafana is at https://telemetry.quack.localhost and opens on the dashboard "Quack server" (`observability/grafana/quack-server.json`): requests per route and status, their duration, the duration of each service method and SQL statement, the errors and warnings, and the latest traces. Explore searches the traces (Tempo) and the logs (Loki) of `quack-server`, and a log's `trace_id` opens its trace. Grafana receives OTLP at https://4318.telemetry.quack.localhost. The container keeps nothing once recreated. To change the dashboard, edit it in Grafana, then copy its JSON (Edit, Settings, JSON Model) into the file. Every checkout sends to this one container, which keeps running after `pnpm dev:telemetry` stops: `pnpm exec portless compose --profile observability down otel-lgtm` stops it.
+
 ## Commands
 
-| Command             | What it does                                        |
-| ------------------- | --------------------------------------------------- |
-| `pnpm dev`          | Run the web app and the server, under portless      |
-| `pnpm dev:emails`   | Preview the emails, under portless                  |
-| `pnpm check`        | Format check and lint                               |
-| `pnpm fmt`          | Format                                              |
-| `pnpm typecheck`    | Typecheck every package with `tsc`                  |
-| `pnpm typecheck:ci` | Typecheck every package with `tsrs`, as CI does     |
-| `pnpm test`         | Run the tests                                       |
-| `pnpm fallow`       | Find unused code, duplicates, and complex functions |
-| `pnpm build`        | Build the apps                                      |
+| Command              | What it does                                                    |
+| -------------------- | --------------------------------------------------------------- |
+| `pnpm dev`           | Run the web app and the server, under portless                  |
+| `pnpm dev:telemetry` | `pnpm dev`, with Grafana receiving the server's logs and traces |
+| `pnpm dev:emails`    | Preview the emails, under portless                              |
+| `pnpm check`         | Format check and lint                                           |
+| `pnpm fmt`           | Format                                                          |
+| `pnpm typecheck`     | Typecheck every package with `tsc`                              |
+| `pnpm typecheck:ci`  | Typecheck every package with `tsrs`, as CI does                 |
+| `pnpm test`          | Run the tests                                                   |
+| `pnpm fallow`        | Find unused code, duplicates, and complex functions             |
+| `pnpm build`         | Build the apps                                                  |
 
 Typecheck, test, and build are cached per package: a task whose inputs did not change is replayed.
 
@@ -82,6 +89,7 @@ packages/
   emails/         The emails Quack sends, written with React Email
   oxlint-plugin/  Lint rules: no relative imports, module boundaries, no sql.unsafe outside migrations
 docs/adr/         Architecture decisions
+observability/    The Grafana dashboard of `pnpm dev:telemetry`
 ```
 
 The architecture and its rules are described in [AGENTS.md](AGENTS.md), which is written for coding agents and people alike.

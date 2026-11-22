@@ -5,6 +5,7 @@ import { withDatabase } from "#/database/database.ts";
 import { migrationsDirectory } from "#/database/migration-files.ts";
 import { rollbackArgs } from "#/database/rollback-args.ts";
 import { rollback, RollbackFailed } from "#/database/rollback.ts";
+import { ConsoleLogger } from "#/observability.ts";
 
 const program = Effect.gen(function* () {
   const { to } = yield* Result.match(rollbackArgs(process.argv.slice(2)), {
@@ -17,4 +18,4 @@ const program = Effect.gen(function* () {
   if (reverted.length === 0) yield* Effect.log("No migration to revert.");
 });
 
-program.pipe(NodeRuntime.runMain);
+program.pipe(Effect.provide(ConsoleLogger), NodeRuntime.runMain);

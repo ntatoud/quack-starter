@@ -55,5 +55,11 @@ export const callAs = <A, E, R>(
   { user, permissions }: Caller,
 ) =>
   authorize(endpoint, permissions).pipe(
-    Effect.andThen(Effect.provideService(handler, CurrentUser, user)),
+    Effect.andThen(Effect.annotateCurrentSpan({ "user.id": user.id, "user.role": user.role })),
+    Effect.andThen(
+      handler.pipe(
+        Effect.provideService(CurrentUser, user),
+        Effect.annotateLogs("user.id", user.id),
+      ),
+    ),
   );

@@ -16,6 +16,7 @@ import {
 } from "#/modules/identity/index.ts";
 import { SystemHandlers } from "#/modules/system/http/system-handlers.ts";
 import { TodosModule } from "#/modules/todos/index.ts";
+import { HealthUntraced, requestLogger } from "#/observability.ts";
 
 // One instance of the handlers serves both the HTTP API and the tools, which call it in process.
 const ApiHandlers = Layer.mergeAll(SystemHandlers, TodosModule, AiClientsModule).pipe(
@@ -36,6 +37,7 @@ export const Routes = Layer.mergeAll(
   OAuthMetadataRoutes,
   TokenEndpointHeaders,
   McpRoutes,
+  HealthUntraced,
 );
 
 const Server = Layer.unwrap(
@@ -46,4 +48,7 @@ const Server = Layer.unwrap(
   }),
 );
 
-export const ServerLayer = HttpRouter.serve(Routes).pipe(Layer.provide(Server));
+export const ServerLayer = HttpRouter.serve(Routes, {
+  disableLogger: true,
+  middleware: (app) => requestLogger(app),
+}).pipe(Layer.provide(Server));

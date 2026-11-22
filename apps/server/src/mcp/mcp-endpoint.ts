@@ -1,6 +1,6 @@
 import { brand } from "@quack/brand/brand";
 import { Api, MCP_PATH } from "@quack/contracts/api";
-import { Effect, Layer, Option, Redacted } from "effect";
+import { Effect, Exit, Layer, Option, Predicate, Redacted } from "effect";
 import { McpProtocol, McpSchema, McpServer } from "effect/ai";
 import { type Headers, HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http";
 import type { HttpApiEndpoint } from "effect/http-api";
@@ -92,23 +92,56 @@ const accessToken = (publicOrigin: string, endpoints: ReadonlyMap<string, HttpAp
   );
 };
 
+/** What a tool call ended with: a result, a result that reports an error to the AI Client, or a JSON-RPC error. */
+const resultOf = (exit: Exit.Exit<unknown, unknown>) => {
+  if (Exit.isFailure(exit)) return "rejected";
+
+  return Predicate.hasProperty(exit.value, "isError") && exit.value.isError === true
+    ? "tool_error"
+    : "ok";
+};
+
 /**
  * Runs each MCP request as the McpCaller of the Grant whose token it carries, reading the token again: the
  * tools are not `registrations` of the transport (see below), whose request services only MCP middleware meets.
+ * A tool call gets its line, as an HTTP response does: every one answers `/api/mcp` with 200.
  */
 const asGrantCaller = McpServer.middleware<{ provides: McpCaller }>()(
   Effect.gen(function* () {
     const grants = yield* Grants;
 
-    return (effect, { headers }) =>
-      Effect.flatMap(callerOf(grants, headers.authorization), (caller) =>
-        Option.isSome(caller)
-          ? Effect.provideService(effect, McpCaller, caller.value)
-          : // The token passed `accessToken` an instant ago: only a Grant that ended since leads here.
-            Effect.fail(
-              new McpSchema.InvalidRequest({ message: "The access token opens no Grant." }),
-            ),
-      );
+    return (effect, { headers, method, target }) =>
+      Effect.gen(function* () {
+        const caller = yield* callerOf(grants, headers.authorization);
+
+        // The token passed `accessToken` an instant ago: only a Grant that ended since leads here.
+        if (Option.isNone(caller)) {
+          return yield* new McpSchema.InvalidRequest({
+            message: "The access token opens no Grant.",
+          });
+        }
+
+        const { user } = caller.value;
+
+        yield* Effect.annotateCurrentSpan({ "user.id": user.id, "user.role": user.role });
+
+        const handled = effect.pipe(
+          Effect.provideService(McpCaller, caller.value),
+          Effect.annotateLogs("user.id", user.id),
+        );
+
+        // A list request runs this once for each tool it may show: only a call is worth a line.
+        if (method !== "tools/call") return yield* handled;
+
+        // Inside the annotations below, so the line Effect writes for a defect of the tool carries them too.
+        const exit = yield* Effect.exit(handled);
+
+        yield* Effect.logInfo("Called MCP tool").pipe(
+          Effect.annotateLogs({ "user.id": user.id, "mcp.result": resultOf(exit) }),
+        );
+
+        return yield* exit;
+      }).pipe(Effect.annotateLogs({ "mcp.method": method, "mcp.tool": target }));
   }),
 );
 

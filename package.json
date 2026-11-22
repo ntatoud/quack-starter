@@ -5,6 +5,7 @@
   "scripts": {
     "prepare": "vp config --no-agent",
     "dev": "vp run --filter './apps/*' --parallel dev",
+    "dev:telemetry": "portless compose --profile observability up -d --wait otel-lgtm && echo \"Logs and traces: $(portless get --no-worktree telemetry.quack)\" && OTEL_EXPORTER_OTLP_ENDPOINT=$(portless get --no-worktree 4318.telemetry.quack) pnpm dev",
     "dev:web": "vp run --filter @quack/web dev",
     "dev:server": "vp run --filter @quack/server dev",
     "dev:emails": "vp run --filter @quack/emails dev",

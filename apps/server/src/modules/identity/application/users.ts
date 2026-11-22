@@ -60,6 +60,10 @@ export class Users extends Context.Service<
           const user = new User({ ...found.value, ...changes });
           yield* repository.update(user);
 
+          yield* Effect.logInfo("Admin changed the access of a User").pipe(
+            Effect.annotateLogs({ "user.id": by, "target.user.id": id, changes }),
+          );
+
           return user;
         }),
         remove: Effect.fn("Users.remove")(function* (id, by) {
@@ -67,6 +71,9 @@ export class Users extends Context.Service<
           const removed = yield* repository.remove(id);
 
           if (!removed) return yield* new UserNotFound({ id });
+          yield* Effect.logInfo("Admin deleted a User").pipe(
+            Effect.annotateLogs({ "user.id": by, "target.user.id": id }),
+          );
         }),
         updateProfile: Effect.fn("Users.updateProfile")(function* (id, profile) {
           // Read again rather than taken from the Current User: the write must not bring back what changed since the request was authenticated.
