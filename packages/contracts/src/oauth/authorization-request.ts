@@ -1,0 +1,39 @@
+import { Schema } from "effect";
+
+import { Permission } from "#/permission.ts";
+
+/**
+ * The query of the authorization URL an AI Client sends the User to, as is: every parameter is
+ * optional here, so a missing or malformed one is refused as an OAuth error, not a schema error.
+ */
+export const AuthorizationRequestParams = Schema.Struct({
+  client_id: Schema.optionalKey(Schema.String),
+  redirect_uri: Schema.optionalKey(Schema.String),
+  response_type: Schema.optionalKey(Schema.String),
+  code_challenge: Schema.optionalKey(Schema.String),
+  code_challenge_method: Schema.optionalKey(Schema.String),
+  resource: Schema.optionalKey(Schema.String),
+  scope: Schema.optionalKey(Schema.String),
+});
+export type AuthorizationRequestParams = typeof AuthorizationRequestParams.Type;
+
+/** What the consent page shows of a valid authorization request. */
+export class AuthorizationRequest extends Schema.Class<
+  AuthorizationRequest,
+  { readonly brand: unique symbol }
+>("AuthorizationRequest")({
+  aiClient: Schema.Struct({
+    /** The address of its document, which is the AI Client. */
+    id: Schema.String,
+    /** The hostname of `id`: the only part of the AI Client Quack has verified. */
+    host: Schema.String,
+    /** What the AI Client says it is, unverified. */
+    name: Schema.String,
+  }),
+  redirectHost: Schema.String,
+  /** Every redirect URI of the document is on this machine: anything running here could be the AI Client. */
+  loopbackOnly: Schema.Boolean,
+  permissions: Schema.Array(Permission),
+  /** Those of the Grant the User already gave this AI Client, `null` if none. */
+  grantedPermissions: Schema.NullOr(Schema.Array(Permission)),
+}) {}
