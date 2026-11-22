@@ -9,6 +9,7 @@ import { ConsentPage } from "#/features/oauth/consent-page.tsx";
 export const Route = createFileRoute("/oauth/authorize")({
   beforeLoad: ({ context, location }) => {
     if (context.currentUser === null) throw redirect(signInLocation(location.href));
+
     return { currentUser: context.currentUser };
   },
   head: () => ({ meta: [{ title: pageTitle("Connect an AI Client") }] }),

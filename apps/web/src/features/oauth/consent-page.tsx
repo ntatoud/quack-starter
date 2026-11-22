@@ -13,9 +13,11 @@ const paramNames = Struct.keys(AuthorizationRequestParams.fields);
 
 const authorizationParamsOf = (searchStr: string): AuthorizationRequestParams => {
   const search = new URLSearchParams(searchStr);
+
   return Object.fromEntries(
     paramNames.flatMap((name) => {
       const value = search.get(name);
+
       return value === null ? [] : [[name, value]];
     }),
   );
@@ -27,6 +29,7 @@ export function ConsentPage() {
   // Stable while the URL is, so a remembered consent is approved once.
   const params = useMemo(() => authorizationParamsOf(searchStr), [searchStr]);
   const setCurrentUser = useSetCurrentUser();
+
   // The route sends a visitor to sign in, and back here once they have.
   const signOut = useMutation(
     api.identity.signOut.mutationOptions({ onSuccess: () => setCurrentUser(null) }),

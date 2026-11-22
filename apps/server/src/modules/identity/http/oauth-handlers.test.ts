@@ -53,10 +53,12 @@ const documentOf = (clientId: string, fields: DocumentFields = {}) => ({
 
 /** Serves the document of a new AI Client, unique to the test, and answers its URL. */
 let clients = 0;
+
 const anAiClient = (fields: DocumentFields = {}, headers: Record<string, string> = {}) => {
   clients += 1;
   const clientId = `https://ai-${clients}.example.com/oauth/client.json`;
   serve(clientId, () => json(documentOf(clientId, fields), headers));
+
   return clientId;
 };
 
@@ -66,6 +68,7 @@ const StubHttpClient = Layer.succeed(
     Effect.suspend(() => {
       fetched.push(request);
       const answer = served.get(request.url);
+
       return answer === undefined
         ? Effect.never
         : Effect.succeed(HttpClientResponse.fromWeb(request, answer()));
@@ -100,6 +103,7 @@ const refusal = (payload: AuthorizationRequestParams) =>
     Effect.flip,
     Effect.map((error) => {
       assert.strictEqual(error._tag, "AuthorizationRequestRefused");
+
       return error._tag === "AuthorizationRequestRefused"
         ? { error: error.error, redirect_uri: error.redirect_uri }
         : undefined;
@@ -175,6 +179,7 @@ layer(withConfig({}))("OAuthApi checkAuthorization", (it) => {
           });
           assert.strictEqual(fetchesOf(clientId), 0, clientId);
         }
+
         const { client_id: _, ...withoutClientId } = requestOf("");
         assert.strictEqual((yield* refusal(withoutClientId))?.error, "invalid_request");
       }),
@@ -283,9 +288,11 @@ layer(withConfig({}))("OAuthApi checkAuthorization", (it) => {
         const onLocalhost = yield* check(
           requestOf(clientId, { redirect_uri: "http://localhost:51234/callback" }),
         );
+
         const on127 = yield* check(
           requestOf(clientId, { redirect_uri: "http://127.0.0.1:4000/callback" }),
         );
+
         const otherPath = yield* refusal(
           requestOf(clientId, { redirect_uri: "http://localhost:51234/other" }),
         );
@@ -302,6 +309,7 @@ layer(withConfig({}))("OAuthApi checkAuthorization", (it) => {
     () =>
       Effect.gen(function* () {
         const clientId = anAiClient();
+
         const invalid: ReadonlyArray<[Record<string, string | undefined>, AuthorizationErrorCode]> =
           [
             [{ response_type: "token" }, "unsupported_response_type"],
@@ -319,6 +327,7 @@ layer(withConfig({}))("OAuthApi checkAuthorization", (it) => {
               ([, value]) => value !== undefined,
             ),
           );
+
           assert.deepStrictEqual(yield* refusal(request), { error, redirect_uri: redirectUri });
         }
       }),
@@ -334,9 +343,11 @@ layer(withConfig({}))("OAuthApi checkAuthorization", (it) => {
           redirect_uri: redirectUri,
         });
       }
+
       const request = yield* check(
         requestOf(clientId, { scope: "todos:delete  todos:list todos:delete" }),
       );
+
       assert.deepStrictEqual(request.permissions, ["todos:list", "todos:delete"]);
     }),
   );
@@ -351,6 +362,7 @@ layer(withConfig({}))("OAuthApi checkAuthorization", (it) => {
         yield* check(requestOf(clientId));
         yield* check(requestOf(clientId));
       }
+
       assert.strictEqual(fetchesOf(cached), 1);
       assert.strictEqual(fetchesOf(notStored), 2);
       assert.strictEqual(fetchesOf(silent), 2);
@@ -372,6 +384,7 @@ layer(withConfig({}))("OAuthApi checkAuthorization", (it) => {
         yield* check(requestOf(clientId));
         yield* check(requestOf(clientId));
       }
+
       assert.strictEqual(fetchesOf(expiring), 1);
       assert.strictEqual(fetchesOf(shared), 1);
       assert.strictEqual(fetchesOf(aged), 2);
@@ -445,12 +458,14 @@ layer(withConfig({}))("OAuthApi approveAuthorization and denyAuthorization", (it
       const clientId = anAiClient({
         redirect_uris: ["http://localhost/callback"],
       });
+
       const decision = yield* onTheConsentPage(
         requestOf(clientId, {
           redirect_uri: "http://localhost:51234/callback",
           scope: "todos:delete todos:list",
         }),
       );
+
       const now = yield* DateTime.now;
 
       const code = new URL((yield* approve(decision)).redirectTo).searchParams.get("code") ?? "";
@@ -480,6 +495,7 @@ layer(withConfig({}))("OAuthApi approveAuthorization and denyAuthorization", (it
       const decision = yield* onTheConsentPage(requestOf(anAiClient()));
 
       const codes = new Set<string | null>();
+
       for (let i = 0; i < 3; i++) {
         codes.add(new URL((yield* approve(decision)).redirectTo).searchParams.get("code"));
       }
@@ -533,6 +549,7 @@ layer(withConfig({}))("OAuthApi approveAuthorization and denyAuthorization", (it
       Effect.gen(function* () {
         const clientId = anAiClient();
         const { csrfToken } = yield* check(requestOf(clientId));
+
         const tampered = {
           ...requestOf(clientId, { redirect_uri: "https://evil.example.com/callback" }),
           csrfToken,

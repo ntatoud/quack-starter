@@ -22,7 +22,9 @@ const aSavedCode = (fields: Partial<AuthorizationCode> = {}) =>
       expiresAt: DateTime.makeUnsafe("2026-02-01T00:00:00Z"),
       ...fields,
     } satisfies AuthorizationCode;
+
     yield* (yield* AuthorizationCodeStore).save(code);
+
     return code;
   });
 

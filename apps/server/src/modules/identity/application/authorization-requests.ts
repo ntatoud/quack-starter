@@ -57,6 +57,7 @@ export class AuthorizationRequests extends Context.Service<
       const digest = yield* Digest.Digest;
       const issuer = yield* ServerConfig.publicOrigin;
       const rememberConsent = yield* ServerConfig.rememberConsent;
+
       const server = {
         issuer,
         mcpResource: `${issuer}${MCP_PATH}`,
@@ -67,6 +68,7 @@ export class AuthorizationRequests extends Context.Service<
         params: AuthorizationRequestParams,
       ) {
         const url = yield* aiClientUrlOf(params.client_id, server);
+
         const document = yield* documents.fetch(url).pipe(
           Effect.mapError(
             ({ reason }) =>
@@ -76,15 +78,19 @@ export class AuthorizationRequests extends Context.Service<
               }),
           ),
         );
+
         return yield* checkAuthorizationRequest(params, url, document, server);
       });
 
       // RFC 9207: `iss` tells the AI Client which authorization server answers, against mix-up attacks.
       const redirectOf = (request: ValidAuthorizationRequest, params: Record<string, string>) => {
         const url = new URL(request.redirectUri);
+
         for (const [name, value] of Object.entries(params)) url.searchParams.set(name, value);
+
         if (request.state !== undefined) url.searchParams.set("state", request.state);
         url.searchParams.set("iss", issuer);
+
         return url.href;
       };
 
@@ -92,6 +98,7 @@ export class AuthorizationRequests extends Context.Service<
         check: Effect.fn("AuthorizationRequests.check")(function* (params, userId) {
           const request = yield* validate(params);
           const grant = yield* activeGrantOf(userId, request.aiClientId);
+
           return {
             aiClient: request.aiClient,
             redirectHost: request.redirectHost,
@@ -116,6 +123,7 @@ export class AuthorizationRequests extends Context.Service<
             codeChallenge: request.codeChallenge,
             expiresAt: DateTime.addDuration(yield* DateTime.now, authorizationCodeLifetime),
           });
+
           return redirectOf(request, { code });
         }),
         deny: Effect.fn("AuthorizationRequests.deny")(function* (params) {

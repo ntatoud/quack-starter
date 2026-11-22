@@ -49,7 +49,6 @@ export type DataTableFilter<in Read extends DataTableValue, out Write = Read> = 
   readonly isEmpty?: ((value: Read) => boolean) | undefined;
 };
 
-// oxlint-disable-next-line typescript/no-explicit-any -- the filters of one table hold values of different types
 export type AnyDataTableFilter = DataTableFilter<any, any>;
 
 export const isFilterEmpty = <Read extends DataTableValue>(

@@ -1,4 +1,7 @@
-import type { AuthorizationRequestParams } from "@quack/contracts/oauth/authorization-request";
+import type {
+  AuthorizationRequest,
+  AuthorizationRequestParams,
+} from "@quack/contracts/oauth/authorization-request";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
@@ -28,7 +31,7 @@ const params: AuthorizationRequestParams = {
   state: "00123",
 };
 
-const checked = (fields: Record<string, unknown> = {}) => ({
+const checked = (fields: Partial<typeof AuthorizationRequest.Encoded> = {}) => ({
   aiClient: { id: "https://claude.ai/oauth/client.json", host: "claude.ai", name: "Claude" },
   redirectHost: "claude.ai",
   loopbackOnly: false,
@@ -41,20 +44,25 @@ const checked = (fields: Record<string, unknown> = {}) => ({
 
 const approved =
   "https://claude.ai/api/mcp/auth_callback?code=abc&state=00123&iss=https%3A%2F%2Fquack.test";
+
 const denied =
   "https://claude.ai/api/mcp/auth_callback?error=access_denied&state=00123&iss=https%3A%2F%2Fquack.test";
 
 // The API client keeps the `fetch` it first saw, so one stub serves every test and each test sets its responses.
 type Answers = Partial<Record<"check" | "approve" | "deny", () => Response | Promise<Response>>>;
+
 let answers: Answers;
 const sent: Array<{ readonly path: string; readonly body: unknown }> = [];
+
 const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
   const request = new Request(input, init);
   const path = new URL(request.url).pathname;
   sent.push({ path, body: await request.clone().json() });
   const answer = answers[path.split("/").at(-1) as keyof Answers];
+
   return answer === undefined ? new Response(null, { status: 500 }) : answer();
 });
+
 vi.stubGlobal("fetch", fetch);
 
 const setup = async (given: Answers) => {
@@ -71,6 +79,7 @@ const setup = async (given: Answers) => {
       />
     </QueryClientProvider>,
   );
+
   return {
     leave,
     onSwitchAccount,
@@ -130,6 +139,7 @@ describe("ConsentPrompt", () => {
       .toMatchTextContent(
         /The name “Claude” is what the AI Client says it is\. Only claude\.ai is verified\./,
       );
+
     for (const name of ["todos:list", "todos:write", "todos:delete"]) {
       await expect.element(details.getByText(name)).toBeVisible();
     }
@@ -258,6 +268,7 @@ describe("ConsentPrompt", () => {
     await setup({
       check: () => {
         calls += 1;
+
         return calls === 1 ? new Response(null, { status: 500 }) : Response.json(checked());
       },
     });

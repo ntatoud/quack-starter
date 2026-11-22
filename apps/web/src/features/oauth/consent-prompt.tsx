@@ -21,7 +21,7 @@ import { consentSentence, permissionSummaries } from "#/features/oauth/consent-s
 import { userLabel } from "#/features/users/full-name.ts";
 import { api } from "#/lib/api.ts";
 
-interface ConsentPromptProps {
+export interface ConsentPromptProps {
   readonly params: AuthorizationRequestParams;
   readonly currentUser: typeof User.Encoded;
   readonly leave: (url: string) => void;

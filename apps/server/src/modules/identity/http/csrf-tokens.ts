@@ -37,6 +37,7 @@ export class CsrfTokens extends Context.Service<
         verify: Effect.fn("CsrfTokens.verify")(function* (received) {
           const expected = yield* tokenOfRequest;
           const decoded = Base64Url.decode(received);
+
           if (Result.isFailure(decoded) || !Mac.timingSafeEqual(expected, decoded.success)) {
             return yield* new InvalidCsrfToken();
           }

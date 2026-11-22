@@ -12,6 +12,7 @@ export const AuthorizationCodeStoreMemory = Layer.sync(AuthorizationCodeStore, (
       Effect.sync(() => {
         const code = Option.fromNullishOr(codes.get(codeHash));
         codes.delete(codeHash);
+
         return code;
       }),
   });
