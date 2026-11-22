@@ -71,11 +71,10 @@ const secretsOf = (
   }
 };
 
-/** The refusals that count against the address: a guess at a code or a refresh token, not a malformed request. */
-const countedFailures: ReadonlySet<TokenRequestRefused["error"]> = new Set(["invalid_grant"]);
-
+// A guess at a code or a refresh token counts against the address, a malformed request does not. The token endpoint
+// never answers `invalid_client`: an AI Client has no secret, and a wrong `client_id` is an `invalid_grant`.
 const isCountedFailure = (exit: Exit.Exit<unknown, TokenRequestRefused>) =>
-  Option.exists(Exit.findErrorOption(exit), ({ error }) => countedFailures.has(error));
+  Option.exists(Exit.findErrorOption(exit), ({ error }) => error === "invalid_grant");
 
 /** The Permissions in every one of `sets`, in the order of the first. */
 const held = (
