@@ -74,6 +74,6 @@ The architecture and its rules are described in [AGENTS.md](AGENTS.md), which is
 
 ## Using this template
 
-1. Replace the `@quack` scope and the `quack` names with your own.
+1. Rebrand the app in `packages/brand`: its names, logo, icon, font, and colors. Then replace the `@quack` scope and the other `quack` names (the API's in `packages/contracts/src/api.ts`, which imports no other package) with your own.
 2. Replace the `todos` example context everywhere (`packages/contracts/src/todos`, `apps/server/src/modules/todos`, `apps/web/src/features/todos`).
 3. Swap the in-memory repository for a real one by providing another Layer in `apps/server/src/main.ts`.

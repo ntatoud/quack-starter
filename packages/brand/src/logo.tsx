@@ -1,4 +1,6 @@
-import { cn } from "@quack/ui/lib/utils";
+import { cn } from "cn";
+
+import { brand } from "#/brand.ts";
 
 export function Logo({ className }: { className?: string }) {
   return (
@@ -7,9 +9,9 @@ export function Logo({ className }: { className?: string }) {
         aria-hidden="true"
         className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary font-semibold text-primary-foreground"
       >
-        Q
+        {brand.initial}
       </span>
-      <span className="truncate font-semibold">Quack</span>
+      <span className="truncate font-semibold">{brand.name}</span>
     </span>
   );
 }

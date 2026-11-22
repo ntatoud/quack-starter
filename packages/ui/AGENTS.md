@@ -1,6 +1,6 @@
 # UI package
 
-The components of the repo and the Tailwind theme (`src/styles/globals.css`). A component is built on ui-sdk (`@ui-sdk/react`, `@ui-sdk/core`), with the look of the theme.
+The components of the repo and the Tailwind theme (`src/styles/globals.css`). The font, radius, and colors the theme draws with come from `@quack/brand/theme.css`: change a color there, not here. A component is built on ui-sdk (`@ui-sdk/react`, `@ui-sdk/core`), with the look of the theme.
 
 Before using ui-sdk, follow the `ui-sdk` skill if it is installed, and read `node_modules/@ui-sdk/react/docs/llms.txt`. To build a new component, also search `node_modules/@ui-sdk/react/docs/core.md` by heading, and read `rendering.md` next to it.
 

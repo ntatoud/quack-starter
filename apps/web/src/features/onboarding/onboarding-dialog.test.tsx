@@ -1,3 +1,4 @@
+import { brand } from "@quack/brand/brand";
 import type { User } from "@quack/contracts/identity/user";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -86,7 +87,9 @@ describe("OnboardingDialog", () => {
   it("opens on the first name, in a dialog named by its title", async () => {
     const dialog = await setup(() => Response.json(onboardedUser));
 
-    await expect.element(page.getByRole("dialog", { name: "Welcome to Quack" })).toBeVisible();
+    await expect
+      .element(page.getByRole("dialog", { name: `Welcome to ${brand.name}` }))
+      .toBeVisible();
     await expect.element(dialog.firstName).toHaveFocus();
   });
 

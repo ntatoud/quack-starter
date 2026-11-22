@@ -5,7 +5,7 @@ TanStack Start app. It depends on `@quack/contracts`, never on the server.
 ## Routes and pages
 
 - A route file in `routes/` declares its route (`createFileRoute`, `beforeLoad`, `head`, `validateSearch`) and names its components. Every component lives in `features/<context>/`, the page included, and reads the router with `useNavigate()` and `useRouteContext({ from })`. A component no feature owns that needs the router goes in `components/`.
-- Every route sets its title in `head`: `pageTitle("Todos")`, segments from the most specific (`features/layout/page-title.ts`).
+- Every route sets its title in `head`: `pageTitle("Todos")`, segments from the most specific (`features/layout/page-title.ts`), which ends with `brand.pageTitleSuffix`.
 - Validate a route's search with an Effect schema: `validateSearch: Schema.toStandardSchemaV1(SignInSearch)`.
 - Pages of every Current User go under `routes/_authenticated/app/`, pages of Admins only under `routes/_authenticated/admin/`, with their components in the `admin/` folder of their feature. Add the page to the sidebar of its root (`features/layout`), and a page of `app/` that a phone reaches from anywhere to `AppTabBar`, the bar at the bottom of its screen in place of the sidebar.
 - A page renders its own top bar, `PageHeader`, with its `title` (the `h1`) after the `trail` of pages that lead to it and `back` for a page reached from another, then what it shows in a `PageContent`, which keeps it in line with the top bar: copy `features/todos/todos-page.tsx`.

@@ -1,6 +1,7 @@
-export const appName = "Quack Starter";
+import { brand } from "@quack/brand/brand";
 
 export const pageTitle = (...segments: ReadonlyArray<string>) =>
-  [...segments.map((segment) => segment.trim()).filter((segment) => segment !== ""), appName].join(
-    " | ",
-  );
+  [
+    ...segments.map((segment) => segment.trim()).filter((segment) => segment !== ""),
+    brand.pageTitleSuffix,
+  ].join(" | ");
