@@ -7,11 +7,11 @@ import { HttpApiBuilder, HttpApiClient, HttpApiMiddleware } from "effect/http-ap
 
 import {
   type DerivedTool,
-  deriveTools,
+  endpointsByTool,
   type EndpointRequest,
   type ToolInput,
 } from "#/mcp/derive-tools.ts";
-import { authorize, McpCaller } from "#/modules/identity/index.ts";
+import { accessTo, McpCaller } from "#/modules/identity/index.ts";
 
 type Endpoint = (request: EndpointRequest) => Effect.Effect<Schema.Json, unknown>;
 
@@ -85,9 +85,12 @@ const callEndpoint = (
     );
 };
 
-/** Hides a tool whose endpoint needs a Permission the caller's Grant lacks, by the same check as the `Api`. */
+/**
+ * Lists a tool the caller's Grant opens, or could open once the User approves more: an AI Client calls only
+ * the tools it sees, and the 403 of a call it lacks the Permission for is what leads it to step up.
+ */
 const visibleToCaller = (tools: ReadonlyArray<DerivedTool>) => {
-  const endpoints = new Map(tools.map(({ tool, endpoint }) => [tool.name, endpoint]));
+  const endpoints = endpointsByTool(tools);
 
   return McpServer.visibility(({ target }) =>
     Effect.gen(function* () {
@@ -96,10 +99,7 @@ const visibleToCaller = (tools: ReadonlyArray<DerivedTool>) => {
       if (endpoint === undefined) return false;
       const { permissions } = yield* McpCaller;
 
-      return yield* authorize(endpoint, permissions).pipe(
-        Effect.as(true),
-        Effect.orElseSucceed(() => false),
-      );
+      return (yield* accessTo(endpoint, permissions))._tag !== "Refused";
     }),
   );
 };
@@ -121,12 +121,6 @@ const register = (
     );
   });
 
-/**
- * The tools derived from the `Api`, each calling its endpoint in process as the McpCaller of the MCP
- * request, which a middleware outside must provide.
- */
-export const ContractTools = Layer.unwrap(
-  Effect.map(deriveTools(Api), (tools) =>
-    Layer.effectDiscard(register(tools)).pipe(Layer.provide(visibleToCaller(tools).layer)),
-  ),
-);
+/** Each tool calls its endpoint as the McpCaller of the MCP request: a middleware outside must provide it. */
+export const contractTools = (tools: ReadonlyArray<DerivedTool>) =>
+  Layer.effectDiscard(register(tools)).pipe(Layer.provide(visibleToCaller(tools).layer));

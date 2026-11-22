@@ -63,15 +63,23 @@ export const GrantStorePostgres = Layer.effect(
     const upsert = SqlSchema.findOne({
       Request: GrantDraftRow,
       Result: GrantRow,
+      // One statement, so no token outlives the terms it was given under.
       execute: (draft) => sql`
-        INSERT INTO grants ${sql.insert(draft)}
-        ON CONFLICT ON CONSTRAINT grants_user_id_ai_client_id_key DO UPDATE SET
-          ai_client_name = EXCLUDED.ai_client_name,
-          redirect_uri = EXCLUDED.redirect_uri,
-          resource = EXCLUDED.resource,
-          permissions = EXCLUDED.permissions,
-          expires_at = EXCLUDED.expires_at
-        RETURNING ${grantColumns}
+        WITH saved AS (
+          INSERT INTO grants ${sql.insert(draft)}
+          ON CONFLICT ON CONSTRAINT grants_user_id_ai_client_id_key DO UPDATE SET
+            ai_client_name = EXCLUDED.ai_client_name,
+            redirect_uri = EXCLUDED.redirect_uri,
+            resource = EXCLUDED.resource,
+            permissions = EXCLUDED.permissions,
+            expires_at = EXCLUDED.expires_at
+          RETURNING ${grantColumns}
+        ), revoked_access AS (
+          DELETE FROM grant_access_tokens WHERE grant_id IN (SELECT id FROM saved)
+        ), revoked_refresh AS (
+          DELETE FROM grant_refresh_tokens WHERE grant_id IN (SELECT id FROM saved)
+        )
+        SELECT ${grantColumns} FROM saved
       `,
     });
 

@@ -1,12 +1,26 @@
 import type { UserId } from "@quack/contracts/identity/user";
-import type { Permission } from "@quack/contracts/permission";
+import { Permission } from "@quack/contracts/permission";
 import { TodosPermission } from "@quack/contracts/todos/todos-permissions";
-import { type DateTime, Duration } from "effect";
+import { type DateTime, Duration, Option } from "effect";
 
 import { redirectUriMatches } from "#/modules/identity/domain/redirect-uri.ts";
 
 /** The Permissions a Grant may hold: those of the contexts exposed to AI Clients, never `users:*`. */
 export const grantablePermissions = TodosPermission.literals;
+
+/**
+ * What an AI Client asks its User for to get `missing` too (RFC 6750 s3.1, step-up): what it `held` as well,
+ * since approving sets the Grant to exactly what is approved. None when no Grant may hold `missing`.
+ */
+export const stepUpScope = (
+  held: ReadonlySet<Permission>,
+  missing: Permission,
+): Option.Option<ReadonlyArray<Permission>> =>
+  grantablePermissions.some((grantable) => grantable === missing)
+    ? Option.some(
+        Permission.literals.filter((permission) => permission === missing || held.has(permission)),
+      )
+    : Option.none();
 
 /** What an AI Client asks for when nothing says what it needs: the least that lets it do anything. */
 export const basicPermissions = ["todos:list"] as const;

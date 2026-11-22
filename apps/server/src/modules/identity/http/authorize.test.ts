@@ -6,7 +6,7 @@ import { Effect } from "effect";
 import { HttpApiEndpoint } from "effect/http-api";
 
 import { rolePermissions } from "#/modules/identity/domain/role-permissions.ts";
-import { authorize } from "#/modules/identity/http/authorize.ts";
+import { accessTo, authorize } from "#/modules/identity/http/authorize.ts";
 
 const listUsers = HttpApiEndpoint.get("listUsers", "/users")
   .annotate(RequiredPermission, "users:list")
@@ -43,6 +43,44 @@ describe("authorize", () => {
       const error = yield* Effect.flip(authorize(undeclared, rolePermissions("admin")));
 
       assert.deepStrictEqual(error, new Forbidden({}));
+    }),
+  );
+});
+
+describe("accessTo", () => {
+  const createTodo = HttpApiEndpoint.post("create", "/todos")
+    .annotate(RequiredPermission, "todos:write")
+    .middleware(Authentication);
+
+  it.effect("allows a Grant that holds the Permission of the endpoint", () =>
+    Effect.gen(function* () {
+      assert.deepStrictEqual(yield* accessTo(createTodo, new Set(["todos:write"])), {
+        _tag: "Allowed",
+      });
+    }),
+  );
+
+  it.effect("steps up a Grant that lacks it, asking for what it holds as well", () =>
+    Effect.gen(function* () {
+      assert.deepStrictEqual(yield* accessTo(createTodo, new Set(["todos:list", "todos:delete"])), {
+        _tag: "StepUp",
+        scope: ["todos:list", "todos:write", "todos:delete"],
+      });
+    }),
+  );
+
+  it.effect("refuses a Permission no Grant may hold, and an endpoint that declares nothing", () =>
+    Effect.gen(function* () {
+      const undeclared = HttpApiEndpoint.get("undeclared", "/undeclared").middleware(
+        Authentication,
+      );
+
+      assert.deepStrictEqual(yield* accessTo(listUsers, new Set(["todos:list"])), {
+        _tag: "Refused",
+      });
+      assert.deepStrictEqual(yield* accessTo(undeclared, new Set(["todos:list"])), {
+        _tag: "Refused",
+      });
     }),
   );
 });

@@ -1,12 +1,14 @@
 import { brand } from "@quack/brand/brand";
-import { MCP_PATH } from "@quack/contracts/api";
+import { Api, MCP_PATH } from "@quack/contracts/api";
 import { Effect, Layer, Option, Redacted } from "effect";
 import { McpProtocol, McpSchema, McpServer } from "effect/ai";
-import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http";
+import { type Headers, HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http";
+import type { HttpApiEndpoint } from "effect/http-api";
 
 import { ServerConfig } from "#/config.ts";
-import { ContractTools } from "#/mcp/contract-tools.ts";
-import { Grants, McpCaller } from "#/modules/identity/index.ts";
+import { contractTools } from "#/mcp/contract-tools.ts";
+import { deriveTools, endpointsByTool } from "#/mcp/derive-tools.ts";
+import { accessTo, Grants, McpCaller } from "#/modules/identity/index.ts";
 
 const instructions = `${brand.name} manages the Todos of the User who connected you. Call todos_list first.`;
 
@@ -22,22 +24,40 @@ const callerOf = (grants: Grants["Service"], authorization: string | undefined) 
 };
 
 /**
- * Lets through to the MCP server only a request from no origin or the public one, carrying the access
- * token of an active Grant. Anything else gets its answer over HTTP, before any JSON-RPC.
+ * What a `tools/call` must ask the User for before the caller may make it, read from its `Mcp-Name` header
+ * (MCP 2026-07-28). A tool no endpoint stands for is left to the MCP server to refuse.
  */
-const accessToken = (publicOrigin: string) => {
+const stepUpOf = (
+  endpoints: ReadonlyMap<string, HttpApiEndpoint.Top>,
+  headers: Headers.Headers,
+  { permissions }: McpCaller["Service"],
+) => {
+  const name = headers["mcp-name"];
+
+  const endpoint =
+    headers["mcp-method"] === "tools/call" && name !== undefined
+      ? endpoints.get(McpServer.decodeNameHeader(name) ?? "")
+      : undefined;
+
+  return endpoint === undefined
+    ? Effect.succeedNone
+    : Effect.map(accessTo(endpoint, permissions), (access) =>
+        access._tag === "StepUp" ? Option.some(access.scope) : Option.none(),
+      );
+};
+
+/**
+ * Lets through to the MCP server only a request from no origin or the public one, carrying the access
+ * token of an active Grant that holds the Permission of the tool it calls. Anything else gets its answer
+ * over HTTP, before any JSON-RPC.
+ */
+const accessToken = (publicOrigin: string, endpoints: ReadonlyMap<string, HttpApiEndpoint.Top>) => {
   const resourceMetadata = `resource_metadata="${publicOrigin}/.well-known/oauth-protected-resource${MCP_PATH}"`;
 
-  // RFC 6750 s3: a request with no token gets no error code; one whose token opens nothing, invalid_token.
-  const challenge = (authorization: string | undefined) =>
+  const challenge = (status: 401 | 403, ...params: ReadonlyArray<string>) =>
     HttpServerResponse.empty({
-      status: 401,
-      headers: {
-        "www-authenticate":
-          authorization === undefined
-            ? `Bearer ${resourceMetadata}`
-            : `Bearer error="invalid_token", ${resourceMetadata}`,
-      },
+      status,
+      headers: { "www-authenticate": `Bearer ${[...params, resourceMetadata].join(", ")}` },
     });
 
   return HttpRouter.middleware(
@@ -55,7 +75,18 @@ const accessToken = (publicOrigin: string) => {
 
           const caller = yield* callerOf(grants, headers.authorization);
 
-          return Option.isSome(caller) ? yield* toMcpServer : challenge(headers.authorization);
+          // RFC 6750 s3: a request with no token gets no error code; one whose token opens nothing, invalid_token.
+          if (Option.isNone(caller)) {
+            return headers.authorization === undefined
+              ? challenge(401)
+              : challenge(401, 'error="invalid_token"');
+          }
+
+          const scope = yield* stepUpOf(endpoints, headers, caller.value);
+
+          return Option.isSome(scope)
+            ? challenge(403, 'error="insufficient_scope"', `scope="${scope.value.join(" ")}"`)
+            : yield* toMcpServer;
         });
     }),
   );
@@ -84,6 +115,8 @@ const asGrantCaller = McpServer.middleware<{ provides: McpCaller }>()(
 export const McpEndpoint = Layer.unwrap(
   Effect.gen(function* () {
     const publicOrigin = yield* ServerConfig.publicOrigin;
+    const tools = yield* deriveTools(Api);
+    const endpoints = endpointsByTool(tools);
 
     const transport = McpServer.layerHttp({
       name: brand.name,
@@ -94,10 +127,13 @@ export const McpEndpoint = Layer.unwrap(
       // The middleware answers another origin first; the server, which refuses any origin it is not
       // told of, must still let the public one through.
       allowedOrigins: [publicOrigin],
-    }).pipe(Layer.provide(accessToken(publicOrigin).layer));
+    }).pipe(Layer.provide(accessToken(publicOrigin, endpoints).layer));
 
     // The tools are built outside the scope of `accessToken`, which would otherwise also wrap the routes of
     // the `Api` they call in process, and challenge each call for a token it does not carry.
-    return ContractTools.pipe(Layer.provide(asGrantCaller.layer), Layer.provideMerge(transport));
+    return contractTools(tools).pipe(
+      Layer.provide(asGrantCaller.layer),
+      Layer.provideMerge(transport),
+    );
   }),
 );

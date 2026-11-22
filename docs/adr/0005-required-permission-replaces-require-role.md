@@ -1,6 +1,6 @@
 # 0005: Each endpoint declares a `RequiredPermission`, checked in `Authentication`, in place of `RequireRole`
 
-Accepted, 2026-11-22. Decided in [#55](https://github.com/ntatoud/quack-starter/issues/55), amended by [#169](https://github.com/ntatoud/quack-starter/issues/169); built in [#182](https://github.com/ntatoud/quack-starter/issues/182), extended to MCP in [#174](https://github.com/ntatoud/quack-starter/issues/174).
+Accepted, 2026-11-22. Decided in [#55](https://github.com/ntatoud/quack-starter/issues/55), amended by [#169](https://github.com/ntatoud/quack-starter/issues/169) and [#179](https://github.com/ntatoud/quack-starter/issues/179); built in [#182](https://github.com/ntatoud/quack-starter/issues/182), extended to MCP in [#174](https://github.com/ntatoud/quack-starter/issues/174).
 
 ## Context
 
@@ -17,6 +17,6 @@ The Admin's endpoints (`/api/users/*`) were guarded by `RequireRole("admin")`, a
 
 ## Consequences
 
-- A Grant's caller is checked by the same code, with the Grant's Permissions in place of the Role's: an MCP tool calls the `Api` in process with an `McpCaller`, which `Authentication` takes in place of the Session, and the tool is hidden from a Grant that lacks the Permission.
+- A Grant's caller is checked by the same code, with the Grant's Permissions in place of the Role's: an MCP tool calls the `Api` in process with an `McpCaller`, which `Authentication` takes in place of the Session, and a call from a Grant that lacks the Permission is refused. The tool stays listed, since an AI Client calls only the tools it sees, and the refusal (403 `insufficient_scope`) is what leads it to ask the User for more (#179).
 - A new Role is a new entry in the identity domain's map, with no change to the contract.
 - Forgetting the annotation breaks a test and refuses every call, rather than opening the endpoint.

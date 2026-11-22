@@ -19,6 +19,12 @@ export const GrantStoreMemory = Layer.sync(GrantStore, () => {
         const grant = { ...draft, id: grants.get(key)?.id ?? crypto.randomUUID() };
         grants.set(key, grant);
 
+        for (const tokens of [accessTokens, refreshTokens]) {
+          for (const [tokenHash, token] of tokens) {
+            if (token.grantId === grant.id) tokens.delete(tokenHash);
+          }
+        }
+
         return grant;
       }),
     findOf: (userId, aiClientId) =>
