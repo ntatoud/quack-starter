@@ -1,12 +1,18 @@
-import type { UserId } from "@quack/contracts/identity/user";
+import type { Role, UserId } from "@quack/contracts/identity/user";
 import type { Permission } from "@quack/contracts/permission";
 import { TodosPermission } from "@quack/contracts/todos/todos-permissions";
 import { type DateTime, Duration } from "effect";
 
 import { redirectUriMatches } from "#/modules/identity/domain/redirect-uri.ts";
+import { rolePermissions } from "#/modules/identity/domain/role-permissions.ts";
 
 /** The Permissions a Grant may hold: those of the contexts exposed to AI Clients, never `users:*`. */
 export const grantablePermissions = TodosPermission.literals;
+
+/** Whether a Grant of a User of `role` may hold `permission`: one their Role gives, and a Grant may hold. */
+export const mayBeGranted = (role: Role, permission: Permission) =>
+  grantablePermissions.some((grantable) => grantable === permission) &&
+  rolePermissions(role).has(permission);
 
 /** What an AI Client asks for when nothing says what it needs: the least that lets it do anything. */
 export const basicPermissions = ["todos:list"] as const;

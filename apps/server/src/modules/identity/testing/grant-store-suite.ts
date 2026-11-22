@@ -148,26 +148,38 @@ export const grantStoreSuite = <R>(
         );
       }));
 
-    test("finds the Grant of a token with the terms it was last saved with", () =>
+    test("saving a Grant again revokes its access tokens, and no other Grant's", () =>
       Effect.gen(function* () {
         const store = yield* GrantStore;
         const userId = yield* aUser;
         const grant = yield* store.save(aDraft(userId));
 
-        const accessToken: AccessToken = {
-          tokenHash: yield* aTokenHash,
-          grantId: grant.id,
-          resource: grant.resource,
-          permissions: ["todos:list"],
-          expiresAt: at("2026-01-01T01:00:00Z"),
-        };
+        const other = yield* store.save(
+          aDraft(userId, { aiClientId: "https://other.example.com/client.json" }),
+        );
 
-        yield* store.saveAccessToken(accessToken);
-        const changed = yield* store.save(aDraft(userId, { permissions: ["todos:list"] }));
+        const tokenOf = (grantId: string) =>
+          Effect.map(aTokenHash, (tokenHash): AccessToken => ({
+            tokenHash,
+            grantId,
+            resource: grant.resource,
+            permissions: ["todos:list"],
+            expiresAt: at("2026-01-01T01:00:00Z"),
+          }));
+
+        const revoked = [yield* tokenOf(grant.id), yield* tokenOf(grant.id)];
+        const kept = yield* tokenOf(other.id);
+
+        for (const token of [...revoked, kept]) yield* store.saveAccessToken(token);
+        yield* store.save(aDraft(userId, { permissions: ["todos:list"] }));
+
+        for (const token of revoked) {
+          assert.isTrue(Option.isNone(yield* store.findByAccessToken(token.tokenHash)));
+        }
 
         assert.deepStrictEqual(
-          yield* store.findByAccessToken(accessToken.tokenHash),
-          Option.some({ grant: changed, accessToken }),
+          yield* store.findByAccessToken(kept.tokenHash),
+          Option.some({ grant: other, accessToken: kept }),
         );
       }));
 

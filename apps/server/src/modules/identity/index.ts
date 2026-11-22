@@ -9,6 +9,7 @@ import { devAccountIds, IdentitySeed } from "#/modules/identity/application/iden
 import { Users } from "#/modules/identity/application/users.ts";
 import { AuthenticationMiddleware } from "#/modules/identity/http/authentication-middleware.ts";
 import { authorize } from "#/modules/identity/http/authorize.ts";
+import { mayBeGranted } from "#/modules/identity/domain/grant.ts";
 import { McpCaller } from "#/modules/identity/http/mcp-caller.ts";
 import { CsrfTokens } from "#/modules/identity/http/csrf-tokens.ts";
 import { IdentityHandlers } from "#/modules/identity/http/identity-handlers.ts";
@@ -32,6 +33,7 @@ export {
   devAccountIds,
   Grants,
   IdentitySeed,
+  mayBeGranted,
   McpCaller,
   OAuthMetadataRoutes,
   TokenEndpointHeaders,

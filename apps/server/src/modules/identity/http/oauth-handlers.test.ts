@@ -805,15 +805,16 @@ layer(withConfig({}))("OAuthApi token, the Permissions of a token", (it) => {
       }),
   );
 
-  it.effect("a token loses the Permissions the User no longer approves", () =>
+  it.effect("a token opens nothing once the User approves the AI Client again", () =>
     Effect.gen(function* () {
       const clientId = anAiClient();
       const wide = yield* approvedCode(requestOf(clientId, { scope: "todos:list todos:delete" }));
       const { access_token } = yield* token(wide);
 
       yield* approvedCode(requestOf(clientId, { scope: "todos:list" }));
+      const error = yield* Effect.flip(permissionsOf(access_token));
 
-      assert.deepStrictEqual(yield* permissionsOf(access_token), ["todos:list"]);
+      assert.strictEqual(error._tag, "Unauthenticated");
     }),
   );
 });

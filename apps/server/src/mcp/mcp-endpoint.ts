@@ -1,12 +1,15 @@
 import { brand } from "@quack/brand/brand";
-import { MCP_PATH } from "@quack/contracts/api";
+import { Api, MCP_PATH } from "@quack/contracts/api";
+import { Permission } from "@quack/contracts/permission";
 import { Effect, Layer, Option, Redacted } from "effect";
 import { McpProtocol, McpSchema, McpServer } from "effect/ai";
-import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http";
+import { type Headers, HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http";
+import type { HttpApiEndpoint } from "effect/http-api";
 
 import { ServerConfig } from "#/config.ts";
-import { ContractTools } from "#/mcp/contract-tools.ts";
-import { Grants, McpCaller } from "#/modules/identity/index.ts";
+import { contractTools } from "#/mcp/contract-tools.ts";
+import { deriveTools } from "#/mcp/derive-tools.ts";
+import { authorize, Grants, McpCaller, mayBeGranted } from "#/modules/identity/index.ts";
 
 const instructions = `${brand.name} manages the Todos of the User who connected you. Call todos_list first.`;
 
@@ -22,22 +25,45 @@ const callerOf = (grants: Grants["Service"], authorization: string | undefined) 
 };
 
 /**
- * Lets through to the MCP server only a request from no origin or the public one, carrying the access
- * token of an active Grant. Anything else gets its answer over HTTP, before any JSON-RPC.
+ * The Permission a `tools/call` needs and the caller could get by asking their User again, read from its
+ * `Mcp-Name` header (MCP 2026-07-28) by the same check as the `Api`. A tool no endpoint stands for, or one
+ * no Grant of this User may open, is left to the MCP server to refuse: asking again would loop.
  */
-const accessToken = (publicOrigin: string) => {
+const missingPermission = (
+  endpoints: ReadonlyMap<string, HttpApiEndpoint.Top>,
+  headers: Headers.Headers,
+  { user, permissions }: Effect.Success<ReturnType<Grants["Service"]["authenticate"]>>,
+) => {
+  const name = headers["mcp-name"];
+
+  const endpoint =
+    headers["mcp-method"] === "tools/call" && name !== undefined
+      ? endpoints.get(McpServer.decodeNameHeader(name) ?? "")
+      : undefined;
+
+  return endpoint === undefined
+    ? Effect.succeedNone
+    : Effect.match(authorize(endpoint, permissions), {
+        onSuccess: () => Option.none<Permission>(),
+        onFailure: ({ permission }) =>
+          Option.filter(Option.fromNullishOr(permission), (missing) =>
+            mayBeGranted(user.role, missing),
+          ),
+      });
+};
+
+/**
+ * Lets through to the MCP server only a request from no origin or the public one, carrying the access
+ * token of an active Grant that holds the Permission of the tool it calls. Anything else gets its answer
+ * over HTTP, before any JSON-RPC.
+ */
+const accessToken = (publicOrigin: string, endpoints: ReadonlyMap<string, HttpApiEndpoint.Top>) => {
   const resourceMetadata = `resource_metadata="${publicOrigin}/.well-known/oauth-protected-resource${MCP_PATH}"`;
 
-  // RFC 6750 s3: a request with no token gets no error code; one whose token opens nothing, invalid_token.
-  const challenge = (authorization: string | undefined) =>
+  const challenge = (status: 401 | 403, ...params: ReadonlyArray<string>) =>
     HttpServerResponse.empty({
-      status: 401,
-      headers: {
-        "www-authenticate":
-          authorization === undefined
-            ? `Bearer ${resourceMetadata}`
-            : `Bearer error="invalid_token", ${resourceMetadata}`,
-      },
+      status,
+      headers: { "www-authenticate": `Bearer ${[...params, resourceMetadata].join(", ")}` },
     });
 
   return HttpRouter.middleware(
@@ -55,7 +81,25 @@ const accessToken = (publicOrigin: string) => {
 
           const caller = yield* callerOf(grants, headers.authorization);
 
-          return Option.isSome(caller) ? yield* toMcpServer : challenge(headers.authorization);
+          // RFC 6750 s3: a request with no token gets no error code; one whose token opens nothing, invalid_token.
+          if (Option.isNone(caller)) {
+            return headers.authorization === undefined
+              ? challenge(401)
+              : challenge(401, 'error="invalid_token"');
+          }
+
+          const missing = yield* missingPermission(endpoints, headers, caller.value);
+
+          if (Option.isNone(missing)) return yield* toMcpServer;
+
+          // RFC 6750 s3.1, step-up: the AI Client asks the User again for `scope`, which becomes the whole of
+          // its Grant, so it names what the Grant holds as well as what it lacks.
+          const scope = Permission.literals.filter(
+            (permission) =>
+              permission === missing.value || caller.value.permissions.has(permission),
+          );
+
+          return challenge(403, 'error="insufficient_scope"', `scope="${scope.join(" ")}"`);
         });
     }),
   );
@@ -84,6 +128,8 @@ const asGrantCaller = McpServer.middleware<{ provides: McpCaller }>()(
 export const McpEndpoint = Layer.unwrap(
   Effect.gen(function* () {
     const publicOrigin = yield* ServerConfig.publicOrigin;
+    const tools = yield* deriveTools(Api);
+    const endpoints = new Map(tools.map(({ tool, endpoint }) => [tool.name, endpoint]));
 
     const transport = McpServer.layerHttp({
       name: brand.name,
@@ -94,10 +140,13 @@ export const McpEndpoint = Layer.unwrap(
       // The middleware answers another origin first; the server, which refuses any origin it is not
       // told of, must still let the public one through.
       allowedOrigins: [publicOrigin],
-    }).pipe(Layer.provide(accessToken(publicOrigin).layer));
+    }).pipe(Layer.provide(accessToken(publicOrigin, endpoints).layer));
 
     // The tools are built outside the scope of `accessToken`, which would otherwise also wrap the routes of
     // the `Api` they call in process, and challenge each call for a token it does not carry.
-    return ContractTools.pipe(Layer.provide(asGrantCaller.layer), Layer.provideMerge(transport));
+    return contractTools(tools).pipe(
+      Layer.provide(asGrantCaller.layer),
+      Layer.provideMerge(transport),
+    );
   }),
 );

@@ -122,11 +122,11 @@ const register = (
   });
 
 /**
- * The tools derived from the `Api`, each calling its endpoint in process as the McpCaller of the MCP
- * request, which a middleware outside must provide.
+ * `tools`, each calling its endpoint in process as the McpCaller of the MCP request, which a middleware
+ * outside must provide.
  */
-export const ContractTools = Layer.unwrap(
-  Effect.map(deriveTools(Api), (tools) =>
-    Layer.effectDiscard(register(tools)).pipe(Layer.provide(visibleToCaller(tools).layer)),
-  ),
-);
+export const contractTools = (tools: ReadonlyArray<DerivedTool>) =>
+  Layer.effectDiscard(register(tools)).pipe(Layer.provide(visibleToCaller(tools).layer));
+
+/** The tools derived from the `Api`, as `contractTools` serves them. */
+export const ContractTools = Layer.unwrap(Effect.map(deriveTools(Api), contractTools));

@@ -725,6 +725,35 @@ describe("server routes of an AI Client", () => {
     expect(body).not.toContain("todos_create");
   });
 
+  it("answers a call of a tool whose Permission the Grant lacks with 403 insufficient_scope, naming what to ask for", async () => {
+    const cookie = await sessionCookieOf("ai-client-step-up@example.com", "203.0.113.83");
+    const token = await exchange(await approvedCode(cookie, "todos:list"));
+    const { access_token } = (await token.json()) as { access_token: string };
+
+    const response = await callTool("todos_create", access_token);
+
+    expect(response.status).toBe(403);
+    expect(response.headers.get("www-authenticate")).toBe(
+      'Bearer error="insufficient_scope", scope="todos:list todos:write", resource_metadata="https://quack.test/.well-known/oauth-protected-resource/api/mcp"',
+    );
+  });
+
+  it("approving the AI Client again sets the Grant's Permissions to those approved now, and revokes its earlier tokens", async () => {
+    const cookie = await sessionCookieOf("ai-client-reapproved@example.com", "203.0.113.84");
+    const first = await exchange(await approvedCode(cookie, "todos:list todos:write"));
+    const { access_token: earlier } = (await first.json()) as { access_token: string };
+
+    const second = await exchange(await approvedCode(cookie, "todos:list"));
+    const { access_token: later } = (await second.json()) as { access_token: string };
+
+    expect((await mcpCall({ authorization: `Bearer ${earlier}` })).status).toBe(401);
+    const listed = await mcpCall({ authorization: `Bearer ${later}` });
+    expect(listed.status).toBe(200);
+    const body = await listed.text();
+    expect(body).toContain("todos_list");
+    expect(body).not.toContain("todos_create");
+  });
+
   it("answers the token endpoint to any origin, without credentials", async () => {
     const origin = { origin: "https://claude.example.com" };
 
