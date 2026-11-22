@@ -26,6 +26,14 @@ const AccessTokenRow = Schema.Struct({
   expiresAt: Schema.DateTimeUtcFromDate,
 });
 
+const RefreshTokenRow = Schema.Struct({
+  tokenHash: Schema.String,
+  grantId: Schema.String,
+  resource: Schema.String,
+  permissions: Schema.Array(Permission),
+  replaced: Schema.Boolean,
+});
+
 // One row of the join: the Grant's columns, and its token's under an `access_token_` prefix.
 const GrantWithAccessTokenRow = Schema.Struct({
   ...GrantRow.fields,
@@ -33,6 +41,14 @@ const GrantWithAccessTokenRow = Schema.Struct({
   accessTokenResource: Schema.String,
   accessTokenPermissions: Schema.Array(Permission),
   accessTokenExpiresAt: Schema.DateTimeUtcFromDate,
+});
+
+const GrantWithRefreshTokenRow = Schema.Struct({
+  ...GrantRow.fields,
+  refreshTokenHash: Schema.String,
+  refreshTokenResource: Schema.String,
+  refreshTokenPermissions: Schema.Array(Permission),
+  refreshTokenReplaced: Schema.Boolean,
 });
 
 // An id that is no uuid finds no User: Postgres would refuse to compare it with the column, and fail the request.
@@ -85,6 +101,41 @@ export const GrantStorePostgres = Layer.effect(
       `,
     });
 
+    const insertRefreshToken = SqlSchema.void({
+      Request: RefreshTokenRow,
+      execute: (token) => sql`INSERT INTO grant_refresh_tokens ${sql.insert(token)}`,
+    });
+
+    // The row is locked before it is read: a second caller waits, then reads it replaced. The join reads
+    // the token from `found`, not the table, whose snapshot predates the wait.
+    const replaceRefreshToken = SqlSchema.findOneOption({
+      Request: Schema.String,
+      Result: GrantWithRefreshTokenRow,
+      execute: (tokenHash) => sql`
+        WITH found AS (
+          SELECT * FROM grant_refresh_tokens WHERE token_hash = ${tokenHash} FOR UPDATE
+        ), replacing AS (
+          UPDATE grant_refresh_tokens SET replaced = true
+          WHERE token_hash IN (SELECT token_hash FROM found)
+        )
+        SELECT grants.*, found.token_hash AS refresh_token_hash,
+          found.resource AS refresh_token_resource, found.permissions AS refresh_token_permissions,
+          found.replaced AS refresh_token_replaced
+        FROM found JOIN grants ON grants.id = found.grant_id
+      `,
+    });
+
+    const extend = SqlSchema.void({
+      Request: GrantRow.mapFields(Struct.pick(["id", "expiresAt"])),
+      execute: ({ id, expiresAt }) =>
+        sql`UPDATE grants SET expires_at = ${expiresAt} WHERE id = ${id}`,
+    });
+
+    const revoke = SqlSchema.void({
+      Request: Schema.String,
+      execute: (id) => sql`DELETE FROM grants WHERE id = ${id}`,
+    });
+
     return GrantStore.of({
       save: Effect.fn("GrantStore.save")((draft) => upsert(draft).pipe(Effect.orDie)),
       findOf: Effect.fn("GrantStore.findOf")((userId, aiClientId) =>
@@ -120,6 +171,38 @@ export const GrantStorePostgres = Layer.effect(
           Effect.orDie,
         ),
       ),
+      saveRefreshToken: Effect.fn("GrantStore.saveRefreshToken")((token) =>
+        insertRefreshToken(token).pipe(Effect.orDie),
+      ),
+      replaceRefreshToken: Effect.fn("GrantStore.replaceRefreshToken")((tokenHash) =>
+        replaceRefreshToken(tokenHash).pipe(
+          Effect.map(
+            Option.map(
+              ({
+                refreshTokenHash,
+                refreshTokenResource,
+                refreshTokenPermissions,
+                refreshTokenReplaced,
+                ...grant
+              }) => ({
+                grant,
+                refreshToken: {
+                  tokenHash: refreshTokenHash,
+                  grantId: grant.id,
+                  resource: refreshTokenResource,
+                  permissions: refreshTokenPermissions,
+                  replaced: refreshTokenReplaced,
+                },
+              }),
+            ),
+          ),
+          Effect.orDie,
+        ),
+      ),
+      extend: Effect.fn("GrantStore.extend")((id, expiresAt) =>
+        extend({ id, expiresAt }).pipe(Effect.orDie),
+      ),
+      revoke: Effect.fn("GrantStore.revoke")((id) => revoke(id).pipe(Effect.orDie)),
     });
   }),
 );

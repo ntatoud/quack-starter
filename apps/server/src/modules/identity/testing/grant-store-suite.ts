@@ -2,7 +2,12 @@ import { assert, describe, it } from "@effect/vitest";
 import type { UserId } from "@quack/contracts/identity/user";
 import { DateTime, Effect, type Layer, Option } from "effect";
 
-import type { AccessToken, GrantDraft } from "#/modules/identity/domain/grant.ts";
+import type {
+  AccessToken,
+  Grant,
+  GrantDraft,
+  RefreshToken,
+} from "#/modules/identity/domain/grant.ts";
 import { GrantStore } from "#/modules/identity/domain/grant-store.ts";
 
 const at = (iso: string) => DateTime.makeUnsafe(iso);
@@ -21,6 +26,24 @@ const aDraft = (userId: UserId, fields: Partial<GrantDraft> = {}): GrantDraft =>
   ...fields,
 });
 
+const anAccessToken = (grant: Grant) =>
+  Effect.map(aTokenHash, (tokenHash): AccessToken => ({
+    tokenHash,
+    grantId: grant.id,
+    resource: grant.resource,
+    permissions: ["todos:list"],
+    expiresAt: at("2026-01-01T01:00:00Z"),
+  }));
+
+const aRefreshToken = (grant: Grant) =>
+  Effect.map(aTokenHash, (tokenHash): RefreshToken => ({
+    tokenHash,
+    grantId: grant.id,
+    resource: grant.resource,
+    permissions: ["todos:list"],
+    replaced: false,
+  }));
+
 /**
  * The promises of a `GrantStore`. `aUser` gives the id of a new User, which an adapter with foreign keys
  * must have stored.
@@ -29,6 +52,15 @@ export const grantStoreSuite = <R>(
   layer: Layer.Layer<GrantStore | R>,
   aUser: Effect.Effect<UserId, never, R>,
 ) => {
+  const aGrantWithARefreshToken = Effect.gen(function* () {
+    const store = yield* GrantStore;
+    const grant = yield* store.save(aDraft(yield* aUser));
+    const refreshToken = yield* aRefreshToken(grant);
+    yield* store.saveRefreshToken(refreshToken);
+
+    return { grant, refreshToken };
+  });
+
   const test = (name: string, body: () => Effect.Effect<void, never, GrantStore | R>) =>
     it.effect(name, () => body().pipe(Effect.provide(layer)));
 
@@ -135,6 +167,93 @@ export const grantStoreSuite = <R>(
         const store = yield* GrantStore;
 
         assert.isTrue(Option.isNone(yield* store.findByAccessToken(yield* aTokenHash)));
+      }));
+
+    test("replacing a refresh token gives it back as it was, with its Grant, and keeps it replaced", () =>
+      Effect.gen(function* () {
+        const store = yield* GrantStore;
+        const { grant, refreshToken } = yield* aGrantWithARefreshToken;
+
+        assert.deepStrictEqual(
+          yield* store.replaceRefreshToken(refreshToken.tokenHash),
+          Option.some({ grant, refreshToken }),
+        );
+        assert.deepStrictEqual(
+          yield* store.replaceRefreshToken(refreshToken.tokenHash),
+          Option.some({ grant, refreshToken: { ...refreshToken, replaced: true } }),
+        );
+      }));
+
+    test("of two callers that replace the same refresh token at once, one finds it replaced", () =>
+      Effect.gen(function* () {
+        const store = yield* GrantStore;
+        const { refreshToken } = yield* aGrantWithARefreshToken;
+
+        const both = yield* Effect.all(
+          [
+            store.replaceRefreshToken(refreshToken.tokenHash),
+            store.replaceRefreshToken(refreshToken.tokenHash),
+          ],
+          { concurrency: 2 },
+        );
+
+        const outcomes = both.map((found) =>
+          Option.match(found, {
+            onNone: () => "none",
+            onSome: ({ refreshToken: { replaced } }) => (replaced ? "already" : "first"),
+          }),
+        );
+
+        assert.deepStrictEqual(outcomes.toSorted(), ["already", "first"]);
+      }));
+
+    test("finds nothing to replace for an unknown refresh token hash", () =>
+      Effect.gen(function* () {
+        const store = yield* GrantStore;
+
+        assert.isTrue(Option.isNone(yield* store.replaceRefreshToken(yield* aTokenHash)));
+      }));
+
+    test("extending a Grant changes when it expires, and nothing else", () =>
+      Effect.gen(function* () {
+        const store = yield* GrantStore;
+        const grant = yield* store.save(aDraft(yield* aUser));
+        const expiresAt = at("2026-04-01T00:00:00Z");
+
+        yield* store.extend(grant.id, expiresAt);
+
+        assert.deepStrictEqual(
+          yield* store.findOf(grant.userId, grant.aiClientId),
+          Option.some({ ...grant, expiresAt }),
+        );
+      }));
+
+    test("revoking a Grant removes it with its tokens, and leaves the other Grants be", () =>
+      Effect.gen(function* () {
+        const store = yield* GrantStore;
+        const userId = yield* aUser;
+        const grant = yield* store.save(aDraft(userId));
+
+        const other = yield* store.save(
+          aDraft(userId, { aiClientId: "https://other.example.com/client.json" }),
+        );
+
+        const [accessToken, refreshToken] = [
+          yield* anAccessToken(grant),
+          yield* aRefreshToken(grant),
+        ];
+
+        const otherAccessToken = yield* anAccessToken(other);
+        yield* store.saveAccessToken(accessToken);
+        yield* store.saveRefreshToken(refreshToken);
+        yield* store.saveAccessToken(otherAccessToken);
+
+        yield* store.revoke(grant.id);
+
+        assert.isTrue(Option.isNone(yield* store.findOf(userId, grant.aiClientId)));
+        assert.isTrue(Option.isNone(yield* store.findByAccessToken(accessToken.tokenHash)));
+        assert.isTrue(Option.isNone(yield* store.replaceRefreshToken(refreshToken.tokenHash)));
+        assert.isTrue(Option.isSome(yield* store.findByAccessToken(otherAccessToken.tokenHash)));
       }));
   });
 };

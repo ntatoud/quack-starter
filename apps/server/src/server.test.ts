@@ -423,7 +423,7 @@ describe("server routes", () => {
       authorization_endpoint: "https://quack.test/oauth/authorize",
       token_endpoint: "https://quack.test/api/oauth/token",
       response_types_supported: ["code"],
-      grant_types_supported: ["authorization_code"],
+      grant_types_supported: ["authorization_code", "refresh_token"],
       code_challenge_methods_supported: ["S256"],
       token_endpoint_auth_methods_supported: ["none"],
       client_id_metadata_document_supported: true,
@@ -614,21 +614,40 @@ describe("server routes of an AI Client", () => {
     return new URL(redirectTo).searchParams.get("code") ?? "";
   };
 
-  const exchange = (code: string, headers: Record<string, string> = {}) =>
+  const tokenRequest = (params: Readonly<Record<string, string>>, headers = {}) =>
     handler(
       new Request("http://api.test/api/oauth/token", {
         method: "POST",
         headers: { "content-type": "application/x-www-form-urlencoded", ...headers },
-        body: new URLSearchParams({
-          grant_type: "authorization_code",
-          code,
-          redirect_uri: redirectUri,
-          client_id: clientId,
-          code_verifier: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
-          resource,
-        }),
+        body: new URLSearchParams(params),
       }),
     );
+
+  const exchange = (code: string, headers: Record<string, string> = {}) =>
+    tokenRequest(
+      {
+        grant_type: "authorization_code",
+        code,
+        redirect_uri: redirectUri,
+        client_id: clientId,
+        code_verifier: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
+        resource,
+      },
+      headers,
+    );
+
+  const refresh = (refreshToken: string) =>
+    tokenRequest({
+      grant_type: "refresh_token",
+      refresh_token: refreshToken,
+      client_id: clientId,
+      resource,
+    });
+
+  interface Tokens {
+    readonly access_token: string;
+    readonly refresh_token: string;
+  }
 
   const callTool = (name: string, accessToken: string) =>
     handler(
@@ -670,6 +689,27 @@ describe("server routes of an AI Client", () => {
 
     expect(listed.status).toBe(200);
     expect(await listed.text()).toContain("Feed the ducks");
+  });
+
+  it("an AI Client refreshes its tokens, until it presents a replaced refresh token: then its Grant is revoked", async () => {
+    const cookie = await sessionCookieOf("ai-client-refresh@example.com", "203.0.113.83");
+    const first = (await (await exchange(await approvedCode(cookie))).json()) as Tokens;
+    expect((await callTool("todos_list", first.access_token)).status).toBe(200);
+
+    const refreshed = await refresh(first.refresh_token);
+
+    expect(refreshed.status).toBe(200);
+    expect(refreshed.headers.get("cache-control")).toBe("no-store");
+    const second = (await refreshed.json()) as Tokens;
+    expect((await callTool("todos_list", second.access_token)).status).toBe(200);
+
+    const reused = await refresh(first.refresh_token);
+
+    expect(reused.status).toBe(400);
+    expect(await reused.json()).toMatchObject({ error: "invalid_grant" });
+    expect((await callTool("todos_list", second.access_token)).status).toBe(401);
+    expect((await callTool("todos_list", first.access_token)).status).toBe(401);
+    expect((await refresh(second.refresh_token)).status).toBe(400);
   });
 
   it("acts with the Permissions of the Grant only: the tools it lacks are hidden", async () => {

@@ -1,11 +1,12 @@
 import { Effect, Layer, Option } from "effect";
 
-import type { AccessToken, Grant } from "#/modules/identity/domain/grant.ts";
+import type { AccessToken, Grant, RefreshToken } from "#/modules/identity/domain/grant.ts";
 import { GrantStore } from "#/modules/identity/domain/grant-store.ts";
 
 export const GrantStoreMemory = Layer.sync(GrantStore, () => {
   const grants = new Map<string, Grant>();
   const accessTokens = new Map<string, AccessToken>();
+  const refreshTokens = new Map<string, RefreshToken>();
   const keyOf = (userId: string, aiClientId: string) => JSON.stringify([userId, aiClientId]);
 
   const byId = (id: string) =>
@@ -29,5 +30,28 @@ export const GrantStoreMemory = Layer.sync(GrantStore, () => {
           Option.map(byId(accessToken.grantId), (grant) => ({ grant, accessToken })),
         ),
       ),
+    saveRefreshToken: (token) => Effect.sync(() => void refreshTokens.set(token.tokenHash, token)),
+    replaceRefreshToken: (tokenHash) =>
+      Effect.sync(() =>
+        Option.flatMap(Option.fromNullishOr(refreshTokens.get(tokenHash)), (refreshToken) => {
+          refreshTokens.set(tokenHash, { ...refreshToken, replaced: true });
+
+          return Option.map(byId(refreshToken.grantId), (grant) => ({ grant, refreshToken }));
+        }),
+      ),
+    extend: (grantId, expiresAt) =>
+      Effect.sync(() =>
+        Option.map(byId(grantId), (grant) =>
+          grants.set(keyOf(grant.userId, grant.aiClientId), { ...grant, expiresAt }),
+        ),
+      ),
+    revoke: (grantId) =>
+      Effect.sync(() => {
+        for (const [key, grant] of grants) if (grant.id === grantId) grants.delete(key);
+
+        for (const tokens of [accessTokens, refreshTokens]) {
+          for (const [hash, token] of tokens) if (token.grantId === grantId) tokens.delete(hash);
+        }
+      }),
   });
 });
