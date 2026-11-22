@@ -13,6 +13,10 @@ import {
 
 import { McpCaller } from "#/modules/identity/index.ts";
 
+/** The endpoint each tool calls, by the tool's name. */
+export const endpointsByTool = (tools: ReadonlyArray<DerivedTool>) =>
+  new Map(tools.map(({ tool, endpoint }) => [tool.name, endpoint]));
+
 /** What a tool answers when its endpoint fails with an error of its own, or a Permission is missing. */
 export const ToolFailure = Schema.Struct({ _tag: Schema.String, message: Schema.String });
 

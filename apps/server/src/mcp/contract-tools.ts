@@ -1,12 +1,17 @@
 import { Api } from "@quack/contracts/api";
 import { Authentication } from "@quack/contracts/identity/authentication";
-import { Context, Effect, Layer, Option, Schema, Scope } from "effect";
+import { Context, Effect, Layer, Schema, Scope } from "effect";
 import { McpServer, Toolkit } from "effect/ai";
 import { HttpClient, HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http";
 import { HttpApiBuilder, HttpApiClient, HttpApiMiddleware } from "effect/http-api";
 
-import { type DerivedTool, type EndpointRequest, type ToolInput } from "#/mcp/derive-tools.ts";
-import { authorize, McpCaller, stepUpScope } from "#/modules/identity/index.ts";
+import {
+  type DerivedTool,
+  endpointsByTool,
+  type EndpointRequest,
+  type ToolInput,
+} from "#/mcp/derive-tools.ts";
+import { accessTo, McpCaller } from "#/modules/identity/index.ts";
 
 type Endpoint = (request: EndpointRequest) => Effect.Effect<Schema.Json, unknown>;
 
@@ -85,7 +90,7 @@ const callEndpoint = (
  * the tools it sees, and the 403 of a call it lacks the Permission for is what leads it to step up.
  */
 const visibleToCaller = (tools: ReadonlyArray<DerivedTool>) => {
-  const endpoints = new Map(tools.map(({ tool, endpoint }) => [tool.name, endpoint]));
+  const endpoints = endpointsByTool(tools);
 
   return McpServer.visibility(({ target }) =>
     Effect.gen(function* () {
@@ -94,14 +99,7 @@ const visibleToCaller = (tools: ReadonlyArray<DerivedTool>) => {
       if (endpoint === undefined) return false;
       const { permissions } = yield* McpCaller;
 
-      return yield* authorize(endpoint, permissions).pipe(
-        Effect.as(true),
-        Effect.catch(({ permission }) =>
-          Effect.succeed(
-            permission !== undefined && Option.isSome(stepUpScope(permissions, permission)),
-          ),
-        ),
-      );
+      return (yield* accessTo(endpoint, permissions))._tag !== "Refused";
     }),
   );
 };
@@ -123,9 +121,6 @@ const register = (
     );
   });
 
-/**
- * `tools`, each calling its endpoint in process as the McpCaller of the MCP request, which a middleware
- * outside must provide.
- */
+/** Each tool calls its endpoint as the McpCaller of the MCP request: a middleware outside must provide it. */
 export const contractTools = (tools: ReadonlyArray<DerivedTool>) =>
   Layer.effectDiscard(register(tools)).pipe(Layer.provide(visibleToCaller(tools).layer));

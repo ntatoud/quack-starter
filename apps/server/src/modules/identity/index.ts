@@ -7,9 +7,8 @@ import { Identity } from "#/modules/identity/application/identity.ts";
 import { Onboarding } from "#/modules/identity/application/onboarding.ts";
 import { devAccountIds, IdentitySeed } from "#/modules/identity/application/identity-seed.ts";
 import { Users } from "#/modules/identity/application/users.ts";
-import { stepUpScope } from "#/modules/identity/domain/grant.ts";
 import { AuthenticationMiddleware } from "#/modules/identity/http/authentication-middleware.ts";
-import { authorize } from "#/modules/identity/http/authorize.ts";
+import { accessTo } from "#/modules/identity/http/authorize.ts";
 import { McpCaller } from "#/modules/identity/http/mcp-caller.ts";
 import { CsrfTokens } from "#/modules/identity/http/csrf-tokens.ts";
 import { IdentityHandlers } from "#/modules/identity/http/identity-handlers.ts";
@@ -28,14 +27,13 @@ import { SessionStorePostgres } from "#/modules/identity/infrastructure/session-
 import { UserRepositoryPostgres } from "#/modules/identity/infrastructure/user-repository-postgres.ts";
 
 export {
+  accessTo,
   AiClientHttpClient,
-  authorize,
   devAccountIds,
   Grants,
   IdentitySeed,
   McpCaller,
   OAuthMetadataRoutes,
-  stepUpScope,
   TokenEndpointHeaders,
 };
 

@@ -649,18 +649,24 @@ describe("server routes of an AI Client", () => {
     readonly refresh_token: string;
   }
 
-  const callTool = (name: string, accessToken: string) =>
+  /** A header given as `undefined` is left out of the request. */
+  const callTool = (
+    name: string,
+    accessToken: string,
+    overrides: Readonly<Record<string, string | undefined>> = {},
+  ) =>
     handler(
       new Request("http://api.test/api/mcp", {
         method: "POST",
-        headers: {
+        headers: Object.entries({
           "content-type": "application/json",
           accept: "application/json, text/event-stream",
           "mcp-protocol-version": "2026-07-28",
           "mcp-method": "tools/call",
           "mcp-name": name,
           authorization: `Bearer ${accessToken}`,
-        },
+          ...overrides,
+        }).filter((header): header is [string, string] => header[1] !== undefined),
         body: JSON.stringify({
           jsonrpc: "2.0",
           id: 1,
@@ -727,15 +733,26 @@ describe("server routes of an AI Client", () => {
 
   it("answers a call of a tool whose Permission the Grant lacks with 403 insufficient_scope, naming what to ask for", async () => {
     const cookie = await sessionCookieOf("ai-client-step-up@example.com", "203.0.113.83");
-    const token = await exchange(await approvedCode(cookie, "todos:list"));
+    const token = await exchange(await approvedCode(cookie, "todos:delete todos:list"));
     const { access_token } = (await token.json()) as { access_token: string };
 
     const response = await callTool("todos_create", access_token);
 
     expect(response.status).toBe(403);
     expect(response.headers.get("www-authenticate")).toBe(
-      'Bearer error="insufficient_scope", scope="todos:list todos:write", resource_metadata="https://quack.test/.well-known/oauth-protected-resource/api/mcp"',
+      'Bearer error="insufficient_scope", scope="todos:list todos:write todos:delete", resource_metadata="https://quack.test/.well-known/oauth-protected-resource/api/mcp"',
     );
+  });
+
+  it("decides no step-up for a call with no Mcp-Method header, which the MCP server refuses", async () => {
+    const cookie = await sessionCookieOf("ai-client-no-method@example.com", "203.0.113.86");
+    const token = await exchange(await approvedCode(cookie, "todos:list"));
+    const { access_token } = (await token.json()) as { access_token: string };
+
+    const response = await callTool("todos_create", access_token, { "mcp-method": undefined });
+
+    expect(response.status).toBe(400);
+    expect(response.headers.get("www-authenticate")).toBeNull();
   });
 
   it("leaves a call of a tool Quack does not have to the MCP server, with no step-up", async () => {

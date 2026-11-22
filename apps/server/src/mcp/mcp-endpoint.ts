@@ -1,6 +1,5 @@
 import { brand } from "@quack/brand/brand";
 import { Api, MCP_PATH } from "@quack/contracts/api";
-import type { Permission } from "@quack/contracts/permission";
 import { Effect, Layer, Option, Redacted } from "effect";
 import { McpProtocol, McpSchema, McpServer } from "effect/ai";
 import { type Headers, HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http";
@@ -8,8 +7,8 @@ import type { HttpApiEndpoint } from "effect/http-api";
 
 import { ServerConfig } from "#/config.ts";
 import { contractTools } from "#/mcp/contract-tools.ts";
-import { deriveTools } from "#/mcp/derive-tools.ts";
-import { authorize, Grants, McpCaller, stepUpScope } from "#/modules/identity/index.ts";
+import { deriveTools, endpointsByTool } from "#/mcp/derive-tools.ts";
+import { accessTo, Grants, McpCaller } from "#/modules/identity/index.ts";
 
 const instructions = `${brand.name} manages the Todos of the User who connected you. Call todos_list first.`;
 
@@ -25,10 +24,10 @@ const callerOf = (grants: Grants["Service"], authorization: string | undefined) 
 };
 
 /**
- * The Permission a `tools/call` needs and the caller lacks, read from its `Mcp-Name` header (MCP 2026-07-28)
- * by the same check as the `Api`. A tool no endpoint stands for is left to the MCP server to refuse.
+ * What a `tools/call` must ask the User for before the caller may make it, read from its `Mcp-Name` header
+ * (MCP 2026-07-28). A tool no endpoint stands for is left to the MCP server to refuse.
  */
-const missingPermission = (
+const stepUpOf = (
   endpoints: ReadonlyMap<string, HttpApiEndpoint.Top>,
   headers: Headers.Headers,
   { permissions }: McpCaller["Service"],
@@ -42,10 +41,9 @@ const missingPermission = (
 
   return endpoint === undefined
     ? Effect.succeedNone
-    : Effect.match(authorize(endpoint, permissions), {
-        onSuccess: () => Option.none<Permission>(),
-        onFailure: ({ permission }) => Option.fromNullishOr(permission),
-      });
+    : Effect.map(accessTo(endpoint, permissions), (access) =>
+        access._tag === "StepUp" ? Option.some(access.scope) : Option.none(),
+      );
 };
 
 /**
@@ -84,11 +82,7 @@ const accessToken = (publicOrigin: string, endpoints: ReadonlyMap<string, HttpAp
               : challenge(401, 'error="invalid_token"');
           }
 
-          // A Permission no Grant may hold is left to the MCP server to refuse: asking the User would loop.
-          const scope = Option.flatMap(
-            yield* missingPermission(endpoints, headers, caller.value),
-            (missing) => stepUpScope(caller.value.permissions, missing),
-          );
+          const scope = yield* stepUpOf(endpoints, headers, caller.value);
 
           return Option.isSome(scope)
             ? challenge(403, 'error="insufficient_scope"', `scope="${scope.value.join(" ")}"`)
@@ -122,7 +116,7 @@ export const McpEndpoint = Layer.unwrap(
   Effect.gen(function* () {
     const publicOrigin = yield* ServerConfig.publicOrigin;
     const tools = yield* deriveTools(Api);
-    const endpoints = new Map(tools.map(({ tool, endpoint }) => [tool.name, endpoint]));
+    const endpoints = endpointsByTool(tools);
 
     const transport = McpServer.layerHttp({
       name: brand.name,

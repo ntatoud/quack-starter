@@ -17,7 +17,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { ChevronDownIcon, TriangleAlertIcon } from "lucide-react";
 
 import { authorizationCheckOptions } from "#/features/oauth/authorization-check.ts";
-import { consentSentence, newPermissions } from "#/features/oauth/consent-sentence.ts";
+import { consentAsk, consentSentence } from "#/features/oauth/consent-sentence.ts";
 import { userLabel } from "#/features/users/full-name.ts";
 import { api } from "#/lib/api.ts";
 
@@ -103,7 +103,7 @@ function ConsentQuestion({
   const deny = useMutation(api.oauth.denyAuthorization.mutationOptions({ onSuccess }));
   const deciding = approve.isPending || deny.isPending;
   const leaving = approve.isSuccess || deny.isSuccess;
-  const added = newPermissions(request);
+  const ask = consentAsk(request);
 
   if (leaving) {
     return (
@@ -120,7 +120,7 @@ function ConsentQuestion({
         tabIndex={-1}
         className="text-center text-xl font-semibold tracking-tight outline-none"
       >
-        {consentSentence(aiClient, request.permissions, added)}
+        {consentSentence(aiClient, request.permissions, ask)}
       </h1>
       {request.loopbackOnly && (
         <div
@@ -172,10 +172,12 @@ function ConsentQuestion({
             {request.permissions.map((permission) => (
               <li key={permission} className="flex items-baseline justify-between gap-3">
                 <code className="font-medium">{permission}</code>
-                {/* Keeps the mark a word apart from the name for a screen reader, which the flex gap does not. */}{" "}
-                {added !== null && (
+                {ask._tag !== "First" && (
                   <span className="text-xs text-muted-foreground">
-                    {added.includes(permission) ? "New" : "Already given"}
+                    <span className="sr-only">: </span>
+                    {ask._tag === "More" && ask.added.includes(permission)
+                      ? "New"
+                      : "Already given"}
                   </span>
                 )}
               </li>

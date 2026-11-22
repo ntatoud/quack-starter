@@ -122,6 +122,20 @@ describe("ConsentPrompt", () => {
       .toHaveTextContent("Claude, from claude.ai, now also wants todos:write and todos:delete");
   });
 
+  it("names everything again when the request asks for nothing the Grant lacks", async () => {
+    await setup({
+      check: () =>
+        Response.json(
+          checked({
+            permissions: ["todos:list"],
+            grantedPermissions: ["todos:list", "todos:write"],
+          }),
+        ),
+    });
+
+    await expect.element(sentence()).toHaveTextContent("Claude, from claude.ai, wants todos:list");
+  });
+
   it("marks each Permission in the details as already given or new", async () => {
     await setup({
       check: () => Response.json(checked({ grantedPermissions: ["todos:list"] })),
@@ -130,9 +144,9 @@ describe("ConsentPrompt", () => {
     await page.getByText("Details").click();
     const items = page.getByRole("group").getByRole("listitem");
 
-    await expect.element(items.nth(0)).toHaveTextContent("todos:list Already given");
-    await expect.element(items.nth(1)).toHaveTextContent("todos:write New");
-    await expect.element(items.nth(2)).toHaveTextContent("todos:delete New");
+    await expect.element(items.nth(0)).toHaveTextContent("todos:list: Already given");
+    await expect.element(items.nth(1)).toHaveTextContent("todos:write: New");
+    await expect.element(items.nth(2)).toHaveTextContent("todos:delete: New");
   });
 
   it("leads from the sentence to Approve, then Deny, by keyboard", async () => {
