@@ -3,20 +3,28 @@ import { Email, User, UserId } from "@quack/contracts/identity/user";
 import type { Permission } from "@quack/contracts/permission";
 import { ConfigProvider, DateTime, Effect, Layer } from "effect";
 import { McpProtocol, McpServer, McpTest } from "effect/ai";
-import { HttpServer } from "effect/http";
+import { HttpClient, HttpServer } from "effect/http";
 
 import { ContractTools } from "#/mcp/contract-tools.ts";
-import { IdentityModule, McpCaller } from "#/modules/identity/index.ts";
+import { IdentityModule, McpCaller, OAuthModule } from "#/modules/identity/index.ts";
 import { SessionStoreMemory } from "#/modules/identity/testing/session-store-memory.ts";
 import { UserRepositoryMemory } from "#/modules/identity/testing/user-repository-memory.ts";
 import { SystemHandlers } from "#/modules/system/http/system-handlers.ts";
 import { TodosModule } from "#/modules/todos/index.ts";
 import { TodoRepositoryMemory } from "#/modules/todos/testing/todo-repository-memory.ts";
 
-const ApiHandlers = Layer.mergeAll(SystemHandlers, TodosModule).pipe(
+// No tool fetches an AI Client's document.
+const NoHttpClient = Layer.succeed(
+  HttpClient.HttpClient,
+  HttpClient.make(() => Effect.die("these tests fetch nothing")),
+);
+
+const ApiHandlers = Layer.mergeAll(SystemHandlers, TodosModule, OAuthModule).pipe(
   Layer.provideMerge(IdentityModule),
-  Layer.provide([UserRepositoryMemory, SessionStoreMemory, TodoRepositoryMemory]),
-  Layer.provide(ConfigProvider.layer(ConfigProvider.fromUnknown({}))),
+  Layer.provide([UserRepositoryMemory, SessionStoreMemory, TodoRepositoryMemory, NoHttpClient]),
+  Layer.provide(
+    ConfigProvider.layer(ConfigProvider.fromUnknown({ PUBLIC_URL: "https://quack.test" })),
+  ),
 );
 
 const everyTodosPermission: ReadonlyArray<Permission> = [

@@ -14,6 +14,10 @@ export const ServerConfig = {
   // The origin AI Clients reach Quack at, the web app's: the OAuth issuer and the MCP resource are named
   // from it, never from `Host`, which the client chooses.
   publicOrigin: Config.URL("PUBLIC_URL").pipe(Config.map((url) => url.origin)),
+  // A loopback address is otherwise refused, so a request cannot make Quack reach a service on its own machine.
+  allowLoopbackHttpAiClients: Config.Boolean("AI_CLIENT_LOOPBACK_HTTP").pipe(
+    Config.withDefault(false),
+  ),
   cookieSecure: Config.Boolean("COOKIE_SECURE").pipe(Config.withDefault(true)),
   attemptLimits: Config.all({
     signInFailuresPerEmail: attemptLimit("SIGN_IN_FAILURES_PER_EMAIL", 5, Duration.minutes(15)),

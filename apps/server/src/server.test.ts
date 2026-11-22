@@ -1,5 +1,6 @@
 import { ConfigProvider, Layer } from "effect";
-import { HttpRouter, HttpServer } from "effect/http";
+import { Effect } from "effect";
+import { HttpClient, HttpClientResponse, HttpRouter, HttpServer } from "effect/http";
 import { afterAll, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { devUsers } from "#/modules/identity/application/identity-seed.ts";
@@ -20,8 +21,22 @@ const Config = ConfigProvider.layer(
   ConfigProvider.fromUnknown({ PUBLIC_URL: "https://quack.test" }),
 );
 
+/** The URLs Quack fetched, each answered with a document that matches none. */
+const fetched: Array<string> = [];
+const RecordingHttpClient = Layer.succeed(
+  HttpClient.HttpClient,
+  HttpClient.make((request) =>
+    Effect.sync(() => {
+      fetched.push(request.url);
+      return HttpClientResponse.fromWeb(request, Response.json({}));
+    }),
+  ),
+);
+
 const { handler, dispose } = HttpRouter.toWebHandler(
-  Routes.pipe(Layer.provide([HttpServer.layerServices, MemoryStorage, Config])),
+  Routes.pipe(
+    Layer.provide([HttpServer.layerServices, MemoryStorage, Config, RecordingHttpClient]),
+  ),
 );
 
 const get = (path: string) => handler(new Request(new URL(path, "http://api.test")));
@@ -442,10 +457,43 @@ describe("server routes", () => {
   });
 });
 
+describe("server routes of the authorization server", () => {
+  const checkAuthorization = (clientId: string, cookie?: string) =>
+    handler(
+      new Request("http://api.test/api/oauth/authorize/check", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          ...(cookie === undefined ? {} : { cookie }),
+        },
+        body: JSON.stringify({ client_id: clientId }),
+      }),
+    );
+
+  it("answers 401 to a visitor who asks to check an authorization request, and fetches nothing", async () => {
+    const clientId = "https://visitor.example.com/client.json";
+
+    const response = await checkAuthorization(clientId);
+
+    expect(response.status).toBe(401);
+    expect(fetched).not.toContain(clientId);
+  });
+
+  it("fetches the document of the AI Client for a signed-in User", async () => {
+    const clientId = "https://signed-in.example.com/client.json";
+    const cookie = await sessionCookieOf("check-authorization@example.com", "203.0.113.70");
+
+    const response = await checkAuthorization(clientId, cookie);
+
+    expect(response.status).toBe(400);
+    expect(fetched).toContain(clientId);
+  });
+});
+
 const makeSeeded = () =>
   HttpRouter.toWebHandler(
     Layer.mergeAll(Routes, IdentitySeed).pipe(
-      Layer.provide([HttpServer.layerServices, MemoryStorage, Config]),
+      Layer.provide([HttpServer.layerServices, MemoryStorage, Config, RecordingHttpClient]),
     ),
   );
 

@@ -1,0 +1,25 @@
+import { Schema } from "effect";
+
+/** The codes of RFC 6749 s4.1.2.1 and RFC 8707 an authorization request is refused with. */
+export const AuthorizationErrorCode = Schema.Literals([
+  "invalid_request",
+  "invalid_client",
+  "unsupported_response_type",
+  "invalid_scope",
+  "invalid_target",
+]);
+export type AuthorizationErrorCode = typeof AuthorizationErrorCode.Type;
+
+/**
+ * An authorization request Quack refuses, as an OAuth error. `redirect_uri` is present once the AI
+ * Client and its redirect URI are verified: only then may the error be sent back to the AI Client
+ * (RFC 6749 s4.1.2.1); before, the page shows it to the User.
+ */
+export class AuthorizationRequestRefused extends Schema.TaggedError<
+  AuthorizationRequestRefused,
+  { readonly brand: unique symbol }
+>()("AuthorizationRequestRefused", {
+  error: AuthorizationErrorCode,
+  error_description: Schema.String,
+  redirect_uri: Schema.optionalKey(Schema.String),
+}) {}

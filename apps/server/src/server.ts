@@ -8,12 +8,12 @@ import { HttpApiBuilder, HttpApiScalar } from "effect/http-api";
 
 import { ServerConfig } from "#/config.ts";
 import { McpEndpoint } from "#/mcp/mcp-endpoint.ts";
-import { IdentityModule, OAuthMetadataRoutes } from "#/modules/identity/index.ts";
+import { IdentityModule, OAuthMetadataRoutes, OAuthModule } from "#/modules/identity/index.ts";
 import { SystemHandlers } from "#/modules/system/http/system-handlers.ts";
 import { TodosModule } from "#/modules/todos/index.ts";
 
 // One instance of the handlers serves both the HTTP API and the tools, which call it in process.
-const ApiHandlers = Layer.mergeAll(SystemHandlers, TodosModule).pipe(
+const ApiHandlers = Layer.mergeAll(SystemHandlers, TodosModule, OAuthModule).pipe(
   Layer.provideMerge(IdentityModule),
 );
 
