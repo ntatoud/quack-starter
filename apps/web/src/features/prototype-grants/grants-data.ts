@@ -62,7 +62,7 @@ export const makeGrants = (scenario: Scenario): Grant[] => {
 };
 
 export const permissionLabel: Record<Permission, string> = {
-  "todos:list": "See your todos",
+  "todos:list": "See todos",
   "todos:write": "Create and complete todos",
   "todos:delete": "Delete todos",
 };

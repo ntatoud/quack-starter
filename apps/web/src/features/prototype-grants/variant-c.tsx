@@ -3,13 +3,13 @@ import { CircleAlertIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import {
-  actions,
   daysLeft,
   type Grant,
   idleDays,
   relative,
 } from "#/features/prototype-grants/grants-data.ts";
 import { GrantsEmpty } from "#/features/prototype-grants/grants-empty.tsx";
+import { PermissionBadges } from "#/features/prototype-grants/permission-badge.tsx";
 import { RevokeDialog } from "#/features/prototype-grants/revoke-dialog.tsx";
 
 const reasonsOf = (grant: Grant) => [
@@ -77,9 +77,8 @@ function Entry({
           <strong className="font-medium">{grant.clientName}</strong>{" "}
           <span className="text-muted-foreground">from {grant.origin}</span>
         </p>
-        <p className="text-sm text-muted-foreground">
-          Can {actions(grant.permissions)}. Used {relative(grant.lastUsedAt)}.
-        </p>
+        <p className="text-sm text-muted-foreground">Used {relative(grant.lastUsedAt)}.</p>
+        <PermissionBadges permissions={grant.permissions} />
         {reasons.length > 0 ? (
           <ul className="flex flex-wrap gap-1">
             {reasons.map((reason) => (
