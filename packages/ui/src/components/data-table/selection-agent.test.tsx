@@ -105,4 +105,15 @@ describe("DataTable selection, for an agent", () => {
     await expect.element(page.getByRole("checkbox", { name: "Select Grace" })).not.toBeChecked();
     expect(page.getByRole("region", { name: /selected/ }).elements()).toHaveLength(0);
   });
+
+  it("sets the box of a row to what it already is without toggling it", async () => {
+    await render(<People />);
+    const check = { steps: [{ ref: "Select Ada", action: "setChecked", args: [true] }] };
+
+    expect((await agent.act(check)).ok).toBe(true);
+    expect((await agent.act(check)).ok).toBe(true);
+
+    await expect.element(page.getByRole("checkbox", { name: "Select Ada" })).toBeChecked();
+    await expect.element(page.getByRole("region", { name: "1 selected" })).toBeVisible();
+  });
 });

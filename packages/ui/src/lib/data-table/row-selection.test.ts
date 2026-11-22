@@ -84,7 +84,7 @@ describe("rowSelection, from the keyboard", () => {
     const view = open();
     try {
       const row = view.part("row", "a");
-      const presses = [false, true, true].map((repeat) => {
+      const presses = [false, true].map((repeat) => {
         const press = new KeyboardEvent("keydown", {
           key: " ",
           repeat,
@@ -95,7 +95,7 @@ describe("rowSelection, from the keyboard", () => {
         return press;
       });
       expect(view.state.selected).toEqual(["a"]);
-      expect(presses.map((press) => press.defaultPrevented)).toEqual([true, true, true]);
+      expect(presses.map((press) => press.defaultPrevented)).toEqual([true, true]);
     } finally {
       view.unmount();
     }

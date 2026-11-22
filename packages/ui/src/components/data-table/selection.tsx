@@ -136,11 +136,7 @@ export function SelectRowCheckbox({ rowId }: { rowId: string }) {
         aria-label={label(rowId) ?? "Select row"}
         checked={selected.has(rowId)}
         disabled={!selectable.has(rowId)}
-        onCheckedChange={(checked) => {
-          const range = api.takeShift();
-          // An agent that sets a box already so (`setChecked`) changes nothing.
-          if ((checked === true) !== selected.has(rowId)) api.press(rowId, { range });
-        }}
+        onCheckedChange={() => api.press(rowId, { range: api.takeShift() })}
       />
     </RowSelectionBox>
   );
