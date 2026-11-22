@@ -6,6 +6,7 @@
     "#/*": "./src/*"
   },
   "exports": {
+    "./register": "./src/register.ts",
     "./*": "./src/*.tsx"
   },
   "scripts": {
@@ -17,12 +18,14 @@
   "dependencies": {
     "@quack/brand": "workspace:*",
     "effect": "catalog:",
+    "esbuild": "0.28.2",
     "react": "catalog:",
     "react-dom": "catalog:",
     "react-email": "catalog:"
   },
   "devDependencies": {
     "@react-email/ui": "catalog:",
+    "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "vite-plus": "catalog:"

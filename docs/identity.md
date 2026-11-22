@@ -18,11 +18,19 @@ The rules of `modules/identity` that its code does not show on its own. The dura
 - `completeOnboarding` sets the name of the Profile, creating it with nothing else filled in, and records `onboardedAt` (`onboarded` in `domain/user.ts`). A second one changes the name and keeps the first date.
 - Only the web app holds a User who is not onboarded back; the API answers them as any other.
 
+## Password Reset
+
+`PasswordResets` (`application/password-resets.ts`). A link sent by email carries a token of `linkTokenBytes` random bytes, stored as its SHA-256 in `LinkTokenStore`, the one table of every such link, told apart by its `purpose` (`domain/link-token.ts`).
+
+- Asking answers the same whether a User has the email or not. It counts against `passwordResetsPerEmail` and `passwordResetsPerIp` first, whoever has the email, and mails the link only to a User who can sign in (`canSignIn`).
+- A User has one link at a time: asking again removes the earlier ones. A link lasts `passwordResetLifetime`, and is taken from the store as it is read, so it works once, even for two requests at once.
+- Confirming sets the password and ends every Session of the User; it opens none, so they sign in with it. A link that was used, has expired, never existed, or whose User can no longer sign in fails with `ExpiredLink` (410).
+
 ## AttemptLimiter
 
 Slows down the guessing of passwords and of OAuth secrets (port: `domain/attempt-limiter.ts`). The use cases `signIn` and `signUp` call it with the client's address, which the handler reads in `X-Forwarded-For` (`http/client-ip.ts`); there is no HTTP middleware for it. For the OAuth routes, see `docs/ai-clients.md`.
 
-- It counts the failed sign-ins per email and per address, and the sign-ups per address, failed ones included. The limits and windows are in `ServerConfig` (`attemptLimits`).
+- It counts the failed sign-ins per email and per address, the sign-ups per address, failed ones included, and the Password Resets asked per email and per address. The limits and windows are in `ServerConfig` (`attemptLimits`).
 - Past a limit the use case fails with `TooManyAttempts` (429) and its `retryAfter` in seconds, before the password is hashed, and the same whether a User has the email or not.
 - A window is fixed: it opens at the first attempt counted and starts again from zero when it ends, so nothing locks a User out for good.
 - A sign-in is counted as a failure before its password is checked, in one step with the refusal (`take`), so concurrent sign-ins do not all get through. One that succeeds resets the counter of its email and is taken off the counter of its address.

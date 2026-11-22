@@ -55,6 +55,12 @@ export const UserRepositoryMemory = Layer.sync(UserRepository, () => {
           users.set(user.id, { ...stored, user: new User({ ...user, email: stored.user.email }) });
         }
       }),
+    setPasswordHash: (id, passwordHash) =>
+      Effect.sync(() => {
+        const stored = users.get(id);
+
+        if (stored !== undefined) users.set(id, { ...stored, passwordHash });
+      }),
     remove: (id) =>
       Effect.sync(() => {
         const stored = users.get(id);

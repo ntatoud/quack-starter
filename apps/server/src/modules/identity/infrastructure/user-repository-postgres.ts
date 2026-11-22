@@ -157,6 +157,12 @@ export const UserRepositoryPostgres = Layer.effect(
             ${profileWrite(user)}`,
     });
 
+    const setPasswordHash = SqlSchema.void({
+      Request: Schema.Struct({ id: UserId, passwordHash: Schema.String }),
+      execute: ({ id, passwordHash }) =>
+        sql`UPDATE users SET password_hash = ${passwordHash} WHERE id = ${id}`,
+    });
+
     // The Profile, the Todos, and the Sessions of the User go with them (`ON DELETE CASCADE`).
     const remove = SqlSchema.findAll({
       Request: UserId,
@@ -179,6 +185,9 @@ export const UserRepositoryPostgres = Layer.effect(
         );
       }),
       update: Effect.fn("UserRepository.update")((user) => update(user).pipe(Effect.orDie)),
+      setPasswordHash: Effect.fn("UserRepository.setPasswordHash")((id, passwordHash) =>
+        byStorableId(id, setPasswordHash({ id, passwordHash }), undefined),
+      ),
       remove: Effect.fn("UserRepository.remove")((id) =>
         byStorableId(id, remove(id).pipe(Effect.map((removed) => removed.length > 0)), false),
       ),

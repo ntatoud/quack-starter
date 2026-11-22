@@ -18,6 +18,12 @@ export class InvalidCredentials extends Schema.TaggedError<
   { readonly brand: unique symbol }
 >()("InvalidCredentials", {}) {}
 
+/** A link sent by email that was used, has expired, or never existed: the answer does not say which. */
+export class ExpiredLink extends Schema.TaggedError<
+  ExpiredLink,
+  { readonly brand: unique symbol }
+>()("ExpiredLink", {}) {}
+
 export class TooManyAttempts extends Schema.TaggedError<
   TooManyAttempts,
   { readonly brand: unique symbol }

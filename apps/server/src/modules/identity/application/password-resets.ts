@@ -1,0 +1,101 @@
+import { ExpiredLink, type TooManyAttempts } from "@quack/contracts/identity/identity-errors";
+import type { Email, Password } from "@quack/contracts/identity/user";
+import { passwordReset } from "@quack/emails/templates/password-reset";
+import { Context, DateTime, Effect, Layer, Option } from "effect";
+import { Digest, SecureRandom } from "effect/crypto";
+import { Base64Url } from "effect/encoding";
+
+import { ServerConfig } from "#/config.ts";
+import { sha256Hex } from "#/modules/identity/application/sha256-hex.ts";
+import {
+  AttemptCounter,
+  AttemptLimiter,
+  type ClientIp,
+} from "#/modules/identity/domain/attempt-limiter.ts";
+import {
+  isLinkExpired,
+  linkTokenBytes,
+  passwordResetLifetime,
+} from "#/modules/identity/domain/link-token.ts";
+import { LinkTokenStore } from "#/modules/identity/domain/link-token-store.ts";
+import { PasswordHasher } from "#/modules/identity/domain/password-hasher.ts";
+import { SessionStore } from "#/modules/identity/domain/session-store.ts";
+import { canSignIn } from "#/modules/identity/domain/user.ts";
+import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
+import { Mailer } from "#/modules/mail/index.ts";
+
+export class PasswordResets extends Context.Service<
+  PasswordResets,
+  {
+    /** Succeeds whether a User has the email or not: only an `active` one gets the link. */
+    request(email: Email, ip: ClientIp): Effect.Effect<void, TooManyAttempts>;
+    /** Sets the password and ends every Session of the User. Signs no one in. */
+    confirm(token: string, password: Password): Effect.Effect<void, ExpiredLink>;
+  }
+>()("@quack/server/identity/PasswordResets") {
+  static readonly layer = Layer.effect(
+    PasswordResets,
+    Effect.gen(function* () {
+      const users = yield* UserRepository;
+      const sessions = yield* SessionStore;
+      const links = yield* LinkTokenStore;
+      const hasher = yield* PasswordHasher;
+      const limiter = yield* AttemptLimiter;
+      const mailer = yield* Mailer;
+      const random = yield* SecureRandom.SecureRandom;
+      const digest = yield* Digest.Digest;
+      const publicOrigin = yield* ServerConfig.publicOrigin;
+
+      return PasswordResets.of({
+        request: Effect.fn("PasswordResets.request")(function* (email, ip) {
+          // Counted whether a User has the email or not, so the refusal says nothing of it either.
+          yield* limiter.take([
+            AttemptCounter.passwordResetsOfEmail(email),
+            AttemptCounter.passwordResetsOfIp(ip),
+          ]);
+
+          const found = yield* users.findByEmail(email);
+
+          if (Option.isNone(found) || !canSignIn(found.value.user)) return;
+
+          const { user } = found.value;
+          const token = Base64Url.encode(yield* random.randomBytes(linkTokenBytes));
+
+          // A User has one link at a time: asking again makes the earlier ones useless.
+          yield* links.removeAllOf(user.id, "password_reset");
+          yield* links.save({
+            tokenHash: yield* sha256Hex(digest, token),
+            userId: user.id,
+            purpose: "password_reset",
+            expiresAt: DateTime.addDuration(yield* DateTime.now, passwordResetLifetime),
+          });
+
+          const url = new URL("/reset-password", publicOrigin);
+          url.searchParams.set("token", token);
+
+          const mail = yield* Effect.promise(() =>
+            passwordReset({ url: url.href, lifetime: passwordResetLifetime }),
+          );
+
+          yield* mailer.send({ to: user.email, ...mail });
+        }),
+        confirm: Effect.fn("PasswordResets.confirm")(function* (token, password) {
+          const link = yield* links.take(yield* sha256Hex(digest, token), "password_reset");
+
+          if (Option.isNone(link) || isLinkExpired(link.value, yield* DateTime.now)) {
+            return yield* new ExpiredLink();
+          }
+
+          const user = yield* users.findById(link.value.userId);
+
+          // A User suspended since they asked is refused as a stranger would be.
+          if (Option.isNone(user) || !canSignIn(user.value)) return yield* new ExpiredLink();
+
+          yield* users.setPasswordHash(user.value.id, yield* hasher.hash(password));
+          // Whoever knew the old password, or holds a Session opened with it, is shut out.
+          yield* sessions.removeAllOf(user.value.id);
+        }),
+      });
+    }),
+  );
+}

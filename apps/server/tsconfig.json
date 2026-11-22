@@ -2,6 +2,8 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "types": ["node"],
+    // The templates of @quack/emails, which the server renders, are React.
+    "jsx": "react-jsx",
     "lib": ["ESNext"]
   },
   "include": ["src", "vite.config.ts"]

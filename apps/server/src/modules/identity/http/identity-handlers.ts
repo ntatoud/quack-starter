@@ -5,6 +5,7 @@ import { HttpApiBuilder } from "effect/http-api";
 
 import { Identity } from "#/modules/identity/application/identity.ts";
 import { Onboarding } from "#/modules/identity/application/onboarding.ts";
+import { PasswordResets } from "#/modules/identity/application/password-resets.ts";
 import { Users } from "#/modules/identity/application/users.ts";
 import { clientIp } from "#/modules/identity/http/client-ip.ts";
 import { SessionCookie } from "#/modules/identity/http/session-cookie.ts";
@@ -17,6 +18,7 @@ export const IdentityHandlers = HttpApiBuilder.group(
     const cookie = yield* SessionCookie;
     const users = yield* Users;
     const onboarding = yield* Onboarding;
+    const passwordResets = yield* PasswordResets;
 
     return handlers.handleAll({
       signUp: Effect.fn(function* ({ payload }) {
@@ -46,6 +48,11 @@ export const IdentityHandlers = HttpApiBuilder.group(
         yield* identity.signOut(yield* HttpApiBuilder.securityDecode(sessionCookie));
         yield* cookie.clear;
       }),
+      requestPasswordReset: Effect.fn(function* ({ payload }) {
+        yield* passwordResets.request(payload.email, yield* clientIp);
+      }),
+      confirmPasswordReset: ({ payload }) =>
+        passwordResets.confirm(payload.token, payload.password),
       me: () => Effect.service(CurrentUser),
       updateProfile: Effect.fn(function* ({ payload }) {
         const currentUser = yield* CurrentUser;

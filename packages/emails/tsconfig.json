@@ -1,4 +1,8 @@
 {
   "extends": "../../tsconfig.react.json",
+  "compilerOptions": {
+    // register.ts runs in Node, outside Vite.
+    "types": ["node"]
+  },
   "include": ["src"]
 }

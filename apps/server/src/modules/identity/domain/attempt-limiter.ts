@@ -8,6 +8,8 @@ export type AttemptLimit =
   | "signInFailuresPerEmail"
   | "signInFailuresPerIp"
   | "signUpsPerIp"
+  | "passwordResetsPerEmail"
+  | "passwordResetsPerIp"
   | "clientDocumentFetchesPerUser"
   | "tokenFailuresPerIp";
 
@@ -30,6 +32,14 @@ export class AttemptCounter {
 
   static signUpsOfIp(ip: ClientIp) {
     return new AttemptCounter("signUpsPerIp", ip);
+  }
+
+  static passwordResetsOfEmail(email: Email) {
+    return new AttemptCounter("passwordResetsPerEmail", email);
+  }
+
+  static passwordResetsOfIp(ip: ClientIp) {
+    return new AttemptCounter("passwordResetsPerIp", ip);
   }
 
   static clientDocumentFetchesOfUser(userId: UserId) {

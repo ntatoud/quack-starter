@@ -6,8 +6,10 @@ import { devUsers } from "#/modules/identity/application/identity-seed.ts";
 import { IdentitySeed } from "#/modules/identity/index.ts";
 import { AuthorizationCodeStoreMemory } from "#/modules/identity/testing/authorization-code-store-memory.ts";
 import { GrantStoreMemory } from "#/modules/identity/testing/grant-store-memory.ts";
+import { LinkTokenStoreMemory } from "#/modules/identity/testing/link-token-store-memory.ts";
 import { SessionStoreMemory } from "#/modules/identity/testing/session-store-memory.ts";
 import { UserRepositoryMemory } from "#/modules/identity/testing/user-repository-memory.ts";
+import { MailerMemory } from "#/modules/mail/testing/mailer-memory.ts";
 import { TodoRepositoryMemory } from "#/modules/todos/testing/todo-repository-memory.ts";
 import { Routes } from "#/server.ts";
 
@@ -16,7 +18,9 @@ const MemoryStorage = Layer.mergeAll(
   SessionStoreMemory,
   AuthorizationCodeStoreMemory,
   GrantStoreMemory,
+  LinkTokenStoreMemory,
   TodoRepositoryMemory,
+  MailerMemory,
 );
 
 // Another origin than the one of the requests below: the documents must not take theirs from `Host`.
@@ -87,6 +91,15 @@ const sessionCookieOf = async (email: string, from: string) =>
   (await signUp(email, { from })).headers.getSetCookie()[0]?.split(";")[0] ?? "";
 
 const signIn = attempt("/api/sign-in");
+
+const askForPasswordReset = (email: string, from: string) =>
+  handler(
+    new Request("http://api.test/api/password-reset", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-forwarded-for": from },
+      body: JSON.stringify({ email }),
+    }),
+  );
 
 // A stateless request (MCP 2026-07-28) says what initialize used to: the version it speaks, as its header
 // does, and what its AI Client can do.
@@ -333,6 +346,22 @@ describe("server routes", () => {
 
     expect(response.status).toBe(409);
     expect(await response.json()).toEqual({ _tag: "EmailAlreadyTaken" });
+  });
+
+  it("answers the 21st Password Reset asked from an address with 429, whatever the emails", async () => {
+    const asked = await Promise.all(
+      Array.from({ length: 20 }, (_, visitor) =>
+        askForPasswordReset(`forgetful-${visitor}@example.com`, "203.0.113.90"),
+      ),
+    );
+
+    expect(asked.map((response) => response.status)).toEqual(Array.from({ length: 20 }, () => 202));
+    expect((await askForPasswordReset("forgetful-20@example.com", "203.0.113.90")).status).toBe(
+      429,
+    );
+    expect((await askForPasswordReset("forgetful-20@example.com", "203.0.113.91")).status).toBe(
+      202,
+    );
   });
 
   it("answers the 11th sign-up of an address with 429 TooManyAttempts, and tells the addresses apart by X-Forwarded-For", async () => {
