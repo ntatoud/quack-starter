@@ -53,7 +53,12 @@ const features = tableFeatures({});
 
 const ariaSort = { asc: "ascending", desc: "descending" } as const;
 
-export type ColumnDefOf<TData extends RowData> = ColumnDef<typeof features, TData, any>;
+export type ColumnDefOf<TData extends RowData> = ColumnDef<
+  typeof features,
+  TData,
+  // oxlint-disable-next-line typescript/no-explicit-any -- the columns of one table hold values of different types
+  any
+>;
 
 // `ColumnDef` is a union of the accessor and display columns: omit from each, not from what they share.
 export type OmitEach<T, Key extends PropertyKey> = T extends unknown ? Omit<T, Key> : never;

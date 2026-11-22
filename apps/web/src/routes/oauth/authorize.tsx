@@ -18,7 +18,10 @@ export const Route = createFileRoute("/oauth/authorize")({
   },
   // In the browser: the check needs the Session cookie, which the API client has not in the server render.
   ssr: false,
-  loader: async ({ context, location }) => {
+  loader: async ({ context, location, preload }) => {
+    // Approving issues a code: only a visit does it, never a link the pointer passes over.
+    if (preload) return;
+
     const redirectTo = await rememberedConsentRedirect(
       context.queryClient,
       authorizationParamsOf(location.searchStr),
@@ -27,6 +30,6 @@ export const Route = createFileRoute("/oauth/authorize")({
     // The redirect URI is another origin: the router leaves the app for it.
     if (redirectTo !== undefined) throw redirect({ href: redirectTo });
   },
-  head: () => ({ meta: [{ title: pageTitle("Connect an AI Client") }] }),
+  head: () => ({ meta: [{ title: pageTitle("Approve an AI Client") }] }),
   component: ConsentPage,
 });

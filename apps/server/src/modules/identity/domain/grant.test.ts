@@ -15,6 +15,17 @@ describe("remembersConsent", () => {
     expect(remembersConsent(grant, { ...grant, permissions: ["todos:write"] })).toBe(true);
   });
 
+  it("remembers it for an AI Client on this machine that comes back on another port", () => {
+    const local = { ...grant, redirectUri: "http://localhost:51234/callback" };
+
+    expect(
+      remembersConsent(local, { ...local, redirectUri: "http://localhost:40001/callback" }),
+    ).toBe(true);
+    expect(remembersConsent(local, { ...local, redirectUri: "http://localhost:40001/other" })).toBe(
+      false,
+    );
+  });
+
   it.each([
     ["another AI Client", { aiClientId: "https://evil.example.com/client.json" }],
     ["another resource", { resource: "https://other.test/api/mcp" }],

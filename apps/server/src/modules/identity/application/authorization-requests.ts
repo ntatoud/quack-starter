@@ -1,8 +1,8 @@
 import type { UserId } from "@quack/contracts/identity/user";
 import { MCP_PATH } from "@quack/contracts/api";
 import type {
-  AuthorizationRequest,
   AuthorizationRequestParams,
+  ConsentDetails,
 } from "@quack/contracts/oauth/authorization-request";
 import { AuthorizationRequestRefused } from "@quack/contracts/oauth/oauth-errors";
 import { Context, DateTime, Effect, Layer, Option } from "effect";
@@ -24,12 +24,6 @@ import {
 import { AuthorizationCodeStore } from "#/modules/identity/domain/authorization-code-store.ts";
 import { type GrantTerms, remembersConsent } from "#/modules/identity/domain/grant.ts";
 
-/** What the consent page shows, but the CSRF token, which belongs to the HTTP Session. */
-export type ConsentDetails = Omit<
-  ConstructorParameters<typeof AuthorizationRequest>[0],
-  "csrfToken"
->;
-
 // Grants are not stored yet: until they are, no User has one to remember.
 const activeGrantOf = (_userId: UserId, _aiClientId: string) =>
   Effect.succeed(Option.none<GrantTerms>());
@@ -40,7 +34,7 @@ export class AuthorizationRequests extends Context.Service<
     check(
       params: AuthorizationRequestParams,
       userId: UserId,
-    ): Effect.Effect<ConsentDetails, AuthorizationRequestRefused>;
+    ): Effect.Effect<typeof ConsentDetails.Type, AuthorizationRequestRefused>;
     approve(
       params: AuthorizationRequestParams,
       userId: UserId,

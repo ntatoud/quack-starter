@@ -25,17 +25,19 @@ export class CsrfTokens extends Context.Service<
 
       // Derived from the session token, which only the User's browser holds (an httpOnly cookie): another site
       // can neither read nor compute it, and it changes with the Session. Prefixed, so it is never the stored hash.
-      const tokenOfRequest = Effect.flatMap(HttpServerRequest.HttpServerRequest, (request) =>
-        digest.digest(
-          Digest.sha256,
-          new TextEncoder().encode(`csrf:${request.cookies[sessionCookie.key] ?? ""}`),
-        ),
-      );
+      // Without a Session there is no token: none would tell one caller from another.
+      const sessionTokenDigest = Effect.flatMap(HttpServerRequest.HttpServerRequest, (request) => {
+        const session = request.cookies[sessionCookie.key];
+
+        return session === undefined
+          ? Effect.fail(new InvalidCsrfToken())
+          : digest.digest(Digest.sha256, new TextEncoder().encode(`csrf:${session}`));
+      });
 
       return CsrfTokens.of({
-        ofSession: Effect.map(tokenOfRequest, Base64Url.encode),
+        ofSession: Effect.map(Effect.orDie(sessionTokenDigest), Base64Url.encode),
         verify: Effect.fn("CsrfTokens.verify")(function* (received) {
-          const expected = yield* tokenOfRequest;
+          const expected = yield* sessionTokenDigest;
           const decoded = Base64Url.decode(received);
 
           if (Result.isFailure(decoded) || !Mac.timingSafeEqual(expected, decoded.success)) {

@@ -21,10 +21,7 @@ export const AuthorizationRequestParams = Schema.Struct({
 export type AuthorizationRequestParams = typeof AuthorizationRequestParams.Type;
 
 /** What the consent page shows of a valid authorization request. */
-export class AuthorizationRequest extends Schema.Class<
-  AuthorizationRequest,
-  { readonly brand: unique symbol }
->("AuthorizationRequest")({
+export const ConsentDetails = Schema.Struct({
   aiClient: Schema.Struct({
     /** The address of its document, which is the AI Client. */
     id: Schema.String,
@@ -41,6 +38,13 @@ export class AuthorizationRequest extends Schema.Class<
   grantedPermissions: Schema.NullOr(Schema.Array(Permission)),
   /** The User already gave this consent and Quack remembers it: the page approves without asking. */
   consentRemembered: Schema.Boolean,
+});
+
+export class AuthorizationRequest extends Schema.Class<
+  AuthorizationRequest,
+  { readonly brand: unique symbol }
+>("AuthorizationRequest")({
+  ...ConsentDetails.fields,
   /** What the page sends back with the User's decision, which proves the decision was made on it. */
   csrfToken: Schema.String,
 }) {}

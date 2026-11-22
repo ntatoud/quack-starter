@@ -24,7 +24,7 @@ export function ConsentPage() {
         <ConsentPrompt
           params={authorizationParamsOf(searchStr)}
           currentUser={currentUser}
-          leave={(url) => window.location.assign(url)}
+          onRedirect={(url) => window.location.assign(url)}
           onSwitchAccount={() => signOut.mutate(undefined)}
         />
       </div>

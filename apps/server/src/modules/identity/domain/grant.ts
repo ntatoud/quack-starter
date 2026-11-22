@@ -1,4 +1,6 @@
 import type { Permission } from "@quack/contracts/permission";
+
+import { redirectUriMatches } from "#/modules/identity/domain/redirect-uri.ts";
 import { TodosPermission } from "@quack/contracts/todos/todos-permissions";
 
 /** The Permissions a Grant may hold: those of the contexts exposed to AI Clients, never `users:*`. */
@@ -19,5 +21,5 @@ export interface GrantTerms {
 export const remembersConsent = (grant: GrantTerms, request: GrantTerms) =>
   grant.aiClientId === request.aiClientId &&
   grant.resource === request.resource &&
-  grant.redirectUri === request.redirectUri &&
+  redirectUriMatches(grant.redirectUri, request.redirectUri) &&
   request.permissions.every((permission) => grant.permissions.includes(permission));

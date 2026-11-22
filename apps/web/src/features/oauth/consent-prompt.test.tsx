@@ -67,21 +67,21 @@ vi.stubGlobal("fetch", fetch);
 
 const setup = async (given: Answers) => {
   answers = given;
-  const leave = vi.fn<(url: string) => void>();
+  const onRedirect = vi.fn<(url: string) => void>();
   const onSwitchAccount = vi.fn<() => void>();
   await render(
     <QueryClientProvider client={new QueryClient()}>
       <ConsentPrompt
         params={params}
         currentUser={ada}
-        leave={leave}
+        onRedirect={onRedirect}
         onSwitchAccount={onSwitchAccount}
       />
     </QueryClientProvider>,
   );
 
   return {
-    leave,
+    onRedirect,
     onSwitchAccount,
     approve: page.getByRole("button", { name: "Approve" }),
     deny: page.getByRole("button", { name: "Deny" }),
@@ -161,14 +161,14 @@ describe("ConsentPrompt", () => {
   });
 
   it("approving sends the decision with the CSRF token and goes back to the AI Client", async () => {
-    const { approve, leave } = await setup({
+    const { approve, onRedirect } = await setup({
       check: () => Response.json(checked()),
       approve: () => Response.json({ redirectTo: approved }),
     });
 
     await approve.click();
 
-    await expect.poll(() => leave.mock.calls).toEqual([[approved]]);
+    await expect.poll(() => onRedirect.mock.calls).toEqual([[approved]]);
     expect(sent.at(-1)).toEqual({
       path: "/api/oauth/authorize/approve",
       body: { ...params, csrfToken: "the-csrf-token" },
@@ -177,14 +177,14 @@ describe("ConsentPrompt", () => {
   });
 
   it("denying goes back to the AI Client with the refusal", async () => {
-    const { deny, leave } = await setup({
+    const { deny, onRedirect } = await setup({
       check: () => Response.json(checked()),
       deny: () => Response.json({ redirectTo: denied }),
     });
 
     await deny.click();
 
-    await expect.poll(() => leave.mock.calls).toEqual([[denied]]);
+    await expect.poll(() => onRedirect.mock.calls).toEqual([[denied]]);
     expect(sent.at(-1)).toEqual({
       path: "/api/oauth/authorize/deny",
       body: { ...params, csrfToken: "the-csrf-token" },
@@ -192,7 +192,7 @@ describe("ConsentPrompt", () => {
   });
 
   it("says when a decision could not be sent, and lets the User try again", async () => {
-    const { approve, leave } = await setup({ check: () => Response.json(checked()) });
+    const { approve, onRedirect } = await setup({ check: () => Response.json(checked()) });
 
     await approve.click();
 
@@ -200,7 +200,7 @@ describe("ConsentPrompt", () => {
       .element(page.getByRole("alert"))
       .toHaveTextContent("Could not send your answer. Try again.");
     await expect.element(approve).toBeEnabled();
-    expect(leave).not.toHaveBeenCalled();
+    expect(onRedirect).not.toHaveBeenCalled();
   });
 
   it("shows who is signed in, with a way to switch account", async () => {

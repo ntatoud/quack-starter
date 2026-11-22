@@ -7,6 +7,7 @@ import {
 import { Context, Effect, Option, Schema } from "effect";
 
 import { type GrantTerms, grantablePermissions } from "#/modules/identity/domain/grant.ts";
+import { isLoopback, redirectUriMatches } from "#/modules/identity/domain/redirect-uri.ts";
 
 /** The document an AI Client is known by, served at its `client_id` (Client ID Metadata Document). */
 const AiClientDocument = Schema.Struct({
@@ -37,10 +38,6 @@ const refused = (error: AuthorizationErrorCode, description: string, redirectUri
         error_description: description,
         redirect_uri: redirectUri,
       });
-
-// RFC 8252 s7.3: an app on this machine picks its port when it starts.
-const loopbackHosts = new Set(["localhost", "127.0.0.1", "[::1]"]);
-const isLoopback = (url: URL) => loopbackHosts.has(url.hostname);
 
 // What an AI Client that holds a secret uses: one served from a public document cannot keep it.
 const sharedSecretMethods = new Set([
@@ -99,18 +96,6 @@ const isRedirectable = (uri: string) => {
     !uri.includes("#") &&
     (url.protocol === "https:" || (url.protocol === "http:" && isLoopback(url)))
   );
-};
-
-const redirectUriMatches = (listed: string, requested: string) => {
-  if (listed === requested) return true;
-  const a = URL.parse(listed);
-  const b = URL.parse(requested);
-
-  if (a === null || b === null || !isLoopback(a) || !isLoopback(b)) return false;
-  a.port = "";
-  b.port = "";
-
-  return a.href === b.href;
 };
 
 const permissionsOf = (scope: string | undefined): Option.Option<ReadonlyArray<Permission>> => {

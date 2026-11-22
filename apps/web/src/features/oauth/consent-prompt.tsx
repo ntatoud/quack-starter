@@ -24,7 +24,7 @@ import { api } from "#/lib/api.ts";
 export interface ConsentPromptProps {
   readonly params: AuthorizationRequestParams;
   readonly currentUser: typeof User.Encoded;
-  readonly leave: (url: string) => void;
+  readonly onRedirect: (url: string) => void;
   readonly onSwitchAccount: () => void;
 }
 
@@ -33,7 +33,12 @@ export interface ConsentPromptProps {
 const focusOnMount = (element: HTMLElement | null) => element?.focus();
 
 /** Asks the Current User whether an AI Client may act for them, once Quack has checked its request. */
-export function ConsentPrompt({ params, currentUser, leave, onSwitchAccount }: ConsentPromptProps) {
+export function ConsentPrompt({
+  params,
+  currentUser,
+  onRedirect,
+  onSwitchAccount,
+}: ConsentPromptProps) {
   const check = useQuery(authorizationCheckOptions(params));
 
   return matchQuery(check, {
@@ -73,27 +78,27 @@ export function ConsentPrompt({ params, currentUser, leave, onSwitchAccount }: C
         </Empty>
       ),
     Success: ({ data }) => (
-      <Consent
+      <ConsentQuestion
         request={data}
         params={params}
         currentUser={currentUser}
-        leave={leave}
+        onRedirect={onRedirect}
         onSwitchAccount={onSwitchAccount}
       />
     ),
   });
 }
 
-function Consent({
+function ConsentQuestion({
   request,
   params,
   currentUser,
-  leave,
+  onRedirect,
   onSwitchAccount,
 }: ConsentPromptProps & { readonly request: AuthorizationRequest }) {
   const { aiClient } = request;
   const decision = { payload: { ...params, csrfToken: request.csrfToken } };
-  const onSuccess = ({ redirectTo }: { readonly redirectTo: string }) => leave(redirectTo);
+  const onSuccess = ({ redirectTo }: { readonly redirectTo: string }) => onRedirect(redirectTo);
   const approve = useMutation(api.oauth.approveAuthorization.mutationOptions({ onSuccess }));
   const deny = useMutation(api.oauth.denyAuthorization.mutationOptions({ onSuccess }));
   const deciding = approve.isPending || deny.isPending;
