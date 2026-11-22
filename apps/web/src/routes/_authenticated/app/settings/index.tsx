@@ -1,7 +1,9 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
+
+import { pageTitle } from "#/features/layout/page-title.ts";
+import { SettingsHome } from "#/features/settings/settings-home.tsx";
 
 export const Route = createFileRoute("/_authenticated/app/settings/")({
-  beforeLoad: () => {
-    throw redirect({ to: "/app/settings/profile" });
-  },
+  head: () => ({ meta: [{ title: pageTitle("Settings") }] }),
+  component: SettingsHome,
 });

@@ -140,6 +140,17 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* `viewport-fit=cover` lets a bar reach the bottom edge of an iPhone, but also lets the page under its notch in
+       landscape: the page keeps clear of it, as Safari does without `cover`. What is `fixed` keeps clear on its own. */
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+  /* A phone draws its scrollbar over the page, only while it scrolls; a narrow window would take room from the page
+     for one, and move the page sideways as it comes and goes. */
+  @media (width < 48rem) {
+    html {
+      scrollbar-width: none;
+    }
   }
   button:not(:disabled),
   [role="button"]:not(:disabled) {

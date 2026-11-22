@@ -16,3 +16,8 @@ export const useSignOut = () => {
     }),
   );
 };
+
+export const signOutLabel = ({ isPending }: { isPending: boolean }) =>
+  isPending ? "Signing out…" : "Sign out";
+
+export const signOutFailed = "Could not sign out. Try again.";

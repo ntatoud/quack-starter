@@ -66,6 +66,15 @@ describe("TodosList", () => {
     await expect.element(page.getByRole("button", { name: "Remove Ship it" })).toBeVisible();
   });
 
+  it("shows the way to remove a todo on a phone's layout, with no hover to reveal it", async () => {
+    await page.viewport(375, 800);
+    await setup(() => Response.json([todo("1", "Ship it")]));
+
+    const remove = page.getByRole("button", { name: "Remove Ship it" });
+    await expect.element(remove).toBeVisible();
+    expect(getComputedStyle(remove.element()).opacity).toBe("1");
+  });
+
   it("shows a todo completed once the API has completed it", async () => {
     let completed = false;
     await setup((request) => {

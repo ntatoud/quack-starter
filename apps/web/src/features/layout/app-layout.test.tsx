@@ -72,4 +72,14 @@ describe("AppLayout", () => {
       expect(viewport.getBoundingClientRect().right).toBeLessThanOrEqual(window.innerWidth);
     },
   );
+
+  it.each([
+    [375, "none"],
+    [1280, "auto"],
+  ])("at %ipx, gives the window a scrollbar of width %s", async (width, scrollbar) => {
+    await setup(width);
+    await expect.element(page.getByRole("table")).toBeVisible();
+
+    expect(getComputedStyle(document.documentElement).scrollbarWidth).toBe(scrollbar);
+  });
 });
