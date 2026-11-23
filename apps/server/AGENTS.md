@@ -39,6 +39,7 @@ Migrations (`docs/adr/0002-typescript-migrations-applied-at-startup.md`) live in
 - Edit a migration until it is merged; after that, add a new one.
 - A `down` that cannot honestly undo (data dropped) fails with a message saying why.
 - Dev loop: the server applies the migration at startup, `pnpm db:rollback` reverts it, edit, restart.
+- A branch that changes the schema, a migration edited in place included, sets `DEV_DATABASE=own` in its checkout's `.env` before `pnpm dev`: `pnpm dev` gives a database of its own only to a branch that adds a migration file, and the shared `quack` must keep the schema of `main`.
 - `pnpm db:seed` resets the database to the seed. On the shared `quack` database, that wipes it for every worktree.
 
 ## Tests
