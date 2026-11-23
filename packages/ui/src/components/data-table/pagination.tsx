@@ -267,17 +267,17 @@ export function DataTablePagination({
   );
 
   return (
-    // One line where it fits: on a phone, the count and the pages share it, the size select below them.
+    // One line where it fits: the count at the start, the controls at the end, which wrap below it when it does not.
     <div
       data-slot="data-table-pagination"
       className="flex flex-wrap items-center justify-between gap-2"
     >
-      <div className="flex shrink-0 flex-wrap items-center justify-center gap-x-4 gap-y-2">
-        <p aria-live="polite" className="text-muted-foreground">
-          {results === undefined
-            ? `Page ${page} of ${pages}`
-            : `Page ${page} of ${pages}, ${results}`}
-        </p>
+      <p aria-live="polite" className="shrink-0 text-muted-foreground">
+        {results === undefined
+          ? `Page ${page} of ${pages}`
+          : `Page ${page} of ${pages}, ${results}`}
+      </p>
+      <div className="ms-auto flex max-w-full flex-wrap items-center justify-end gap-x-4 gap-y-2">
         {pageSizes !== undefined && setPageSize !== undefined && (
           <PageSizeSelect
             pageSize={pageSize}
@@ -285,48 +285,48 @@ export function DataTablePagination({
             onPageSizeChange={setPageSize}
           />
         )}
-      </div>
-      <nav
-        aria-label={label}
-        // Wrapped onto a line of its own, it stays at the end, as on a wide footer.
-        className="ms-auto flex max-w-full items-center gap-1"
-      >
-        <PageControl
-          variant="ghost"
-          size="sm"
-          {...to(previous, previous === 1)}
-          disabled={previous < 1}
+        <nav
+          aria-label={label}
+          // Wrapped onto a line of its own, it stays at the end, as on a wide footer.
+          className="ms-auto flex max-w-full items-center gap-1"
         >
-          <ChevronLeftIcon className="rtl:rotate-180" />
-          {/* Named by the text it shows, hidden only from sight in a narrow footer: voice control says what it sees. */}
-          <span className="sr-only @md:not-sr-only">Previous</span>
-        </PageControl>
-        {/* A narrow footer keeps the first, current and last pages only; the narrowest, the current one, the count
-            beside it telling how many there are. */}
-        <span className="flex @xs:hidden">
           <PageControl
-            {...to(page)}
-            ref={currentLink}
-            aria-current="page"
-            variant="secondary"
-            size="number"
-            aria-label={`Page ${page}`}
+            variant="ghost"
+            size="sm"
+            {...to(previous, previous === 1)}
+            disabled={previous < 1}
           >
-            {page}
+            <ChevronLeftIcon className="rtl:rotate-180" />
+            {/* Named by the text it shows, hidden only from sight in a narrow footer: voice control says what it sees. */}
+            <span className="sr-only @md:not-sr-only">Previous</span>
           </PageControl>
-        </span>
-        {pageList(0, "hidden items-center gap-1 @xs:flex @sm:hidden")}
-        {pageList(1, "hidden items-center gap-1 @sm:flex")}
-        <PageControl
-          variant="ghost"
-          size="sm"
-          {...to(next, next === pages)}
-          disabled={page >= pages}
-        >
-          <span className="sr-only @md:not-sr-only">Next</span>
-          <ChevronRightIcon className="rtl:rotate-180" />
-        </PageControl>
-      </nav>
+          {/* A narrow footer keeps the first, current and last pages only; the narrowest, the current one, the count
+            beside it telling how many there are. */}
+          <span className="flex @xs:hidden">
+            <PageControl
+              {...to(page)}
+              ref={currentLink}
+              aria-current="page"
+              variant="secondary"
+              size="number"
+              aria-label={`Page ${page}`}
+            >
+              {page}
+            </PageControl>
+          </span>
+          {pageList(0, "hidden items-center gap-1 @xs:flex @sm:hidden")}
+          {pageList(1, "hidden items-center gap-1 @sm:flex")}
+          <PageControl
+            variant="ghost"
+            size="sm"
+            {...to(next, next === pages)}
+            disabled={page >= pages}
+          >
+            <span className="sr-only @md:not-sr-only">Next</span>
+            <ChevronRightIcon className="rtl:rotate-180" />
+          </PageControl>
+        </nav>
+      </div>
     </div>
   );
 }

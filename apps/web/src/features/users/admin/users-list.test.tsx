@@ -176,7 +176,7 @@ describe("UsersList", () => {
     const other = page.getByRole("row").filter({ hasText: "user-2@quack.dev" });
     await expect.element(other.getByRole("cell", { name: "User" })).toBeVisible();
     expect(page.getByRole("row").elements()).toHaveLength(defaultPageSize + 1);
-    await expect.element(page.getByText("Page 1 of 2")).toBeVisible();
+    await expect.element(page.getByText(/^Page 1 of 2,/)).toBeVisible();
   });
 
   it("links to each page by its number, and marks the current one", async () => {
@@ -190,6 +190,18 @@ describe("UsersList", () => {
     await expect.element(page.getByText(`user-${total}@quack.dev`)).toBeVisible();
     expect(router.state.location.search).toEqual({ page: 2 });
     expect(currentPages()).toEqual(["Page 2"]);
+  });
+
+  it("counts the users in its footer", async () => {
+    await setup(usersOn);
+
+    await expect.element(page.getByText(`Page 1 of 2, ${total} users`)).toBeVisible();
+  });
+
+  it("counts the users found in its footer once filtered", async () => {
+    await setup(usersOn, "/admin/users?q=duck");
+
+    await expect.element(page.getByText(`Page 1 of 2, ${total} users found`)).toBeVisible();
   });
 
   it("keeps the rest of the search when it changes page", async () => {
@@ -206,7 +218,7 @@ describe("UsersList", () => {
     await setup(usersOn, "/admin/users?page=2");
 
     await expect.element(page.getByText(`user-${total}@quack.dev`)).toBeVisible();
-    await expect.element(page.getByText("Page 2 of 2")).toBeVisible();
+    await expect.element(page.getByText(/^Page 2 of 2,/)).toBeVisible();
     const request = fetch.mock.calls[0]?.[0];
     const { searchParams } = new URL(String(request));
     expect(searchParams.get("page")).toBe("2");
@@ -236,7 +248,7 @@ describe("UsersList", () => {
 
     await next().click();
 
-    await expect.element(page.getByText("Page 2 of 2")).toBeVisible();
+    await expect.element(page.getByText(/^Page 2 of 2,/)).toBeVisible();
     await expect.element(page.getByText("user-1@quack.dev")).toBeVisible();
     expect(said()).toEqual([]);
     const body = page.getByRole("table").element().querySelector("tbody");
@@ -250,7 +262,7 @@ describe("UsersList", () => {
     await setup(usersOn, "/admin/users?page=abc");
 
     await expect.element(page.getByText("user-1@quack.dev")).toBeVisible();
-    await expect.element(page.getByText("Page 1 of 2")).toBeVisible();
+    await expect.element(page.getByText(/^Page 1 of 2,/)).toBeVisible();
     expect(currentPages()).toEqual(["Page 1"]);
   });
 
@@ -306,7 +318,12 @@ describe("UsersList", () => {
 
     const footer = footerOfTable();
     expect(footer.scrollWidth).toBe(footer.clientWidth);
-    const summary = page.getByText("Page 5 of 9").element().getBoundingClientRect();
+
+    const summary = page
+      .getByText(/^Page 5 of 9,/)
+      .element()
+      .getBoundingClientRect();
+
     expect(summary.bottom).toBeLessThanOrEqual(pagination().element().getBoundingClientRect().top);
   });
 
@@ -315,7 +332,11 @@ describe("UsersList", () => {
     await setup(ninePages, "/admin/users?page=5", { width: 900 });
     await expect.element(next()).toBeVisible();
 
-    const summary = page.getByText("Page 5 of 9").element().getBoundingClientRect();
+    const summary = page
+      .getByText(/^Page 5 of 9,/)
+      .element()
+      .getBoundingClientRect();
+
     const links = pagination().element().getBoundingClientRect();
     expect(summary.top).toBeGreaterThanOrEqual(links.top);
     expect(summary.bottom).toBeLessThanOrEqual(links.bottom);
@@ -364,7 +385,7 @@ describe("UsersList", () => {
     );
 
     await expect.element(page.getByText("user-7@quack.dev")).toBeVisible();
-    await expect.element(page.getByText("Page 1 of 1")).toBeVisible();
+    await expect.element(page.getByText(/^Page 1 of 1,/)).toBeVisible();
     expect(fetch).toHaveBeenCalledOnce();
     const { searchParams } = new URL(String(fetch.mock.calls[0]?.[0]));
     expect(searchParams.get("search")).toBe("User-7");
@@ -460,7 +481,7 @@ describe("UsersList", () => {
 
     await expect.poll(() => router.state.location.search).toEqual({ role: "admin" });
     await expect.element(page.getByRole("button", { name: "Role: Admin" })).toBeVisible();
-    await expect.element(page.getByText("Page 1 of 1")).toBeVisible();
+    await expect.element(page.getByText(/^Page 1 of 1,/)).toBeVisible();
     expect(queryOf().get("role")).toBe("admin");
     expect(queryOf().get("page")).toBe("1");
   });
