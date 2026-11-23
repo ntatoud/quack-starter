@@ -15,13 +15,14 @@ import {
 import { Field, FieldLabel, FieldSet } from "@quack/ui/components/field";
 import { useMutation } from "@tanstack/react-query";
 import { Array as Arr } from "effect";
-import { Fragment, useState } from "react";
+import { Fragment } from "react";
 
+import { editGrantMachine, permissionsChange } from "#/features/grants/edit-grant-machine.ts";
 import { PermissionBadge } from "#/features/grants/permission-badge.tsx";
 import { api } from "#/lib/api.ts";
 import { invalidating } from "#/lib/invalidate-queries.ts";
 import { listOf, listParts } from "#/lib/list-of.ts";
-import { toggled } from "#/lib/toggled.ts";
+import { useFsm } from "#/lib/use-fsm.ts";
 
 /**
  * "Claude gains todos:delete and loses todos:write, from its next call.", in parts: words, and lists of Permissions,
@@ -74,17 +75,15 @@ function Badges({ permissions }: { permissions: ReadonlyArray<Permission> }) {
  */
 export function EditGrantPermissions({ grant }: { grant: Grant }) {
   const name = grant.aiClient.name;
-  const [open, setOpen] = useState(false);
-  const [reviewing, setReviewing] = useState(false);
-  const [ticked, setTicked] = useState<ReadonlySet<Permission>>(new Set(grant.permissions));
+  const [state, send, can] = useFsm(editGrantMachine);
+  const { ticked } = state.context;
+  const step = state.value === "closed" ? state.context.closedOn : state.value;
 
   const change = useMutation(
     api.grants.changePermissions.mutationOptions(invalidating(api.grants.key())),
   );
 
-  const chosen = grantablePermissions.filter((permission) => ticked.has(permission));
-  const added = chosen.filter((permission) => !grant.permissions.includes(permission));
-  const removed = grant.permissions.filter((permission) => !ticked.has(permission));
+  const { chosen, added, removed } = permissionsChange(grant.permissions, ticked);
   const title = `Change ${name}'s permissions?`;
 
   const sentence = changeSentence(name, added, removed);
@@ -96,16 +95,12 @@ export function EditGrantPermissions({ grant }: { grant: Grant }) {
 
   return (
     <Dialog
-      open={open}
+      open={state.value !== "closed"}
       onOpenChange={(next) => {
         // Closing while the request runs would hide whether it succeeded.
         if (change.isPending) return;
         change.reset();
-        setReviewing(false);
-
-        // Opens on what the Grant holds now, whatever was left unconfirmed before.
-        if (next) setTicked(new Set(grant.permissions));
-        setOpen(next);
+        send(next ? { type: "open", held: grant.permissions } : { type: "close" });
       }}
     >
       <DialogTrigger
@@ -114,7 +109,7 @@ export function EditGrantPermissions({ grant }: { grant: Grant }) {
         Edit
       </DialogTrigger>
       <DialogContent showCloseButton={false}>
-        {reviewing ? (
+        {step === "reviewing" ? (
           <>
             <DialogHeader>
               <DialogTitle>{title}</DialogTitle>
@@ -141,7 +136,7 @@ export function EditGrantPermissions({ grant }: { grant: Grant }) {
                 disabled={change.isPending}
                 onClick={() => {
                   change.reset();
-                  setReviewing(false);
+                  send({ type: "back" });
                 }}
               >
                 Back
@@ -152,7 +147,7 @@ export function EditGrantPermissions({ grant }: { grant: Grant }) {
                   if (!Arr.isReadonlyArrayNonEmpty(chosen)) return;
                   change.mutate(
                     { params: { id: grant.id }, payload: { permissions: chosen } },
-                    { onSuccess: () => setOpen(false) },
+                    { onSuccess: () => send({ type: "close" }) },
                   );
                 }}
                 data-agent-confirm={`${title} ${consequence}`}
@@ -175,7 +170,7 @@ export function EditGrantPermissions({ grant }: { grant: Grant }) {
                   <Checkbox
                     checked={ticked.has(permission)}
                     onCheckedChange={(checked) =>
-                      setTicked((current) => toggled(current, permission, checked === true))
+                      send({ type: "toggle", permission, on: checked === true })
                     }
                   />
                   <FieldLabel>
@@ -187,8 +182,8 @@ export function EditGrantPermissions({ grant }: { grant: Grant }) {
             <DialogFooter>
               <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
               <Button
-                disabled={chosen.length === 0 || added.length + removed.length === 0}
-                onClick={() => setReviewing(true)}
+                disabled={!can({ type: "review", held: grant.permissions })}
+                onClick={() => send({ type: "review", held: grant.permissions })}
               >
                 Review
               </Button>
