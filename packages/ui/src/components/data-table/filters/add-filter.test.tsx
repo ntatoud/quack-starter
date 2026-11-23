@@ -4,6 +4,7 @@ import { page, userEvent } from "vite-plus/test/browser";
 import { DataTableAddFilter } from "@quack/ui/components/data-table/filters/add-filter";
 
 import { render } from "vitest-browser-react";
+import { elementOf } from "@quack/ui/testing/dom";
 
 const filters = [
   { key: "status", title: "Status" },
@@ -11,7 +12,7 @@ const filters = [
 ] as const;
 
 const setup = async (shown: ReadonlyArray<{ key: string; title: string }> = filters) => {
-  const onAdd = vi.fn(() => document.querySelector<HTMLInputElement>("#filter")?.focus());
+  const onAdd = vi.fn(() => elementOf(HTMLInputElement, document.getElementById("filter")).focus());
   await render(
     <>
       <DataTableAddFilter filters={shown} onAdd={onAdd} />

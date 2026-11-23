@@ -4,6 +4,7 @@ import { page, userEvent } from "vite-plus/test/browser";
 import { render } from "vitest-browser-react";
 
 import { SearchInput } from "@quack/ui/components/search-input";
+import { slot } from "@quack/ui/testing/dom";
 
 const agent = createAgent();
 const delay = 50;
@@ -130,8 +131,8 @@ describe("SearchInput", () => {
   });
 
   it("rings the frame while the input has the keyboard focus", async () => {
-    const { screen } = await setup();
-    const frame = screen.container.querySelector<HTMLElement>("[data-slot=input-group]")!;
+    await setup();
+    const frame = slot("input-group");
     const ring = () => getComputedStyle(frame).boxShadow;
     const resting = ring();
 

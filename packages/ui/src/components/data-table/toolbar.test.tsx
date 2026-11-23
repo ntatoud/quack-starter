@@ -16,7 +16,7 @@ import { DataTableToolbar } from "@quack/ui/components/data-table/toolbar";
 import { useDataTable } from "@quack/ui/hooks/use-data-table";
 
 import { render } from "vitest-browser-react";
-import { elementOf, slot } from "@quack/ui/testing/dom";
+import { checkboxBox, elementOf, slot } from "@quack/ui/testing/dom";
 
 type Range = { readonly min?: number | undefined };
 
@@ -150,6 +150,8 @@ const chip = (title: string) => page.getByRole("group", { name: `${title} filter
 /** What the chip shows: its button, without what its live region says. */
 const chipText = (title: string) => chip(title).getByRole("button").first();
 
+const openChip = (title: string) => chipText(title).click();
+
 const addFilter = async (title: string) => {
   await page.getByRole("button", { name: "Add filter" }).click();
   await page.getByRole("menuitem", { name: title }).click();
@@ -223,7 +225,7 @@ describe("DataTableToolbar", () => {
   it("keeps a filter emptied from its editor shown, when the store applies the change later", async () => {
     const { last } = await setup({ tags: ["vip"] }, {}, { later: true });
 
-    await chip("Tags").getByRole("button").first().click();
+    await openChip("Tags");
     await page.getByRole("menuitemcheckbox", { name: "VIP" }).click();
 
     await expect.element(chipText("Tags")).toHaveTextContent("Tags:Select");
@@ -259,7 +261,7 @@ describe("DataTableToolbar", () => {
   it("keeps an option ticked again before its clearing was applied", async () => {
     const { last } = await setup({ tags: ["vip"] }, {}, { later: "held" });
 
-    await chip("Tags").getByRole("button").first().click();
+    await openChip("Tags");
     await page.getByRole("menuitemcheckbox", { name: "VIP" }).click();
     await page.getByRole("menuitemcheckbox", { name: "VIP" }).click();
     await userEvent.keyboard("{Escape}");
@@ -273,7 +275,7 @@ describe("DataTableToolbar", () => {
   it("hides a chip on Back once a value followed its emptying before the emptying landed", async () => {
     const { last } = await setup({ tags: ["vip"] }, {}, { later: "held" });
 
-    await chip("Tags").getByRole("button").first().click();
+    await openChip("Tags");
     await page.getByRole("menuitemcheckbox", { name: "VIP" }).click();
     await page.getByRole("menuitemcheckbox", { name: "Beta" }).click();
     await userEvent.keyboard("{Escape}");
@@ -329,7 +331,7 @@ describe("DataTableToolbar", () => {
   it("still says how many options it has while they refetch in the background", async () => {
     await setup({ status: "active" }, { loading: true });
 
-    await chip("Status").getByRole("button").first().click();
+    await openChip("Status");
     await expect.element(chip("Status").getByRole("status")).toHaveTextContent("2 options");
   });
 
@@ -337,17 +339,17 @@ describe("DataTableToolbar", () => {
     await setup({ tags: ["gone", "gone"] });
 
     await expect.element(chipText("Tags")).toHaveTextContent("Tags:gone (not an option)");
-    await chip("Tags").getByRole("button").first().click();
+    await openChip("Tags");
     expect(
       page.getByRole("menuitemcheckbox", { name: "gone (not an option)" }).elements(),
     ).toHaveLength(1);
   });
 
   it("shows a value the options do not hold, and keeps it when another is ticked", async () => {
-    const { last } = await setup({ tags: ["gone" as "vip"] });
+    const { last } = await setup({ tags: ["gone"] });
 
     await expect.element(chipText("Tags")).toHaveTextContent("Tags:gone (not an option)");
-    await chip("Tags").getByRole("button").first().click();
+    await openChip("Tags");
     await page.getByRole("menuitemcheckbox", { name: "Beta" }).click();
 
     expect(last()).toEqual({ tags: ["beta", "gone"] });
@@ -356,7 +358,7 @@ describe("DataTableToolbar", () => {
   it("says when its options are on their way, and when they could not be loaded", async () => {
     const retry = vi.fn();
     await setup({ status: "active" }, { loading: true });
-    await chip("Status").getByRole("button").first().click();
+    await openChip("Status");
     await expect.element(page.getByRole("menuitemradio", { name: "Active 12" })).toBeVisible();
     await userEvent.keyboard("{Escape}");
 
@@ -487,7 +489,7 @@ describe("DataTableToolbar", () => {
 describe("DataTableToolbar chips, with a store that applies changes later", () => {
   it("keeps a chip emptied one tick at a time, its menu open and its focus, before the store applied any", async () => {
     const { last } = await setup({ tags: ["vip", "beta"] }, {}, { later: "held" });
-    await chip("Tags").getByRole("button").first().click();
+    await openChip("Tags");
 
     await page.getByRole("menuitemcheckbox", { name: "VIP" }).click();
     await page.getByRole("menuitemcheckbox", { name: "Beta" }).click();
@@ -501,7 +503,7 @@ describe("DataTableToolbar chips, with a store that applies changes later", () =
 
   it("lets a chip go with its value after a change that changed nothing", async () => {
     await setup({ amount: { min: 1 } });
-    await chip("Amount").getByRole("button").first().click();
+    await openChip("Amount");
     await page.getByRole("button", { name: "Apply" }).click();
 
     await page.getByRole("button", { name: "Go back", exact: true }).click();
@@ -694,18 +696,10 @@ describe("DataTableFilterChip at phone width", () => {
 describe("DataTableFilterChip of several options", () => {
   it("ticks its options in boxes, empty when unticked, filled with a check when ticked", async () => {
     await setup({ tags: ["vip"] });
-    await chip("Tags").getByRole("button").first().click();
+    await openChip("Tags");
 
-    const box = (name: string) => {
-      const found = page
-        .getByRole("menuitemcheckbox", { name })
-        .element()
-        .querySelector<HTMLElement>("span[aria-hidden]");
-
-      if (found === null) throw new Error(`No box for ${name}.`);
-
-      return found;
-    };
+    const box = (name: string) =>
+      checkboxBox(page.getByRole("menuitemcheckbox", { name }).element());
 
     await expect.element(page.getByRole("menuitemcheckbox", { name: "VIP" })).toBeVisible();
 

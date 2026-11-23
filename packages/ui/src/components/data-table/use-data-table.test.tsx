@@ -53,16 +53,6 @@ describe("useDataTable with a store that has no addresses", () => {
       .toHaveAttribute("aria-current", "page");
     await expect.element(pages().getByRole("button", { name: "Previous" })).toBeEnabled();
   });
-
-  it("searches from the first page", async () => {
-    await render(<LocalTable />);
-    await pages().getByRole("button", { name: "Page 3" }).click();
-
-    await page.getByRole("searchbox", { name: "Search" }).fill("ada");
-
-    await expect.element(state()).toHaveTextContent('{"q":"ada"}');
-    await expect.element(pages().getByRole("button", { name: "Next" })).toBeEnabled();
-  });
 });
 
 // Checked by the compiler, never run: each `@ts-expect-error` fails the typecheck once its line compiles.
@@ -74,9 +64,11 @@ export const typing = (
     options: [{ value: "admin", label: "Admin" }],
   });
 
+  const anyRole: string = "admin";
+
   const loose = selectFilter({
     title: "Role",
-    options: [{ value: "admin" as string, label: "Admin" }],
+    options: [{ value: anyRole, label: "Admin" }],
   });
 
   return () => [

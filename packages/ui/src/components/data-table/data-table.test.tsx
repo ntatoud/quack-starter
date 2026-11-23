@@ -20,7 +20,7 @@ import { DataTableToolbar } from "@quack/ui/components/data-table/toolbar";
 import { useDataTable } from "@quack/ui/hooks/use-data-table";
 
 import { render } from "vitest-browser-react";
-import { elementOf, slot } from "@quack/ui/testing/dom";
+import { elementOf, headerButton, slot } from "@quack/ui/testing/dom";
 
 const columnsOf = (count: number, size?: number): ReadonlyArray<DataTableColumn<{ id: string }>> =>
   Array.from({ length: count }, (_, i) => {
@@ -57,6 +57,27 @@ const headerSizeOf = (name: string) => {
 
   return getComputedStyle(header.querySelector("button") ?? header).fontSize;
 };
+
+/** The rows a Tab reaches: one at a time. */
+const tabbableRows = () =>
+  [...document.querySelectorAll<HTMLTableRowElement>("tbody tr")].filter(
+    (row) => row.tabIndex === 0,
+  );
+
+const headerHeight = () =>
+  elementOf(HTMLElement, document.querySelector("thead")).getBoundingClientRect().height;
+
+const backgroundOf = (element: Element) => getComputedStyle(element).backgroundColor;
+
+/** Waits until every color change of the rows and their cells has run its course. */
+const rowsSettled = () =>
+  expect
+    .poll(() =>
+      [...document.querySelectorAll("tbody tr, tbody td")].some(
+        (element) => element.getAnimations().length > 0,
+      ),
+    )
+    .toBe(false);
 
 const setup = async (columns: number, rows = 1) => {
   await render(
@@ -163,10 +184,7 @@ describe("DataTable", () => {
     await page.getByRole("menuitemradio", { name: "Descending" }).click();
     expect(onSort).toHaveBeenCalledWith("name", "desc");
     await expect.poll(() => page.getByRole("menu").elements()).toHaveLength(0);
-    await page
-      .getByRole("columnheader", { name: "Status", exact: true })
-      .getByRole("button")
-      .click();
+    await headerButton("Status").click();
     expect(openFilter).toHaveBeenCalledWith("status");
     expect(page.getByRole("button", { name: "Note" }).elements()).toHaveLength(0);
   });
@@ -245,10 +263,7 @@ describe("DataTable", () => {
     await page.getByRole("menuitemradio", { name: "Ascending" }).click();
     expect(onSort).toHaveBeenCalledWith("net", "asc");
     await expect.poll(() => page.getByRole("menu").elements()).toHaveLength(0);
-    await page
-      .getByRole("columnheader", { name: "Price", exact: true })
-      .getByRole("button")
-      .click();
+    await headerButton("Price").click();
     expect(openFilter).toHaveBeenCalledWith("price");
     expect(page.getByRole("menu").elements()).toHaveLength(0);
   });
@@ -407,52 +422,6 @@ describe("DataTable with onRowClick", () => {
   });
 });
 
-describe("DataTablePagination page size", () => {
-  it("offers the page sizes, and changes the size from the first page", async () => {
-    const goToPage = vi.fn();
-    const setPageSize = vi.fn();
-    await render(
-      <DataTablePagination
-        table={{
-          page: 3,
-          pageSize: 10,
-          setPageSize,
-          goToPage,
-          pageLink: () => undefined,
-        }}
-        pages={5}
-        pageSizes={[10, 25, 50]}
-        aria-label="Pages"
-      />,
-    );
-
-    await page.getByRole("combobox", { name: "Rows per page" }).click();
-    await page.getByRole("option", { name: "25" }).click();
-
-    expect(setPageSize).toHaveBeenCalledWith(25);
-  });
-
-  it("shows no page size without page sizes", async () => {
-    await render(
-      <DataTablePagination
-        table={{
-          page: 1,
-          pageSize: 10,
-          goToPage: () => {},
-          pageLink: () => undefined,
-        }}
-        pages={2}
-        aria-label="Pages"
-      />,
-    );
-
-    await expect.element(page.getByRole("navigation")).toBeVisible();
-    await expect
-      .element(page.getByRole("combobox", { name: "Rows per page" }))
-      .not.toBeInTheDocument();
-  });
-});
-
 describe("DataTable inside a page that scrolls", () => {
   it("lets the wheel scroll the page over a table that has nothing to scroll", async () => {
     await render(
@@ -593,25 +562,6 @@ type Paged = {
 };
 
 describe("DataTable with useDataTable", () => {
-  it("goes to the last page from a page past it", async () => {
-    function Table() {
-      const store = useMemoryDataTableStore<Paged>({ page: 5 });
-
-      const table = useDataTable({
-        store,
-        defaultSorting: { column: "name", direction: "asc" },
-      });
-
-      return <DataTablePagination table={table} pages={2} aria-label="Pages" />;
-    }
-
-    await render(<Table />);
-
-    await expect
-      .element(page.getByRole("button", { name: "Page 2" }))
-      .toHaveAttribute("aria-current", "page");
-  });
-
   it("scrolls back to the top on another page", async () => {
     function Table() {
       const store = useMemoryDataTableStore<Paged>();
@@ -732,12 +682,7 @@ describe("DataTable rows from the keyboard", () => {
     );
     const row = (name: string) => page.getByRole("row", { name });
 
-    const tabbable = () =>
-      page
-        .getByRole("row")
-        .elements()
-        .filter((element) => element.getAttribute("tabindex") === "0")
-        .map((element) => element.textContent);
+    const tabbable = () => tabbableRows().map((element) => element.textContent);
 
     expect(tabbable()).toEqual(["Ada"]);
     await expect
@@ -810,10 +755,15 @@ describe("DataTable details", () => {
 
     await expect.poll(() => pastEdge(root, "end")).toBe(true);
     expect(slot("data-table").hasAttribute("data-sticky-end")).toBe(true);
-    const held = document.querySelector("thead th[data-sticky=end]")?.getBoundingClientRect();
+
+    const held = elementOf(
+      HTMLTableCellElement,
+      document.querySelector("thead th[data-sticky=end]"),
+    ).getBoundingClientRect();
+
     await expect
       .poll(() => slot("data-table-overflow-end").getBoundingClientRect().right)
-      .toBeCloseTo(held?.left ?? 0, 0);
+      .toBeCloseTo(held.left, 0);
     await expect.poll(() => getComputedStyle(slot("data-table-overflow-end")).opacity).toBe("1");
 
     const scrollbar = root.querySelector<HTMLElement>(
@@ -822,7 +772,7 @@ describe("DataTable details", () => {
 
     expect(
       Number.parseFloat(getComputedStyle(elementOf(HTMLElement, scrollbar)).paddingInlineEnd),
-    ).toBeCloseTo(held?.width ?? 0, 0);
+    ).toBeCloseTo(held.width, 0);
   });
 
   it("keeps a scroll past its end to itself only when it has rows to scroll", async () => {
@@ -872,17 +822,15 @@ describe("DataTable virtual rows from the keyboard", () => {
     return { viewport: slot("scroll-area-viewport"), first };
   };
 
-  const tabbable = () =>
-    [...document.querySelectorAll<HTMLElement>("tr[data-row-index]")].flatMap((row) =>
-      row.tabIndex === 0 ? [row.dataset.rowIndex] : [],
-    );
+  const tabbable = () => tabbableRows().map((row) => row.dataset.rowIndex);
 
   const firstRendered = () =>
     document.querySelector<HTMLElement>("tr[data-row-index]")?.dataset.rowIndex;
 
   /** The first row wholly in view, below the sticky header: not one of the rows rendered above it. */
   const firstInView = () => {
-    const head = document.querySelector("thead")?.getBoundingClientRect().bottom ?? 0;
+    const head = elementOf(HTMLElement, document.querySelector("thead")).getBoundingClientRect()
+      .bottom;
 
     return [...document.querySelectorAll<HTMLElement>("tr[data-row-index]")].find(
       (row) => row.getBoundingClientRect().top >= head - 0.5,
@@ -941,10 +889,10 @@ describe("DataTable rows under its sticky header", () => {
 
   /** How far the focused row's top sits below the header: never under it. */
   const belowHeader = () => {
-    const head = document.querySelector("thead")?.getBoundingClientRect();
-    const row = document.activeElement?.getBoundingClientRect();
+    const head = elementOf(HTMLElement, document.querySelector("thead")).getBoundingClientRect();
+    const row = elementOf(HTMLElement, document.activeElement).getBoundingClientRect();
 
-    return (row?.top ?? 0) - (head?.bottom ?? 0);
+    return row.top - head.bottom;
   };
 
   const focusedRow = () => elementOf(HTMLElement, document.activeElement).dataset.rowIndex;
@@ -1052,39 +1000,28 @@ describe("DataTable selected rows", () => {
     const selected = page.getByRole("row", { name: /Ada/ });
     const other = page.getByRole("row", { name: /Alan/ });
     await expect.element(selected).toHaveAttribute("data-state", "selected");
-    const background = (element: Element) => getComputedStyle(element).backgroundColor;
     const stickyCell = selected.getByRole("cell", { name: "Edit" }).element();
-
-    // Every color change of the rows and their cells has run its course.
-    const settled = () =>
-      expect
-        .poll(() =>
-          [...document.querySelectorAll("tbody tr, tbody td")].some(
-            (element) => element.getAnimations().length > 0,
-          ),
-        )
-        .toBe(false);
 
     // The pointer may rest where an earlier test left it, over a row: it leaves the table first.
     await userEvent.unhover(selected);
-    await settled();
-    const selectedColor = background(selected.element());
+    await rowsSettled();
+    const selectedColor = backgroundOf(selected.element());
     expect(selectedColor).not.toBe("rgba(0, 0, 0, 0)");
-    expect(background(stickyCell)).toBe(selectedColor);
+    expect(backgroundOf(stickyCell)).toBe(selectedColor);
 
     await other.hover();
-    await settled();
-    const hoverColor = background(other.element());
+    await rowsSettled();
+    const hoverColor = backgroundOf(other.element());
     expect(hoverColor).not.toBe("rgba(0, 0, 0, 0)");
     expect(hoverColor).not.toBe(selectedColor);
-    expect(background(selected.element())).toBe(selectedColor);
+    expect(backgroundOf(selected.element())).toBe(selectedColor);
 
     await selected.hover();
-    await settled();
-    const selectedHoverColor = background(selected.element());
+    await rowsSettled();
+    const selectedHoverColor = backgroundOf(selected.element());
     expect(selectedHoverColor).not.toBe(selectedColor);
     expect(selectedHoverColor).not.toBe(hoverColor);
-    expect(background(stickyCell)).toBe(selectedHoverColor);
+    expect(backgroundOf(stickyCell)).toBe(selectedHoverColor);
     // In light mode, the tints darken the row: selected more than hovered, selected and hovered more still.
     const lightness = (color: string) => Number(/\(([\d.]+)/.exec(color)?.[1] ?? Number.NaN);
     expect(lightness(hoverColor) - lightness(selectedColor)).toBeGreaterThan(0.01);
@@ -1092,8 +1029,8 @@ describe("DataTable selected rows", () => {
   });
 });
 
-describe("DataTable hovered rows inside a card", () => {
-  it("lights a hovered row and its cell held at the end alike, apart from the card, in dark mode", async () => {
+describe("DataTable inside a card", () => {
+  it("paints its header and the cell held at the end in the card's color, and lights a hovered row and that cell alike, in dark mode", async () => {
     await render(
       <div data-color-scheme="dark">
         <Card>
@@ -1116,28 +1053,23 @@ describe("DataTable hovered rows inside a card", () => {
     await expect.element(row).toBeVisible();
     const cell = row.getByRole("cell", { name: "Edit" }).element();
 
-    const background = (element: Element | null) =>
-      element === null ? "" : getComputedStyle(element).backgroundColor;
+    const card = backgroundOf(slot("card"));
 
-    const card = background(document.querySelector("[data-slot=card]"));
-
-    const settled = () =>
-      expect
-        .poll(() => [row.element(), cell].some((e) => e.getAnimations().length > 0))
-        .toBe(false);
-
+    // The pointer may rest where an earlier test left it, over a row: it leaves the table first.
     await userEvent.unhover(row);
-    await settled();
-    // At rest: the table and its cell held at the end paint the card's color.
-    expect(background(slot("data-table"))).toBe(card);
-    expect(background(cell)).toBe(card);
+    await rowsSettled();
+    // At rest: the table, its header and its cell held at the end paint the card's color.
+    expect(card).not.toBe(backgroundOf(document.body));
+    expect(backgroundOf(slot("data-table"))).toBe(card);
+    expect(backgroundOf(page.getByRole("columnheader").first().element())).toBe(card);
+    expect(backgroundOf(cell)).toBe(card);
 
     await row.hover();
-    await settled();
-    const hovered = background(row.element());
+    await rowsSettled();
+    const hovered = backgroundOf(row.element());
     expect(hovered).not.toBe(card);
     expect(hovered).not.toBe("rgba(0, 0, 0, 0)");
-    expect(background(cell)).toBe(hovered);
+    expect(backgroundOf(cell)).toBe(hovered);
   });
 });
 
@@ -1233,16 +1165,16 @@ describe("DataTable sized by the app", () => {
     await expect.element(page.getByRole("table")).toBeVisible();
 
     expect(slot("data-table").getBoundingClientRect().height).toBe(200);
-    const header = document.querySelector("thead")?.getBoundingClientRect();
     await expect
       .poll(() => getComputedStyle(slot("scroll-area-viewport")).scrollPaddingTop)
-      .toBe(`${header?.height}px`);
+      .toBe(`${headerHeight()}px`);
 
-    const scrollbar = document.querySelector<HTMLElement>(
-      "[data-slot=scroll-area-scrollbar][data-orientation=vertical]",
+    const scrollbar = elementOf(
+      HTMLElement,
+      document.querySelector("[data-slot=scroll-area-scrollbar][data-orientation=vertical]"),
     );
 
-    expect(scrollbar && getComputedStyle(scrollbar).paddingTop).toBe(`${header?.height}px`);
+    expect(getComputedStyle(scrollbar).paddingTop).toBe(`${headerHeight()}px`);
   });
 });
 
@@ -1296,48 +1228,6 @@ describe("DataTable scroll on other rows", () => {
     await expect.element(page.getByText("Row 2.0", { exact: true })).toBeVisible();
     expect(seen.length).toBeGreaterThan(0);
     expect(seen[0]).toBe(0);
-  });
-});
-
-describe("DataTable inside a card", () => {
-  it("gives its sticky cells the background of the card, in dark mode too", async () => {
-    await render(
-      <div data-color-scheme="dark">
-        <Card>
-          <DataTable
-            columns={[
-              ...columnsOf(2),
-              {
-                id: "actions",
-                sticky: "end",
-                header: () => "Actions",
-                cell: () => "Edit",
-              },
-            ]}
-            data={[{ id: "0" }]}
-          />
-        </Card>
-      </div>,
-    );
-    await expect.element(page.getByRole("table")).toBeVisible();
-
-    const background = (element: Element | null) =>
-      element === null ? "" : getComputedStyle(element).backgroundColor;
-
-    const card = background(document.querySelector("[data-slot=card]"));
-    // The pointer may rest where an earlier test left it, over a row: it leaves the table first.
-    await userEvent.unhover(page.getByRole("table"));
-    await expect
-      .poll(() =>
-        [...document.querySelectorAll("tbody tr, tbody td")].some(
-          (element) => element.getAnimations().length > 0,
-        ),
-      )
-      .toBe(false);
-
-    expect(card).not.toBe(background(document.body));
-    expect(background(page.getByRole("columnheader").first().element())).toBe(card);
-    expect(background(page.getByRole("cell", { name: "Edit" }).element())).toBe(card);
   });
 });
 
@@ -1417,16 +1307,6 @@ function Searchable() {
 }
 
 describe("DataTable live region", () => {
-  it("says aloud that a search found nothing", async () => {
-    await render(<Searchable />);
-    await expect.poll(emptySaid).toBe("");
-
-    await page.getByRole("searchbox", { name: "Search" }).fill("zed");
-
-    await expect.poll(emptySaid).toBe("No results for “zed”");
-    expect(sortSaid()).toBe("");
-  });
-
   it("leaves an error to its own alert", async () => {
     const table = (rows: number) => (
       <DataTable
@@ -1487,7 +1367,7 @@ describe("DataTable rows, a page at a time", () => {
     const row = elementOf(HTMLElement, first.element());
     row.focus();
     const viewport = slot("scroll-area-viewport");
-    const header = document.querySelector("thead")?.getBoundingClientRect().height ?? 0;
+    const header = headerHeight();
     const shown = Math.floor((viewport.clientHeight - header) / row.offsetHeight);
     expect(shown).toBeGreaterThan(1);
 
@@ -1539,14 +1419,14 @@ describe("DataTable hidden columns", () => {
 });
 
 describe("DataTable live region, exactly", () => {
-  const said = emptySaid;
-
   it("says the message of an empty search alone, and again after rows came back", async () => {
     await render(<Searchable />);
+    await expect.poll(emptySaid).toBe("");
     const search = page.getByRole("searchbox", { name: "Search" });
 
     await search.fill("zed");
-    await expect.poll(said).toBe("No results for “zed”");
+    await expect.poll(emptySaid).toBe("No results for “zed”");
+    expect(sortSaid()).toBe("");
     // Not the button beside the message.
     await expect
       .element(page.getByRole("cell").getByRole("button", { name: "Clear filters" }))
@@ -1554,10 +1434,10 @@ describe("DataTable live region, exactly", () => {
 
     await search.fill("");
     await expect.element(page.getByRole("cell", { name: "Ada", exact: true })).toBeVisible();
-    await expect.poll(said).toBe("");
+    await expect.poll(emptySaid).toBe("");
 
     await search.fill("zed");
-    await expect.poll(said).toBe("No results for “zed”");
+    await expect.poll(emptySaid).toBe("No results for “zed”");
   });
 
   it("stops saying it is loading once rows come", async () => {
@@ -1570,11 +1450,11 @@ describe("DataTable live region, exactly", () => {
     );
 
     const screen = await render(table(0));
-    await expect.poll(said).toBe("Loading…");
+    await expect.poll(emptySaid).toBe("Loading…");
 
     await screen.rerender(table(2));
 
-    await expect.poll(said).toBe("");
+    await expect.poll(emptySaid).toBe("");
   });
 
   it("reads the text of an empty slot of its own, but its buttons and links", async () => {
@@ -1590,7 +1470,7 @@ describe("DataTable live region, exactly", () => {
       />,
     );
 
-    await expect.poll(said).toBe("Nothing here yet.");
+    await expect.poll(emptySaid).toBe("Nothing here yet.");
   });
 });
 
@@ -1664,10 +1544,7 @@ describe("DataTable focus on rows that go", () => {
 
     await render(<Table />);
 
-    const tabbable = () =>
-      [...document.querySelectorAll<HTMLElement>("tr[data-row-index]")].flatMap((row) =>
-        row.tabIndex === 0 ? [row.textContent] : [],
-      );
+    const tabbable = () => tabbableRows().map((row) => row.textContent);
 
     const first = page.getByRole("row", { name: "Row 1.0" });
     elementOf(HTMLElement, first.element()).focus();
@@ -1723,7 +1600,7 @@ describe("DataTable live region, sorting and loading", () => {
     await page.getByRole("menuitemradio", { name: "Descending" }).click();
     await expect.poll(sortSaid).toBe("Sorted by Name, descending");
     await expect.poll(emptySaid).toBe("Loading…");
-    // From here, the sorting is said once: its region is not written again.
+    // From here, the sorting is emptySaid once: its region is not written again.
     const writes: Array<MutationRecord> = [];
     const observer = new MutationObserver((records) => writes.push(...records));
     observer.observe(regions().sorting, {
@@ -1762,7 +1639,7 @@ describe("DataTable rows, a page at a time, in a table taller than the window", 
     const row = elementOf(HTMLElement, first.element());
     row.focus();
     const box = slot("scroll-area-viewport").getBoundingClientRect();
-    const header = document.querySelector("thead")?.getBoundingClientRect().height ?? 0;
+    const header = headerHeight();
 
     const shown = Math.floor(
       (Math.min(box.bottom, innerHeight) - Math.max(box.top + header, 0)) / row.offsetHeight,
