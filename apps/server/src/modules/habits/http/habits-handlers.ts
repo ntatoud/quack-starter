@@ -1,5 +1,7 @@
 import { Api } from "@quack/contracts/api";
 import { CheckIn } from "@quack/contracts/habits/check-in";
+import type { Day } from "@quack/contracts/habits/day";
+import type { HabitId } from "@quack/contracts/habits/habit";
 import { CurrentUser } from "@quack/contracts/identity/authentication";
 import { Effect } from "effect";
 import { HttpApiBuilder } from "effect/http-api";
@@ -13,6 +15,9 @@ const owner = Effect.gen(function* () {
 
   return { ownerId: user.id, today: yield* todayOf(user) };
 });
+
+const checkInOf = ({ id, day }: { readonly id: HabitId; readonly day: Day }) =>
+  new CheckIn({ habitId: id, day });
 
 export const HabitsHandlers = HttpApiBuilder.group(
   Api,
@@ -34,20 +39,12 @@ export const HabitsHandlers = HttpApiBuilder.group(
       checkIn: Effect.fn(function* ({ params }) {
         const { ownerId, today } = yield* owner;
 
-        return yield* habits.checkIn(
-          ownerId,
-          today,
-          new CheckIn({ habitId: params.id, day: params.day }),
-        );
+        return yield* habits.checkIn(ownerId, today, checkInOf(params));
       }),
       uncheck: Effect.fn(function* ({ params }) {
         const { ownerId, today } = yield* owner;
 
-        return yield* habits.uncheck(
-          ownerId,
-          today,
-          new CheckIn({ habitId: params.id, day: params.day }),
-        );
+        return yield* habits.uncheck(ownerId, today, checkInOf(params));
       }),
     });
   }),

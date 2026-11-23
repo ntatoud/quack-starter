@@ -18,7 +18,6 @@ export const habitColorOptions = HabitColor.literals.map((value) => ({
   label: swatches[value].label,
 }));
 
-/** The dot of a Habit's color, beside its name. */
 export function HabitColorDot({ color }: { color: HabitColor }) {
   return (
     <span aria-hidden className={`size-2.5 shrink-0 rounded-full ${swatches[color].className}`} />

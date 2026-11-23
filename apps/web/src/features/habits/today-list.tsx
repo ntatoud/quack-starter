@@ -13,7 +13,7 @@ import { CalendarCheckIcon } from "lucide-react";
 import { ListLoading } from "#/components/list-loading.tsx";
 import { LoadFailed } from "#/components/load-failed.tsx";
 import { RefreshFailed } from "#/components/refresh-failed.tsx";
-import { TodayHabit } from "#/features/habits/today-habit.tsx";
+import { TodayHabitRow } from "#/features/habits/today-habit-row.tsx";
 import { api } from "#/lib/api.ts";
 
 export function TodayList() {
@@ -49,8 +49,8 @@ export function TodayList() {
           </Empty>
         ) : (
           <ul className="divide-y rounded-xl border">
-            {data.habits.map((entry) => (
-              <TodayHabit key={entry.habit.id} day={data.day} entry={entry} />
+            {data.habits.map((due) => (
+              <TodayHabitRow key={due.habit.id} day={data.day} due={due} />
             ))}
           </ul>
         )}

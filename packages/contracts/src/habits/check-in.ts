@@ -15,7 +15,6 @@ export class TodayHabit extends Schema.Class<TodayHabit, { readonly brand: uniqu
   checkIn: Schema.NullOr(CheckIn),
 }) {}
 
-/** The Habits due on the Current User's Today, in their order. */
 export class Today extends Schema.Class<Today, { readonly brand: unique symbol }>("Today")({
   day: Day,
   habits: Schema.Array(TodayHabit),

@@ -28,12 +28,10 @@ export const HabitColor = Schema.Literals([
 
 export type HabitColor = typeof HabitColor.Type;
 
-/** When a Habit is due. */
 export const Schedule = Schema.TaggedUnion({ EveryDay: {} });
 
 export type Schedule = typeof Schedule.Type;
 
-/** What doing a Habit means on a Day. */
 export const Target = Schema.TaggedUnion({ Done: {} });
 
 export type Target = typeof Target.Type;

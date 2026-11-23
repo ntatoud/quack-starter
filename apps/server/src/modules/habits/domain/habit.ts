@@ -13,5 +13,4 @@ export const isDueOn = (habit: Habit, day: Day): boolean =>
     onSome: ({ schedule }) => schedule._tag === "EveryDay",
   });
 
-/** A Check-in is written for Today only. */
 export const canCheckInOn = (today: Day, day: Day): boolean => day === today;

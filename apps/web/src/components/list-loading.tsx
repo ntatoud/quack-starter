@@ -1,6 +1,6 @@
 import { Skeleton } from "@quack/ui/components/skeleton";
 
-/** What a list shows while it loads: its rows drawn as skeletons, and `label` said to a screen reader. */
+/** The skeletons are hidden from a screen reader, which hears `label` instead. */
 export function ListLoading({ label }: { label: string }) {
   return (
     <>

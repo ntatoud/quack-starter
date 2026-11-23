@@ -1,5 +1,5 @@
 import type { Day } from "@quack/contracts/habits/day";
-import type { TodayHabit as TodayHabitData } from "@quack/contracts/habits/check-in";
+import type { TodayHabit } from "@quack/contracts/habits/check-in";
 import { Checkbox } from "@quack/ui/components/checkbox";
 import { useMutation } from "@tanstack/react-query";
 
@@ -9,13 +9,7 @@ import { invalidateHabits } from "#/features/habits/invalidate-habits.ts";
 import { api } from "#/lib/api.ts";
 import { useFsm } from "#/lib/use-fsm.ts";
 
-export function TodayHabit({
-  day,
-  entry: { habit, checkIn },
-}: {
-  day: Day;
-  entry: TodayHabitData;
-}) {
+export function TodayHabitRow({ day, due: { habit, checkIn } }: { day: Day; due: TodayHabit }) {
   const [state, send] = useFsm(checkInMachine);
   // The refetch of Today runs before the machine hears of the answer: the row goes from its own check to the API's
   // with no flicker, and back to the API's after a failure.

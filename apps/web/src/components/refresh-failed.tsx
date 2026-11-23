@@ -1,6 +1,5 @@
 import { Button } from "@quack/ui/components/button";
 
-/** The alert above a list whose refresh failed, which keeps what it showed. */
 export function RefreshFailed({
   message,
   retrying,
