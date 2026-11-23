@@ -44,6 +44,7 @@ Migrations (`docs/adr/0002-typescript-migrations-applied-at-startup.md`) live in
 ## Tests
 
 - A storage port states its promises as one suite in `testing/` that takes an adapter's Layer (`todoRepositorySuite(layer)`), run from each adapter's test file. Its memory adapter is a test double, in `testing/` too.
+- A flow across requests has a model in `testing/`, an `xstate/fsm` machine: the Grant of an AI Client (`grant-model.ts`). Its handler test replays `coveringWalks`, which take every transition, against the `Api`, and compares each answer with the model's. A change to a rule of the flow changes its model too.
 - `grant-store-postgres.test.ts` runs the suite on Postgres when `TEST_DATABASE_URL` names an empty database it may migrate and fill, and is skipped otherwise: CI has no Postgres.
 - Test handlers through `HttpApiTest`, with no server. It builds the routes of the whole `Api`, so the test Layer provides every middleware the `Api` declares: copy `modules/todos/http/todos-handlers.test.ts`.
 - A client that keeps cookies: `makeBrowser` in `modules/identity/http/identity-handlers.test.ts`.
