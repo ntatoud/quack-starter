@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { render } from "vitest-browser-react";
 
+import { Field } from "@quack/ui/components/field";
 import {
   Select,
   SelectContent,
@@ -37,6 +38,35 @@ const setup = (onValueChange = vi.fn()) =>
 const trigger = () => page.getByRole("combobox", { name: "Role" });
 
 describe("Select", () => {
+  it("opens a list as wide as its trigger in a Field, not as the page", async () => {
+    await page.viewport(1280, 800);
+    await render(
+      <Field className="w-48">
+        <Select items={roles} placeholder="Pick a role">
+          <SelectTrigger aria-label="Role">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {roles.map((role) => (
+              <SelectItem key={role.value} value={role.value}>
+                {role.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </Field>,
+    );
+
+    await trigger().click();
+    const listbox = page.getByRole("listbox");
+    await expect.element(listbox).toBeVisible();
+
+    // Polled: the list grows from 95% of its width as it opens.
+    await expect
+      .poll(() => listbox.element().getBoundingClientRect().width)
+      .toBe(trigger().element().getBoundingClientRect().width);
+  });
+
   // ui-sdk moves the focus into the list it opens, where the APG select-only combobox keeps it on the trigger.
   it.fails("follows the combobox pattern", async () => {
     const screen = await setup();
