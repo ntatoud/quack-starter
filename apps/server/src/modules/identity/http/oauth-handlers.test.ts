@@ -18,7 +18,7 @@ import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
 import { Grants, AiClientsModule } from "#/modules/identity/index.ts";
 import { AuthorizationCodeStoreMemory } from "#/modules/identity/testing/authorization-code-store-memory.ts";
 import { GrantStoreMemory } from "#/modules/identity/testing/grant-store-memory.ts";
-import { grantModelWalks } from "#/modules/identity/testing/grant-model.ts";
+import { grantModelWalks, isLive } from "#/modules/identity/testing/grant-model.ts";
 import { UserRepositoryMemory } from "#/modules/identity/testing/user-repository-memory.ts";
 import { authenticationByUserId } from "#/modules/identity/testing/authentication-by-user-id.ts";
 
@@ -1498,8 +1498,8 @@ layer(withConfig({}))("OAuthApi, the Grant of an AI Client against its model", (
             },
             {
               answer: state.context.answer,
-              listed: state.value === "granted",
-              opens: state.value === "granted",
+              listed: isLive(state),
+              opens: isLive(state),
             },
             taken.join(" → "),
           );
