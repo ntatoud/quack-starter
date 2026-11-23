@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import { todoItemMachine } from "#/features/todos/todo-item-machine.ts";
-import { runMachine } from "#/testing/run-machine.ts";
+import { reachableSnapshots, runMachine } from "#/testing/run-machine.ts";
 
 type Event = Parameters<typeof todoItemMachine.transition>[1];
 
@@ -32,5 +32,26 @@ describe("todoItemMachine", () => {
       run({ type: "remove" }, { type: "failed" }, { type: "complete" }, { type: "succeeded" })
         .value,
     ).toBe("idle");
+  });
+});
+
+describe("todoItemMachine, explored", () => {
+  const snapshots = reachableSnapshots(todoItemMachine, [
+    { type: "complete" },
+    { type: "remove" },
+    { type: "succeeded" },
+    { type: "failed" },
+  ]);
+
+  it("reaches every state", () => {
+    expect(new Set(snapshots.map(({ value }) => value))).toEqual(
+      new Set(["idle", "completing", "removing", "failed"]),
+    );
+  });
+
+  it("knows which request failed only while it says so", () => {
+    for (const snapshot of snapshots) {
+      if (snapshot.value !== "failed") expect(snapshot.context.failedTo).toBeUndefined();
+    }
   });
 });
