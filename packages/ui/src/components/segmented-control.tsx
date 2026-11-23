@@ -18,12 +18,12 @@ function SegmentedControl<T extends string = string>({
   return (
     <SegmentedControlPrimitive<T>
       className={cn(
-        "relative isolate inline-flex w-fit items-center rounded-lg bg-muted p-[3px] text-muted-foreground data-[orientation=vertical]:flex-col data-[orientation=vertical]:items-stretch",
+        "relative isolate inline-flex w-fit items-center rounded-lg bg-muted inset-shadow-sunken p-[3px] text-muted-foreground data-[orientation=vertical]:flex-col data-[orientation=vertical]:items-stretch",
         className,
       )}
       {...props}
     >
-      <SegmentedControlIndicator className="absolute top-(--segmented-control-indicator-top) left-(--segmented-control-indicator-left) -z-10 h-(--segmented-control-indicator-height) w-(--segmented-control-indicator-width) rounded-md bg-background shadow-sm transition-[top,left,width,height] duration-200 ease-out data-[activation-direction=none]:transition-none motion-reduce:transition-none dark:border dark:border-input dark:bg-input/30" />
+      <SegmentedControlIndicator className="absolute top-(--segmented-control-indicator-top) left-(--segmented-control-indicator-left) -z-10 h-(--segmented-control-indicator-height) w-(--segmented-control-indicator-width) rounded-md bg-background shadow-raised [--depth:2px] transition-[top,left,width,height] duration-200 ease-out data-[activation-direction=none]:transition-none motion-reduce:transition-none dark:border dark:border-input dark:bg-input/30" />
       {children}
     </SegmentedControlPrimitive>
   );
