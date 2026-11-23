@@ -1,7 +1,8 @@
 import { setup, types } from "xstate/fsm";
 
-// A state without a context schema has any context, which a transition from a state with one would have to patch.
-const noContext = { schemas: { context: types<{}>() } };
+// `which` belongs to the states of a dialog: the others have none, so the transitions out of a dialog clear it,
+// since a patch keeps every field it does not set.
+const noDialog = { schemas: { context: types<{ which?: undefined }>() } };
 
 /** The actions asked about in a dialog before they run. */
 export type Confirmed = "promote" | "suspend" | "delete";
@@ -24,9 +25,9 @@ export const userActionsMachine = setup({
     },
   },
   states: {
-    idle: noContext,
-    changing: noContext,
-    changeFailed: noContext,
+    idle: noDialog,
+    changing: noDialog,
+    changeFailed: noDialog,
     asking: { schemas: { context: types<Asked>() } },
     // Closing while the request runs would hide whether it succeeded: it takes no `dismiss`.
     confirming: { schemas: { context: types<Asked>() } },
@@ -52,13 +53,22 @@ export const userActionsMachine = setup({
       },
     },
     asking: {
-      on: { confirm: { target: "confirming" }, dismiss: { target: "idle" } },
+      on: {
+        confirm: { target: "confirming" },
+        dismiss: { target: "idle", context: { which: undefined } },
+      },
     },
     confirming: {
-      on: { succeeded: { target: "idle" }, failed: { target: "confirmFailed" } },
+      on: {
+        succeeded: { target: "idle", context: { which: undefined } },
+        failed: { target: "confirmFailed" },
+      },
     },
     confirmFailed: {
-      on: { confirm: { target: "confirming" }, dismiss: { target: "idle" } },
+      on: {
+        confirm: { target: "confirming" },
+        dismiss: { target: "idle", context: { which: undefined } },
+      },
     },
   },
 });

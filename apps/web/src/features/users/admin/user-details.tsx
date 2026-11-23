@@ -176,10 +176,7 @@ function UserActions({ user }: { user: User }) {
     if (send({ type: "apply" })) change.mutate({ params: { id: user.id }, payload }, settled);
   };
 
-  const asked =
-    state.value === "asking" || state.value === "confirming" || state.value === "confirmFailed"
-      ? state.context.which
-      : null;
+  const asked = state.context.which ?? null;
 
   const confirmed = (which: Confirmed, failure: string, run: () => void) => ({
     open: asked === which,

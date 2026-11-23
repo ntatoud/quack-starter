@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import { userActionsMachine } from "#/features/users/admin/user-actions-machine.ts";
-import { runMachine } from "#/testing/run-machine.ts";
+import { reachableSnapshots, runMachine } from "#/testing/run-machine.ts";
 
 type Event = Parameters<typeof userActionsMachine.transition>[1];
 
@@ -43,5 +43,31 @@ describe("userActionsMachine", () => {
 
     expect(run(...failed, { type: "dismiss" }).value).toBe("idle");
     expect(run(...failed, { type: "confirm" }).value).toBe("confirming");
+  });
+});
+
+describe("userActionsMachine, explored", () => {
+  const snapshots = reachableSnapshots(userActionsMachine, [
+    { type: "apply" },
+    { type: "ask", which: "promote" },
+    { type: "ask", which: "delete" },
+    { type: "dismiss" },
+    { type: "confirm" },
+    { type: "succeeded" },
+    { type: "failed" },
+  ]);
+
+  const dialogs = new Set(["asking", "confirming", "confirmFailed"]);
+
+  it("reaches every state", () => {
+    expect(new Set(snapshots.map(({ value }) => value))).toEqual(
+      new Set(["idle", "changing", "changeFailed", ...dialogs]),
+    );
+  });
+
+  it("knows which dialog is open only while one is", () => {
+    for (const snapshot of snapshots) {
+      if (!dialogs.has(snapshot.value)) expect(snapshot.context.which).toBeUndefined();
+    }
   });
 });
