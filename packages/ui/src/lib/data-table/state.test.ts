@@ -13,17 +13,27 @@ type State = {
   readonly q?: string;
   readonly orderBy?: "name" | "createdAt";
   readonly dir?: "asc" | "desc";
-  readonly status?: "active" | "invited";
+  // `""` as a URL holds it: `?status=`.
+  readonly status?: "active" | "invited" | "";
   readonly tags?: ReadonlyArray<string>;
   readonly total?: { readonly min?: number; readonly max?: number };
   readonly ids?: ReadonlySet<string>;
+  readonly weights?: ReadonlyMap<string, number>;
   readonly hidden?: ReadonlyArray<string>;
   readonly pinned?: ReadonlyArray<string>;
 };
 
 const defaults = { column: "name", direction: "asc" } as const;
 
-const memoryStore = (initial: State, { addresses = true } = {}) => {
+const statesOf = (updates: ReadonlyArray<{ state: State }>) =>
+  updates.map((update) => update.state);
+
+type Options = NonNullable<Parameters<typeof dataTableState<State>>[2]>;
+
+const memoryStore = (
+  initial: State,
+  { addresses = true, ...tableOptions }: { addresses?: boolean } & Omit<Options, "filterKeys"> = {},
+) => {
   const updates: Array<{ state: State; replace: boolean }> = [];
   let current = initial;
 
@@ -44,7 +54,8 @@ const memoryStore = (initial: State, { addresses = true } = {}) => {
   };
 
   const table = dataTableState(store, defaults, {
-    filterKeys: ["status", "tags", "total", "ids"],
+    filterKeys: ["status", "tags", "total", "ids", "weights"],
+    ...tableOptions,
   });
 
   return {
@@ -72,7 +83,7 @@ describe("dataTableState", () => {
     table.sort({ column: "createdAt", direction: "desc" });
     table.sort(defaults);
 
-    expect(updates.map((update) => update.state)).toEqual([
+    expect(statesOf(updates)).toEqual([
       { status: "active", orderBy: "createdAt", dir: "desc" },
       { status: "active" },
     ]);
@@ -88,7 +99,7 @@ describe("dataTableState", () => {
     expect(table.sortHeader("name").sorted).toBeUndefined();
     table.sortHeader("name").onSort("desc");
 
-    expect(updates.map((update) => update.state)).toEqual([{ orderBy: "name", dir: "desc" }]);
+    expect(statesOf(updates)).toEqual([{ orderBy: "name", dir: "desc" }]);
   });
 
   it("links to a page, keeping the rest of the state, with no page for the first", () => {
@@ -112,10 +123,15 @@ describe("dataTableState", () => {
     table.goToPage(2);
     table.goToPage(1);
 
-    expect(updates.map((update) => update.state)).toEqual([
-      { page: 2, status: "active" },
-      { status: "active" },
-    ]);
+    expect(statesOf(updates)).toEqual([{ page: 2, status: "active" }, { status: "active" }]);
+  });
+
+  it("goes to a page in place of the current history entry, on demand", () => {
+    const { table, updates } = memoryStore({ page: 3 });
+
+    table.goToPage(4, { replace: true });
+
+    expect(updates).toEqual([{ state: { page: 4 }, replace: true }]);
   });
 
   it("searches from the first page, in one history entry for the whole search, and drops an empty text", () => {
@@ -192,7 +208,7 @@ describe("dataTableState", () => {
 
     table.filter("total", {});
 
-    expect(updates.map((update) => update.state)).toEqual([{}]);
+    expect(statesOf(updates)).toEqual([{}]);
     expect(isEmptyValue({ min: undefined })).toBe(true);
     expect(isEmptyValue({ min: 0 })).toBe(false);
     expect(isEmptyValue(new Date(0))).toBe(false);
@@ -218,7 +234,7 @@ describe("dataTableState", () => {
     table.filter("tags", []);
     table.filter("status", undefined);
 
-    expect(updates.map((update) => update.state)).toEqual([
+    expect(statesOf(updates)).toEqual([
       { tags: ["vip"], status: "invited" },
       { status: "invited" },
       {},
@@ -333,7 +349,7 @@ describe("dataTableState columns and sorting", () => {
 
     table.setColumnVisible("name", false);
 
-    expect(updates.map((update) => update.state)).toEqual([
+    expect(statesOf(updates)).toEqual([
       { orderBy: "name", dir: "desc", page: 2, hidden: ["name"] },
     ]);
   });
@@ -345,9 +361,7 @@ describe("dataTableState columns and sorting", () => {
 
     table.sort({ column: "createdAt", direction: "desc" });
 
-    expect(updates.map((update) => update.state)).toEqual([
-      { hidden: ["name"], orderBy: "createdAt", dir: "desc" },
-    ]);
+    expect(statesOf(updates)).toEqual([{ hidden: ["name"], orderBy: "createdAt", dir: "desc" }]);
   });
 
   it("keeps the sorting when another column hides", () => {
@@ -355,9 +369,7 @@ describe("dataTableState columns and sorting", () => {
 
     table.setColumnVisible("name", false);
 
-    expect(updates.map((update) => update.state)).toEqual([
-      { orderBy: "createdAt", hidden: ["name"] },
-    ]);
+    expect(statesOf(updates)).toEqual([{ orderBy: "createdAt", hidden: ["name"] }]);
   });
 });
 
@@ -432,22 +444,15 @@ describe("dataTableState sorting by a hidden column", () => {
   });
 });
 
-describe("dataTableState filtersKey and empty filters", () => {
+describe.each(["filtersKey", "rowsKey"] as const)("dataTableState %s and empty filters", (name) => {
   it("gives an empty filter the key of no filter", () => {
-    const key = (state: State) => memoryStore(state).table.filtersKey;
+    const key = (state: State) => memoryStore(state).table[name];
 
     expect(key({ tags: [] })).toBe(key({}));
     expect(key({ total: {} })).toBe(key({}));
+    expect(key({ status: "" })).toBe(key({}));
+    expect(key({ weights: new Map() })).toBe(key({}));
     expect(key({ tags: ["vip"] })).not.toBe(key({}));
-  });
-});
-
-describe("dataTableState rowsKey and empty filters", () => {
-  it("gives an empty filter the key of no filter", () => {
-    const key = (state: State) => memoryStore(state).table.rowsKey;
-
-    expect(key({ tags: [] })).toBe(key({}));
-    expect(key({ status: "" as "active" })).toBe(key({}));
     expect(key({ status: "active" })).not.toBe(key({}));
   });
 });
@@ -476,7 +481,7 @@ describe("dataTableState pinned columns", () => {
     table.setColumnPinned("createdAt", false);
     table.setColumnPinned("name", false);
 
-    expect(updates.map((update) => update.state)).toEqual([{ pinned: ["name"] }, {}]);
+    expect(statesOf(updates)).toEqual([{ pinned: ["name"] }, {}]);
   });
 
   it("shows a hidden column it pins", () => {
@@ -484,9 +489,7 @@ describe("dataTableState pinned columns", () => {
 
     table.setColumnPinned("name", true);
 
-    expect(updates.map((update) => update.state)).toEqual([
-      { hidden: ["createdAt"], pinned: ["name"] },
-    ]);
+    expect(statesOf(updates)).toEqual([{ hidden: ["createdAt"], pinned: ["name"] }]);
   });
 
   it("unpins a column it hides", () => {
@@ -494,9 +497,7 @@ describe("dataTableState pinned columns", () => {
 
     table.setColumnVisible("name", false);
 
-    expect(updates.map((update) => update.state)).toEqual([
-      { hidden: ["name"], pinned: ["createdAt"] },
-    ]);
+    expect(statesOf(updates)).toEqual([{ hidden: ["name"], pinned: ["createdAt"] }]);
   });
 
   it("keeps pins out of what the rows depend on", () => {
@@ -507,5 +508,81 @@ describe("dataTableState pinned columns", () => {
     };
 
     expect(keys({ pinned: ["name"] })).toEqual(keys({}));
+  });
+});
+
+describe("dataTableState options", () => {
+  it("reads the size of a page from defaultPageSize while the state does not say, and leaves it out", () => {
+    const { table, updates } = memoryStore({ page: 2, size: 50 }, { defaultPageSize: 25 });
+
+    table.setPageSize(25);
+
+    expect(statesOf(updates)).toEqual([{}]);
+    expect(memoryStore({}, { defaultPageSize: 25 }).table.pageSize).toBe(25);
+  });
+
+  it("drops a filter that isEmpty says is empty", () => {
+    const { table, updates } = memoryStore(
+      { status: "active" },
+      { isEmpty: (_key, value) => value === "invited" },
+    );
+
+    table.filter("status", "invited");
+
+    expect(statesOf(updates)).toEqual([{}]);
+  });
+});
+
+describe("dataTableState filters of a Map", () => {
+  it("counts a Map by what it holds, not the order it was filled in", () => {
+    const { table, updates } = memoryStore({
+      weights: new Map([
+        ["a", 1],
+        ["b", 2],
+      ]),
+    });
+
+    table.filter(
+      "weights",
+      new Map([
+        ["b", 2],
+        ["a", 1],
+      ]),
+    );
+
+    expect(updates).toEqual([]);
+
+    table.filter("weights", new Map([["a", 3]]));
+    expect(statesOf(updates)).toEqual([{ weights: new Map([["a", 3]]) }]);
+  });
+});
+
+describe("dataTableState filter from the current value", () => {
+  it("computes the value from the one the store holds, and hands it back once written", async () => {
+    const { table } = memoryStore({ tags: ["vip"] });
+    const resolved: Array<ReadonlyArray<string> | undefined> = [];
+
+    table.filter(
+      "tags",
+      (tags) => [...(tags ?? []), "beta"],
+      (tags) => resolved.push(tags),
+    );
+    await Promise.resolve();
+
+    expect(resolved).toEqual([["vip", "beta"]]);
+  });
+
+  it("hands back the value at once when it does not change", () => {
+    const { table, updates } = memoryStore({ tags: ["vip"] });
+    const resolved: Array<ReadonlyArray<string> | undefined> = [];
+
+    table.filter(
+      "tags",
+      (tags) => tags,
+      (tags) => resolved.push(tags),
+    );
+
+    expect(resolved).toEqual([["vip"]]);
+    expect(updates).toEqual([]);
   });
 });

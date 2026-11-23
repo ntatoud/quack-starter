@@ -21,17 +21,13 @@ describe("pagesAround", () => {
 });
 
 describe("pageCount", () => {
-  it("counts a last page that is not full, and one page when there is nothing", () => {
+  it("counts a last page that is not full", () => {
     expect(pageCount(41, 20)).toBe(3);
     expect(pageCount(40, 20)).toBe(2);
-    expect(pageCount(0, 20)).toBe(1);
   });
-});
 
-describe("pageCount", () => {
   it("counts one page for no rows, or a total that is not a number", () => {
-    expect(pageCount(0, 10)).toBe(1);
-    expect(pageCount(Number.NaN, 10)).toBe(1);
-    expect(pageCount(45, 10)).toBe(5);
+    expect(pageCount(0, 20)).toBe(1);
+    expect(pageCount(Number.NaN, 20)).toBe(1);
   });
 });

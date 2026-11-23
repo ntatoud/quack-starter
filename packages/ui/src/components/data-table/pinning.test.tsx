@@ -118,7 +118,7 @@ describe("DataTable pinned columns", () => {
 
     await expect.element(state()).toHaveTextContent(JSON.stringify({ pinned: ["email", "role"] }));
     await expect.element(page.getByRole("menuitemcheckbox", { name: "Pin Role" })).toBeChecked();
-    const titles = [...(order() ?? [])].map((cell) => cell.textContent);
+    const titles = [...order()].map((cell) => cell.textContent);
     expect(titles.slice(0, 3)).toEqual(["Email", "Role", "Name"]);
   });
 
@@ -129,7 +129,7 @@ describe("DataTable pinned columns", () => {
     await expect.element(page.getByRole("menuitemcheckbox", { name: "Pin Name" })).toBeVisible();
     expect(page.getByRole("menuitemcheckbox", { name: /^Pin .*VAT/ }).elements()).toHaveLength(0);
     expect(getComputedStyle(header("Excl. VAT")).position).not.toBe("sticky");
-    expect(order()?.[0]?.textContent).not.toBe("Excl. VAT");
+    expect(order()[0]).toHaveTextContent("Name");
   });
 
   it("holds the pinned columns, after the checkboxes, while the others slide under them", async () => {

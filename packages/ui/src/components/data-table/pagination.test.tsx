@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 
 import { useMemoryDataTableStore } from "@quack/ui/hooks/use-memory-data-table-store";
@@ -22,9 +22,10 @@ function Pages({
   ...count
 }: {
   initial?: State;
-  width?: "tiny" | "narrow" | "wide";
+  width?: "tiny" | "tight" | "narrow" | "wide";
   busy?: boolean;
   results?: string;
+  pageSizes?: ReadonlyArray<number>;
 } & ({ pages: number } | { total: number })) {
   const store = useMemoryDataTableStore<State>(initial);
 
@@ -43,7 +44,7 @@ function Pages({
       {/* The footer of a table is the container its pages are laid out in. */}
       <div
         data-testid="footer"
-        className={`@container ${{ tiny: "w-64", narrow: "w-80", wide: "w-200" }[width]}`}
+        className={`@container ${{ tiny: "w-64", tight: "w-[262px]", narrow: "w-80", wide: "w-200" }[width]}`}
       >
         <DataTablePagination table={table} busy={busy} aria-label="Pages" {...count} />
       </div>
@@ -59,21 +60,24 @@ const shownPages = () =>
     .map((element) => element.textContent);
 
 describe("DataTablePagination", () => {
-  it("counts the pages from the total and the page size, and never fewer than one", async () => {
-    const screen = await render(<Pages total={45} />);
+  it("counts the pages from the total and the page size", async () => {
+    await render(<Pages total={45} />);
+
     await expect.element(page.getByText("Page 1 of 5")).toBeVisible();
+  });
 
-    await screen.rerender(<Pages total={0} />);
-    await expect.element(page.getByText("Page 1 of 1")).toBeVisible();
+  it.each([0, Number.NaN])("counts one page from a page count of %s", async (pages) => {
+    await render(<Pages pages={pages} />);
 
-    await screen.rerender(<Pages pages={0} />);
     await expect.element(page.getByText("Page 1 of 1")).toBeVisible();
+  });
 
-    await screen.rerender(<Pages total={Number.NaN} />);
-    await expect.element(page.getByText("Page 1 of 1")).toBeVisible();
+  it("goes to the last page from a page past it", async () => {
+    await render(<Pages initial={{ page: 5 }} pages={2} />);
 
-    await screen.rerender(<Pages pages={Number.NaN} />);
-    await expect.element(page.getByText("Page 1 of 1")).toBeVisible();
+    await expect
+      .element(page.getByRole("button", { name: "Page 2" }))
+      .toHaveAttribute("aria-current", "page");
   });
 
   it("stays on a page past the last while busy, and goes to the last once loaded", async () => {
@@ -151,27 +155,7 @@ describe("DataTablePagination", () => {
   });
 
   it("keeps the page size named, though its label hides, in two lines at most of a narrow footer", async () => {
-    function Sized() {
-      const store = useMemoryDataTableStore<State>({ page: 4 });
-
-      const table = useDataTable({
-        store,
-        defaultSorting: { column: "name", direction: "asc" },
-      });
-
-      return (
-        <div data-testid="footer" style={{ width: "262px" }} className="@container">
-          <DataTablePagination
-            table={table}
-            pages={20}
-            pageSizes={[10, 25, 50]}
-            aria-label="Pages"
-          />
-        </div>
-      );
-    }
-
-    await render(<Sized />);
+    await render(<Pages initial={{ page: 4 }} pages={20} pageSizes={[10, 25, 50]} width="tight" />);
 
     const select = page.getByRole("combobox", { name: "Rows per page" });
     await expect.element(select).toBeVisible();
@@ -206,5 +190,50 @@ describe("DataTablePagination", () => {
       footer.getBoundingClientRect().left + 1,
     );
     expect(footer.scrollWidth).toBeLessThanOrEqual(footer.clientWidth);
+  });
+});
+
+describe("DataTablePagination page size", () => {
+  it("offers the page sizes, and changes the size", async () => {
+    const setPageSize = vi.fn();
+    await render(
+      <DataTablePagination
+        table={{
+          page: 3,
+          pageSize: 10,
+          setPageSize,
+          goToPage: () => {},
+          pageLink: () => undefined,
+        }}
+        pages={5}
+        pageSizes={[10, 25, 50]}
+        aria-label="Pages"
+      />,
+    );
+
+    await page.getByRole("combobox", { name: "Rows per page" }).click();
+    await page.getByRole("option", { name: "25" }).click();
+
+    expect(setPageSize).toHaveBeenCalledWith(25);
+  });
+
+  it("shows no page size without page sizes", async () => {
+    await render(
+      <DataTablePagination
+        table={{
+          page: 1,
+          pageSize: 10,
+          goToPage: () => {},
+          pageLink: () => undefined,
+        }}
+        pages={2}
+        aria-label="Pages"
+      />,
+    );
+
+    await expect.element(page.getByRole("navigation")).toBeVisible();
+    await expect
+      .element(page.getByRole("combobox", { name: "Rows per page" }))
+      .not.toBeInTheDocument();
   });
 });

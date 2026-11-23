@@ -49,6 +49,14 @@ afterEach(cleanup);
 
 const entry = (label: string) => agent.snapshot().find((component) => component.label === label);
 
+type Step = Parameters<typeof agent.act>[0]["steps"][number];
+
+/** Runs the steps, and fails the test with the agent's reason when it could not. */
+const act = async (...steps: Array<Step>) => {
+  const result = await agent.act({ steps });
+  expect(result.ok, result.error?.message).toBe(true);
+};
+
 describe("DataTable selection, for an agent", () => {
   it("names every control of the selection, and offers the rows that can be selected", async () => {
     await render(<People />);
@@ -73,54 +81,34 @@ describe("DataTable selection, for an agent", () => {
   it("selects a row, the rows that can be, then clears them, as the bar and the checkboxes show", async () => {
     await render(<People />);
 
-    const items = entry("Selection of People")?.items as
-      | ReadonlyArray<{ value: string }>
-      | undefined;
+    expect(entry("Selection of People")?.items).toContainEqual(
+      expect.objectContaining({ value: "p-1" }),
+    );
 
-    const ada = items?.find((item) => item.value === "p-1")?.value;
-
-    const toggled = await agent.act({
-      steps: [{ ref: "Selection of People", action: "toggle", args: [ada] }],
-    });
-
-    expect(toggled.ok, toggled.error?.message).toBe(true);
+    await act({ ref: "Selection of People", action: "toggle", args: ["p-1"] });
     await expect.element(page.getByRole("checkbox", { name: "Select Ada" })).toBeChecked();
     await expect.element(page.getByRole("region", { name: "1 selected" })).toBeVisible();
 
-    const all = await agent.act({
-      steps: [{ ref: "Selection of People", action: "selectAll" }],
-    });
-
-    expect(all.ok, all.error?.message).toBe(true);
+    await act({ ref: "Selection of People", action: "selectAll" });
     await expect.element(page.getByRole("region", { name: "3 selected" })).toBeVisible();
     await expect.element(page.getByRole("checkbox", { name: "Select Grace" })).not.toBeChecked();
 
-    const cleared = await agent.act({
-      steps: [{ ref: "Selection of People", action: "clear" }],
-    });
-
-    expect(cleared.ok, cleared.error?.message).toBe(true);
+    await act({ ref: "Selection of People", action: "clear" });
     await expect.element(page.getByRole("region", { name: /selected/ })).not.toBeInTheDocument();
   });
 
   it("does not select a row that cannot be", async () => {
     await render(<People />);
 
-    const result = await agent.act({
-      steps: [{ ref: "Selection of People", action: "toggle", args: ["p-3"] }],
-    });
-
-    expect(result.ok, result.error?.message).toBe(true);
+    await act({ ref: "Selection of People", action: "toggle", args: ["p-3"] });
     await expect.element(page.getByRole("checkbox", { name: "Select Grace" })).not.toBeChecked();
     expect(page.getByRole("region", { name: /selected/ }).elements()).toHaveLength(0);
   });
 
   it("sets the box of a row to what it already is without toggling it", async () => {
     await render(<People />);
-    const check = { steps: [{ ref: "Select Ada", action: "setChecked", args: [true] }] };
-
-    expect((await agent.act(check)).ok).toBe(true);
-    expect((await agent.act(check)).ok).toBe(true);
+    await act({ ref: "Select Ada", action: "setChecked", args: [true] });
+    await act({ ref: "Select Ada", action: "setChecked", args: [true] });
 
     await expect.element(page.getByRole("checkbox", { name: "Select Ada" })).toBeChecked();
     await expect.element(page.getByRole("region", { name: "1 selected" })).toBeVisible();

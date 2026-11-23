@@ -17,7 +17,7 @@ import { DataTableToolbar } from "@quack/ui/components/data-table/toolbar";
 import { useDataTable } from "@quack/ui/hooks/use-data-table";
 
 import { render } from "vitest-browser-react";
-import { elementOf, slot } from "@quack/ui/testing/dom";
+import { elementOf, headerButton, slot } from "@quack/ui/testing/dom";
 
 type Person = { id: string; name: string; locked?: boolean };
 
@@ -78,6 +78,12 @@ const selectAll = () => checkbox("Select all rows shown");
 
 /** The bar, shown while rows are selected, named by how many. */
 const bar = (count: number) => page.getByRole("region", { name: `${count} selected` });
+
+/** Ticks Ada, then clears the selection from the bar. */
+const selectAdaThenClear = async () => {
+  await checkbox("Select Ada").click();
+  await bar(1).getByRole("button", { name: "Clear selection" }).click();
+};
 
 describe("DataTable selection", () => {
   it("selects rows one by one, and shows how many with the actions", async () => {
@@ -163,8 +169,7 @@ describe("DataTable selection", () => {
     await render(<Harness onRowClick={onRowClick} />);
 
     await checkbox("Select Ada").click();
-    const cell = elementOf(HTMLElement, checkbox("Select Ada").element()).closest("td");
-    cell?.click();
+    elementOf(HTMLTableCellElement, checkbox("Select Ada").element().closest("td")).click();
     expect(onRowClick).not.toHaveBeenCalled();
 
     await page.getByRole("cell", { name: "Alan", exact: true }).click();
@@ -417,10 +422,7 @@ describe("DataTableToolbar with a selection, in a narrow page", () => {
     await checkbox("Select Ada").click();
     await expect.element(bar(1)).toBeVisible();
 
-    await page
-      .getByRole("columnheader", { name: "Status", exact: true })
-      .getByRole("button")
-      .click();
+    await headerButton("Status").click();
 
     const option = page.getByRole("menuitemradio", { name: "Active" });
     await expect.element(option).toBeVisible();
@@ -445,7 +447,7 @@ describe("DataTableToolbar with a selection, in a narrow page", () => {
     await checkbox("Select Ada").click();
     await expect.element(bar(1)).toBeVisible();
 
-    await page.getByRole("columnheader", { name: "Name", exact: true }).getByRole("button").click();
+    await headerButton("Name").click();
 
     await expect.element(page.getByRole("searchbox", { name: "Search" })).toHaveFocus();
   });
@@ -481,9 +483,8 @@ describe("DataTableSelectionBar alone", () => {
 
   it("gives the focus to the header checkbox of the table once cleared", async () => {
     await render(<Alone />);
-    await checkbox("Select Ada").click();
 
-    await bar(1).getByRole("button", { name: "Clear selection" }).click();
+    await selectAdaThenClear();
 
     await expect.element(selectAll()).toHaveFocus();
   });
@@ -498,9 +499,8 @@ describe("DataTableSelectionBar alone", () => {
 
   it("gives the focus where focusOnEmpty says", async () => {
     await render(<Alone withTarget />);
-    await checkbox("Select Ada").click();
 
-    await bar(1).getByRole("button", { name: "Clear selection" }).click();
+    await selectAdaThenClear();
 
     await expect.element(page.getByRole("button", { name: "Target" })).toHaveFocus();
   });
@@ -510,10 +510,7 @@ describe("DataTableToolbar with a selection, shown again for a filter", () => {
   const reveal = async () => {
     await render(<CrowdedHarness />);
     await checkbox("Select Ada").click();
-    await page
-      .getByRole("columnheader", { name: "Status", exact: true })
-      .getByRole("button")
-      .click();
+    await headerButton("Status").click();
     await expect.element(page.getByRole("menuitemradio", { name: "Active" })).toBeVisible();
     await userEvent.keyboard("{Escape}");
     await expect.element(bar(1)).not.toBeInTheDocument();
@@ -590,18 +587,16 @@ describe("DataTableSelectionBar, where the focus goes once it empties", () => {
 
   it("finds the table around the bar, however deep the bar sits", async () => {
     await render(<Nested />);
-    await checkbox("Select Ada").click();
 
-    await bar(1).getByRole("button", { name: "Clear selection" }).click();
+    await selectAdaThenClear();
 
     await expect.element(selectAll()).toHaveFocus();
   });
 
   it("gives it to the table from a toolbar with nothing to focus", async () => {
     await render(<Nested toolbar />);
-    await checkbox("Select Ada").click();
 
-    await bar(1).getByRole("button", { name: "Clear selection" }).click();
+    await selectAdaThenClear();
 
     await expect.element(selectAll()).toHaveFocus();
   });

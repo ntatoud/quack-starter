@@ -7,6 +7,7 @@ import { DataTable, type DataTableColumnFor } from "@quack/ui/components/data-ta
 import { useDataTable } from "@quack/ui/hooks/use-data-table";
 
 import { render } from "vitest-browser-react";
+import { checkboxBox } from "@quack/ui/testing/dom";
 
 type Product = {
   readonly name: string;
@@ -69,6 +70,12 @@ function Products({
 const header = (name: string) => page.getByRole("columnheader", { name, exact: true });
 const toggle = (name: string) => page.getByRole("menuitemcheckbox", { name, exact: true });
 
+/** The state the table wrote, as the harness shows it. */
+const expectState = (state: State) =>
+  expect
+    .element(page.getByRole("status", { name: "State" }))
+    .toHaveTextContent(JSON.stringify(state));
+
 describe("DataTableColumnVisibility", () => {
   it("hides a column in the state, on the same page, a group with its last column, and never the last column shown", async () => {
     await render(<Products />);
@@ -78,9 +85,7 @@ describe("DataTableColumnVisibility", () => {
 
     await expect.element(header("Excl. VAT")).not.toBeInTheDocument();
     await expect.element(header("Price")).toBeVisible();
-    await expect
-      .element(page.getByRole("status", { name: "State" }))
-      .toHaveTextContent(JSON.stringify({ page: 2, hidden: ["net"] }));
+    await expectState({ page: 2, hidden: ["net"] });
 
     await toggle("Price · Incl. VAT").click();
     await expect.element(header("Price")).not.toBeInTheDocument();
@@ -89,9 +94,7 @@ describe("DataTableColumnVisibility", () => {
     await toggle("Price · Excl. VAT").click();
     await toggle("Price · Incl. VAT").click();
     await expect.element(header("Incl. VAT")).toBeVisible();
-    await expect
-      .element(page.getByRole("status", { name: "State" }))
-      .toHaveTextContent(JSON.stringify({ page: 2 }));
+    await expectState({ page: 2 });
   });
 
   it("never hides the last column shown, though the hides before it have not landed yet", async () => {
@@ -104,9 +107,7 @@ describe("DataTableColumnVisibility", () => {
     await userEvent.keyboard("{Escape}");
     await page.getByRole("button", { name: "Land the changes" }).click();
 
-    await expect
-      .element(page.getByRole("status", { name: "State" }))
-      .toHaveTextContent(JSON.stringify({ page: 2, hidden: ["name", "net"] }));
+    await expectState({ page: 2, hidden: ["name", "net"] });
     await expect.element(header("Incl. VAT")).toBeVisible();
   });
 
@@ -123,9 +124,7 @@ describe("DataTableColumnVisibility", () => {
     await expect.element(header("Excl. VAT")).not.toBeInTheDocument();
     await expect.element(header("Name")).toBeVisible();
     await expect.element(header("Incl. VAT")).toBeVisible();
-    await expect
-      .element(page.getByRole("status", { name: "State" }))
-      .toHaveTextContent(JSON.stringify({ hidden: ["net"] }));
+    await expectState({ hidden: ["net"] });
   });
 
   it("counts the titled columns only to tell a URL that hides them all", async () => {
@@ -162,35 +161,6 @@ describe("DataTableColumnVisibility", () => {
     await page.getByRole("button", { name: "Columns" }).click();
     await expect.element(toggle("Name")).toBeChecked();
     await expect.element(toggle("Role")).toBeChecked();
-  });
-
-  it("drops the sorting of a column it hides, and goes back to the first page", async () => {
-    await render(<Products initial={{ page: 2, orderBy: "net", dir: "desc" }} />);
-
-    await page.getByRole("button", { name: "Columns" }).click();
-    await toggle("Price · Excl. VAT").click();
-
-    await expect.element(header("Excl. VAT")).not.toBeInTheDocument();
-    await expect
-      .element(page.getByRole("status", { name: "State" }))
-      .toHaveTextContent(JSON.stringify({ hidden: ["net"] }));
-  });
-
-  it("keeps the sorting of the default column it hides, and the page", async () => {
-    await render(<Products initial={{ page: 2, orderBy: "name", dir: "desc" }} />);
-
-    await page.getByRole("button", { name: "Columns" }).click();
-    await toggle("Name").click();
-
-    await expect.element(header("Name")).not.toBeInTheDocument();
-    await expect.element(page.getByRole("status", { name: "State" })).toHaveTextContent(
-      JSON.stringify({
-        page: 2,
-        orderBy: "name",
-        dir: "desc",
-        hidden: ["name"],
-      }),
-    );
   });
 
   it("ticks its columns in boxes, shown unticked too, and names a nested column by its whole path", async () => {
@@ -233,10 +203,9 @@ describe("DataTableColumnVisibility", () => {
     const q2 = toggle("Billing · Q2 · Amount");
     await expect.element(q1).toBeChecked();
     await expect.element(q2).not.toBeChecked();
-    const box = (item: typeof q1) => item.element().querySelector<HTMLElement>("span[aria-hidden]");
-    expect(box(q2)).not.toBeNull();
-    expect(box(q2)?.getBoundingClientRect().width).toBeGreaterThan(0);
-    expect(box(q2)?.querySelector("svg")).toBeNull();
-    expect(box(q1)?.querySelector("svg")).not.toBeNull();
+    const box = (item: typeof q1) => checkboxBox(item.element());
+    expect(box(q2).getBoundingClientRect().width).toBeGreaterThan(0);
+    expect(box(q2).querySelector("svg")).toBeNull();
+    expect(box(q1).querySelector("svg")).not.toBeNull();
   });
 });

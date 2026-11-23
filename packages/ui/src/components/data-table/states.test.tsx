@@ -96,17 +96,17 @@ describe("DataTableErrorState, failing again", () => {
   });
 });
 
-describe("DataTableLoadMore", () => {
-  const loadMore = (props: { loaded: number; hasMore: boolean; loading?: boolean }) => (
-    <DataTableLoadMore total={30} onLoadMore={() => {}} {...props} />
-  );
+const loadMore = (
+  props: Omit<React.ComponentProps<typeof DataTableLoadMore>, "onLoadMore"> & {
+    onLoadMore?: () => void;
+  },
+) => <DataTableLoadMore onLoadMore={() => {}} {...props} />;
 
+describe("DataTableLoadMore", () => {
   it("says how many rows are loaded, and keeps the focus while the next batch loads", async () => {
     const onLoadMore = vi.fn();
 
-    const screen = await render(
-      <DataTableLoadMore loaded={10} total={30} hasMore onLoadMore={onLoadMore} />,
-    );
+    const screen = await render(loadMore({ loaded: 10, total: 30, hasMore: true, onLoadMore }));
 
     await expect.element(page.getByRole("status")).toHaveTextContent("10 of 30");
 
@@ -114,33 +114,29 @@ describe("DataTableLoadMore", () => {
     await button.click();
     expect(onLoadMore).toHaveBeenCalledOnce();
 
-    await screen.rerender(loadMore({ loaded: 10, hasMore: true, loading: true }));
+    await screen.rerender(loadMore({ loaded: 10, total: 30, hasMore: true, loading: true }));
     await expect.element(button).toHaveAttribute("aria-disabled", "true");
     await expect.element(button).toHaveFocus();
   });
 
   it("gives the focus to the count once the last batch takes the button away", async () => {
-    const screen = await render(loadMore({ loaded: 20, hasMore: true }));
+    const screen = await render(loadMore({ loaded: 20, total: 30, hasMore: true }));
     await page.getByRole("button", { name: "Load more" }).click();
 
-    await screen.rerender(loadMore({ loaded: 30, hasMore: false }));
+    await screen.rerender(loadMore({ loaded: 30, total: 30, hasMore: false }));
 
     await expect.element(page.getByRole("status")).toHaveTextContent("30 of 30");
     await expect.element(page.getByRole("status")).toHaveFocus();
   });
 
   it("says how many rows are loaded when the total is unknown", async () => {
-    await render(<DataTableLoadMore loaded={20} hasMore onLoadMore={() => {}} />);
+    await render(loadMore({ loaded: 20, hasMore: true }));
 
     await expect.element(page.getByRole("status")).toHaveTextContent("20 loaded");
   });
-});
 
-describe("DataTableLoadMore count", () => {
-  it("shows a ring when the focus reaches it from the keyboard", async () => {
-    const screen = await render(
-      <DataTableLoadMore loaded={20} total={30} hasMore onLoadMore={() => {}} />,
-    );
+  it("shows a ring on its count when the focus reaches it from the keyboard", async () => {
+    const screen = await render(loadMore({ loaded: 20, total: 30, hasMore: true }));
 
     const status = page.getByRole("status");
     await expect.element(status).toHaveTextContent("20 of 30");
@@ -150,9 +146,7 @@ describe("DataTableLoadMore count", () => {
     await userEvent.tab();
     await expect.element(page.getByRole("button", { name: "Load more" })).toHaveFocus();
     await userEvent.keyboard("{Enter}");
-    await screen.rerender(
-      <DataTableLoadMore loaded={30} total={30} hasMore={false} onLoadMore={() => {}} />,
-    );
+    await screen.rerender(loadMore({ loaded: 30, total: 30, hasMore: false }));
 
     await expect.element(status).toHaveFocus();
     await expect.poll(ring).not.toBe("none");

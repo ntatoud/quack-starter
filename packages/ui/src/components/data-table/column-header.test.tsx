@@ -4,10 +4,15 @@ import { page, userEvent } from "vite-plus/test/browser";
 import { DataTableColumnHeader } from "@quack/ui/components/data-table/column-header";
 
 import { render } from "vitest-browser-react";
+import { elementOf } from "@quack/ui/testing/dom";
 
 const setup = async () => {
   const onSort = vi.fn();
-  const onFilter = vi.fn(() => document.querySelector<HTMLInputElement>("#filter")?.focus());
+
+  const onFilter = vi.fn(() =>
+    elementOf(HTMLInputElement, document.getElementById("filter")).focus(),
+  );
+
   await render(
     <>
       <DataTableColumnHeader title="Email" sorted="asc" onSort={onSort} onFilter={onFilter} />
@@ -76,11 +81,16 @@ describe("DataTableColumnHeader", () => {
     );
 
     const icon = () =>
-      page.getByRole("button", { name: "Email" }).element().querySelector("svg")?.classList;
+      elementOf(
+        SVGElement,
+        page.getByRole("button", { name: "Email" }).element().querySelector("svg"),
+      );
 
-    expect(icon()?.contains("lucide-chevrons-up-down")).toBe(true);
+    expect(icon()).toHaveClass("lucide-chevrons-up-down");
+    await screen.rerender(<DataTableColumnHeader title="Email" sorted="asc" onSort={vi.fn()} />);
+    expect(icon()).toHaveClass("lucide-arrow-up");
     await screen.rerender(<DataTableColumnHeader title="Email" sorted="desc" onSort={vi.fn()} />);
-    expect(icon()?.contains("lucide-arrow-down")).toBe(true);
+    expect(icon()).toHaveClass("lucide-arrow-down");
   });
 
   it("puts its icon before the title at the end of the cell", async () => {
