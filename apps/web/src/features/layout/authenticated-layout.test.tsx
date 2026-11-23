@@ -21,12 +21,14 @@ const newcomer = {
   createdAt: "2026-01-01T00:00:00.000Z",
   lastSignInAt: null,
   onboardedAt: null,
+  timeZone: "Europe/Paris",
   profile: null,
 } as const;
 
 const onboarded = {
   ...newcomer,
   onboardedAt: "2026-01-01T00:05:00.000Z",
+  timeZone: "Europe/Paris",
   profile: {
     firstName: "Ada",
     lastName: "Lovelace",

@@ -53,6 +53,7 @@ const sessionCookieOf = Effect.fn(function* (email: string) {
     payload: {
       email: Email.make(email),
       password: Redacted.make("correct horse battery staple"),
+      timeZone: DateTime.zoneMakeNamedUnsafe("Europe/Paris"),
     },
     responseMode: "decoded-and-response",
   });
@@ -113,6 +114,7 @@ layer(TestLayer)("AuthenticationMiddleware", (it) => {
           createdAt: yield* DateTime.now,
           lastSignInAt: null,
           onboardedAt: null,
+          timeZone: DateTime.zoneMakeNamedUnsafe("Europe/Paris"),
           profile: null,
         });
 

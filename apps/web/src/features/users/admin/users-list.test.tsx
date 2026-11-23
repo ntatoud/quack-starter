@@ -27,6 +27,7 @@ const user = (n: number, role: Role = "user") => ({
   createdAt: "2026-01-01T00:00:00.000Z",
   lastSignInAt: null,
   onboardedAt: null,
+  timeZone: "Europe/Paris",
   profile: null,
 });
 
@@ -63,6 +64,7 @@ const ada = {
   email: "ada@quack.dev",
   status: "suspended",
   onboardedAt: "2026-01-02T00:00:00.000Z",
+  timeZone: "Europe/Paris",
   profile: {
     firstName: "Ada",
     lastName: "Lovelace",

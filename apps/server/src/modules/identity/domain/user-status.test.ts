@@ -13,6 +13,7 @@ const user = (status: UserStatus) =>
     createdAt: DateTime.makeUnsafe(0),
     lastSignInAt: null,
     onboardedAt: null,
+    timeZone: DateTime.zoneMakeNamedUnsafe("Europe/Paris"),
     profile: null,
   });
 

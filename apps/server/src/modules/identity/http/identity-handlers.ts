@@ -25,6 +25,7 @@ export const IdentityHandlers = HttpApiBuilder.group(
         const { user, session } = yield* identity.signUp(
           payload.email,
           payload.password,
+          payload.timeZone,
           yield* clientIp,
         );
 
@@ -58,6 +59,11 @@ export const IdentityHandlers = HttpApiBuilder.group(
         const currentUser = yield* CurrentUser;
 
         return yield* users.updateProfile(currentUser.id, payload);
+      }),
+      updateTimeZone: Effect.fn(function* ({ payload }) {
+        const currentUser = yield* CurrentUser;
+
+        return yield* users.updateTimeZone(currentUser.id, payload.timeZone);
       }),
       completeOnboarding: Effect.fn(function* ({ payload }) {
         const currentUser = yield* CurrentUser;

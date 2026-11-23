@@ -11,7 +11,7 @@ import {
   UserNotFound,
 } from "@quack/contracts/users/user-errors";
 import type { UserOrder } from "@quack/contracts/users/users-api";
-import { Effect, Layer } from "effect";
+import { DateTime, Effect, Layer } from "effect";
 import { HttpClientRequest, HttpServer } from "effect/http";
 import { HttpApiMiddleware, HttpApiTest } from "effect/http-api";
 
@@ -48,6 +48,7 @@ const userOf = (
     createdAt: day(createdOn),
     lastSignInAt: dayOrNull(lastSignInOn),
     onboardedAt: dayOrNull(onboardedOn),
+    timeZone: DateTime.zoneMakeNamedUnsafe("Europe/Paris"),
     profile:
       profile === null
         ? null

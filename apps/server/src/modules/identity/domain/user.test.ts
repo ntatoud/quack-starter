@@ -1,11 +1,13 @@
+import { assert, it as effect } from "@effect/vitest";
 import { CountryCode, Profile } from "@quack/contracts/identity/profile";
-import { Email, User, UserId } from "@quack/contracts/identity/user";
-import { DateTime } from "effect";
+import { Email, TimeZone, User, UserId } from "@quack/contracts/identity/user";
+import { DateTime, Effect, Schema } from "effect";
+import { TestClock } from "effect/testing";
 import { describe, expect, it } from "vite-plus/test";
 
-import { onboarded } from "#/modules/identity/domain/user.ts";
+import { onboarded, today } from "#/modules/identity/domain/user.ts";
 
-const user = (fields: Pick<User, "profile" | "onboardedAt">) =>
+const user = (fields: Pick<User, "profile" | "onboardedAt"> & Partial<Pick<User, "timeZone">>) =>
   new User({
     id: UserId.make("user-1"),
     email: Email.make("ada@example.com"),
@@ -13,6 +15,7 @@ const user = (fields: Pick<User, "profile" | "onboardedAt">) =>
     status: "active",
     createdAt: DateTime.makeUnsafe(0),
     lastSignInAt: null,
+    timeZone: DateTime.zoneMakeNamedUnsafe("Europe/Paris"),
     ...fields,
   });
 
@@ -68,4 +71,53 @@ describe("onboarded", () => {
       ).onboardedAt,
     ).toEqual(first);
   });
+});
+
+describe("today", () => {
+  const livingIn = (zone: string) =>
+    user({ profile: null, onboardedAt: null, timeZone: Schema.decodeSync(TimeZone)(zone) });
+
+  const paris = livingIn("Europe/Paris");
+  const newYork = livingIn("America/New_York");
+
+  const at = (instant: string) => TestClock.setTime(DateTime.makeUnsafe(instant).epochMilliseconds);
+
+  effect.effect("turns at midnight in Paris, two hours before midnight in UTC in summer", () =>
+    Effect.gen(function* () {
+      yield* at("2026-06-01T21:59:59Z");
+      assert.strictEqual(yield* today(paris), "2026-06-01");
+
+      yield* at("2026-06-01T22:00:00Z");
+      assert.strictEqual(yield* today(paris), "2026-06-02");
+    }),
+  );
+
+  effect.effect("turns at midnight in New York, four hours after midnight in UTC in summer", () =>
+    Effect.gen(function* () {
+      yield* at("2026-06-02T03:59:59Z");
+      assert.strictEqual(yield* today(newYork), "2026-06-01");
+
+      yield* at("2026-06-02T04:00:00Z");
+      assert.strictEqual(yield* today(newYork), "2026-06-02");
+    }),
+  );
+
+  effect.effect("is not the same Day for two Users at the same instant", () =>
+    Effect.gen(function* () {
+      yield* at("2026-06-01T23:30:00Z");
+
+      assert.strictEqual(yield* today(paris), "2026-06-02");
+      assert.strictEqual(yield* today(newYork), "2026-06-01");
+    }),
+  );
+
+  effect.effect("follows the winter time: midnight in Paris is 23:00 in UTC", () =>
+    Effect.gen(function* () {
+      yield* at("2026-12-31T22:59:59Z");
+      assert.strictEqual(yield* today(paris), "2026-12-31");
+
+      yield* at("2026-12-31T23:00:00Z");
+      assert.strictEqual(yield* today(paris), "2027-01-01");
+    }),
+  );
 });

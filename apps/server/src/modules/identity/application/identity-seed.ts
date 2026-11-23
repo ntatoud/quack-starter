@@ -1,7 +1,14 @@
 import { base, en, Faker } from "@faker-js/faker";
 import { devAccounts, devPassword } from "@quack/contracts/identity/dev-accounts";
 import { CountryCode, Profile, Team } from "@quack/contracts/identity/profile";
-import { Email, type Role, User, UserId, type UserStatus } from "@quack/contracts/identity/user";
+import {
+  Email,
+  type Role,
+  TimeZone,
+  User,
+  UserId,
+  type UserStatus,
+} from "@quack/contracts/identity/user";
 import { DateTime, Effect, Layer, Schema } from "effect";
 
 import { seedDate } from "#/database/seed-date.ts";
@@ -17,6 +24,18 @@ const onboardingMillis = 5 * 60 * 1000;
 
 const daysBeforeSeed = (days: number) =>
   DateTime.fromDateUnsafe(new Date(seedDate.getTime() - days * dayMillis));
+
+const paris = Schema.decodeSync(TimeZone)("Europe/Paris");
+
+// Taken in turn, not drawn: a draw of faker would change every User after it.
+const timeZones = [
+  "Europe/Paris",
+  "Europe/London",
+  "America/New_York",
+  "America/Los_Angeles",
+  "Asia/Tokyo",
+  "Australia/Sydney",
+].map((zone) => Schema.decodeSync(TimeZone)(zone));
 
 const devAccount = (faker: Faker, email: string, role: Role, firstName: string): User =>
   new User({
@@ -35,6 +54,7 @@ const devAccount = (faker: Faker, email: string, role: Role, firstName: string):
       team: "operations",
       country: CountryCode.make("FR"),
     }),
+    timeZone: paris,
   });
 
 const randomUsers = (faker: Faker, count: number): ReadonlyArray<User> => {
@@ -90,6 +110,7 @@ const randomUsers = (faker: Faker, count: number): ReadonlyArray<User> => {
             ? null
             : DateTime.fromDateUnsafe(new Date(createdAt.getTime() + onboardingMillis)),
         profile,
+        timeZone: timeZones[users.length % timeZones.length] ?? paris,
       }),
     );
   }

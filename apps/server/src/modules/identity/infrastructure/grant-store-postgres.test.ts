@@ -26,6 +26,7 @@ const aUser = Effect.gen(function* () {
       createdAt: yield* DateTime.now,
       lastSignInAt: null,
       onboardedAt: null,
+      timeZone: DateTime.zoneMakeNamedUnsafe("Europe/Paris"),
       profile: null,
     }),
     "not a hash",

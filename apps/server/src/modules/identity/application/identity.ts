@@ -4,7 +4,7 @@ import {
   type TooManyAttempts,
   Unauthenticated,
 } from "@quack/contracts/identity/identity-errors";
-import { type Email, type Password, User } from "@quack/contracts/identity/user";
+import { type Email, type Password, type TimeZone, User } from "@quack/contracts/identity/user";
 import { Context, DateTime, Effect, Layer, Option, Redacted } from "effect";
 import { Digest, SecureRandom } from "effect/crypto";
 import { Base64Url } from "effect/encoding";
@@ -38,6 +38,7 @@ export class Identity extends Context.Service<
     signUp(
       email: Email,
       password: Password,
+      timeZone: TimeZone,
       ip: ClientIp,
     ): Effect.Effect<
       { readonly user: User; readonly session: OpenedSession },
@@ -88,7 +89,7 @@ export class Identity extends Context.Service<
       });
 
       return Identity.of({
-        signUp: Effect.fn("Identity.signUp")(function* (email, password, ip) {
+        signUp: Effect.fn("Identity.signUp")(function* (email, password, timeZone, ip) {
           // Counted before it is known to succeed: one that fails costs a hash, and tells whether a User has the email.
           yield* limiter.take([AttemptCounter.signUpsOfIp(ip)]);
           const now = yield* DateTime.now;
@@ -102,6 +103,7 @@ export class Identity extends Context.Service<
             lastSignInAt: now,
             onboardedAt: null,
             profile: null,
+            timeZone,
           });
 
           yield* users.create(user, yield* hasher.hash(password));

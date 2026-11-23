@@ -2,7 +2,7 @@ import { assert, describe, it } from "@effect/vitest";
 import { CountryCode, Profile, type Team } from "@quack/contracts/identity/profile";
 import { Email, type Role, User, UserId, type UserStatus } from "@quack/contracts/identity/user";
 import type { UserListQuery } from "@quack/contracts/users/users-api";
-import { Effect, type Layer, Option, Result } from "effect";
+import { DateTime, Effect, type Layer, Option, Result } from "effect";
 
 import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
 import { day, dayOrNull } from "#/modules/identity/testing/days.ts";
@@ -45,6 +45,7 @@ const aUser = (
       createdAt: day(1),
       lastSignInAt: dayOrNull(lastSignInOn),
       onboardedAt: dayOrNull(onboardedOn),
+      timeZone: DateTime.zoneMakeNamedUnsafe("Asia/Tokyo"),
       profile:
         profile === null
           ? null

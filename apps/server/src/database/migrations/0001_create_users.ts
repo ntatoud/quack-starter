@@ -14,7 +14,9 @@ export default Effect.gen(function* () {
       status user_status NOT NULL,
       created_at timestamptz NOT NULL,
       last_sign_in_at timestamptz,
-      onboarded_at timestamptz
+      onboarded_at timestamptz,
+      -- An IANA name, such as Europe/Paris.
+      time_zone text NOT NULL
     )
   `;
 });

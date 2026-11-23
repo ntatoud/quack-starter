@@ -3,7 +3,7 @@ import { Api } from "@quack/contracts/api";
 import { Authentication } from "@quack/contracts/identity/authentication";
 import { OnboardingPayload } from "@quack/contracts/identity/identity-api";
 import { CountryCode, Profile } from "@quack/contracts/identity/profile";
-import { type Email, type Password, User } from "@quack/contracts/identity/user";
+import { type Email, type Password, TimeZone, User } from "@quack/contracts/identity/user";
 import {
   Clock,
   DateTime,
@@ -34,6 +34,8 @@ import { MailerMemory, SentMails } from "#/modules/mail/testing/mailer-memory.ts
 const maxAge = Duration.toSeconds(sessionLifetime);
 
 const password = Redacted.make("correct horse battery staple");
+
+const paris = Schema.decodeSync(TimeZone)("Europe/Paris");
 
 const nameOfAda = Schema.decodeSync(OnboardingPayload)({
   firstName: " Ada ",
@@ -77,9 +79,9 @@ const makeBrowser = Effect.gen(function* () {
     return Cookies.toSetCookieHeaders(response.cookies);
   });
 
-  const signUp = Effect.fn(function* (email: Email) {
+  const signUp = Effect.fn(function* (email: Email, timeZone: TimeZone = paris) {
     const [user, response] = yield* client.identity.signUp({
-      payload: { email, password },
+      payload: { email, password, timeZone },
       responseMode: "decoded-and-response",
     });
 
@@ -108,6 +110,8 @@ const makeBrowser = Effect.gen(function* () {
     session: Effect.map(Ref.get(jar), (cookies) => Cookies.getValue(cookies, "session")),
     me: client.identity.me(),
     updateProfile: (profile: Profile) => client.identity.updateProfile({ payload: profile }),
+    updateTimeZone: (timeZone: TimeZone) =>
+      client.identity.updateTimeZone({ payload: { timeZone } }),
     completeOnboarding: (payload: OnboardingPayload) =>
       client.identity.completeOnboarding({ payload }),
     meResponse: Effect.gen(function* () {
@@ -177,7 +181,56 @@ layer(withConfig({ SIGN_UPS_PER_IP: "1000" }))("IdentityApi", (it) => {
         "profile",
         "role",
         "status",
+        "timeZone",
       ]);
+    }),
+  );
+
+  it.effect("keeps the time zone the browser sent at sign-up", () =>
+    Effect.gen(function* () {
+      const browser = yield* makeBrowser;
+      const tokyo = Schema.decodeSync(TimeZone)("Asia/Tokyo");
+
+      const { user } = yield* browser.signUp(asTyped("ada.tokyo@example.com"), tokyo);
+
+      assert.strictEqual(DateTime.zoneToString(user.timeZone), "Asia/Tokyo");
+      assert.strictEqual(DateTime.zoneToString((yield* browser.me).timeZone), "Asia/Tokyo");
+    }),
+  );
+
+  it.effect("changes the time zone of the Current User: me answers with it from then on", () =>
+    Effect.gen(function* () {
+      const browser = yield* makeBrowser;
+      yield* browser.signUp(asTyped("ada.moves@example.com"));
+      const newYork = Schema.decodeSync(TimeZone)("America/New_York");
+
+      const updated = yield* browser.updateTimeZone(newYork);
+
+      assert.strictEqual(DateTime.zoneToString(updated.timeZone), "America/New_York");
+      assert.deepStrictEqual(yield* browser.me, updated);
+    }),
+  );
+
+  it.effect("changes the time zone of the Current User only", () =>
+    Effect.gen(function* () {
+      const ada = yield* makeBrowser;
+      const charles = yield* makeBrowser;
+      yield* ada.signUp(asTyped("ada.zone@example.com"));
+      yield* charles.signUp(asTyped("charles.zone@example.com"));
+
+      yield* ada.updateTimeZone(Schema.decodeSync(TimeZone)("Asia/Tokyo"));
+
+      assert.strictEqual(DateTime.zoneToString((yield* charles.me).timeZone), "Europe/Paris");
+    }),
+  );
+
+  it.effect("fails updateTimeZone with Unauthenticated without a Session", () =>
+    Effect.gen(function* () {
+      const browser = yield* makeBrowser;
+
+      const error = yield* browser.updateTimeZone(paris).pipe(Effect.flip);
+
+      assert.strictEqual(error._tag, "Unauthenticated");
     }),
   );
 
@@ -243,6 +296,7 @@ layer(withConfig({ SIGN_UPS_PER_IP: "1000" }))("IdentityApi", (it) => {
           "profile",
           "role",
           "status",
+          "timeZone",
         ]);
         assert.deepStrictEqual(yield* browser.me, user);
       }),
@@ -380,6 +434,7 @@ layer(withConfig({ SIGN_UPS_PER_IP: "1000" }))("IdentityApi", (it) => {
           new User({
             ...user,
             onboardedAt: now,
+            timeZone: DateTime.zoneMakeNamedUnsafe("Europe/Paris"),
             profile: new Profile({
               firstName: "Ada",
               lastName: "Lovelace",
@@ -946,6 +1001,7 @@ const aUserWithStatus = Effect.fn(function* (email: string, status: "invited" | 
       createdAt: yield* DateTime.now,
       lastSignInAt: null,
       onboardedAt: null,
+      timeZone: DateTime.zoneMakeNamedUnsafe("Europe/Paris"),
       profile: null,
     }),
     "not a hash",

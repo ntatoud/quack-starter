@@ -46,6 +46,7 @@ const ada = {
   createdAt: "2026-01-01T00:00:00.000Z",
   lastSignInAt: null,
   onboardedAt: "2026-01-01T00:00:00.000Z",
+  timeZone: "Europe/Paris",
   profile: null,
 };
 
