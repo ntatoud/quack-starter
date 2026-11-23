@@ -22,9 +22,13 @@ import { HttpApiMiddleware, HttpApiTest } from "effect/http-api";
 import { TestClock } from "effect/testing";
 
 import { sessionExtensionThreshold, sessionLifetime } from "#/modules/identity/domain/session.ts";
+import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
 import { IdentityModule } from "#/modules/identity/index.ts";
+import { LinkTokenStoreMemory } from "#/modules/identity/testing/link-token-store-memory.ts";
+import { TransactionMemory } from "#/modules/transaction/testing/transaction-memory.ts";
 import { SessionStoreMemory } from "#/modules/identity/testing/session-store-memory.ts";
 import { UserRepositoryMemory } from "#/modules/identity/testing/user-repository-memory.ts";
+import { MailerMemory, SentMails } from "#/modules/mail/testing/mailer-memory.ts";
 
 const maxAge = Duration.toSeconds(sessionLifetime);
 
@@ -111,6 +115,16 @@ const makeBrowser = Effect.gen(function* () {
       return { status: response.status, setCookie: yield* keepCookies(response) };
     }),
     setCookie: (name: string, value: string) => Ref.update(jar, Cookies.setUnsafe(name, value)),
+    requestPasswordReset: (email: Email) =>
+      Effect.map(
+        client.identity.requestPasswordReset({
+          payload: { email },
+          responseMode: "decoded-and-response",
+        }),
+        ([, response]) => response.status,
+      ),
+    confirmPasswordReset: (token: string, newPassword: Password) =>
+      client.identity.confirmPasswordReset({ payload: { token, password: newPassword } }),
   };
 });
 
@@ -131,9 +145,15 @@ const assertCookieCleared = (setCookie: ReadonlyArray<string>) => {
 
 const withConfig = (env: Record<string, string>) =>
   IdentityModule.pipe(
-    Layer.provide([UserRepositoryMemory, SessionStoreMemory]),
+    Layer.provide([SessionStoreMemory, LinkTokenStoreMemory, TransactionMemory]),
+    // Visible, to add Users of every Status and to read the mails sent.
+    Layer.provideMerge([UserRepositoryMemory, MailerMemory]),
     Layer.provideMerge(HttpServer.layerServices),
-    Layer.provide(ConfigProvider.layer(ConfigProvider.fromUnknown(env))),
+    Layer.provide(
+      ConfigProvider.layer(
+        ConfigProvider.fromUnknown({ PUBLIC_URL: "https://quack.test/ignored", ...env }),
+      ),
+    ),
   );
 
 // Every browser of these tests has the same address, none, and they sign up more than 10 times in the hour.
@@ -877,5 +897,266 @@ describe("IdentityApi, attempt limits", () => {
         SIGN_UPS_PER_IP_WINDOW: "2 hours",
       }),
     ),
+  );
+});
+
+const newPassword = Redacted.make("a brand new password, chosen");
+
+const realPause = Effect.promise(() => new Promise((resolve) => setTimeout(resolve, 10)));
+
+/**
+ * The mails sent to `email`, once there are `count` of them, or after a second: the request answers before the
+ * link is mailed, and the mail is rendered in real time, which the TestClock does not drive.
+ */
+const mailsTo = Effect.fn(function* (email: string, count: number) {
+  const sent = yield* SentMails;
+
+  for (let tries = 0; ; tries++) {
+    const mails = (yield* sent.all).filter((mail) => mail.to === email);
+
+    if (mails.length >= count || tries === 100) return mails;
+
+    yield* realPause;
+  }
+});
+
+/** The token of the `nth` Password Reset link mailed to `email`. */
+const resetTokenOf = Effect.fn(function* (email: string, nth = 1) {
+  const mails = yield* mailsTo(email, nth);
+
+  const token = /https:\/\/quack\.test\/reset-password\?token=([\w-]+)/.exec(
+    mails.at(-1)?.text ?? "",
+  )?.[1];
+
+  assert.isDefined(token, `no Password Reset link was mailed to ${email}`);
+
+  return token ?? "";
+});
+
+const aUserWithStatus = Effect.fn(function* (email: string, status: "invited" | "suspended") {
+  const users = yield* UserRepository;
+
+  yield* users.create(
+    new User({
+      id: yield* users.nextId,
+      email: asTyped(email),
+      role: "user",
+      status,
+      createdAt: yield* DateTime.now,
+      lastSignInAt: null,
+      onboardedAt: null,
+      profile: null,
+    }),
+    "not a hash",
+  );
+});
+
+layer(withConfig({ SIGN_UPS_PER_IP: "1000", PASSWORD_RESETS_PER_IP: "1000" }))(
+  "IdentityApi, Password Reset",
+  (it) => {
+    it.effect(
+      "answers an unknown email and a known one the same: 202, and mails only the User",
+      () =>
+        Effect.gen(function* () {
+          const browser = yield* makeBrowser;
+          yield* browser.signUp(asTyped("reset.ada@example.com"));
+
+          const known = yield* browser.requestPasswordReset(asTyped("reset.ada@example.com"));
+          const unknown = yield* browser.requestPasswordReset(asTyped("reset.nobody@example.com"));
+
+          assert.strictEqual(known, 202);
+          assert.strictEqual(unknown, 202);
+          assert.lengthOf(yield* mailsTo("reset.ada@example.com", 1), 1);
+          assert.lengthOf(yield* mailsTo("reset.nobody@example.com", 0), 0);
+        }),
+    );
+
+    it.effect("mails a link to the web app's origin, never to the request's", () =>
+      Effect.gen(function* () {
+        const browser = yield* makeBrowser;
+        yield* browser.signUp(asTyped("reset.origin@example.com"));
+
+        yield* browser.requestPasswordReset(asTyped(" Reset.Origin@Example.com "));
+
+        const [mail] = yield* mailsTo("reset.origin@example.com", 1);
+        assert.match(mail?.html ?? "", /https:\/\/quack\.test\/reset-password\?token=/);
+        assert.match(mail?.text ?? "", /lasts 1 hour/);
+      }),
+    );
+
+    it.effect("mails nothing to a suspended or an invited User, and answers the same", () =>
+      Effect.gen(function* () {
+        const browser = yield* makeBrowser;
+        yield* aUserWithStatus("reset.suspended@example.com", "suspended");
+        yield* aUserWithStatus("reset.invited@example.com", "invited");
+        yield* browser.signUp(asTyped("reset.active@example.com"));
+
+        const suspended = yield* browser.requestPasswordReset(
+          asTyped("reset.suspended@example.com"),
+        );
+
+        const invited = yield* browser.requestPasswordReset(asTyped("reset.invited@example.com"));
+        // Asked last: once its mail is sent, the requests before it are done.
+        yield* browser.requestPasswordReset(asTyped("reset.active@example.com"));
+        yield* mailsTo("reset.active@example.com", 1);
+
+        assert.deepStrictEqual([suspended, invited], [202, 202]);
+        assert.lengthOf(yield* mailsTo("reset.suspended@example.com", 0), 0);
+        assert.lengthOf(yield* mailsTo("reset.invited@example.com", 0), 0);
+      }),
+    );
+
+    it.effect(
+      "sets the new password: the User signs in with it, and no longer with the old one",
+      () =>
+        Effect.gen(function* () {
+          const browser = yield* makeBrowser;
+          yield* browser.signUp(asTyped("reset.grace@example.com"));
+          yield* browser.requestPasswordReset(asTyped("reset.grace@example.com"));
+
+          yield* browser.confirmPasswordReset(
+            yield* resetTokenOf("reset.grace@example.com"),
+            newPassword,
+          );
+
+          const old = yield* browser.signIn(asTyped("reset.grace@example.com")).pipe(Effect.flip);
+          assert.strictEqual(old._tag, "InvalidCredentials");
+          const { user } = yield* browser.signIn(asTyped("reset.grace@example.com"), newPassword);
+          assert.strictEqual(user.email, "reset.grace@example.com");
+        }),
+    );
+
+    it.effect("ends every Session of the User, and opens none", () =>
+      Effect.gen(function* () {
+        const laptop = yield* makeBrowser;
+        const phone = yield* makeBrowser;
+        const stranger = yield* makeBrowser;
+        yield* laptop.signUp(asTyped("reset.hedy@example.com"));
+        yield* phone.signIn(asTyped("reset.hedy@example.com"));
+        yield* stranger.signUp(asTyped("reset.stranger@example.com"));
+        yield* stranger.requestPasswordReset(asTyped("reset.hedy@example.com"));
+
+        yield* stranger.confirmPasswordReset(
+          yield* resetTokenOf("reset.hedy@example.com"),
+          newPassword,
+        );
+
+        assert.strictEqual((yield* Effect.flip(laptop.me))._tag, "Unauthenticated");
+        assert.strictEqual((yield* Effect.flip(phone.me))._tag, "Unauthenticated");
+        assert.strictEqual((yield* stranger.me).email, "reset.stranger@example.com");
+      }),
+    );
+
+    it.effect("uses a link once: a second confirm fails with ExpiredLink", () =>
+      Effect.gen(function* () {
+        const browser = yield* makeBrowser;
+        yield* browser.signUp(asTyped("reset.once@example.com"));
+        yield* browser.requestPasswordReset(asTyped("reset.once@example.com"));
+        const token = yield* resetTokenOf("reset.once@example.com");
+
+        yield* browser.confirmPasswordReset(token, newPassword);
+        const again = yield* browser.confirmPasswordReset(token, password).pipe(Effect.flip);
+
+        assert.strictEqual(again._tag, "ExpiredLink");
+        yield* browser.signIn(asTyped("reset.once@example.com"), newPassword);
+      }),
+    );
+
+    it.effect("refuses a link after 1 hour, and takes it one second before", () =>
+      Effect.gen(function* () {
+        const browser = yield* makeBrowser;
+        yield* browser.signUp(asTyped("reset.late@example.com"));
+        yield* browser.signUp(asTyped("reset.early@example.com"));
+        yield* browser.requestPasswordReset(asTyped("reset.late@example.com"));
+        yield* browser.requestPasswordReset(asTyped("reset.early@example.com"));
+
+        yield* TestClock.adjust(Duration.subtract(Duration.hours(1), Duration.seconds(1)));
+        yield* browser.confirmPasswordReset(
+          yield* resetTokenOf("reset.early@example.com"),
+          newPassword,
+        );
+        yield* TestClock.adjust("1 second");
+
+        const late = yield* browser
+          .confirmPasswordReset(yield* resetTokenOf("reset.late@example.com"), newPassword)
+          .pipe(Effect.flip);
+
+        assert.strictEqual(late._tag, "ExpiredLink");
+        yield* browser.signIn(asTyped("reset.late@example.com"));
+      }),
+    );
+
+    it.effect("invalidates the earlier links of the User when they ask again", () =>
+      Effect.gen(function* () {
+        const browser = yield* makeBrowser;
+        yield* browser.signUp(asTyped("reset.twice@example.com"));
+        yield* browser.requestPasswordReset(asTyped("reset.twice@example.com"));
+        const first = yield* resetTokenOf("reset.twice@example.com");
+
+        yield* browser.requestPasswordReset(asTyped("reset.twice@example.com"));
+        const second = yield* resetTokenOf("reset.twice@example.com", 2);
+
+        assert.notStrictEqual(first, second);
+        const refused = yield* browser.confirmPasswordReset(first, newPassword).pipe(Effect.flip);
+        assert.strictEqual(refused._tag, "ExpiredLink");
+        yield* browser.confirmPasswordReset(second, newPassword);
+      }),
+    );
+
+    it.effect("fails with ExpiredLink for a token it never gave", () =>
+      Effect.gen(function* () {
+        const browser = yield* makeBrowser;
+
+        const error = yield* browser
+          .confirmPasswordReset("not-a-token", newPassword)
+          .pipe(Effect.flip);
+
+        assert.strictEqual(error._tag, "ExpiredLink");
+      }),
+    );
+
+    it.effect("fails with ExpiredLink for a User suspended after asking", () =>
+      Effect.gen(function* () {
+        const browser = yield* makeBrowser;
+        const { user } = yield* browser.signUp(asTyped("reset.later.suspended@example.com"));
+        yield* browser.requestPasswordReset(asTyped("reset.later.suspended@example.com"));
+        const token = yield* resetTokenOf("reset.later.suspended@example.com");
+        yield* (yield* UserRepository).update(new User({ ...user, status: "suspended" }));
+
+        const error = yield* browser.confirmPasswordReset(token, newPassword).pipe(Effect.flip);
+
+        assert.strictEqual(error._tag, "ExpiredLink");
+      }),
+    );
+  },
+);
+
+describe("IdentityApi, Password Reset limits", () => {
+  effect("refuses a request past the limit on the email, known or not: TooManyAttempts", () =>
+    Effect.gen(function* () {
+      const browser = yield* makeBrowser;
+      yield* browser.signUp(asTyped("limit.ada@example.com"));
+
+      const known = yield* Effect.forEach(Array.from({ length: 3 }), () =>
+        browser.requestPasswordReset(asTyped("limit.ada@example.com")),
+      );
+
+      const unknown = yield* Effect.forEach(Array.from({ length: 3 }), () =>
+        browser.requestPasswordReset(asTyped("limit.nobody@example.com")),
+      );
+
+      const refusedKnown = yield* browser
+        .requestPasswordReset(asTyped("limit.ada@example.com"))
+        .pipe(Effect.flip);
+
+      const refusedUnknown = yield* browser
+        .requestPasswordReset(asTyped("limit.nobody@example.com"))
+        .pipe(Effect.flip);
+
+      assert.deepStrictEqual([...known, ...unknown], [202, 202, 202, 202, 202, 202]);
+      assert.deepStrictEqual(refusal(refusedKnown), refusal(refusedUnknown));
+      assert.strictEqual(refusedKnown._tag, "TooManyAttempts");
+      assert.lengthOf(yield* mailsTo("limit.ada@example.com", 3), 3);
+    }).pipe(withLimits({ PASSWORD_RESETS_PER_EMAIL: "3" })),
   );
 });

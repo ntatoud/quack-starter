@@ -1,0 +1,12 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { Schema } from "effect";
+
+import { ResetPasswordPage } from "#/features/identity/reset-password-page.tsx";
+import { ResetPasswordSearch } from "#/features/identity/reset-password-search.ts";
+import { pageTitle } from "#/features/layout/page-title.ts";
+
+export const Route = createFileRoute("/_guest/reset-password")({
+  validateSearch: Schema.toStandardSchemaV1(ResetPasswordSearch),
+  head: () => ({ meta: [{ title: pageTitle("Choose a new password") }] }),
+  component: ResetPasswordPage,
+});

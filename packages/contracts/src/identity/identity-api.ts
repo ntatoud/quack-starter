@@ -4,6 +4,7 @@ import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from "effect/http-api";
 import { Authentication } from "#/identity/authentication.ts";
 import {
   EmailAlreadyTaken,
+  ExpiredLink,
   InvalidCredentials,
   TooManyAttempts,
   Unauthenticated,
@@ -16,6 +17,13 @@ export const SignUpPayload = Schema.Struct({ email: Email, password: Password })
 
 /** A password no User can have is refused before it is checked. */
 export const SignInPayload = Schema.Struct({ email: Email, password: Password });
+
+export const PasswordResetRequestPayload = Schema.Struct({ email: Email });
+
+export const PasswordResetConfirmPayload = Schema.Struct({
+  token: Schema.NonEmptyString,
+  password: Password,
+});
 
 /** Trims what was typed, then decodes it with `schema`, whose `Schema.Trimmed` would only refuse the spaces. */
 const trimmed = <S extends Schema.Codec<string, string>>(schema: S) =>
@@ -47,6 +55,17 @@ export class IdentityApi extends HttpApiGroup.make("identity").add(
     ],
   }),
   HttpApiEndpoint.post("signOut", "/sign-out"),
+  /** Accepted whether a User has the email or not, so the answer says nothing of it. */
+  HttpApiEndpoint.post("requestPasswordReset", "/password-reset", {
+    payload: PasswordResetRequestPayload,
+    success: HttpApiSchema.Accepted,
+    error: TooManyAttempts.pipe(HttpApiSchema.status(429)),
+  }),
+  /** Sets the new password and ends every Session of the User, without signing them in. */
+  HttpApiEndpoint.post("confirmPasswordReset", "/password-reset/confirm", {
+    payload: PasswordResetConfirmPayload,
+    error: ExpiredLink.pipe(HttpApiSchema.status(410)),
+  }),
   HttpApiEndpoint.get("me", "/me", {
     success: User,
   })

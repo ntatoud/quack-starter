@@ -1,3 +1,4 @@
+import { Toaster } from "@quack/ui/components/toast";
 import { HeadContent, Scripts } from "@tanstack/react-router";
 import { Preferences, usePreference } from "@ui-sdk/react/preferences";
 import { lazy, Suspense } from "react";
@@ -21,6 +22,7 @@ export function RootDocument({ children }: { children: ReactNode }) {
       <body>
         <Preferences preferences={[colorScheme, sidebarSide]}>
           {children}
+          <Toaster />
           {Devtools && (
             <Suspense>
               <Devtools />

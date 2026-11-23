@@ -19,5 +19,11 @@ export const SessionStoreMemory = Layer.sync(SessionStore, () => {
     findByTokenHash: (tokenHash) =>
       Effect.sync(() => Option.fromNullishOr(sessions.get(tokenHash))),
     remove: (tokenHash) => Effect.sync(() => void sessions.delete(tokenHash)),
+    removeAllOf: (userId) =>
+      Effect.sync(() => {
+        for (const [tokenHash, session] of sessions) {
+          if (session.userId === userId) sessions.delete(tokenHash);
+        }
+      }),
   });
 });

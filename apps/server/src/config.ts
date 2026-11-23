@@ -26,6 +26,9 @@ export const ServerConfig = {
     signInFailuresPerEmail: attemptLimit("SIGN_IN_FAILURES_PER_EMAIL", 5, Duration.minutes(15)),
     signInFailuresPerIp: attemptLimit("SIGN_IN_FAILURES_PER_IP", 20, Duration.minutes(15)),
     signUpsPerIp: attemptLimit("SIGN_UPS_PER_IP", 10, Duration.hours(1)),
+    // Each one sends a mail: the limit on the email keeps an inbox from being flooded.
+    passwordResetsPerEmail: attemptLimit("PASSWORD_RESETS_PER_EMAIL", 5, Duration.hours(1)),
+    passwordResetsPerIp: attemptLimit("PASSWORD_RESETS_PER_IP", 20, Duration.hours(1)),
     clientDocumentFetchesPerUser: attemptLimit(
       "CLIENT_DOCUMENT_FETCHES_PER_USER",
       30,

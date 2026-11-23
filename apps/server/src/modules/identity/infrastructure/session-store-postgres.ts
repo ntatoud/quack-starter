@@ -38,6 +38,11 @@ export const SessionStorePostgres = Layer.effect(
       execute: (tokenHash) => sql`DELETE FROM sessions WHERE token_hash = ${tokenHash}`,
     });
 
+    const removeAllOf = SqlSchema.void({
+      Request: UserId,
+      execute: (userId) => sql`DELETE FROM sessions WHERE user_id = ${userId}`,
+    });
+
     return SessionStore.of({
       save: Effect.fn("SessionStore.save")((session) => insert(session).pipe(Effect.orDie)),
       extend: Effect.fn("SessionStore.extend")((tokenHash, expiresAt) =>
@@ -47,6 +52,9 @@ export const SessionStorePostgres = Layer.effect(
         findByTokenHash(tokenHash).pipe(Effect.orDie),
       ),
       remove: Effect.fn("SessionStore.remove")((tokenHash) => remove(tokenHash).pipe(Effect.orDie)),
+      removeAllOf: Effect.fn("SessionStore.removeAllOf")((userId) =>
+        removeAllOf(userId).pipe(Effect.orDie),
+      ),
     });
   }),
 );

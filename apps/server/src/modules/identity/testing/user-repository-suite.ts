@@ -166,6 +166,25 @@ export const userRepositorySuite = (layer: Layer.Layer<UserRepository>) => {
         assert.isTrue(Option.isNone(yield* repository.findById(UserId.make("not-an-id"))));
       }));
 
+    test("replaces the password hash of a User, and keeps the others'", () =>
+      Effect.gen(function* () {
+        const repository = yield* UserRepository;
+        const mark = yield* aMark;
+        const [ada, grace] = [yield* aUser(mark, "ada"), yield* aUser(mark, "grace")];
+        yield* created(ada, grace);
+
+        yield* repository.setPasswordHash(ada.id, "new hash");
+
+        assert.deepStrictEqual(
+          yield* repository.findByEmail(ada.email),
+          Option.some({ user: ada, passwordHash: "new hash" }),
+        );
+        assert.deepStrictEqual(
+          yield* repository.findByEmail(grace.email),
+          Option.some({ user: grace, passwordHash: `hash of ${grace.email}` }),
+        );
+      }));
+
     test("keeps the email and the password hash on update", () =>
       Effect.gen(function* () {
         const repository = yield* UserRepository;

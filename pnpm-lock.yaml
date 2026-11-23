@@ -311,6 +311,9 @@ importers:
       '@quack/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@quack/emails':
+        specifier: workspace:*
+        version: link:../../packages/emails
       effect:
         specifier: 4.1.5
         version: 4.1.5
@@ -463,6 +466,9 @@ importers:
       effect:
         specifier: 4.1.5
         version: 4.1.5
+      esbuild:
+        specifier: 0.28.2
+        version: 0.28.2
       react:
         specifier: 'catalog:'
         version: 19.3.1
@@ -476,6 +482,9 @@ importers:
       '@react-email/ui':
         specifier: 'catalog:'
         version: 6.11.16(@babel/core@7.29.13)(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.6.6
       '@types/react':
         specifier: 'catalog:'
         version: 19.3.0

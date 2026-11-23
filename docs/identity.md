@@ -18,11 +18,15 @@ The rules of `modules/identity` that its code does not show on its own. The dura
 - `completeOnboarding` sets the name of the Profile, creating it with nothing else filled in, and records `onboardedAt` (`onboarded` in `domain/user.ts`). A second one changes the name and keeps the first date.
 - Only the web app holds a User who is not onboarded back; the API answers them as any other.
 
+## Password Reset
+
+A link by email to choose a new password: `docs/password-reset.md`.
+
 ## AttemptLimiter
 
 Slows down the guessing of passwords and of OAuth secrets (port: `domain/attempt-limiter.ts`). The use cases `signIn` and `signUp` call it with the client's address, which the handler reads in `X-Forwarded-For` (`http/client-ip.ts`); there is no HTTP middleware for it. For the OAuth routes, see `docs/ai-clients.md`.
 
-- It counts the failed sign-ins per email and per address, and the sign-ups per address, failed ones included. The limits and windows are in `ServerConfig` (`attemptLimits`).
+- It counts the failed sign-ins per email and per address, the sign-ups per address, failed ones included, and the Password Resets asked per email and per address. The limits and windows are in `ServerConfig` (`attemptLimits`).
 - Past a limit the use case fails with `TooManyAttempts` (429) and its `retryAfter` in seconds, before the password is hashed, and the same whether a User has the email or not.
 - A window is fixed: it opens at the first attempt counted and starts again from zero when it ends, so nothing locks a User out for good.
 - A sign-in is counted as a failure before its password is checked, in one step with the refusal (`take`), so concurrent sign-ins do not all get through. One that succeeds resets the counter of its email and is taken off the counter of its address.

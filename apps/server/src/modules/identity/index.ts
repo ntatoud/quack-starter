@@ -5,6 +5,7 @@ import { AuthorizationRequests } from "#/modules/identity/application/authorizat
 import { Grants } from "#/modules/identity/application/grants.ts";
 import { Identity } from "#/modules/identity/application/identity.ts";
 import { Onboarding } from "#/modules/identity/application/onboarding.ts";
+import { PasswordResets } from "#/modules/identity/application/password-resets.ts";
 import { devAccountIds, IdentitySeed } from "#/modules/identity/application/identity-seed.ts";
 import { Users } from "#/modules/identity/application/users.ts";
 import { AuthenticationMiddleware } from "#/modules/identity/http/authentication-middleware.ts";
@@ -22,6 +23,7 @@ import { AiClientDocumentsHttp } from "#/modules/identity/infrastructure/ai-clie
 import { AiClientHttpClient } from "#/modules/identity/infrastructure/ai-client-http-client.ts";
 import { AuthorizationCodeStorePostgres } from "#/modules/identity/infrastructure/authorization-code-store-postgres.ts";
 import { GrantStorePostgres } from "#/modules/identity/infrastructure/grant-store-postgres.ts";
+import { LinkTokenStorePostgres } from "#/modules/identity/infrastructure/link-token-store-postgres.ts";
 import { AttemptLimiterMemory } from "#/modules/identity/infrastructure/attempt-limiter-memory.ts";
 import { PasswordHasherArgon2 } from "#/modules/identity/infrastructure/password-hasher-argon2.ts";
 import { SessionStorePostgres } from "#/modules/identity/infrastructure/session-store-postgres.ts";
@@ -43,11 +45,18 @@ export const IdentityPostgres = Layer.mergeAll(
   SessionStorePostgres,
   AuthorizationCodeStorePostgres,
   GrantStorePostgres,
+  LinkTokenStorePostgres,
 );
 
 export const IdentityModule = Layer.mergeAll(IdentityHandlers, UsersHandlers).pipe(
   Layer.provideMerge(AuthenticationMiddleware),
-  Layer.provide([Identity.layer, Users.layer, Onboarding.layer, SessionCookie.layer]),
+  Layer.provide([
+    Identity.layer,
+    Users.layer,
+    Onboarding.layer,
+    PasswordResets.layer,
+    SessionCookie.layer,
+  ]),
   Layer.provide([PasswordHasherArgon2, AttemptLimiterMemory]),
   Layer.provide([NodeCrypto.layerSecureRandom, NodeCrypto.layerDigest, NodeCrypto.layerKdf]),
 );

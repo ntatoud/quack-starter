@@ -111,6 +111,20 @@ export const sessionStoreSuite = (layer: Layer.Layer<SessionStore>) => {
         assert.deepStrictEqual(yield* store.findByTokenHash(kept.tokenHash), Option.some(kept));
       }));
 
+    test("removes every Session of a User, and leaves those of others", () =>
+      Effect.gen(function* () {
+        const store = yield* SessionStore;
+        const first = yield* aSavedSession();
+        const second = yield* aSavedSession({ userId: first.userId });
+        const other = yield* aSavedSession();
+
+        yield* store.removeAllOf(first.userId);
+
+        assert.isTrue(Option.isNone(yield* store.findByTokenHash(first.tokenHash)));
+        assert.isTrue(Option.isNone(yield* store.findByTokenHash(second.tokenHash)));
+        assert.deepStrictEqual(yield* store.findByTokenHash(other.tokenHash), Option.some(other));
+      }));
+
     test("removal is idempotent", () =>
       Effect.gen(function* () {
         const store = yield* SessionStore;
