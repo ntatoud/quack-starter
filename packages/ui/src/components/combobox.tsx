@@ -125,7 +125,7 @@ function ComboboxEmpty({
   return (
     <ComboboxEmptyPrimitive
       className={cn(
-        "w-full justify-center py-2 text-center text-sm text-muted-foreground data-empty:flex",
+        "w-full justify-center text-center text-sm text-muted-foreground data-empty:flex data-empty:py-2",
         className,
       )}
       {...props}
