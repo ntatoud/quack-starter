@@ -13,17 +13,15 @@ import { PersonName, Profile } from "#/identity/profile.ts";
 import { Email, Password, TimeZone, User } from "#/identity/user.ts";
 import { RequiredPermission } from "#/permission.ts";
 
+/** What a visitor types to sign up or in. A password no User can have is refused before it is checked. */
+export const Credentials = Schema.Struct({ email: Email, password: Password });
+
+export const SignInPayload = Credentials;
+
 /** The time zone is the browser's: the User changes it later in the settings. */
-export const SignUpPayload = Schema.Struct({
-  email: Email,
-  password: Password,
-  timeZone: TimeZone,
-});
+export const SignUpPayload = Schema.Struct({ ...Credentials.fields, timeZone: TimeZone });
 
 export const TimeZonePayload = Schema.Struct({ timeZone: TimeZone });
-
-/** A password no User can have is refused before it is checked. */
-export const SignInPayload = Schema.Struct({ email: Email, password: Password });
 
 export const PasswordResetRequestPayload = Schema.Struct({ email: Email });
 

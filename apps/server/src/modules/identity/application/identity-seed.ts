@@ -29,13 +29,15 @@ const paris = Schema.decodeSync(TimeZone)("Europe/Paris");
 
 // Taken in turn, not drawn: a draw of faker would change every User after it.
 const timeZones = [
-  "Europe/Paris",
-  "Europe/London",
-  "America/New_York",
-  "America/Los_Angeles",
-  "Asia/Tokyo",
-  "Australia/Sydney",
-].map((zone) => Schema.decodeSync(TimeZone)(zone));
+  paris,
+  ...[
+    "Europe/London",
+    "America/New_York",
+    "America/Los_Angeles",
+    "Asia/Tokyo",
+    "Australia/Sydney",
+  ].map((zone) => Schema.decodeSync(TimeZone)(zone)),
+];
 
 const devAccount = (faker: Faker, email: string, role: Role, firstName: string): User =>
   new User({
@@ -110,6 +112,7 @@ const randomUsers = (faker: Faker, count: number): ReadonlyArray<User> => {
             ? null
             : DateTime.fromDateUnsafe(new Date(createdAt.getTime() + onboardingMillis)),
         profile,
+        // `?? paris` only satisfies the index check: the list is never empty.
         timeZone: timeZones[users.length % timeZones.length] ?? paris,
       }),
     );

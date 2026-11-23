@@ -38,7 +38,7 @@ export class Users extends Context.Service<
 
       // Read again rather than taken from the Current User: the write must not bring back what changed since the
       // request was authenticated.
-      const updateOwn = Effect.fn("Users.updateOwn")(function* (
+      const amendCurrentUser = Effect.fn("Users.amendCurrentUser")(function* (
         id: UserId,
         change: (user: User) => User,
       ) {
@@ -92,10 +92,10 @@ export class Users extends Context.Service<
           if (!removed) return yield* new UserNotFound({ id });
         }),
         updateProfile: Effect.fn("Users.updateProfile")((id, profile) =>
-          updateOwn(id, (user) => withProfile(user, profile)),
+          amendCurrentUser(id, (user) => withProfile(user, profile)),
         ),
         updateTimeZone: Effect.fn("Users.updateTimeZone")((id, timeZone) =>
-          updateOwn(id, (user) => withTimeZone(user, timeZone)),
+          amendCurrentUser(id, (user) => withTimeZone(user, timeZone)),
         ),
       });
     }),

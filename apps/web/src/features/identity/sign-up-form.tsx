@@ -1,5 +1,5 @@
 import { EmailAlreadyTaken, TooManyAttempts } from "@quack/contracts/identity/identity-errors";
-import { SignInPayload } from "@quack/contracts/identity/identity-api";
+import { Credentials } from "@quack/contracts/identity/identity-api";
 import type { User } from "@quack/contracts/identity/user";
 import { useMutation } from "@tanstack/react-query";
 
@@ -22,7 +22,7 @@ export function SignUpForm({ onSignedUp }: { onSignedUp: (user: User) => void | 
   return (
     <CredentialsForm
       // The time zone is not asked: the browser's is right for most, who change it in the settings otherwise.
-      schema={SignInPayload}
+      schema={Credentials}
       submit={(credentials) =>
         signUp.mutateAsync({ payload: { ...credentials, timeZone: browserTimeZone() } })
       }
