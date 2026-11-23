@@ -1208,7 +1208,7 @@ layer(withConfig(modelLimits))("IdentityApi, a Session against its model", (it) 
 
           const chooseWithLastLink = Effect.gen(function* () {
             const chosen = Redacted.make(`the password chosen with link ${links.length}`);
-            yield* browser.confirmPasswordReset(links.at(-1) ?? "forged", chosen);
+            yield* browser.confirmPasswordReset(links.at(-1) ?? "", chosen);
             passwords = [...passwords, chosen];
           });
 
@@ -1224,19 +1224,16 @@ layer(withConfig(modelLimits))("IdentityApi, a Session against its model", (it) 
 
           const steps = {
             signIn: () => answerOf(browser.signIn(email, passwords.at(-1))),
-            signInWithWrongPassword: () =>
-              answerOf(
-                browser.signIn(email, passwords.at(-2) ?? Redacted.make("never anyone's password")),
-              ),
+            signInWithFormerPassword: () => answerOf(browser.signIn(email, passwords.at(-2))),
             signOut: () => answerOf(browser.signOut),
             suspend: () => answerOf(setStatus("suspended")),
             reactivate: () => answerOf(setStatus("active")),
             requestReset: () => requestLink,
             confirmReset: () => answerOf(chooseWithLastLink),
-            confirmUnknownLink: () =>
+            confirmReplacedLink: () =>
               answerOf(
                 browser.confirmPasswordReset(
-                  links.at(-2) ?? "forged",
+                  links.at(-2) ?? "",
                   Redacted.make("a password no link may set"),
                 ),
               ),
