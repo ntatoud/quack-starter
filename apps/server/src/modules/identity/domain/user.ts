@@ -5,9 +5,6 @@ import type { DateTime } from "effect";
 
 export const canSignIn = (user: User) => user.status === "active";
 
-/** An invited User cannot sign in yet: an Admin has no status of theirs to change. */
-export const canChangeStatus = (user: User) => user.status !== "invited";
-
 export const signedIn = (user: User, at: DateTime.Utc): User =>
   new User({ ...user, lastSignInAt: at });
 

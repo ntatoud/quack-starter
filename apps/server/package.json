@@ -22,7 +22,8 @@
     "@quack/contracts": "workspace:*",
     "@quack/emails": "workspace:*",
     "effect": "catalog:",
-    "nodemailer": "10.6.1"
+    "nodemailer": "10.6.1",
+    "xstate": "6.0.0-beta.4"
   },
   "devDependencies": {
     "@effect/vitest": "catalog:",
