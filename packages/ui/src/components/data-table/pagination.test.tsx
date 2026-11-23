@@ -13,8 +13,10 @@ type State = {
   readonly orderBy?: "name" | undefined;
 };
 
+const firstPage: State = {};
+
 function Pages({
-  initial = {},
+  initial = firstPage,
   width = "narrow",
   busy: initiallyBusy = false,
   ...count

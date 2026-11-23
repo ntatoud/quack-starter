@@ -1,6 +1,6 @@
 import { UserId } from "@quack/contracts/identity/user";
 import { Todo, TodoId } from "@quack/contracts/todos/todo";
-import { Effect, Layer, Option, Schema, SchemaTransformation } from "effect";
+import { Effect, Layer, Schema, SchemaTransformation } from "effect";
 import { SqlClient, SqlSchema } from "effect/sql";
 
 import { TodoRepository } from "#/modules/todos/domain/todo-repository.ts";
@@ -65,9 +65,7 @@ export const TodoRepositoryPostgres = Layer.effect(
         findAll(ownerId).pipe(Effect.orDie),
       ),
       findById: Effect.fn("TodoRepository.findById")((ownerId, id) =>
-        isStorableId(id)
-          ? findById({ ownerId, id }).pipe(Effect.orDie)
-          : Effect.succeed(Option.none()),
+        isStorableId(id) ? findById({ ownerId, id }).pipe(Effect.orDie) : Effect.succeedNone,
       ),
       save: Effect.fn("TodoRepository.save")((todo) => save(todo).pipe(Effect.orDie)),
       remove: Effect.fn("TodoRepository.remove")((ownerId, id) =>

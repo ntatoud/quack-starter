@@ -52,6 +52,8 @@ export default defineConfig({
       // `exhaustive-effect-dependencies` checks the dependencies against what the compiler memoizes; this one takes
       // every value computed in render for new on each, and asks for the useMemo the compiler makes needless.
       "react/exhaustive-deps": "off",
+      // The compiler memoizes a context value built in render, as it does any other.
+      "react/jsx-no-constructed-context-values": "off",
       "react/no-array-index-key": "error",
       "react/react-in-jsx-scope": "off",
       "unicorn/no-array-sort": "off",
@@ -61,6 +63,15 @@ export default defineConfig({
       "eslint/no-underscore-dangle": "off",
     },
     overrides: [
+      {
+        files: ["**/*.test.ts", "**/*.test.tsx"],
+        rules: {
+          // A helper or component used by one test or `describe` sits in it, next to what reads it.
+          "unicorn/consistent-function-scoping": "off",
+          // Key presses, focus moves, and requests happen in order; each step asserts on the one before.
+          "eslint/no-await-in-loop": "off",
+        },
+      },
       {
         files: ["packages/contracts/src/**"],
         rules: {

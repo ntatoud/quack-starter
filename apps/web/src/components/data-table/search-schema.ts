@@ -12,7 +12,7 @@ const orUndefined = <S extends Schema.Top>(schema: S) =>
 
 // The router parses `?q=42` as a number: it is the search "42". A search of blanks is no search, as the toolbar
 // sends it.
-const SearchText = Schema.Union([Schema.String, Schema.Number, Schema.Boolean]).pipe(
+const SearchText = Schema.Union([Schema.String, Schema.Finite, Schema.Boolean]).pipe(
   Schema.decodeTo(
     Schema.UndefinedOr(Schema.String),
     SchemaTransformation.transform({
@@ -59,7 +59,7 @@ export const dataTableSearchSchema = <
     size: orUndefined(
       pageSizes === undefined
         ? Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: maxPageSize }))
-        : Schema.Number.check(
+        : Schema.Finite.check(
             Schema.makeFilter((size) => pageSizes.includes(size) || "a page size of the table"),
           ),
     ),

@@ -7,7 +7,7 @@ describe("UserListQuery", () => {
   const decode = Schema.decodeUnknownOption(UserListQuery);
 
   it("sorts by email, ascending, when the query says nothing", () => {
-    expect(Schema.decodeUnknownSync(UserListQuery)({})).toEqual({
+    expect(Schema.decodeSync(UserListQuery)({})).toEqual({
       page: 1,
       pageSize: 20,
       orderBy: "email",

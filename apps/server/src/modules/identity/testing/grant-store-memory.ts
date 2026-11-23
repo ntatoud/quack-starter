@@ -11,11 +11,12 @@ const byLastUse = Order.combine(
   Order.mapInput(Order.String, (grant: Grant) => grant.id),
 );
 
+const keyOf = (userId: string, aiClientId: string) => JSON.stringify([userId, aiClientId]);
+
 export const GrantStoreMemory = Layer.sync(GrantStore, () => {
   const grants = new Map<string, Grant>();
   const accessTokens = new Map<string, AccessToken>();
   const refreshTokens = new Map<string, RefreshToken>();
-  const keyOf = (userId: string, aiClientId: string) => JSON.stringify([userId, aiClientId]);
 
   const byId = (id: string) =>
     Option.fromNullishOr([...grants.values()].find((grant) => grant.id === id));

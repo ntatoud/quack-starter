@@ -39,8 +39,7 @@ const get = (url: string, allowLoopback: boolean) =>
         ),
       ),
     ),
-    Effect.exit,
-    Effect.runPromise,
+    Effect.runPromiseExit,
   );
 
 const refusalOf = async (url: string, allowLoopback = false) => {

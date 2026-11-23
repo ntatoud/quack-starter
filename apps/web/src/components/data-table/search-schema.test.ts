@@ -11,10 +11,13 @@ const schema = dataTableSearchSchema({
   },
 });
 
+// The router hands `validateSearch` whatever it parsed from the URL.
+const decode = Schema.decodeUnknownSync(schema);
+
 describe("dataTableSearchSchema", () => {
   it("leaves out the keys the URL leaves out, and drops keys it does not know", () => {
-    expect(Schema.decodeUnknownSync(schema)({})).toEqual({});
-    expect(Schema.decodeUnknownSync(schema)({ other: "x" })).toEqual({});
+    expect(decode({})).toEqual({});
+    expect(decode({ other: "x" })).toEqual({});
   });
 
   it("keeps valid values", () => {
@@ -28,33 +31,33 @@ describe("dataTableSearchSchema", () => {
       tags: ["new", "sale"],
     };
 
-    expect(Schema.decodeUnknownSync(schema)(search)).toEqual(search);
+    expect(decode(search)).toEqual(search);
   });
 
   it("drops an invalid page, sorting, or direction to its default", () => {
-    expect(Schema.decodeUnknownSync(schema)({ page: 0 })).toEqual({ page: undefined });
-    expect(Schema.decodeUnknownSync(schema)({ page: 1.5 })).toEqual({ page: undefined });
-    expect(Schema.decodeUnknownSync(schema)({ page: "two" })).toEqual({ page: undefined });
-    expect(Schema.decodeUnknownSync(schema)({ orderBy: "category" })).toEqual({
+    expect(decode({ page: 0 })).toEqual({ page: undefined });
+    expect(decode({ page: 1.5 })).toEqual({ page: undefined });
+    expect(decode({ page: "two" })).toEqual({ page: undefined });
+    expect(decode({ orderBy: "category" })).toEqual({
       orderBy: undefined,
     });
-    expect(Schema.decodeUnknownSync(schema)({ dir: "up" })).toEqual({ dir: undefined });
+    expect(decode({ dir: "up" })).toEqual({ dir: undefined });
   });
 
   it("reads a search the router parsed as a number or a boolean as text", () => {
-    expect(Schema.decodeUnknownSync(schema)({ q: 42 })).toEqual({ q: "42" });
-    expect(Schema.decodeUnknownSync(schema)({ q: true })).toEqual({ q: "true" });
-    expect(Schema.decodeUnknownSync(schema)({ q: { nested: 1 } })).toEqual({ q: undefined });
+    expect(decode({ q: 42 })).toEqual({ q: "42" });
+    expect(decode({ q: true })).toEqual({ q: "true" });
+    expect(decode({ q: { nested: 1 } })).toEqual({ q: undefined });
   });
 
   it("clears a filter or hidden columns that do not validate", () => {
-    expect(Schema.decodeUnknownSync(schema)({ category: "food" })).toEqual({
+    expect(decode({ category: "food" })).toEqual({
       category: undefined,
     });
-    expect(Schema.decodeUnknownSync(schema)({ tags: ["new", "old"] })).toEqual({
+    expect(decode({ tags: ["new", "old"] })).toEqual({
       tags: undefined,
     });
-    expect(Schema.decodeUnknownSync(schema)({ hidden: "price" })).toEqual({ hidden: undefined });
+    expect(decode({ hidden: "price" })).toEqual({ hidden: undefined });
   });
 });
 
@@ -64,23 +67,25 @@ describe("dataTableSearchSchema page size", () => {
     pageSizes: [10, 25, 50],
   });
 
+  const decodeSized = Schema.decodeUnknownSync(sized);
+
   it("keeps a size the table offers, and drops any other", () => {
-    expect(Schema.decodeUnknownSync(sized)({ size: 25 })).toEqual({ size: 25 });
-    expect(Schema.decodeUnknownSync(sized)({ size: 33 })).toEqual({ size: undefined });
-    expect(Schema.decodeUnknownSync(sized)({ size: "many" })).toEqual({ size: undefined });
+    expect(decodeSized({ size: 25 })).toEqual({ size: 25 });
+    expect(decodeSized({ size: 33 })).toEqual({ size: undefined });
+    expect(decodeSized({ size: "many" })).toEqual({ size: undefined });
   });
 
   it("keeps any positive whole size when the table names none", () => {
-    expect(Schema.decodeUnknownSync(schema)({ size: 33 })).toEqual({ size: 33 });
-    expect(Schema.decodeUnknownSync(schema)({ size: 0 })).toEqual({ size: undefined });
-    expect(Schema.decodeUnknownSync(schema)({ size: 100_000 })).toEqual({ size: undefined });
+    expect(decode({ size: 33 })).toEqual({ size: 33 });
+    expect(decode({ size: 0 })).toEqual({ size: undefined });
+    expect(decode({ size: 100_000 })).toEqual({ size: undefined });
   });
 });
 
 describe("dataTableSearchSchema search", () => {
   it("reads a search of blanks as none", () => {
-    expect(Schema.decodeUnknownSync(schema)({ q: "  " })).toEqual({ q: undefined });
-    expect(Schema.decodeUnknownSync(schema)({ q: "" })).toEqual({ q: undefined });
-    expect(Schema.decodeUnknownSync(schema)({ q: " ada " })).toEqual({ q: " ada " });
+    expect(decode({ q: "  " })).toEqual({ q: undefined });
+    expect(decode({ q: "" })).toEqual({ q: undefined });
+    expect(decode({ q: " ada " })).toEqual({ q: " ada " });
   });
 });
