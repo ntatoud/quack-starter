@@ -8,14 +8,14 @@ allowBuilds:
 
 # One version per shared dependency. Packages reference these with "catalog:".
 catalog:
-  "@effect/platform-node": 4.1.3
-  "@effect/sql-pg": 4.1.4
-  "@effect/tsgo": 0.67.7
-  "@effect/vitest": 4.1.3
+  "@effect/platform-node": 4.1.5
+  "@effect/sql-pg": 4.1.5
+  "@effect/tsgo": 0.73.2
+  "@effect/vitest": 4.1.5
   "@react-email/ui": 6.11.16
   "@tailwindcss/vite": 4.3.5
-  "@tanstack/react-query": 5.107.1
-  "@tanstack/react-query-devtools": 5.107.1
+  "@tanstack/react-query": 5.108.2
+  "@tanstack/react-query-devtools": 5.108.2
   "@tanstack/react-table": 9.3.1
   "@types/node": 26.6.6
   "@types/react": ~19.3.0
@@ -23,51 +23,26 @@ catalog:
   "@vitejs/plugin-react": 6.3.0
   # The version of the Vitest that Vite+ bundles.
   "@vitest/browser-playwright": 5.1.0
-  effect: 4.1.4
-  lucide-react: 1.71.0
+  effect: 4.1.5
+  lucide-react: 1.77.0
   # @vitejs/plugin-react 6.3 accepts >=0.152.0 <0.157.0.
   oxc-transform-react: 0.156.0
-  playwright: 1.65.0
+  playwright: 1.65.1
   react: 19.3.1
   react-dom: 19.3.1
   react-email: 6.11.16
   tailwindcss: 4.3.5
-  tsrs: 0.23.0-ts7.1.0-beta
+  tsrs: 7.1.0-beta.tsrs4
   typescript: 7.0.2
-  vite: npm:@voidzero-dev/vite-plus-core@1.6.0
-  vite-plus: 1.6.0
+  vite: npm:@voidzero-dev/vite-plus-core@8.3.8000
+  vite-plus: 1.7.0
   vitest-browser-react: 2.3.0
-
-minimumReleaseAgeExclude:
-  - "@tsrs/darwin-arm64@0.24.0-ts7.1.0-beta"
-  - "@tsrs/darwin-x64@0.24.0-ts7.1.0-beta"
-  - "@tsrs/linux-arm64-gnu@0.24.0-ts7.1.0-beta"
-  - "@tsrs/linux-arm64-musl@0.24.0-ts7.1.0-beta"
-  - "@tsrs/linux-x64-gnu@0.24.0-ts7.1.0-beta"
-  - "@tsrs/linux-x64-musl@0.24.0-ts7.1.0-beta"
-  - "@tsrs/win32-x64@0.24.0-ts7.1.0-beta"
-  - "@voidzero-dev/vite-plus-core@1.6.0"
-  - "@voidzero-dev/vite-plus-darwin-arm64@1.6.0"
-  - "@voidzero-dev/vite-plus-darwin-x64@1.6.0"
-  - "@voidzero-dev/vite-plus-linux-arm64-gnu@1.6.0"
-  - "@voidzero-dev/vite-plus-linux-arm64-musl@1.6.0"
-  - "@voidzero-dev/vite-plus-linux-x64-gnu@1.6.0"
-  - "@voidzero-dev/vite-plus-linux-x64-musl@1.6.0"
-  - "@voidzero-dev/vite-plus-win32-arm64-msvc@1.6.0"
-  - "@voidzero-dev/vite-plus-win32-x64-msvc@1.6.0"
-  - tsrs@0.24.0-ts7.1.0-beta
-  - vite-plus@1.6.0
-  - "@effect/sql-pg@4.1.4"
-  - effect@4.1.4
 
 overrides:
   # Every package that asks for Vite or Vitest gets the Vite+ build, so there is one copy.
   vite: "catalog:"
   # Two Effect copies do not share services or schemas.
   effect: "catalog:"
+  # Vite+ pins its own tsrs, for type-aware lint: one copy, so the lint and `typecheck:ci` agree.
+  tsrs: "catalog:"
   "@effect/vitest>vitest": "-"
-
-peerDependencyRules:
-  # Vite is the Vite+ build (see overrides), whose version number is not Vite's.
-  allowAny:
-    - vite

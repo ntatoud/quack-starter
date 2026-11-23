@@ -25,8 +25,8 @@
     "@effect/tsgo": "catalog:",
     "@quack/oxlint-plugin": "workspace:*",
     "@types/node": "catalog:",
-    "fallow": "3.45.0",
-    "portless": "0.17.0",
+    "fallow": "3.46.0",
+    "portless": "0.18.1",
     "tsrs": "catalog:",
     "typescript": "catalog:",
     "ultracite": "8.3.1",
@@ -35,5 +35,5 @@
   "engines": {
     "node": ">=26"
   },
-  "packageManager": "pnpm@12.14.0"
+  "packageManager": "pnpm@12.23.0"
 }
