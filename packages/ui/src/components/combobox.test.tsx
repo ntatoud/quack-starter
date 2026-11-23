@@ -15,7 +15,11 @@ import {
 
 const fruits = ["Apple", "Banana", "Cherry"];
 
-function Fruit(props: { showClear?: boolean; disabled?: boolean }) {
+function Fruit(props: {
+  showClear?: boolean;
+  disabled?: boolean;
+  options?: ReadonlyArray<string>;
+}) {
   const [value, setValue] = useState<string | null>(null);
 
   return (
@@ -28,7 +32,7 @@ function Fruit(props: { showClear?: boolean; disabled?: boolean }) {
       <ComboboxContent>
         <ComboboxEmpty>No fruit.</ComboboxEmpty>
         <ComboboxList>
-          {fruits.map((fruit) => (
+          {(props.options ?? fruits).map((fruit) => (
             <ComboboxItem key={fruit} value={fruit}>
               {fruit}
             </ComboboxItem>
@@ -82,6 +86,17 @@ describe("Combobox", () => {
     await clear().click();
     await expect.element(input()).toHaveValue("");
     await expect.element(showOptions()).toBeVisible();
+  });
+
+  it("scrolls a list longer than its popup down to the last option", async () => {
+    const many = Array.from({ length: 100 }, (_, index) => `Fruit ${index + 1}`);
+    await render(<Fruit options={many} />);
+
+    await showOptions().click();
+    const listbox = page.getByRole("listbox").element();
+    listbox.scrollTop = listbox.scrollHeight;
+
+    await expect.element(page.getByRole("option", { name: "Fruit 100" })).toBeInViewport();
   });
 
   it("once disabled, disables its input and its button", async () => {
