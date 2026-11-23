@@ -22,11 +22,12 @@ import {
 import { Skeleton } from "@quack/ui/components/skeleton";
 import { matchQuery } from "@quack/ui-state/query";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { type ReactNode, useState } from "react";
+import type { ReactNode } from "react";
 
 import { ButtonLink } from "#/components/button-link.tsx";
 import { invalidateUsers } from "#/features/users/admin/invalidate-users.ts";
 import { useDeleteUser } from "#/features/users/admin/use-delete-user.ts";
+import { type Confirmed, userActionsMachine } from "#/features/users/admin/user-actions-machine.ts";
 import { userQueryOptions } from "#/features/users/admin/users-query.ts";
 import {
   CountryCell,
@@ -40,6 +41,7 @@ import { labelOf } from "#/features/users/admin/users-filters.ts";
 import { userLabel } from "#/features/users/full-name.ts";
 import { UserAvatar } from "#/features/users/user-avatar.tsx";
 import { api } from "#/lib/api.ts";
+import { useFsm } from "#/lib/use-fsm.ts";
 
 /** `canChange` is false on the Admin's own page: they cannot change their own access. */
 export function UserDetails({ id, canChange }: { id: UserId; canChange: boolean }) {
@@ -159,28 +161,38 @@ function UserOverview({ user, now, canChange }: { user: User; now: Date; canChan
   );
 }
 
-type Confirmed = "promote" | "suspend" | "delete";
-
 function UserActions({ user }: { user: User }) {
-  // One for every button: a new change clears the failure of the one before.
+  const [state, send] = useFsm(userActionsMachine);
   const change = useMutation(api.users.update.mutationOptions(invalidateUsers));
   const remove = useDeleteUser(user.id);
-  const busy = change.isPending || remove.isPending;
-  const [confirming, setConfirming] = useState<Confirmed | null>(null);
+  const busy = state.value === "changing" || state.value === "confirming";
 
-  const apply = (payload: UserChanges) =>
-    change.mutate({ params: { id: user.id }, payload }, { onSuccess: () => setConfirming(null) });
+  const settled = {
+    onSuccess: () => send({ type: "succeeded" }),
+    onError: () => send({ type: "failed" }),
+  };
 
-  const confirmed = (which: Confirmed, { isError }: { isError: boolean }, failure: string) => ({
-    open: confirming === which,
-    onOpenChange: (open: boolean) => {
-      change.reset();
-      remove.reset();
-      setConfirming(open ? which : null);
-    },
+  const applyNow = (payload: UserChanges) => {
+    if (send({ type: "apply" })) change.mutate({ params: { id: user.id }, payload }, settled);
+  };
+
+  const asked =
+    state.value === "asking" || state.value === "confirming" || state.value === "confirmFailed"
+      ? state.context.which
+      : null;
+
+  const confirmed = (which: Confirmed, failure: string, run: () => void) => ({
+    open: asked === which,
+    onOpenChange: (open: boolean) => send(open ? { type: "ask", which } : { type: "dismiss" }),
     busy,
-    failure: isError ? failure : undefined,
+    failure: state.value === "confirmFailed" ? failure : undefined,
+    onConfirm: () => {
+      if (send({ type: "confirm" })) run();
+    },
   });
+
+  const confirmedChange = (payload: UserChanges) => () =>
+    change.mutate({ params: { id: user.id }, payload }, settled);
 
   const name = userLabel(user);
   const atOnce = { variant: "outline", size: "sm", disabled: busy } as const;
@@ -189,7 +201,7 @@ function UserActions({ user }: { user: User }) {
     <div className="flex flex-col gap-2 sm:items-end">
       <div className="flex flex-wrap gap-2">
         {user.role === "admin" ? (
-          <Button {...atOnce} onClick={() => apply({ role: "user" })}>
+          <Button {...atOnce} onClick={() => applyNow({ role: "user" })}>
             Remove admin
           </Button>
         ) : (
@@ -197,8 +209,7 @@ function UserActions({ user }: { user: User }) {
             label="Make admin"
             title={`Make ${name} an admin?`}
             description="They will see every user, and can suspend them or change their role."
-            {...confirmed("promote", change, changeFailed)}
-            onConfirm={() => apply({ role: "admin" })}
+            {...confirmed("promote", changeFailed, confirmedChange({ role: "admin" }))}
           />
         )}
         {user.status === "active" && (
@@ -208,12 +219,11 @@ function UserActions({ user }: { user: User }) {
             description="They are signed out at their next request, and cannot sign in until they are reactivated."
             confirmLabel="Suspend user"
             destructive
-            {...confirmed("suspend", change, changeFailed)}
-            onConfirm={() => apply({ status: "suspended" })}
+            {...confirmed("suspend", changeFailed, confirmedChange({ status: "suspended" }))}
           />
         )}
         {user.status === "suspended" && (
-          <Button {...atOnce} onClick={() => apply({ status: "active" })}>
+          <Button {...atOnce} onClick={() => applyNow({ status: "active" })}>
             Reactivate
           </Button>
         )}
@@ -223,12 +233,13 @@ function UserActions({ user }: { user: User }) {
           description="Their profile, their todos, and their sessions go with them. This cannot be undone."
           confirmLabel="Delete user"
           destructive
-          {...confirmed("delete", remove, "Could not delete the user. Try again.")}
-          onConfirm={() => remove.mutate({ params: { id: user.id } })}
+          {...confirmed("delete", "Could not delete the user. Try again.", () =>
+            remove.mutate({ params: { id: user.id } }, settled),
+          )}
         />
       </div>
       {/* A change confirmed in a dialog says it failed there. */}
-      <Failure message={change.isError && confirming === null ? changeFailed : undefined} />
+      <Failure message={state.value === "changeFailed" ? changeFailed : undefined} />
     </div>
   );
 }
@@ -269,13 +280,7 @@ function ConfirmButton({
   onConfirm: () => void;
 }) {
   return (
-    <AlertDialog
-      open={open}
-      onOpenChange={(next) => {
-        // Closing while the request runs would hide whether it succeeded.
-        if (!busy) onOpenChange(next);
-      }}
-    >
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogTrigger
         render={
           <Button variant={destructive ? "destructive" : "outline"} size="sm" disabled={busy} />
