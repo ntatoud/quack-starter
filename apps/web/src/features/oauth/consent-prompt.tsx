@@ -29,10 +29,11 @@ import { ChevronDownIcon, TriangleAlertIcon } from "lucide-react";
 
 import { tooManyAttemptsMessage } from "#/features/identity/too-many-attempts-message.ts";
 import { authorizationCheckOptions } from "#/features/oauth/authorization-check.ts";
+import { consentMachine } from "#/features/oauth/consent-machine.ts";
 import { consentAsk, consentSentence } from "#/features/oauth/consent-sentence.ts";
 import { userLabel } from "#/features/users/full-name.ts";
 import { api } from "#/lib/api.ts";
-import { toggled } from "#/lib/toggled.ts";
+import { useFsm } from "#/lib/use-fsm.ts";
 
 export interface ConsentPromptProps {
   readonly params: AuthorizationRequestParams;
@@ -116,9 +117,12 @@ function ConsentQuestion({
   const { aiClient, grantedPermissions } = request;
 
   // Unticking what the Grant holds takes it away, so it starts ticked as what the AI Client asks for.
-  const [ticked, setTicked] = useState<ReadonlySet<Permission>>(
-    () => new Set([...request.permissions, ...(grantedPermissions ?? [])]),
+  const [machine] = useState(() =>
+    consentMachine(new Set<Permission>([...request.permissions, ...(grantedPermissions ?? [])])),
   );
+
+  const [state, send, can] = useFsm(machine);
+  const { ticked } = state.context;
 
   const decision = { payload: { ...params, csrfToken: request.csrfToken } };
 
@@ -132,11 +136,14 @@ function ConsentQuestion({
   const onSuccess = ({ redirectTo }: { readonly redirectTo: string }) => onRedirect(redirectTo);
   const approve = useMutation(api.oauth.approveAuthorization.mutationOptions({ onSuccess }));
   const deny = useMutation(api.oauth.denyAuthorization.mutationOptions({ onSuccess }));
-  const deciding = approve.isPending || deny.isPending;
-  const leaving = approve.isSuccess || deny.isSuccess;
   const ask = consentAsk(request);
 
-  if (leaving) {
+  const settled = {
+    onSuccess: () => send({ type: "succeeded" }),
+    onError: () => send({ type: "failed" }),
+  };
+
+  if (state.value === "leaving") {
     return (
       <p role="status" className="text-center text-sm text-muted-foreground">
         Going back to {aiClient.name}…
@@ -174,9 +181,9 @@ function ConsentQuestion({
           <Field key={permission} orientation="horizontal">
             <Checkbox
               checked={ticked.has(permission)}
-              disabled={deciding}
+              disabled={!can({ type: "toggle", permission, on: !ticked.has(permission) })}
               onCheckedChange={(checked) =>
-                setTicked((current) => toggled(current, permission, checked === true))
+                send({ type: "toggle", permission, on: checked === true })
               }
             />
             <FieldContent>
@@ -196,15 +203,23 @@ function ConsentQuestion({
         <Button
           size="lg"
           className="h-12 w-full text-base"
-          disabled={deciding || ticked.size === 0}
-          onClick={() => approve.mutate(approval)}
+          disabled={!can({ type: "approve" })}
+          onClick={() => {
+            if (send({ type: "approve" })) approve.mutate(approval, settled);
+          }}
         >
           Approve
         </Button>
-        <Button variant="ghost" disabled={deciding} onClick={() => deny.mutate(decision)}>
+        <Button
+          variant="ghost"
+          disabled={!can({ type: "deny" })}
+          onClick={() => {
+            if (send({ type: "deny" })) deny.mutate(decision, settled);
+          }}
+        >
           Deny
         </Button>
-        {(approve.isError || deny.isError) && (
+        {state.value === "failed" && (
           <p role="alert" className="text-center text-sm text-destructive">
             Could not send your answer. Try again.
           </p>
