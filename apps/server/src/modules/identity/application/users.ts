@@ -10,7 +10,8 @@ import {
 import { type UserChanges, UserList, type UserListQuery } from "@quack/contracts/users/users-api";
 import { Context, Effect, Layer, Option } from "effect";
 
-import { canChangeStatus, withProfile } from "#/modules/identity/domain/user.ts";
+import { withProfile } from "#/modules/identity/domain/user.ts";
+import { statusSetByAdmin } from "#/modules/identity/domain/user-status.ts";
 import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
 
 export class Users extends Context.Service<
@@ -53,11 +54,14 @@ export class Users extends Context.Service<
 
           if (Option.isNone(found)) return yield* new UserNotFound({ id });
 
-          if (changes.status !== undefined && !canChangeStatus(found.value)) {
-            return yield* new UserInvited({ id });
-          }
+          const withStatus =
+            changes.status === undefined
+              ? Option.some(found.value)
+              : statusSetByAdmin(found.value, changes.status);
 
-          const user = new User({ ...found.value, ...changes });
+          if (Option.isNone(withStatus)) return yield* new UserInvited({ id });
+
+          const user = new User({ ...withStatus.value, role: changes.role ?? found.value.role });
           yield* repository.update(user);
 
           return user;

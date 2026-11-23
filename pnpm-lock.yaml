@@ -320,6 +320,9 @@ importers:
       nodemailer:
         specifier: 10.6.1
         version: 10.6.1
+      xstate:
+        specifier: 6.0.0-beta.4
+        version: 6.0.0-beta.4
     devDependencies:
       '@effect/vitest':
         specifier: 'catalog:'
@@ -4396,6 +4399,10 @@ packages:
     resolution: {integrity: sha512-bx8Q1STctnNaaDymWnkfQLKofs0mGNN7rLLapJlGuV3VlvegD7Ls4ggMjE3aUSWItCCzU0PEv45lI87iSigiCA==}
     engines: {node: '>=20.0'}
 
+  xstate@6.0.0-beta.4:
+    resolution: {integrity: sha512-sGFj6r5YOVqYepCtv1VVksodsFYMhAWKAvRGiK2/6sTJh9ZOZV8K27FESE+tMvpWE2tDRHsKHUbxny3adn/ZcA==}
+    hasBin: true
+
   yallist@3.1.1:
     resolution: {integrity: sha512-a4UGQaWPH59mOXUYnAG2ewncQS4i4F43Tv3JoAM+s2VDAmS9NsK8GpDMLrCHPksFT7h3K6TOoUNn2pb7RoXx4g==}
 
@@ -7759,6 +7766,8 @@ snapshots:
       '@oozcitak/infra': 2.0.2
       '@oozcitak/util': 10.0.0
       js-yaml: 4.3.2
+
+  xstate@6.0.0-beta.4: {}
 
   yallist@3.1.1: {}
 
