@@ -155,6 +155,7 @@ function UsersRows({
             <DataTablePagination
               table={table}
               total={total}
+              results={`${total} ${total === 1 ? "user" : "users"}${table.isFiltered ? " found" : ""}`}
               pageSizes={usersPageSizes}
               busy={busy}
               aria-label="Pages of users"
