@@ -18,6 +18,7 @@ import {
 
 import { IdentityModule, McpCaller } from "#/modules/identity/index.ts";
 import { LinkTokenStoreMemory } from "#/modules/identity/testing/link-token-store-memory.ts";
+import { TransactionMemory } from "#/modules/transaction/testing/transaction-memory.ts";
 import { SessionStoreMemory } from "#/modules/identity/testing/session-store-memory.ts";
 import { UserRepositoryMemory } from "#/modules/identity/testing/user-repository-memory.ts";
 import { MailerMemory } from "#/modules/mail/testing/mailer-memory.ts";
@@ -70,7 +71,13 @@ const probeAs = (cookie: string) =>
 
 const TestLayer = ProbeHandlers.pipe(
   Layer.provideMerge(IdentityModule),
-  Layer.provide([UserRepositoryMemory, SessionStoreMemory, LinkTokenStoreMemory, MailerMemory]),
+  Layer.provide([
+    UserRepositoryMemory,
+    SessionStoreMemory,
+    LinkTokenStoreMemory,
+    TransactionMemory,
+    MailerMemory,
+  ]),
   Layer.provideMerge(HttpServer.layerServices),
   Layer.provide(
     ConfigProvider.layer(ConfigProvider.fromUnknown({ PUBLIC_URL: "https://quack.test" })),

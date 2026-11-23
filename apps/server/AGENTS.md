@@ -14,6 +14,7 @@ To add a context, copy `modules/todos`:
 - A module reaches another one through its `index.ts`, and identity through the contract (`CurrentUser`, `UserId`).
 - Only a handler reads `CurrentUser`. It passes the Owner to the use case as `ownerId`, and the repository filters by it: another Owner's data is not found (404), so the API never tells that it exists.
 - A server variable goes in `ServerConfig` (`config.ts`), or `DatabaseConfig` for the database, and in `.env.example`.
+- Writes of several stores that stand or fall together run in `Transaction.run` (`modules/transaction`): Postgres runs them in one transaction, the memory adapters as they come. Writes of one adapter use `sql.withTransaction` in it.
 - A mail goes out through `Mailer` (`modules/mail`, exported from its `index.ts` once a module sends one), which returns before it is sent and never fails: a failed send is logged and the mail lost. A link in it starts from `ServerConfig.publicOrigin`, never from the request. Tests provide `MailerMemory` and read `SentMails`. Its content comes from a template of `@quack/emails`, which is `.tsx`: Node loads it through `--import @quack/emails/register`, which the `dev` and `start` scripts pass.
 - `/health` touches no database, so an outage of Postgres does not get every server restarted.
 

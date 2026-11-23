@@ -36,8 +36,7 @@ flowchart TD
     F --> OK["202"]
     F -.-> U{"A User who<br/>can sign in?"}
     U -- no --> N["no mail"]
-    U -- yes --> D["remove their earlier links"]
-    D --> S["save SHA-256 of a random token,<br/>expiring in 1 hour"]
+    U -- yes --> S["save SHA-256 of a random token,<br/>expiring in 1 hour, in place of<br/>the User's earlier link"]
     S --> E["mail the link"]
 ```
 
@@ -52,17 +51,19 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    C["POST /api/password-reset/confirm"] --> K["take the link by its SHA-256:<br/>removed as it is read"]
+    C["POST /api/password-reset/confirm"] --> T["begin a Transaction"]
+    T --> K["take the link by its SHA-256:<br/>removed as it is read"]
     K --> X{"Found, and<br/>not expired?"}
-    X -- no --> G["410 ExpiredLink"]
+    X -- no --> G["commit: 410 ExpiredLink"]
     X -- yes --> Y{"Its User can<br/>still sign in?"}
     Y -- no --> G
     Y -- yes --> P["set the password hash"]
     P --> Q["remove every Session of the User"]
-    Q --> Z["success, no Session opened"]
+    Q --> Z["commit: success, no Session opened"]
 ```
 
-- `take` is one `DELETE ... RETURNING`: two confirms of one link at once, one wins.
+- The steps run in one `Transaction` (`modules/transaction`, `sql.withTransaction` on Postgres): a failure halfway keeps the link and the old password and Sessions, never a mix. A refused link commits too, so it stays spent.
+- `take` is one `DELETE ... RETURNING`, whose row lock holds a second confirm of the same link until the first ends: one wins.
 - Every Session ends, an intruder's included. The User signs in with the new password.
 - A User suspended since they asked is refused as a stranger.
 
@@ -86,7 +87,7 @@ stateDiagram-v2
 | `purpose`     | `password_reset`; the table is meant for every link sent by email |
 | `expires_at`  | asked + `passwordResetLifetime` (1 hour)                          |
 
-An index on `(user_id, purpose)` serves the removal of a User's earlier links. Nothing sweeps expired links.
+The constraint `UNIQUE (user_id, purpose)` keeps one link of each purpose per User: `save` is an upsert on it, so two requests at once still leave one link. Nothing sweeps expired links.
 
 ## The web app
 
@@ -100,9 +101,4 @@ flowchart LR
     EX -- "Ask for a new link" --> FP
 ```
 
-Both pages are under `_guest`: a signed-in User goes to `/app`. `/reset-password` checks the token on submit only (`features/identity/reset-password-form.tsx`).
-
-## Left open
-
-- The confirm writes are not in one transaction: a crash between them can spend the link and keep the old password, or keep old Sessions.
-- Two requests at the same instant may each leave a valid link.
+Both pages are under `_guest`, whose `beforeLoad` sends a signed-in User to `/app`. `/reset-password` checks the token on submit only (`features/identity/reset-password-form.tsx`).

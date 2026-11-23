@@ -12,6 +12,7 @@ import { IdentityModule, McpCaller, AiClientsModule } from "#/modules/identity/i
 import { AuthorizationCodeStoreMemory } from "#/modules/identity/testing/authorization-code-store-memory.ts";
 import { GrantStoreMemory } from "#/modules/identity/testing/grant-store-memory.ts";
 import { LinkTokenStoreMemory } from "#/modules/identity/testing/link-token-store-memory.ts";
+import { TransactionMemory } from "#/modules/transaction/testing/transaction-memory.ts";
 import { SessionStoreMemory } from "#/modules/identity/testing/session-store-memory.ts";
 import { UserRepositoryMemory } from "#/modules/identity/testing/user-repository-memory.ts";
 import { SystemHandlers } from "#/modules/system/http/system-handlers.ts";
@@ -33,6 +34,7 @@ const ApiHandlers = Layer.mergeAll(SystemHandlers, TodosModule, AiClientsModule)
     AuthorizationCodeStoreMemory,
     GrantStoreMemory,
     LinkTokenStoreMemory,
+    TransactionMemory,
     TodoRepositoryMemory,
     MailerMemory,
     NoHttpClient,

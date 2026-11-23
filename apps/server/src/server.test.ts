@@ -7,6 +7,7 @@ import { IdentitySeed } from "#/modules/identity/index.ts";
 import { AuthorizationCodeStoreMemory } from "#/modules/identity/testing/authorization-code-store-memory.ts";
 import { GrantStoreMemory } from "#/modules/identity/testing/grant-store-memory.ts";
 import { LinkTokenStoreMemory } from "#/modules/identity/testing/link-token-store-memory.ts";
+import { TransactionMemory } from "#/modules/transaction/testing/transaction-memory.ts";
 import { SessionStoreMemory } from "#/modules/identity/testing/session-store-memory.ts";
 import { UserRepositoryMemory } from "#/modules/identity/testing/user-repository-memory.ts";
 import { MailerMemory } from "#/modules/mail/testing/mailer-memory.ts";
@@ -19,6 +20,7 @@ const MemoryStorage = Layer.mergeAll(
   AuthorizationCodeStoreMemory,
   GrantStoreMemory,
   LinkTokenStoreMemory,
+  TransactionMemory,
   TodoRepositoryMemory,
   MailerMemory,
 );

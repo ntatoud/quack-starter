@@ -19,6 +19,7 @@ import {
 import { LinkTokenStore } from "#/modules/identity/domain/link-token-store.ts";
 import { PasswordHasher } from "#/modules/identity/domain/password-hasher.ts";
 import { SessionStore } from "#/modules/identity/domain/session-store.ts";
+import { Transaction } from "#/modules/transaction/index.ts";
 import { canSignIn } from "#/modules/identity/domain/user.ts";
 import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
 import { Mailer } from "#/modules/mail/index.ts";
@@ -41,6 +42,7 @@ export class PasswordResets extends Context.Service<
       const hasher = yield* PasswordHasher;
       const limiter = yield* AttemptLimiter;
       const mailer = yield* Mailer;
+      const transaction = yield* Transaction;
       const random = yield* SecureRandom.SecureRandom;
       const digest = yield* Digest.Digest;
       const publicOrigin = yield* ServerConfig.publicOrigin;
@@ -55,8 +57,7 @@ export class PasswordResets extends Context.Service<
         const { user } = found.value;
         const token = Base64Url.encode(yield* random.randomBytes(linkTokenBytes));
 
-        // A User has one link at a time: asking again makes the earlier ones useless.
-        yield* links.removeAllOf(user.id, "password_reset");
+        // Replaces the earlier link of the User: asking again makes it useless.
         yield* links.save({
           tokenHash: yield* sha256Hex(digest, token),
           userId: user.id,
@@ -96,20 +97,31 @@ export class PasswordResets extends Context.Service<
           );
         }),
         confirm: Effect.fn("PasswordResets.confirm")(function* (token, password) {
-          const link = yield* links.take(yield* sha256Hex(digest, token), "password_reset");
+          const tokenHash = yield* sha256Hex(digest, token);
 
-          if (Option.isNone(link) || isLinkExpired(link.value, yield* DateTime.now)) {
-            return yield* new ExpiredLink();
-          }
+          // In one transaction: a failure halfway never spends the link with the old password kept, nor
+          // changes the password with the old Sessions open. A refused link stays spent: it ends committed.
+          const changed = yield* transaction.run(
+            Effect.gen(function* () {
+              const link = yield* links.take(tokenHash, "password_reset");
 
-          const user = yield* users.findById(link.value.userId);
+              if (Option.isNone(link) || isLinkExpired(link.value, yield* DateTime.now))
+                return false;
 
-          // A User suspended since they asked is refused as a stranger would be.
-          if (Option.isNone(user) || !canSignIn(user.value)) return yield* new ExpiredLink();
+              const user = yield* users.findById(link.value.userId);
 
-          yield* users.setPasswordHash(user.value.id, yield* hasher.hash(password));
-          // Whoever knew the old password, or holds a Session opened with it, is shut out.
-          yield* sessions.removeAllOf(user.value.id);
+              // A User suspended since they asked is refused as a stranger would be.
+              if (Option.isNone(user) || !canSignIn(user.value)) return false;
+
+              yield* users.setPasswordHash(user.value.id, yield* hasher.hash(password));
+              // Whoever knew the old password, or holds a Session opened with it, is shut out.
+              yield* sessions.removeAllOf(user.value.id);
+
+              return true;
+            }),
+          );
+
+          if (!changed) return yield* new ExpiredLink();
         }),
       });
     }),

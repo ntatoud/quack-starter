@@ -7,7 +7,15 @@ export const LinkTokenStoreMemory = Layer.sync(LinkTokenStore, () => {
   const links = new Map<string, LinkToken>();
 
   return LinkTokenStore.of({
-    save: (link) => Effect.sync(() => void links.set(link.tokenHash, link)),
+    save: (link) =>
+      Effect.sync(() => {
+        for (const [tokenHash, saved] of links) {
+          if (saved.userId === link.userId && saved.purpose === link.purpose)
+            links.delete(tokenHash);
+        }
+
+        links.set(link.tokenHash, link);
+      }),
     take: (tokenHash, purpose) =>
       Effect.sync(() => {
         const link = links.get(tokenHash);
@@ -16,12 +24,6 @@ export const LinkTokenStoreMemory = Layer.sync(LinkTokenStore, () => {
         links.delete(tokenHash);
 
         return Option.some(link);
-      }),
-    removeAllOf: (userId, purpose) =>
-      Effect.sync(() => {
-        for (const [tokenHash, link] of links) {
-          if (link.userId === userId && link.purpose === purpose) links.delete(tokenHash);
-        }
       }),
   });
 });

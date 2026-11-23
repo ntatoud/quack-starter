@@ -12,16 +12,19 @@ const LinkTokenRow = Schema.Struct({
   expiresAt: Schema.DateTimeUtcFromDate,
 });
 
-const LinksOfUser = LinkTokenRow.mapFields(Struct.pick(["userId", "purpose"]));
-
 export const LinkTokenStorePostgres = Layer.effect(
   LinkTokenStore,
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
 
-    const insert = SqlSchema.void({
+    // One statement replaces the User's link, so two requests at once still leave one.
+    const upsert = SqlSchema.void({
       Request: LinkTokenRow,
-      execute: (link) => sql`INSERT INTO link_tokens ${sql.insert(link)}`,
+      execute: (link) => sql`
+        INSERT INTO link_tokens ${sql.insert(link)}
+        ON CONFLICT ON CONSTRAINT link_tokens_user_id_purpose_key
+        DO UPDATE SET token_hash = EXCLUDED.token_hash, expires_at = EXCLUDED.expires_at
+      `,
     });
 
     // One statement finds and removes the link, so two requests with it never both find it.
@@ -34,19 +37,10 @@ export const LinkTokenStorePostgres = Layer.effect(
       `,
     });
 
-    const removeAllOf = SqlSchema.void({
-      Request: LinksOfUser,
-      execute: ({ userId, purpose }) =>
-        sql`DELETE FROM link_tokens WHERE user_id = ${userId} AND purpose = ${purpose}`,
-    });
-
     return LinkTokenStore.of({
-      save: Effect.fn("LinkTokenStore.save")((link) => insert(link).pipe(Effect.orDie)),
+      save: Effect.fn("LinkTokenStore.save")((link) => upsert(link).pipe(Effect.orDie)),
       take: Effect.fn("LinkTokenStore.take")((tokenHash, purpose) =>
         take({ tokenHash, purpose }).pipe(Effect.orDie),
-      ),
-      removeAllOf: Effect.fn("LinkTokenStore.removeAllOf")((userId, purpose) =>
-        removeAllOf({ userId, purpose }).pipe(Effect.orDie),
       ),
     });
   }),

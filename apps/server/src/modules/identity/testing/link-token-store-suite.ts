@@ -89,21 +89,40 @@ export const linkTokenStoreSuite = <R>(
         assert.isTrue(Option.isNone(yield* store.take(yield* aTokenHash, "password_reset")));
       }));
 
-    test("removes every link of a User, and leaves those of others", () =>
+    test("replaces the earlier link of the User, and leaves those of others", () =>
       Effect.gen(function* () {
         const store = yield* LinkTokenStore;
         const first = yield* aSavedLink();
         const second = yield* aSavedLink({ userId: first.userId });
         const other = yield* aSavedLink();
 
-        yield* store.removeAllOf(first.userId, "password_reset");
-
         assert.isTrue(Option.isNone(yield* store.take(first.tokenHash, "password_reset")));
-        assert.isTrue(Option.isNone(yield* store.take(second.tokenHash, "password_reset")));
+        assert.deepStrictEqual(
+          yield* store.take(second.tokenHash, "password_reset"),
+          Option.some(second),
+        );
         assert.deepStrictEqual(
           yield* store.take(other.tokenHash, "password_reset"),
           Option.some(other),
         );
+      }));
+
+    test("two saves at once for one User leave one link", () =>
+      Effect.gen(function* () {
+        const store = yield* LinkTokenStore;
+        const userId = yield* aUser;
+
+        const [first, second] = yield* Effect.all(
+          [aSavedLink({ userId }), aSavedLink({ userId })],
+          { concurrency: "unbounded" },
+        );
+
+        const taken = yield* Effect.all([
+          store.take(first.tokenHash, "password_reset"),
+          store.take(second.tokenHash, "password_reset"),
+        ]);
+
+        assert.lengthOf(taken.filter(Option.isSome), 1);
       }));
   });
 };

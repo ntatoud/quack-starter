@@ -10,10 +10,10 @@ export default Effect.gen(function* () {
       user_id uuid NOT NULL
         CONSTRAINT link_tokens_user_id_fkey REFERENCES users ON DELETE CASCADE,
       purpose text NOT NULL,
-      expires_at timestamptz NOT NULL
+      expires_at timestamptz NOT NULL,
+      CONSTRAINT link_tokens_user_id_purpose_key UNIQUE (user_id, purpose)
     )
   `;
-  yield* sql`CREATE INDEX link_tokens_user_id_purpose_idx ON link_tokens (user_id, purpose)`;
 });
 
 // The links live an hour: dropping them loses nothing a User could not ask for again.
