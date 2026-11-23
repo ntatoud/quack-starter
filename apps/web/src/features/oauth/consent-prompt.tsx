@@ -121,7 +121,7 @@ function ConsentQuestion({
     consentMachine(new Set<Permission>([...request.permissions, ...(grantedPermissions ?? [])])),
   );
 
-  const [state, send] = useFsm(machine);
+  const [state, send, can] = useFsm(machine);
   const { ticked } = state.context;
 
   const decision = { payload: { ...params, csrfToken: request.csrfToken } };
@@ -136,7 +136,6 @@ function ConsentQuestion({
   const onSuccess = ({ redirectTo }: { readonly redirectTo: string }) => onRedirect(redirectTo);
   const approve = useMutation(api.oauth.approveAuthorization.mutationOptions({ onSuccess }));
   const deny = useMutation(api.oauth.denyAuthorization.mutationOptions({ onSuccess }));
-  const deciding = state.value === "answering";
   const ask = consentAsk(request);
 
   const settled = {
@@ -182,7 +181,7 @@ function ConsentQuestion({
           <Field key={permission} orientation="horizontal">
             <Checkbox
               checked={ticked.has(permission)}
-              disabled={deciding}
+              disabled={!can({ type: "toggle", permission, on: !ticked.has(permission) })}
               onCheckedChange={(checked) =>
                 send({ type: "toggle", permission, on: checked === true })
               }
@@ -204,18 +203,18 @@ function ConsentQuestion({
         <Button
           size="lg"
           className="h-12 w-full text-base"
-          disabled={deciding || ticked.size === 0}
+          disabled={!can({ type: "approve" })}
           onClick={() => {
-            if (send({ type: "answer", answer: "approve" })) approve.mutate(approval, settled);
+            if (send({ type: "approve" })) approve.mutate(approval, settled);
           }}
         >
           Approve
         </Button>
         <Button
           variant="ghost"
-          disabled={deciding}
+          disabled={!can({ type: "deny" })}
           onClick={() => {
-            if (send({ type: "answer", answer: "deny" })) deny.mutate(decision, settled);
+            if (send({ type: "deny" })) deny.mutate(decision, settled);
           }}
         >
           Deny

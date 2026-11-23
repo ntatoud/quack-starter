@@ -3,10 +3,9 @@ import { setup, types } from "xstate/fsm";
 
 import { toggled } from "#/lib/toggled.ts";
 
-type Answer = "approve" | "deny";
-
 type Context = { readonly ticked: ReadonlySet<Permission> };
 
+// Shared by `asking` and `failed`: it changes the ticks only, with no target to hide from the table.
 const toggle = ({
   context,
   event,
@@ -15,13 +14,10 @@ const toggle = ({
   event: { readonly permission: Permission; readonly on: boolean };
 }) => ({ context: { ticked: toggled(context.ticked, event.permission, event.on) } });
 
-// Approving nothing would give no Permission; denying always may.
-const answer = ({ context, event }: { context: Context; event: { readonly answer: Answer } }) =>
-  event.answer === "deny" || context.ticked.size > 0 ? { target: "answering" as const } : undefined;
-
 /**
  * The Current User's answer to an AI Client: they tick its Permissions, then approve or deny, once; a failure lets them
- * answer again. Once the answer is sent, they leave for the AI Client.
+ * answer again. Once the answer is sent, they leave for the AI Client. Approving nothing would give no Permission, so
+ * it needs one ticked; denying always may.
  */
 export const consentMachine = (ticked: ReadonlySet<Permission>) =>
   setup({
@@ -29,7 +25,8 @@ export const consentMachine = (ticked: ReadonlySet<Permission>) =>
       context: types<Context>(),
       events: {
         toggle: types<{ permission: Permission; on: boolean }>(),
-        answer: types<{ answer: Answer }>(),
+        approve: types<{}>(),
+        deny: types<{}>(),
         succeeded: types<{}>(),
         failed: types<{}>(),
       },
@@ -38,11 +35,23 @@ export const consentMachine = (ticked: ReadonlySet<Permission>) =>
     initial: "asking",
     context: { ticked },
     states: {
-      asking: { on: { toggle, answer } },
+      asking: {
+        on: {
+          toggle,
+          approve: ({ context }) => (context.ticked.size > 0 ? { target: "answering" } : undefined),
+          deny: { target: "answering" },
+        },
+      },
       answering: {
         on: { succeeded: { target: "leaving" }, failed: { target: "failed" } },
       },
-      failed: { on: { toggle, answer } },
+      failed: {
+        on: {
+          toggle,
+          approve: ({ context }) => (context.ticked.size > 0 ? { target: "answering" } : undefined),
+          deny: { target: "answering" },
+        },
+      },
       leaving: {},
     },
   });
