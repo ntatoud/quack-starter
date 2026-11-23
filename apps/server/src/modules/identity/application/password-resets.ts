@@ -1,6 +1,5 @@
 import { ExpiredLink, type TooManyAttempts } from "@quack/contracts/identity/identity-errors";
 import type { Email, Password } from "@quack/contracts/identity/user";
-import { passwordReset } from "@quack/emails/templates/password-reset";
 import { Context, DateTime, Effect, Layer, Option } from "effect";
 import { Digest, SecureRandom } from "effect/crypto";
 import { Base64Url } from "effect/encoding";
@@ -68,9 +67,13 @@ export class PasswordResets extends Context.Service<
         const url = new URL("/reset-password", publicOrigin);
         url.searchParams.set("token", token);
 
-        const mail = yield* Effect.promise(() =>
-          passwordReset({ url: url.href, lifetime: passwordResetLifetime }),
-        );
+        // Loaded on the first mail, not with the module: the seed and other scripts that load it
+        // never send one, and run without the `.tsx` hook of `@quack/emails/register`.
+        const mail = yield* Effect.promise(async () => {
+          const { passwordReset } = await import("@quack/emails/templates/password-reset");
+
+          return passwordReset({ url: url.href, lifetime: passwordResetLifetime });
+        });
 
         yield* mailer.send({ to: user.email, ...mail });
       });
