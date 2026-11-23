@@ -18,6 +18,7 @@ import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
 import { Grants, AiClientsModule } from "#/modules/identity/index.ts";
 import { AuthorizationCodeStoreMemory } from "#/modules/identity/testing/authorization-code-store-memory.ts";
 import { GrantStoreMemory } from "#/modules/identity/testing/grant-store-memory.ts";
+import { grantModelWalks, isLive } from "#/modules/identity/testing/grant-model.ts";
 import { UserRepositoryMemory } from "#/modules/identity/testing/user-repository-memory.ts";
 import { authenticationByUserId } from "#/modules/identity/testing/authentication-by-user-id.ts";
 
@@ -1430,6 +1431,79 @@ layer(withConfig({}))("GrantsApi", (it) => {
           ),
           Option.some(["todos:list", "todos:write"] as const),
         );
+      }
+    }),
+  );
+});
+
+/** "ok" when the token endpoint answers tokens, "refused" when it answers `invalid_grant`, the error otherwise. */
+const answerOf = (
+  payload: TokenRequestParams,
+  received: (tokens: Effect.Success<ReturnType<typeof token>>) => void = () => {},
+) =>
+  token(payload).pipe(
+    Effect.map((tokens) => {
+      received(tokens);
+
+      return "ok";
+    }),
+    Effect.catchTag("TokenRequestRefused", ({ error }) =>
+      Effect.succeed(error === "invalid_grant" ? "refused" : error),
+    ),
+  );
+
+layer(withConfig({}))("OAuthApi, the Grant of an AI Client against its model", (it) => {
+  it.effect("answers every transition of the model as the model does", () =>
+    Effect.gen(function* () {
+      yield* storeAda;
+
+      for (const walk of grantModelWalks) {
+        const clientId = anAiClient();
+        let tokens: { readonly access_token: string; readonly refresh_token: string } | undefined;
+        let replaced = "";
+        const taken: Array<string> = [];
+
+        const steps = {
+          approve: () =>
+            Effect.flatMap(approvedCode(requestOf(clientId)), (exchange) =>
+              answerOf(exchange, (received) => {
+                tokens = received;
+              }),
+            ),
+          refresh: () => {
+            const current = tokens?.refresh_token ?? "";
+
+            return answerOf(refreshing({ clientId, refresh_token: current }), (received) => {
+              tokens = received;
+              replaced = current;
+            });
+          },
+          replay: () => answerOf(refreshing({ clientId, refresh_token: replaced })),
+          revoke: () =>
+            Effect.flatMap(grantListed(clientId), (grant) =>
+              revokeGrant(grant?.id ?? GrantId.make("")),
+            ).pipe(Effect.as("ok")),
+          expire: () => TestClock.adjust("30 days").pipe(Effect.as("ok")),
+        };
+
+        for (const { event, state } of walk) {
+          taken.push(event.type);
+          const answer = yield* steps[event.type]();
+
+          assert.deepStrictEqual(
+            {
+              answer,
+              listed: (yield* grantListed(clientId)) !== undefined,
+              opens: tokens !== undefined && (yield* opens(tokens.access_token)),
+            },
+            {
+              answer: state.context.answer,
+              listed: isLive(state),
+              opens: isLive(state),
+            },
+            taken.join(" → "),
+          );
+        }
       }
     }),
   );
