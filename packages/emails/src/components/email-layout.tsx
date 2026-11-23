@@ -17,7 +17,13 @@ import {
 
 const tailwindConfig = {
   presets: [pixelBasedPreset],
-  theme: { extend: { colors: emailTheme.colors, borderRadius: emailTheme.radii } },
+  theme: {
+    extend: {
+      colors: emailTheme.colors,
+      borderRadius: emailTheme.radii,
+      borderWidth: emailTheme.borderWidths,
+    },
+  },
 };
 
 export function EmailLayout({
@@ -50,7 +56,7 @@ export function EmailLayout({
                 </Column>
               </Row>
             </Section>
-            <Section className="bg-background border-border rounded-xl border border-solid px-6 py-6">
+            <Section className="bg-background border-border rounded-xl border border-b-depth border-solid border-b-edge px-6 py-6">
               {children}
             </Section>
             <Text className="text-muted-foreground mx-0 mt-6 mb-0 text-center text-xs leading-5">
