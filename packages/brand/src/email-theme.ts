@@ -15,9 +15,11 @@ export const emailTheme = {
     // `--edge` and `--primary-edge`: mail clients draw no `box-shadow` everywhere, so the edge is a bottom border.
     edge: "#b7b7b7",
     "primary-edge": "#6a6a6a",
+    // `--highlight` over `--primary`: a border, as no inset shadow shows everywhere.
+    "primary-highlight": "#8b8b8b",
   },
   // The scale `@quack/ui/globals.css` draws from `--radius`.
   radii: { md: `${radius * 0.8}px`, lg: `${radius}px`, xl: `${radius * 1.4}px` },
   // `--depth`, and the thinner one of `@quack/ui`'s button.
-  borderWidths: { depth: "3px", "button-depth": "2px" },
+  borderWidths: { depth: "3px", "button-depth": "2px", highlight: "1px" },
 } as const;
