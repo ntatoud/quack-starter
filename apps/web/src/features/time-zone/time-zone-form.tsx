@@ -1,5 +1,5 @@
 import { TimeZonePayload } from "@quack/contracts/identity/identity-api";
-import { User } from "@quack/contracts/identity/user";
+import type { User } from "@quack/contracts/identity/user";
 import { schemaFormOptions } from "@quack/form/schema-form-options";
 import { SubmitFailed } from "@quack/form/submit-failed";
 import { useAppForm } from "@quack/form/use-app-form";
@@ -10,13 +10,12 @@ import {
   SettingsRowText,
 } from "@quack/ui/components/settings-card";
 import { useMutation } from "@tanstack/react-query";
-import { Schema } from "effect";
+import { DateTime, Schema } from "effect";
 
 import { useUpdateCurrentUser } from "#/features/identity/current-user.ts";
 import { api } from "#/lib/api.ts";
 
 const decodeTimeZone = Schema.decodeSync(TimeZonePayload);
-const encodeUser = Schema.encodeSync(User);
 
 // The browser's list leaves out aliases such as `UTC`, which a User may have: theirs is added when it is missing.
 const timeZoneOptions = (current: string) =>
@@ -38,7 +37,10 @@ export function TimeZoneForm({ currentUser }: { currentUser: typeof User.Encoded
         });
 
       // The value as the API stored it; the default stays that of the Current User, which follows.
-      formApi.reset({ timeZone: encodeUser(user).timeZone }, { keepDefaultValues: true });
+      formApi.reset(
+        { timeZone: DateTime.zoneToString(user.timeZone) },
+        { keepDefaultValues: true },
+      );
       await updateCurrentUser(user);
     },
   });
