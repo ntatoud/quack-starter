@@ -43,4 +43,13 @@
   --sidebar-ring: light-dark(oklch(0.708 0 0), oklch(0.556 0 0));
   /* The shadow cast over content cut off at the edge of a scroll area. */
   --shade: light-dark(oklch(0 0 0 / 0.08), oklch(0 0 0 / 0.6));
+  /* The pseudo 3D look: how far a raised part stands above what it sits on, drawn as a solid edge under it. */
+  --depth: 3px;
+  /* The edge of a raised part, its side seen from the front: the color of its face, darker. */
+  --edge: light-dark(oklch(0.85 0 0), oklch(0.08 0 0));
+  --primary-edge: color-mix(in oklab, var(--primary), black 45%);
+  --destructive-edge: color-mix(in oklab, var(--destructive), transparent 55%);
+  /* The light that falls on the top of a raised face, and the shade inside a sunken one. */
+  --highlight: light-dark(oklch(1 0 0 / 0.5), oklch(1 0 0 / 0.08));
+  --sunken: light-dark(oklch(0 0 0 / 0.07), oklch(0 0 0 / 0.4));
 }

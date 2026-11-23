@@ -29,7 +29,7 @@ export type WithClassName<Props> = Omit<Props, "className" | "children"> & {
 };
 
 const popupClassName =
-  "z-50 max-h-(--available-height) min-w-32 origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10 outline-none transition-[opacity,scale] duration-100 data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0";
+  "z-50 max-h-(--available-height) min-w-32 origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-lg bg-popover p-1 text-popover-foreground shadow-float ring-1 ring-foreground/10 outline-none transition-[opacity,scale] duration-100 data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0";
 
 const itemClassName =
   "relative flex cursor-default items-center gap-1.5 rounded-md px-1.5 py-1 text-sm outline-hidden select-none data-disabled:pointer-events-none data-disabled:opacity-50 data-highlighted:bg-accent data-highlighted:text-accent-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4";
@@ -100,9 +100,7 @@ function MenuSubContent({
   className,
   ...props
 }: WithClassName<React.ComponentProps<typeof MenuSubContentPrimitive>>) {
-  return (
-    <MenuSubContentPrimitive className={cn(popupClassName, "shadow-lg", className)} {...props} />
-  );
+  return <MenuSubContentPrimitive className={cn(popupClassName, className)} {...props} />;
 }
 
 function MenuCheckboxItem({
