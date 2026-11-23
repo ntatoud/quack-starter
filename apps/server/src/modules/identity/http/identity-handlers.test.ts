@@ -25,6 +25,7 @@ import { sessionExtensionThreshold, sessionLifetime } from "#/modules/identity/d
 import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
 import { IdentityModule } from "#/modules/identity/index.ts";
 import { LinkTokenStoreMemory } from "#/modules/identity/testing/link-token-store-memory.ts";
+import { sessionModelWalks } from "#/modules/identity/testing/session-model.ts";
 import { TransactionMemory } from "#/modules/transaction/testing/transaction-memory.ts";
 import { SessionStoreMemory } from "#/modules/identity/testing/session-store-memory.ts";
 import { UserRepositoryMemory } from "#/modules/identity/testing/user-repository-memory.ts";
@@ -1158,5 +1159,100 @@ describe("IdentityApi, Password Reset limits", () => {
       assert.strictEqual(refusedKnown._tag, "TooManyAttempts");
       assert.lengthOf(yield* mailsTo("limit.ada@example.com", 3), 3);
     }).pipe(withLimits({ PASSWORD_RESETS_PER_EMAIL: "3" })),
+  );
+});
+
+/** "ok" when the request succeeds, "refused" when it fails as a wrong password or a dead link does, the tag otherwise. */
+const answerOf = <A, E extends { readonly _tag: string }, R>(request: Effect.Effect<A, E, R>) =>
+  request.pipe(
+    Effect.as("ok"),
+    Effect.catch((error) =>
+      Effect.succeed(
+        error._tag === "InvalidCredentials" || error._tag === "ExpiredLink"
+          ? "refused"
+          : error._tag,
+      ),
+    ),
+  );
+
+const modelLimits = {
+  SIGN_UPS_PER_IP: "1000",
+  SIGN_IN_FAILURES_PER_EMAIL: "1000",
+  SIGN_IN_FAILURES_PER_IP: "1000",
+  PASSWORD_RESETS_PER_EMAIL: "1000",
+  PASSWORD_RESETS_PER_IP: "1000",
+};
+
+layer(withConfig(modelLimits))("IdentityApi, a Session against its model", (it) => {
+  it.effect(
+    "answers every transition of the model as the model does",
+    () =>
+      Effect.gen(function* () {
+        const users = yield* UserRepository;
+
+        for (const [index, walk] of sessionModelWalks.entries()) {
+          const browser = yield* makeBrowser;
+          const email = asTyped(`model.session.${index}@example.com`);
+          const { user } = yield* browser.signUp(email);
+          yield* browser.signOut;
+
+          let passwords: ReadonlyArray<Password> = [password];
+          let links: ReadonlyArray<string> = [];
+          const taken: Array<string> = [];
+
+          const setStatus = (status: "active" | "suspended") =>
+            Effect.gen(function* () {
+              const found = yield* users.findById(user.id);
+              yield* users.update(new User({ ...Option.getOrThrow(found), status }));
+            });
+
+          const chooseWithLastLink = Effect.gen(function* () {
+            const chosen = Redacted.make(`the password chosen with link ${links.length}`);
+            yield* browser.confirmPasswordReset(links.at(-1) ?? "", chosen);
+            passwords = [...passwords, chosen];
+          });
+
+          // A request that mails nothing waits out the second `mailsTo` gives a mail to arrive.
+          const requestLink = Effect.gen(function* () {
+            yield* browser.requestPasswordReset(email);
+            const mailed = (yield* mailsTo(email, links.length + 1)).length > links.length;
+
+            if (mailed) links = [...links, yield* resetTokenOf(email, links.length + 1)];
+
+            return mailed ? "mailed" : "notMailed";
+          });
+
+          const steps = {
+            signIn: () => answerOf(browser.signIn(email, passwords.at(-1))),
+            signInWithFormerPassword: () => answerOf(browser.signIn(email, passwords.at(-2))),
+            signOut: () => answerOf(browser.signOut),
+            suspend: () => answerOf(setStatus("suspended")),
+            reactivate: () => answerOf(setStatus("active")),
+            requestReset: () => requestLink,
+            confirmReset: () => answerOf(chooseWithLastLink),
+            confirmReplacedLink: () =>
+              answerOf(
+                browser.confirmPasswordReset(
+                  links.at(-2) ?? "",
+                  Redacted.make("a password no link may set"),
+                ),
+              ),
+            waitAnHour: () => answerOf(TestClock.adjust("1 hour")),
+          };
+
+          for (const { event, state } of walk) {
+            taken.push(event.type);
+            const answer = yield* steps[event.type]();
+
+            assert.deepStrictEqual(
+              { answer, signedIn: Exit.isSuccess(yield* Effect.exit(browser.me)) },
+              { answer: state.context.answer, signedIn: state.value === "signedIn" },
+              taken.join(" → "),
+            );
+          }
+        }
+      }),
+    // Past the default 5 seconds: one argon2 hash or more for most steps, and the waits for mails never sent.
+    60_000,
   );
 });
