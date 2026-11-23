@@ -32,4 +32,12 @@ describe("useFsm", () => {
     expect(answers).toEqual([false, true, false, true]);
     expect(result.current[0].value).toBe("done");
   });
+
+  it("says whether the rendered snapshot would take an event, without sending it", async () => {
+    const { result } = await renderHook(() => useFsm(machine));
+    const [snapshot, , can] = result.current;
+
+    expect([can({ type: "start" }), can({ type: "finish" })]).toEqual([true, false]);
+    expect(result.current[0]).toBe(snapshot);
+  });
 });

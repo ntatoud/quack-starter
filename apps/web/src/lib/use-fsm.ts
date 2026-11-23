@@ -1,9 +1,9 @@
 import { useCallback, useRef, useState } from "react";
 
 /**
- * The snapshot of an `xstate/fsm` machine in this component, and the function that sends it an event. The machine is
- * pure, so React's state runs it, with no actor. `send` answers whether the machine took the event, so a request
- * starts only from a state that allows it.
+ * Runs an `xstate/fsm` machine in this component, in React state: the machine is pure, so it needs no actor. Sending
+ * an event answers whether the machine took it, so a request starts only from a state that allows it. Asking whether
+ * the rendered snapshot would take an event disables a control by the machine's own rule, not by a copy of it.
  */
 export const useFsm = <TSnapshot, TEvent>(machine: {
   readonly initialState: TSnapshot;
@@ -28,5 +28,7 @@ export const useFsm = <TSnapshot, TEvent>(machine: {
     [machine],
   );
 
-  return [snapshot, send] as const;
+  const can = (event: TEvent) => machine.transition(snapshot, event)[0] !== snapshot;
+
+  return [snapshot, send, can] as const;
 };

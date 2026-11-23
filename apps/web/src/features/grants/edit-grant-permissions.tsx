@@ -17,11 +17,7 @@ import { useMutation } from "@tanstack/react-query";
 import { Array as Arr } from "effect";
 import { Fragment } from "react";
 
-import {
-  canReview,
-  editGrantMachine,
-  permissionsChange,
-} from "#/features/grants/edit-grant-machine.ts";
+import { editGrantMachine, permissionsChange } from "#/features/grants/edit-grant-machine.ts";
 import { PermissionBadge } from "#/features/grants/permission-badge.tsx";
 import { api } from "#/lib/api.ts";
 import { invalidating } from "#/lib/invalidate-queries.ts";
@@ -79,7 +75,7 @@ function Badges({ permissions }: { permissions: ReadonlyArray<Permission> }) {
  */
 export function EditGrantPermissions({ grant }: { grant: Grant }) {
   const name = grant.aiClient.name;
-  const [state, send] = useFsm(editGrantMachine);
+  const [state, send, can] = useFsm(editGrantMachine);
   const { ticked } = state.context;
   const step = state.value === "closed" ? state.context.closedOn : state.value;
 
@@ -186,7 +182,7 @@ export function EditGrantPermissions({ grant }: { grant: Grant }) {
             <DialogFooter>
               <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
               <Button
-                disabled={!canReview(grant.permissions, ticked)}
+                disabled={!can({ type: "review", held: grant.permissions })}
                 onClick={() => send({ type: "review", held: grant.permissions })}
               >
                 Review

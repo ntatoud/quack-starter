@@ -2,7 +2,7 @@ import type { Permission } from "@quack/contracts/permission";
 import { describe, expect, it } from "vite-plus/test";
 
 import { editGrantMachine } from "#/features/grants/edit-grant-machine.ts";
-import { runMachine } from "#/testing/run-machine.ts";
+import { reachableSnapshots, runMachine } from "#/testing/run-machine.ts";
 
 type Event = Parameters<typeof editGrantMachine.transition>[1];
 
@@ -74,5 +74,40 @@ describe("editGrantMachine", () => {
       value: "closed",
       context: { closedOn: "editing" },
     });
+  });
+});
+
+describe("editGrantMachine, explored", () => {
+  const snapshots = reachableSnapshots(editGrantMachine, [
+    { type: "open", held },
+    { type: "toggle", permission: "todos:delete", on: true },
+    { type: "toggle", permission: "todos:list", on: false },
+    { type: "toggle", permission: "todos:write", on: false },
+    { type: "review", held },
+    { type: "back" },
+    { type: "close" },
+  ]);
+
+  it("reaches every state", () => {
+    expect(new Set(snapshots.map(({ value }) => value))).toEqual(
+      new Set(["closed", "editing", "reviewing"]),
+    );
+  });
+
+  it("never reviews no Permission, nor what the Grant already holds", () => {
+    const reviewed = snapshots.filter(({ value }) => value === "reviewing");
+
+    expect(reviewed.length).toBeGreaterThan(0);
+
+    for (const { context } of reviewed) {
+      expect(context.ticked.size).toBeGreaterThan(0);
+      expect(context.ticked).not.toEqual(new Set(held));
+    }
+  });
+
+  it("keeps the step it closed on only while closed", () => {
+    for (const snapshot of snapshots) {
+      if (snapshot.value !== "closed") expect(snapshot.context.closedOn).toBeUndefined();
+    }
   });
 });

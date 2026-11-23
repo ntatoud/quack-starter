@@ -21,7 +21,7 @@ export const permissionsChange = (
 };
 
 /** Never none, which revoking covers, and never the same as before, which would change nothing. */
-export const canReview = (held: ReadonlyArray<Permission>, ticked: ReadonlySet<Permission>) => {
+const canReview = (held: ReadonlyArray<Permission>, ticked: ReadonlySet<Permission>) => {
   const { chosen, added, removed } = permissionsChange(held, ticked);
 
   return chosen.length > 0 && added.length + removed.length > 0;
@@ -42,12 +42,13 @@ export const editGrantMachine = setup({
       close: types<{}>(),
     },
   },
-  // A target must be declared here, with a context schema or none.
+  // A target must be declared here. `closedOn` belongs to `closed`: the context of the other states has none, so
+  // the transition out of it has to clear it, since a patch keeps every field it does not set.
   states: {
     // The step it closed on stays on screen while the dialog fades out.
     closed: { schemas: { context: types<{ closedOn: Step }>() } },
-    editing: {},
-    reviewing: {},
+    editing: { schemas: { context: types<{ closedOn?: undefined }>() } },
+    reviewing: { schemas: { context: types<{ closedOn?: undefined }>() } },
   },
 }).createFSM({
   initial: "closed",
@@ -56,7 +57,10 @@ export const editGrantMachine = setup({
     closed: {
       on: {
         // Opens on what the Grant holds now, whatever was left unconfirmed before.
-        open: ({ event }) => ({ target: "editing", context: { ticked: new Set(event.held) } }),
+        open: ({ event }) => ({
+          target: "editing",
+          context: { ticked: new Set(event.held), closedOn: undefined },
+        }),
       },
     },
     editing: {
