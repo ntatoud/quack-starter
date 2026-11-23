@@ -7,6 +7,16 @@ export interface ModelStep<TSnapshot, TEvent> {
 }
 
 /**
+ * Whether the table of an FSM has a transition for `event` in the state of `snapshot`. The FSM answers any other event
+ * with the same snapshot, which `xstate/graph` takes for a transition back to the state: pass this to `filterEvents`.
+ */
+export const takesEvent = (
+  fsm: { readonly config: { readonly states: Readonly<Record<string, { readonly on?: object }>> } },
+  snapshot: { readonly value: string },
+  event: { readonly type: string },
+) => Object.hasOwn(fsm.config.states[snapshot.value]?.on ?? {}, event.type);
+
+/**
  * Walks from the initial state of a model that together take each of its transitions once at least. A walk goes on to
  * the nearest transition not taken yet, and a new walk starts from the initial state when none is left within reach:
  * fewer walks than one per transition, each of them a fresh start of the system the model stands for.

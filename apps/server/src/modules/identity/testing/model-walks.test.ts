@@ -2,7 +2,7 @@ import { describe, expect, it } from "vite-plus/test";
 import { createFSM } from "xstate/fsm";
 import { adjacencyMapToArray, getAdjacencyMap } from "xstate/graph";
 
-import { coveringWalks } from "#/modules/identity/testing/model-walks.ts";
+import { coveringWalks, takesEvent } from "#/modules/identity/testing/model-walks.ts";
 
 type Event = { readonly type: "open" } | { readonly type: "close" } | { readonly type: "lock" };
 
@@ -19,7 +19,7 @@ const keyOf = (snapshot: typeof door.initialState) => snapshot.value;
 
 const adjacency = getAdjacencyMap(door, {
   events: [{ type: "open" }, { type: "close" }, { type: "lock" }],
-  filterEvents: ({ value }, { type }) => Object.hasOwn(door.config.states[value]?.on ?? {}, type),
+  filterEvents: (snapshot, event) => takesEvent(door, snapshot, event),
   serializeState: keyOf,
 });
 
@@ -50,5 +50,13 @@ describe("coveringWalks", () => {
     expect(walks.map((walk) => walk.map(({ event }) => event.type))).toEqual([
       ["open", "close", "lock"],
     ]);
+  });
+});
+
+describe("takesEvent", () => {
+  it("leaves out the events a state does not take, which the FSM would answer with itself", () => {
+    expect(
+      adjacencyMapToArray(adjacency).map(({ state, event }) => `${state.value} ${event.type}`),
+    ).toEqual(["closed open", "closed lock", "opened close"]);
   });
 });
