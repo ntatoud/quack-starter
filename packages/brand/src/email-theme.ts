@@ -13,8 +13,8 @@ export const emailTheme = {
     "muted-foreground": "#737373",
     border: "#e5e5e5",
     // `--edge` and `--primary-edge`: mail clients draw no `box-shadow` everywhere, so the edge is a bottom border.
-    edge: "#cecece",
-    "primary-edge": "#050505",
+    edge: "#b7b7b7",
+    "primary-edge": "#6a6a6a",
   },
   // The scale `@quack/ui/globals.css` draws from `--radius`.
   radii: { md: `${radius * 0.8}px`, lg: `${radius}px`, xl: `${radius * 1.4}px` },
