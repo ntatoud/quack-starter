@@ -20,11 +20,7 @@ The rules of `modules/identity` that its code does not show on its own. The dura
 
 ## Password Reset
 
-`PasswordResets` (`application/password-resets.ts`). A link sent by email carries a token of `linkTokenBytes` random bytes, stored as its SHA-256 in `LinkTokenStore`, the one table of every such link, told apart by its `purpose` (`domain/link-token.ts`).
-
-- Asking answers the same whether a User has the email or not. It counts against `passwordResetsPerEmail` and `passwordResetsPerIp` first, whoever has the email, and mails the link only to a User who can sign in (`canSignIn`).
-- A User has one link at a time: asking again removes the earlier ones. A link lasts `passwordResetLifetime`, and is taken from the store as it is read, so it works once, even for two requests at once.
-- Confirming sets the password and ends every Session of the User; it opens none, so they sign in with it. A link that was used, has expired, never existed, or whose User can no longer sign in fails with `ExpiredLink` (410).
+A link by email to choose a new password: `docs/password-reset.md`.
 
 ## AttemptLimiter
 

@@ -1,6 +1,6 @@
 # Server
 
-Effect HTTP API, one folder per bounded context in `src/modules/`. Before changing sign-in, sign-up, Sessions, the `AttemptLimiter`, or the seed, read `docs/identity.md`.
+Effect HTTP API, one folder per bounded context in `src/modules/`. Before changing sign-in, sign-up, Sessions, the `AttemptLimiter`, or the seed, read `docs/identity.md`; before changing Password Reset, `docs/password-reset.md`.
 
 ## Modules
 
