@@ -73,17 +73,6 @@
   --shadow-edge-l: inset 1px 0 0 var(--border);
   --shadow-edge-r: inset -1px 0 0 var(--border);
   --inset-shadow-edge-b: inset 0 -1px 0 var(--border);
-  /* The pseudo 3D look. A part sets `--edge-color` to the edge of its face (`--edge`, `--primary-edge`), and may set
-     its own `--depth`. Inline, so both resolve on the part, not on the root. A pressed part moves down by
-     `--depth` as its edge goes, so its face lands where the edge was and nothing around it moves. */
-  --shadow-raised:
-    0 var(--depth) 0 0 var(--edge-color, var(--edge)), inset 0 1px 0 0 var(--highlight);
-  --shadow-pressed: 0 0 0 0 var(--edge-color, var(--edge)), inset 0 1px 2px 0 var(--sunken);
-  /* What floats over the page: a raised edge, and the shadow it casts. */
-  --shadow-float:
-    0 var(--depth) 0 0 var(--edge-color, var(--edge)),
-    0 calc(var(--depth) * 4) calc(var(--depth) * 6) -2px oklch(0 0 0 / 0.15);
-  --inset-shadow-sunken: inset 0 2px 0 0 var(--sunken);
 }
 
 /* Without a choice, the page follows the operating system, as with `system`. */
