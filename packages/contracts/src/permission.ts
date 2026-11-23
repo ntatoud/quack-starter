@@ -1,9 +1,11 @@
 import { Context, Schema } from "effect";
 
+import { HabitsPermission } from "#/habits/habits-permissions.ts";
 import { TodosPermission } from "#/todos/todos-permissions.ts";
 import { UsersPermission } from "#/users/users-permissions.ts";
 
 export const Permission = Schema.Literals([
+  ...HabitsPermission.literals,
   ...TodosPermission.literals,
   ...UsersPermission.literals,
 ]);
