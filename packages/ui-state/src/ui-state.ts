@@ -16,13 +16,8 @@ const { Idle, Pending, Error: ErrorState, Success } = Data.taggedEnum<UiStateDef
 
 export type AnyUiState = UiState<unknown, unknown>;
 
-type Variant<A, E, Tag extends UiState<A, E>["_tag"]> = Extract<
-  UiState<A, E>,
-  { readonly _tag: Tag }
->;
-
 export type UiStateCases<S extends AnyUiState, Result = unknown> = {
-  readonly [Tag in S["_tag"]]: (state: Extract<S, { readonly _tag: Tag }>) => Result;
+  readonly [Tag in S["_tag"]]: (state: Data.TaggedEnum.Value<S, Tag>) => Result;
 };
 
 export type NoExtraCases<S extends AnyUiState, C> = {
@@ -30,13 +25,14 @@ export type NoExtraCases<S extends AnyUiState, C> = {
 };
 
 export const UiState = {
-  idle: <A = never, E = never>(): Variant<A, E, "Idle"> => Idle(),
-  pending: <A = never, E = never>(): Variant<A, E, "Pending"> => Pending(),
-  error: <E, A = never>(error: E): Variant<A, E, "Error"> => ErrorState({ error }),
+  idle: <A = never, E = never>(): Data.TaggedEnum.Value<UiState<A, E>, "Idle"> => Idle(),
+  pending: <A = never, E = never>(): Data.TaggedEnum.Value<UiState<A, E>, "Pending"> => Pending(),
+  error: <E, A = never>(error: E): Data.TaggedEnum.Value<UiState<A, E>, "Error"> =>
+    ErrorState({ error }),
   success: <A, E = never>(
     data: A,
     refreshError: Option.Option<E> = Option.none(),
-  ): Variant<A, E, "Success"> => Success({ data, refreshError }),
+  ): Data.TaggedEnum.Value<UiState<A, E>, "Success"> => Success({ data, refreshError }),
 
   /**
    * Takes one case per state the type of `state` can hold, no more, no less: a state left

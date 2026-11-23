@@ -20,7 +20,10 @@
         "namespaceImportPackages": [],
         "diagnosticSeverity": {
           // The http and http-api modules are still marked unstable; this template uses them on purpose.
-          "unstableApiUsage": "off"
+          "unstableApiUsage": "off",
+          // A Promise combinator inside an Effect escapes its interruption and its typed errors.
+          "promiseAllInEffect": "error",
+          "promiseRaceInEffect": "error"
         }
       }
     ]
