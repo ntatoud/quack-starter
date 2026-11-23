@@ -20,15 +20,7 @@ export function SignInPage() {
   return (
     <GuestCard title="Sign in" description="Find your todos where you left them.">
       <SignInForm onSignedIn={onSignedIn} />
-      <p className="mt-4 text-sm">
-        <Link
-          to="/forgot-password"
-          className="font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-        >
-          Forgot password?
-        </Link>
-      </p>
-      <p className="mt-2 text-sm text-muted-foreground">
+      <p className="mt-4 text-sm text-muted-foreground">
         Not signed up yet?{" "}
         <Link to="/sign-up" className="font-medium text-foreground underline underline-offset-4">
           Sign up

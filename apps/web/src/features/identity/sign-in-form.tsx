@@ -2,6 +2,7 @@ import { InvalidCredentials, TooManyAttempts } from "@quack/contracts/identity/i
 import { SignInPayload } from "@quack/contracts/identity/identity-api";
 import type { User } from "@quack/contracts/identity/user";
 import { useMutation } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 
 import { CredentialsForm } from "#/features/identity/credentials-form.tsx";
 import { tooManyAttemptsMessage } from "#/features/identity/too-many-attempts-message.ts";
@@ -25,6 +26,14 @@ export function SignInForm({ onSignedIn }: { onSignedIn: (user: User) => void | 
       failureMessage={submitFailure}
       passwordAutoComplete="current-password"
       submitLabel="Sign in"
+      passwordAction={
+        <Link
+          to="/forgot-password"
+          className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+        >
+          Forgot password?
+        </Link>
+      }
       onDone={onSignedIn}
     />
   );

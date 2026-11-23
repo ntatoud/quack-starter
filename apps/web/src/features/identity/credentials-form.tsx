@@ -4,6 +4,7 @@ import { schemaFormOptions } from "@quack/form/schema-form-options";
 import { SubmitFailed } from "@quack/form/submit-failed";
 import { useAppForm } from "@quack/form/use-app-form";
 import { Schema } from "effect";
+import type { ReactNode } from "react";
 
 const emptyCredentials: typeof SignInPayload.Encoded = { email: "", password: "" };
 
@@ -14,6 +15,7 @@ export function CredentialsForm({
   failureMessage,
   passwordAutoComplete,
   submitLabel,
+  passwordAction,
   onDone,
 }: {
   schema: typeof SignInPayload;
@@ -21,6 +23,7 @@ export function CredentialsForm({
   failureMessage: (cause: unknown) => string;
   passwordAutoComplete: "current-password" | "new-password";
   submitLabel: string;
+  passwordAction?: ReactNode;
   onDone: (user: User) => void | Promise<void>;
 }) {
   const form = useAppForm({
@@ -48,7 +51,10 @@ export function CredentialsForm({
         <form.AppField name="password">
           {(field) => (
             <field.Root>
-              <field.Label>Password</field.Label>
+              <div className="flex items-baseline justify-between gap-2">
+                <field.Label>Password</field.Label>
+                {passwordAction}
+              </div>
               <field.Password autoComplete={passwordAutoComplete} />
             </field.Root>
           )}
