@@ -43,8 +43,8 @@ export function FormSelectField({
         <SelectTrigger
           id={id}
           size={size}
-          // As tall a text as an input next to it, which is 16px on a small screen.
-          className={cn("w-full", textSize[size], "max-md:text-base")}
+          // As tall a text as an input next to it, which is 16px on a touch screen.
+          className={cn("w-full", textSize[size], "pointer-coarse:text-base")}
           aria-invalid={invalid}
           aria-describedby={describedBy}
         >

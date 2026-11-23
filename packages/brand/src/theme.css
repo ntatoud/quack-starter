@@ -15,7 +15,7 @@
   --card-foreground: light-dark(oklch(0.145 0 0), oklch(0.985 0 0));
   --popover: light-dark(oklch(1 0 0), oklch(0.205 0 0));
   --popover-foreground: light-dark(oklch(0.145 0 0), oklch(0.985 0 0));
-  --primary: light-dark(oklch(0.205 0 0), oklch(0.922 0 0));
+  --primary: light-dark(oklch(0.3 0 0), oklch(0.922 0 0));
   --primary-foreground: light-dark(oklch(0.985 0 0), oklch(0.205 0 0));
   --secondary: light-dark(oklch(0.97 0 0), oklch(0.269 0 0));
   --secondary-foreground: light-dark(oklch(0.205 0 0), oklch(0.985 0 0));
@@ -43,17 +43,6 @@
   --sidebar-ring: light-dark(oklch(0.708 0 0), oklch(0.556 0 0));
   /* The shadow cast over content cut off at the edge of a scroll area. */
   --shade: light-dark(oklch(0 0 0 / 0.08), oklch(0 0 0 / 0.6));
-  /* The pseudo 3D look: how far a raised part stands above what it sits on, drawn as a solid edge under it. */
-  --depth: 3px;
-  /* The edge of a raised part, its side seen from the front: the color of its face, darker. A near black face has
-     no darker shade that shows, so in light the edge of the primary is lighter: a grey ledge under it. */
-  --edge: light-dark(oklch(0.78 0 0), oklch(0.08 0 0));
-  --primary-edge: light-dark(
-    color-mix(in oklab, var(--primary), white 40%),
-    color-mix(in oklab, var(--primary), black 45%)
-  );
-  --destructive-edge: color-mix(in oklab, var(--destructive), transparent 55%);
-  /* The light that falls on the top of a raised face, and the shade inside a sunken one. */
-  --highlight: light-dark(oklch(1 0 0 / 0.5), oklch(1 0 0 / 0.08));
-  --sunken: light-dark(oklch(0 0 0 / 0.07), oklch(0 0 0 / 0.4));
+  /* Over the primary, its face lit from above: lighter at its top, darker at its bottom. */
+  --primary-sheen: linear-gradient(to bottom, oklch(1 0 0 / 0.14), oklch(0 0 0 / 0.1));
 }
