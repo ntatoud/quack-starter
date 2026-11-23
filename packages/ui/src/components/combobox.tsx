@@ -74,7 +74,7 @@ function ComboboxContent({
   return (
     <ComboboxContentPrimitive
       className={cn(
-        "z-50 max-h-(--available-height) w-(--anchor-width) max-w-(--available-width) min-w-[calc(var(--anchor-width)+--spacing(7))] origin-(--transform-origin) overflow-hidden rounded-lg bg-popover text-popover-foreground shadow-float ring-1 ring-foreground/10 transition-[opacity,scale] duration-100 data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0",
+        "z-50 flex flex-col max-h-(--available-height) w-(--anchor-width) max-w-(--available-width) min-w-[calc(var(--anchor-width)+--spacing(7))] origin-(--transform-origin) overflow-hidden rounded-lg bg-popover text-popover-foreground shadow-float ring-1 ring-foreground/10 transition-[opacity,scale] duration-100 data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0",
         className,
       )}
       {...props}
@@ -89,7 +89,7 @@ function ComboboxList({
   return (
     <ComboboxListPrimitive
       className={cn(
-        "no-scrollbar max-h-[min(calc(--spacing(72)---spacing(9)),calc(var(--available-height)---spacing(9)))] scroll-py-1 overflow-y-auto overscroll-contain p-1",
+        "no-scrollbar max-h-72 min-h-0 scroll-py-1 overflow-y-auto overscroll-contain p-1",
         className,
       )}
       {...props}
@@ -125,7 +125,7 @@ function ComboboxEmpty({
   return (
     <ComboboxEmptyPrimitive
       className={cn(
-        "w-full justify-center py-2 text-center text-sm text-muted-foreground data-empty:flex",
+        "w-full justify-center text-center text-sm text-muted-foreground data-empty:flex data-empty:py-2",
         className,
       )}
       {...props}

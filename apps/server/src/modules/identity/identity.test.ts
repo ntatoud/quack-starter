@@ -18,6 +18,8 @@ import { UserRepositoryMemory } from "#/modules/identity/testing/user-repository
 
 const password = Redacted.make("correct horse battery staple");
 
+const paris = DateTime.zoneMakeNamedUnsafe("Europe/Paris");
+
 /** Another address at each call, so no limit is reached but by the tests of the limits, at addresses of their own. */
 let addresses = 0;
 const anAddress = () => `2001:db8::${(addresses += 1).toString(16)}`;
@@ -60,8 +62,19 @@ layer(IdentityLayer)("Identity", (it) => {
     Effect.gen(function* () {
       const identity = yield* Identity;
 
-      const first = yield* identity.signUp(Email.make("ada@example.com"), password, anAddress());
-      const second = yield* identity.signUp(Email.make("grace@example.com"), password, anAddress());
+      const first = yield* identity.signUp(
+        Email.make("ada@example.com"),
+        password,
+        paris,
+        anAddress(),
+      );
+
+      const second = yield* identity.signUp(
+        Email.make("grace@example.com"),
+        password,
+        paris,
+        anAddress(),
+      );
 
       // 32 bytes are 43 characters of base64url, which has no padding.
       assert.match(Redacted.value(first.session.token), /^[A-Za-z0-9_-]{43}$/);
@@ -80,6 +93,7 @@ layer(IdentityLayer)("Identity", (it) => {
       const { user, session } = yield* identity.signUp(
         Email.make("linus@example.com"),
         password,
+        paris,
         anAddress(),
       );
 
@@ -101,6 +115,7 @@ layer(IdentityLayer)("Identity", (it) => {
       const { session } = yield* identity.signUp(
         Email.make("margaret@example.com"),
         password,
+        paris,
         anAddress(),
       );
 
@@ -116,7 +131,7 @@ layer(IdentityLayer)("Identity", (it) => {
     () =>
       Effect.gen(function* () {
         const identity = yield* Identity;
-        yield* identity.signUp(Email.make("grace.h@example.com"), password, anAddress());
+        yield* identity.signUp(Email.make("grace.h@example.com"), password, paris, anAddress());
 
         const before = hasherWork.count;
         yield* identity
@@ -142,7 +157,7 @@ layer(IdentityLayer)("Identity", (it) => {
       const identity = yield* Identity;
       const email = Email.make("hedy@example.com");
       const from = "203.0.113.2";
-      yield* identity.signUp(email, password, from);
+      yield* identity.signUp(email, password, paris, from);
 
       for (let failure = 0; failure < 5; failure++) {
         yield* identity
@@ -164,13 +179,13 @@ layer(IdentityLayer)("Identity", (it) => {
       const from = "203.0.113.3";
 
       for (let signUp = 0; signUp < 10; signUp++) {
-        yield* identity.signUp(Email.make(`visitor-${signUp}@example.com`), password, from);
+        yield* identity.signUp(Email.make(`visitor-${signUp}@example.com`), password, paris, from);
       }
 
       const before = hasherWork.count;
 
       const error = yield* identity
-        .signUp(Email.make("visitor-10@example.com"), password, from)
+        .signUp(Email.make("visitor-10@example.com"), password, paris, from)
         .pipe(Effect.flip);
 
       assert.strictEqual(error._tag, "TooManyAttempts");
@@ -186,6 +201,7 @@ layer(IdentityLayer)("Identity", (it) => {
       const { session } = yield* identity.signUp(
         Email.make("radia@example.com"),
         password,
+        paris,
         anAddress(),
       );
 
@@ -206,6 +222,7 @@ layer(IdentityLayer)("Identity", (it) => {
       const { session } = yield* identity.signUp(
         Email.make("lynn@example.com"),
         password,
+        paris,
         anAddress(),
       );
 
@@ -228,6 +245,7 @@ layer(IdentityLayer)("Identity", (it) => {
       const { session } = yield* identity.signUp(
         Email.make("adele@example.com"),
         password,
+        paris,
         anAddress(),
       );
 
@@ -256,7 +274,7 @@ layer(IdentityLayer)("Identity", (it) => {
       const email = Email.make("katherine@example.com");
       const signedUpAt = yield* DateTime.now;
 
-      const { user } = yield* identity.signUp(email, password, anAddress());
+      const { user } = yield* identity.signUp(email, password, paris, anAddress());
       assert.deepStrictEqual(user.lastSignInAt, signedUpAt);
       assert.deepStrictEqual(user.createdAt, signedUpAt);
       yield* TestClock.adjust("1 hour");
@@ -277,7 +295,7 @@ layer(IdentityLayer)("Identity", (it) => {
         const identity = yield* Identity;
         const users = yield* UserRepository;
         const email = Email.make(`${status}@example.com`);
-        const { user } = yield* identity.signUp(email, password, anAddress());
+        const { user } = yield* identity.signUp(email, password, paris, anAddress());
         yield* users.update(new User({ ...user, status }));
 
         const before = hasherWork.count;
@@ -297,6 +315,7 @@ layer(IdentityLayer)("Identity", (it) => {
       const { user, session } = yield* identity.signUp(
         Email.make("barbara@example.com"),
         password,
+        paris,
         anAddress(),
       );
 

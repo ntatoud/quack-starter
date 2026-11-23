@@ -1,4 +1,4 @@
-import type { SignInPayload } from "@quack/contracts/identity/identity-api";
+import type { Credentials } from "@quack/contracts/identity/identity-api";
 import type { User } from "@quack/contracts/identity/user";
 import { schemaFormOptions } from "@quack/form/schema-form-options";
 import { SubmitFailed } from "@quack/form/submit-failed";
@@ -6,7 +6,7 @@ import { useAppForm } from "@quack/form/use-app-form";
 import { Schema } from "effect";
 import type { ReactNode } from "react";
 
-const emptyCredentials: typeof SignInPayload.Encoded = { email: "", password: "" };
+const emptyCredentials: typeof Credentials.Encoded = { email: "", password: "" };
 
 /** The email and password form that sign-in and sign-up share, which differ in the call, the messages, and the autofill hint. */
 export function CredentialsForm({
@@ -18,8 +18,8 @@ export function CredentialsForm({
   passwordAction,
   onDone,
 }: {
-  schema: typeof SignInPayload;
-  submit: (payload: typeof SignInPayload.Type) => Promise<User>;
+  schema: typeof Credentials;
+  submit: (payload: typeof Credentials.Type) => Promise<User>;
   failureMessage: (cause: unknown) => string;
   passwordAutoComplete: "current-password" | "new-password";
   submitLabel: string;

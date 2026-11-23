@@ -1,7 +1,7 @@
-import { Redacted, Schema } from "effect";
+import { DateTime, Redacted, Schema } from "effect";
 import { describe, expect, it } from "vite-plus/test";
 
-import { Email, Password, Role } from "#/identity/user.ts";
+import { Email, Password, Role, TimeZone } from "#/identity/user.ts";
 
 describe("Email", () => {
   const decode = Schema.decodeUnknownOption(Email);
@@ -59,5 +59,32 @@ describe("Role", () => {
     expect(decode("admin")._tag).toBe("Some");
     expect(decode("Admin")._tag).toBe("None");
     expect(decode("owner")._tag).toBe("None");
+  });
+});
+
+describe("TimeZone", () => {
+  const decode = Schema.decodeUnknownOption(TimeZone);
+
+  it("decodes an IANA name into the zone it names", () => {
+    const zone = Schema.decodeUnknownSync(TimeZone)("Europe/Paris");
+
+    expect(DateTime.zoneToString(zone)).toBe("Europe/Paris");
+    expect(decode("UTC")._tag).toBe("Some");
+  });
+
+  it("refuses a name no zone has", () => {
+    expect(decode("Mars/Olympus_Mons")._tag).toBe("None");
+    expect(decode("")._tag).toBe("None");
+  });
+
+  it("refuses a fixed offset, which is no IANA name and does not follow daylight saving time", () => {
+    expect(decode("+01:00")._tag).toBe("None");
+    expect(decode("-05:00")._tag).toBe("None");
+  });
+
+  it("encodes the zone back to its name", () => {
+    expect(Schema.encodeSync(TimeZone)(DateTime.zoneMakeNamedUnsafe("Asia/Tokyo"))).toBe(
+      "Asia/Tokyo",
+    );
   });
 });

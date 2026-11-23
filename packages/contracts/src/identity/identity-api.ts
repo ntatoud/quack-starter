@@ -10,13 +10,18 @@ import {
   Unauthenticated,
 } from "#/identity/identity-errors.ts";
 import { PersonName, Profile } from "#/identity/profile.ts";
-import { Email, Password, User } from "#/identity/user.ts";
+import { Email, Password, TimeZone, User } from "#/identity/user.ts";
 import { RequiredPermission } from "#/permission.ts";
 
-export const SignUpPayload = Schema.Struct({ email: Email, password: Password });
+/** What a visitor types to sign up or in. A password no User can have is refused before it is checked. */
+export const Credentials = Schema.Struct({ email: Email, password: Password });
 
-/** A password no User can have is refused before it is checked. */
-export const SignInPayload = Schema.Struct({ email: Email, password: Password });
+export const SignInPayload = Credentials;
+
+/** The time zone is the browser's: the User changes it later in the settings. */
+export const SignUpPayload = Schema.Struct({ ...Credentials.fields, timeZone: TimeZone });
+
+export const TimeZonePayload = Schema.Struct({ timeZone: TimeZone });
 
 export const PasswordResetRequestPayload = Schema.Struct({ email: Email });
 
@@ -74,6 +79,13 @@ export class IdentityApi extends HttpApiGroup.make("identity").add(
   /** Replaces the whole Profile of the Current User, and answers with their User. */
   HttpApiEndpoint.put("updateProfile", "/me/profile", {
     payload: Profile,
+    success: User,
+    error: Unauthenticated.pipe(HttpApiSchema.status(401)),
+  })
+    .annotate(RequiredPermission, "none")
+    .middleware(Authentication),
+  HttpApiEndpoint.put("updateTimeZone", "/me/time-zone", {
+    payload: TimeZonePayload,
     success: User,
     error: Unauthenticated.pipe(HttpApiSchema.status(401)),
   })

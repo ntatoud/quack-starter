@@ -21,6 +21,7 @@ const ada: typeof User.Encoded = {
   createdAt: "2026-01-01T00:00:00.000Z",
   lastSignInAt: null,
   onboardedAt: null,
+  timeZone: "Europe/Paris",
   profile: null,
 };
 

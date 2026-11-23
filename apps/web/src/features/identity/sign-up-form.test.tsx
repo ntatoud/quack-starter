@@ -62,7 +62,7 @@ describe("SignUpForm", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("sends the email as the contract spells it and the password as typed, then hands over the User", async () => {
+  it("sends the email as the contract spells it, the password as typed, and the browser's time zone, then hands over the User", async () => {
     const requests: Array<{ url: string; body: unknown }> = [];
 
     const form = await setup(async (request) => {
@@ -77,6 +77,7 @@ describe("SignUpForm", () => {
         lastSignInAt: null,
         onboardedAt: null,
         profile: null,
+        timeZone: "Europe/Paris",
       });
     });
 
@@ -89,7 +90,11 @@ describe("SignUpForm", () => {
     expect(requests).toEqual([
       {
         url: `${location.origin}/api/sign-up`,
-        body: { email: "ada@example.com", password: `  ${password} ` },
+        body: {
+          email: "ada@example.com",
+          password: `  ${password} `,
+          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        },
       },
     ]);
   });

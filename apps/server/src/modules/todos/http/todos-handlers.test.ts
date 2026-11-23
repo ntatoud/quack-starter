@@ -20,6 +20,7 @@ const ada = new User({
   createdAt: DateTime.makeUnsafe("2026-01-01T00:00:00Z"),
   lastSignInAt: null,
   onboardedAt: null,
+  timeZone: DateTime.zoneMakeNamedUnsafe("Europe/Paris"),
   profile: null,
 });
 
@@ -31,6 +32,7 @@ const grace = new User({
   createdAt: DateTime.makeUnsafe("2026-01-01T00:00:00Z"),
   lastSignInAt: null,
   onboardedAt: null,
+  timeZone: DateTime.zoneMakeNamedUnsafe("Europe/Paris"),
   profile: null,
 });
 

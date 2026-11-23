@@ -31,6 +31,15 @@ export const Password = Schema.RedactedFromValue(
 
 export type Password = typeof Password.Type;
 
+/** An IANA name, such as `Europe/Paris`. A fixed offset is refused: it would keep its hour when daylight saving time changes. */
+export const TimeZone = Schema.TimeZoneNamedFromString.check(
+  Schema.makeFilter((zone) => !/^[+-]/.test(zone.id), {
+    message: "Choose a time zone by its name",
+  }),
+);
+
+export type TimeZone = typeof TimeZone.Type;
+
 export const Role = Schema.Literals(["user", "admin"]);
 
 export type Role = typeof Role.Type;
@@ -51,4 +60,6 @@ export class User extends Schema.Class<User, { readonly brand: unique symbol }>(
   onboardedAt: Schema.NullOr(Schema.DateTimeUtcFromString),
   /** `null` until the User fills it in: a sign-up asks for an email and a password only. */
   profile: Schema.NullOr(Profile),
+  /** Where the User lives: their Days, Today among them, are the dates of this zone. */
+  timeZone: TimeZone,
 }) {}

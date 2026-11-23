@@ -55,7 +55,10 @@ const get = (path: string) => handler(new Request(new URL(path, "http://api.test
 
 const attempt =
   (path: "/api/sign-up" | "/api/sign-in") =>
-  (email: string, { from, password = "correct horse battery staple" }: Attempt = {}) => {
+  (
+    email: string,
+    { from, password = "correct horse battery staple", timeZone = "Europe/Paris" }: Attempt = {},
+  ) => {
     const headers = new Headers({ "content-type": "application/json" });
 
     if (from !== undefined) headers.set("x-forwarded-for", from);
@@ -64,7 +67,7 @@ const attempt =
       new Request(new URL(path, "http://api.test"), {
         method: "POST",
         headers,
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, timeZone }),
       }),
     );
   };
@@ -85,6 +88,7 @@ const decodeOpenApi = Schema.decodeUnknownSync(
 interface Attempt {
   readonly from?: string;
   readonly password?: string;
+  readonly timeZone?: string;
 }
 
 const signUp = attempt("/api/sign-up");
@@ -276,6 +280,7 @@ describe("server routes", () => {
       lastSignInAt: user.createdAt,
       onboardedAt: null,
       profile: null,
+      timeZone: "Europe/Paris",
     });
 
     const [cookie] = response.headers.getSetCookie();
@@ -348,6 +353,17 @@ describe("server routes", () => {
 
     expect(response.status).toBe(409);
     expect(await response.json()).toEqual({ _tag: "EmailAlreadyTaken" });
+  });
+
+  it("answers a sign-up with 400 when its time zone is no IANA name", async () => {
+    const statuses = await Promise.all(
+      ["Mars/Olympus_Mons", "+01:00", ""].map(
+        async (timeZone, index) =>
+          (await signUp(`zoneless-${index}@example.com`, { timeZone })).status,
+      ),
+    );
+
+    expect(statuses).toEqual([400, 400, 400]);
   });
 
   it("answers the 21st Password Reset asked from an address with 429, whatever the emails", async () => {

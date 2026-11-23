@@ -1,6 +1,6 @@
 # Quack
 
-A starter app where people sign up, sign in, and manage their own todos.
+A starter app where people sign up, sign in, and track the Habits they want to keep.
 
 ## Identity
 
@@ -65,12 +65,36 @@ _Avoid_: Email update
 A User whose Role is `admin`. Only an Admin sees the list of Users; any other Current User is forbidden from it.
 _Avoid_: Superuser, staff
 
-## Todos
+## Habits
 
-**Todo**:
-A task a User wants to get done, with a title and a completed state.
-_Avoid_: Task, item
+**Habit**:
+Something a User wants to do regularly, on a Schedule, towards a Target. An archived Habit is hidden from the User's days but keeps its history.
+_Avoid_: Goal, routine, tracker, todo
 
 **Owner**:
-The User who created a Todo and the only one who sees it.
+The User who created a Habit and the only one who sees it.
 _Avoid_: Author, creator
+
+**Schedule**:
+When a Habit is due: every Day, on some days of the week, or a number of times a week.
+_Avoid_: Frequency, recurrence, plan
+
+**Target**:
+What doing a Habit means on a Day: having done it, or a quantity in a unit to reach at least (8 glasses of water) or to stay at most (2 coffees).
+_Avoid_: Objective, goal, threshold
+
+**Check-in**:
+A User's record that they did a Habit on a Day, with the quantity for a Habit whose Target is one. A Habit has at most one per Day.
+_Avoid_: Log, entry, completion, tick
+
+**Success**:
+A Day, or a week for a Habit due a number of times a week, on which the Habit's Target was met.
+_Avoid_: Done, completed, hit
+
+**Streak**:
+The run of consecutive Successes of a Habit, up to its last period that has ended or succeeded. A period still in progress never breaks it.
+_Avoid_: Chain, run, combo
+
+**Day**:
+A calendar date in the time zone of the User. Today for a User is the Day it is where they are.
+_Avoid_: Date, timestamp
