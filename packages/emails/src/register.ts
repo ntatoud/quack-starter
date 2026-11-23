@@ -6,7 +6,7 @@ import { transformSync } from "esbuild";
 
 /**
  * Lets Node load the templates, which are `.tsx`: its type stripping leaves JSX alone. Imported with
- * `node --import @quack/emails/register` by whatever sends emails outside Vite.
+ * `node --import @quack/emails/register` by whatever loads a module that sends emails outside Vite.
  */
 registerHooks({
   load(url, context, nextLoad) {
