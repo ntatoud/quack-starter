@@ -6,7 +6,18 @@ const isUnsafe = (key: ESTree.Node, computed: boolean) =>
     ? key.type === "Literal" && key.value === "unsafe"
     : key.type === "Identifier" && key.name === "unsafe";
 
-const isMigration = (filename: string) => /\/src\/database\/migrations\//.test(filename);
+// The Kysely of Effect runs the text Kysely compiled, whose values are all bound parameters.
+const mayRunText = (filename: string) =>
+  /\/src\/database\/migrations\//.test(filename) ||
+  filename.endsWith("/packages/effect-kysely/src/kysely.ts");
+
+// Kysely's `sql.raw` and `sql.lit` write their argument into the SQL text, unescaped and unbound.
+const isKyselyRaw = (node: ESTree.MemberExpression) =>
+  node.object.type === "Identifier" &&
+  node.object.name === "sql" &&
+  !node.computed &&
+  node.property.type === "Identifier" &&
+  (node.property.name === "raw" || node.property.name === "lit");
 
 export default defineRule({
   meta: {
@@ -16,7 +27,7 @@ export default defineRule({
     },
   },
   create: (context) => {
-    if (isMigration(context.filename.replaceAll("\\", "/"))) return {};
+    if (mayRunText(context.filename.replaceAll("\\", "/"))) return {};
 
     const report = (node: ESTree.Node) =>
       context.report({
@@ -28,6 +39,14 @@ export default defineRule({
     return {
       MemberExpression: (node) => {
         if (isUnsafe(node.property, node.computed)) report(node);
+
+        if (isKyselyRaw(node)) {
+          context.report({
+            node,
+            message:
+              "sql.raw and sql.lit write their value into the SQL text. Interpolate it in Kysely's sql`...`, which binds it as a parameter, or use sql.ref for a column.",
+          });
+        }
       },
       ObjectPattern: (node) => {
         for (const property of node.properties) {
