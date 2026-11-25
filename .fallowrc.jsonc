@@ -1,19 +1,25 @@
 {
   "$schema": "./node_modules/fallow/schema.json",
   // Run through with-dev-database.ts and portless, which fallow does not read as entries. The
-  // Migrator loads the migrations from their folder, not through an import.
+  // Migrator loads the migrations from their folder, not through an import. kysely-codegen writes
+  // db.gen.ts, whole, whatever reads it.
   "entry": [
     "apps/server/src/database/rollback-main.ts",
     "apps/server/src/database/seed-main.ts",
+    "apps/server/src/database/db-gen-main.ts",
     "apps/server/src/dev/with-public-url.ts",
     "apps/server/src/dev/with-dev-mail.ts",
     "apps/server/src/database/migrations/*.ts",
+    "apps/server/src/database/db.gen.ts",
   ],
+  // A migration is history: it repeats the columns of another rather than share code a later change would rewrite.
+  "duplicates": { "ignore": ["apps/server/src/database/migrations/*.ts"] },
   // An error class or schema in the signature of an exported Effect is exported with it.
   "ignoreExportsUsedInFile": true,
   // Named by the tsconfig plugin entry that @effect/tsgo reads. The package itself is not needed.
   // The preview server of `email dev` (@quack/emails), which the CLI loads at run time, not through an import.
-  "ignoreDependencies": ["@effect/language-service", "@react-email/ui"],
+  // kysely-codegen runs as a binary, spawned by db-gen-main.ts, and loads pg, its Postgres driver, itself.
+  "ignoreDependencies": ["@effect/language-service", "@react-email/ui", "kysely-codegen", "pg"],
   // Every rule fails the run. coverage-gaps stays off: it counts the exports no test imports,
   // which flags the entry points and migrations that the server's tests run through the
   // Migrator and the dev scripts.

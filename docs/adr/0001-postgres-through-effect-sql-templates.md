@@ -1,6 +1,6 @@
 # 0001: Postgres through Effect SQL templates, no ORM or query builder
 
-Accepted, 2026-11-18. Decided in [#92](https://github.com/ntatoud/quack-starter/issues/92) and [#93](https://github.com/ntatoud/quack-starter/issues/93).
+Superseded by [0007](0007-queries-built-by-kysely-run-by-effect-sql.md), 2026-11-24. Accepted, 2026-11-18. Decided in [#92](https://github.com/ntatoud/quack-starter/issues/92) and [#93](https://github.com/ntatoud/quack-starter/issues/93).
 
 ## Context
 

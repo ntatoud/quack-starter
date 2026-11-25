@@ -3,7 +3,7 @@ import { defineConfig } from "vite-plus";
 
 // .agents/skills: installed by `npx skills`, kept as its authors wrote them.
 const GENERATED = [
-  "**/routeTree.gen.ts",
+  "**/*.gen.ts",
   "pnpm-lock.yaml",
   "dist",
   ".output",

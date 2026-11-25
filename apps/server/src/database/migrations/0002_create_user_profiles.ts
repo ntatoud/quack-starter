@@ -1,23 +1,28 @@
+import { executor, postgres } from "@quack/effect-kysely/kysely";
 import { Effect } from "effect";
-import { SqlClient } from "effect/sql";
+
+const { schema } = postgres();
 
 export default Effect.gen(function* () {
-  const sql = yield* SqlClient.SqlClient;
-  yield* sql`
-    CREATE TABLE user_profiles (
-      user_id uuid CONSTRAINT user_profiles_pkey PRIMARY KEY
-        CONSTRAINT user_profiles_user_id_fkey REFERENCES users ON DELETE CASCADE,
-      first_name text NOT NULL,
-      last_name text NOT NULL,
-      job_title text NOT NULL,
-      team text,
-      country text,
-      avatar_url text
-    )
-  `;
+  const execute = yield* executor;
+  yield* execute(
+    schema
+      .createTable("user_profiles")
+      .addColumn("user_id", "uuid")
+      .addColumn("first_name", "text", (column) => column.notNull())
+      .addColumn("last_name", "text", (column) => column.notNull())
+      .addColumn("job_title", "text", (column) => column.notNull())
+      .addColumn("team", "text")
+      .addColumn("country", "text")
+      .addColumn("avatar_url", "text")
+      .addPrimaryKeyConstraint("user_profiles_pkey", ["user_id"])
+      .addForeignKeyConstraint("user_profiles_user_id_fkey", ["user_id"], "users", ["id"], (fk) =>
+        fk.onDelete("cascade"),
+      ),
+  );
 });
 
 export const down = Effect.gen(function* () {
-  const sql = yield* SqlClient.SqlClient;
-  yield* sql`DROP TABLE user_profiles`;
+  const execute = yield* executor;
+  yield* execute(schema.dropTable("user_profiles"));
 });

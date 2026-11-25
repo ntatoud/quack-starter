@@ -28,17 +28,19 @@ To add a context, copy `modules/todos`:
 
 ## Database
 
-Plain `sql` templates, no ORM (`docs/adr/0001-postgres-through-effect-sql-templates.md`). Which database a worktree uses: README.
+Migrations built by Kysely and run by Effect SQL, tables typed by kysely-codegen (`docs/adr/0007-queries-built-by-kysely-run-by-effect-sql.md`); queries are `sql` templates until they move to `db` too. Which database a worktree uses: README.
 
 - An adapter copies `modules/todos/infrastructure/todo-repository-postgres.ts`: one `sql` template per port method, decoded by `SqlSchema` through a row schema private to the adapter.
 - Columns are snake_case and rows arrive in camelCase: write `${sql("createdAt")}`.
-- A `SqlError` is a defect (`Effect.orDie`), except a `UniqueViolation`, mapped to the domain's error by the name of its constraint. So name every constraint: `CONSTRAINT users_email_key UNIQUE (email)`.
+- `database/db.gen.ts` is generated: after a migration changes the schema, run it on the dev database and `pnpm db:gen`, and commit the file with the migration. CI fails when they disagree. Tables and columns are camelCase in TypeScript, snake_case in Postgres.
+- A `SqlError` is a defect (`Effect.orDie`), except a `UniqueViolation`, mapped to the domain's error by the name of its constraint. So name every constraint: `.addUniqueConstraint("users_email_key", ["email"])`.
 
 Migrations (`docs/adr/0002-typescript-migrations-applied-at-startup.md`) live in `database/migrations/`, for every module:
 
+- A migration builds its statements with the `schema` of a `postgres()` of its own, never `db`, and runs them through `executor`: it names tables and columns in snake_case, as Postgres keeps them, so a later change to `db.ts` cannot change what it ran. Copy `0003_create_todos.ts`; `0001_create_users.ts` for an enum, `0006_create_grants.ts` for a `text[]` column.
 - Edit a migration until it is merged; after that, add a new one.
 - A `down` that cannot honestly undo (data dropped) fails with a message saying why.
-- Dev loop: the server applies the migration at startup, `pnpm db:rollback` reverts it, edit, restart.
+- Dev loop: the server applies the migration at startup, `pnpm db:rollback` reverts it, edit, restart, `pnpm db:gen`.
 - A branch that changes the schema, a migration edited in place included, sets `DEV_DATABASE=own` in its checkout's `.env` before `pnpm dev`: `pnpm dev` gives a database of its own only to a branch that adds a migration file, and the shared `quack` must keep the schema of `main`.
 - `pnpm db:seed` resets the database to the seed. On the shared `quack` database, that wipes it for every worktree.
 
@@ -46,7 +48,7 @@ Migrations (`docs/adr/0002-typescript-migrations-applied-at-startup.md`) live in
 
 - A storage port states its promises as one suite in `testing/` that takes an adapter's Layer (`todoRepositorySuite(layer)`), run from each adapter's test file. Its memory adapter is a test double, in `testing/` too.
 - A flow across requests has a model in `testing/`, an `xstate/fsm` machine: the Grant of an AI Client (`grant-model.ts`), a User's Session and Password Reset (`session-model.ts`). Its handler test replays `coveringWalks`, which take every transition, against the `Api`, and compares each answer with the model's. A change to a rule of the flow changes its model too.
-- `grant-store-postgres.test.ts` runs the suite on Postgres when `TEST_DATABASE_URL` names an empty database it may migrate and fill, and is skipped otherwise: CI has no Postgres.
+- `grant-store-postgres.test.ts` runs the suite on Postgres when `TEST_DATABASE_URL` names an empty database it may migrate and fill, and is skipped otherwise: CI runs no suite on Postgres, its Database job only checks `db.gen.ts`.
 - Test handlers through `HttpApiTest`, with no server. It builds the routes of the whole `Api`, so the test Layer provides every middleware the `Api` declares: copy `modules/todos/http/todos-handlers.test.ts`.
 - A client that keeps cookies: `makeBrowser` in `modules/identity/http/identity-handlers.test.ts`.
 - Test on the assembled `Routes` (`server.test.ts`) what `HttpApiTest` cannot see: the docs, CORS, an endpoint that reads the cookie without declaring `Authentication` (`signOut`), and anything that reads `X-Forwarded-For`.

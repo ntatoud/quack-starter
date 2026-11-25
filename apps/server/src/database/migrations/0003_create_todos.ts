@@ -1,21 +1,27 @@
+import { executor, postgres } from "@quack/effect-kysely/kysely";
 import { Effect } from "effect";
-import { SqlClient } from "effect/sql";
+
+const { schema } = postgres();
 
 export default Effect.gen(function* () {
-  const sql = yield* SqlClient.SqlClient;
-  yield* sql`
-    CREATE TABLE todos (
-      id uuid CONSTRAINT todos_pkey PRIMARY KEY,
-      owner_id uuid NOT NULL CONSTRAINT todos_owner_id_fkey REFERENCES users ON DELETE CASCADE,
-      title text NOT NULL,
-      completed boolean NOT NULL,
-      created_at timestamptz NOT NULL
-    )
-  `;
-  yield* sql`CREATE INDEX todos_owner_id_idx ON todos (owner_id)`;
+  const execute = yield* executor;
+  yield* execute(
+    schema
+      .createTable("todos")
+      .addColumn("id", "uuid")
+      .addColumn("owner_id", "uuid", (column) => column.notNull())
+      .addColumn("title", "text", (column) => column.notNull())
+      .addColumn("completed", "boolean", (column) => column.notNull())
+      .addColumn("created_at", "timestamptz", (column) => column.notNull())
+      .addPrimaryKeyConstraint("todos_pkey", ["id"])
+      .addForeignKeyConstraint("todos_owner_id_fkey", ["owner_id"], "users", ["id"], (fk) =>
+        fk.onDelete("cascade"),
+      ),
+  );
+  yield* execute(schema.createIndex("todos_owner_id_idx").on("todos").column("owner_id"));
 });
 
 export const down = Effect.gen(function* () {
-  const sql = yield* SqlClient.SqlClient;
-  yield* sql`DROP TABLE todos`;
+  const execute = yield* executor;
+  yield* execute(schema.dropTable("todos"));
 });

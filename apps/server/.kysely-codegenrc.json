@@ -1,0 +1,6 @@
+{
+  "camelCase": true,
+  "dialect": "postgres",
+  "excludePattern": "effect_sql_migrations",
+  "outFile": "src/database/db.gen.ts"
+}
