@@ -8,7 +8,8 @@
   "exports": {
     "./use-app-form": "./src/use-app-form.ts",
     "./schema-form-options": "./src/schema-form-options.ts",
-    "./submit-failed": "./src/submit-failed.ts"
+    "./submit-failed": "./src/submit-failed.ts",
+    "./field-refused": "./src/field-refused.ts"
   },
   "scripts": {
     "typecheck": "effect-tsgo tsc --noEmit",

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { render } from "vitest-browser-react";
 
+import { FieldRefused } from "#/field-refused.ts";
 import { SubmitFailed } from "#/submit-failed.ts";
 import { NameForm } from "#/testing/name-form.tsx";
 import { PasswordsForm } from "#/testing/passwords-form.tsx";
@@ -65,6 +66,36 @@ describe("form.Root", () => {
     await expect.element(page.getByRole("status")).toHaveTextContent("Could not save. Try again.");
     await expect.element(page.getByText("Could not save. Try again.").first()).toBeVisible();
     await expect.element(save).toHaveFocus();
+  });
+
+  it("shows a refusal of one field on that field, focuses it, and clears it on an edit", async () => {
+    const onSubmit = vi.fn().mockRejectedValue(new FieldRefused("name", "This name is taken."));
+    await render(<NameForm onSubmit={onSubmit} />);
+    const input = page.getByRole("textbox", { name: "Name" });
+
+    await input.fill("Ada");
+    await page.getByRole("button", { name: "Save" }).click();
+
+    await expect.element(input).toHaveFocus();
+    await expect.element(input).toHaveAttribute("aria-invalid", "true");
+    await expect.element(input).toHaveAccessibleDescription("This name is taken.");
+
+    await userEvent.keyboard("s");
+
+    await expect.element(input).not.toHaveAttribute("aria-invalid", "true");
+    expect(shown("This name is taken.")).toEqual([]);
+  });
+
+  it("says the refusal of the field Enter was pressed in", async () => {
+    const onSubmit = vi.fn().mockRejectedValue(new FieldRefused("name", "This name is taken."));
+    await render(<NameForm onSubmit={onSubmit} />);
+    const input = page.getByRole("textbox", { name: "Name" });
+
+    await input.fill("Ada");
+    await userEvent.keyboard("{Enter}");
+
+    await expect.element(page.getByRole("status")).toHaveTextContent("This name is taken.");
+    await expect.element(input).toHaveFocus();
   });
 
   it("shows an issue of the form itself, and says it at each submit", async () => {

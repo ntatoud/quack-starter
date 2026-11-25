@@ -121,30 +121,53 @@ describe("EmailSettingsPage", () => {
     });
   });
 
-  it.each([
-    [
-      "a wrong current password",
-      Response.json({ _tag: "WrongPassword" }, { status: 400 }),
-      "This is not your current password.",
-    ],
-    [
-      "an email another account has",
-      Response.json({ _tag: "EmailAlreadyTaken" }, { status: 409 }),
-      "This email cannot be yours: an account has it.",
-    ],
-    [
-      "too many changes",
-      Response.json({ _tag: "TooManyAttempts", retryAfter: 120 }, { status: 429 }),
-      "Too many attempts. Try again in 2 minutes.",
-    ],
-  ])("says why %s is refused, and keeps the change from pending", async (_, response, message) => {
-    const settings = await setup(() => response);
+  it("marks the current password invalid when it is wrong, and focuses it", async () => {
+    const settings = await setup(() => Response.json({ _tag: "WrongPassword" }, { status: 400 }));
 
     await settings.newEmail.fill("new.ada@example.com");
     await settings.password.fill(password);
     await settings.send.click();
 
-    await expect.element(page.getByText(message)).toBeInTheDocument();
+    await expect.element(settings.password).toHaveAttribute("aria-invalid", "true");
+    await expect.element(settings.password).toHaveFocus();
+    await expect
+      .element(settings.password)
+      .toHaveAccessibleDescription("To make sure it is you. This is not your current password.");
+    await expect.element(settings.newEmail).not.toHaveAttribute("aria-invalid", "true");
+    await expect.element(settings.cancel).not.toBeInTheDocument();
+  });
+
+  it("marks the new email invalid when an account has it, and focuses it", async () => {
+    const settings = await setup(() =>
+      Response.json({ _tag: "EmailAlreadyTaken" }, { status: 409 }),
+    );
+
+    await settings.newEmail.fill("grace@example.com");
+    await settings.password.fill(password);
+    await settings.send.click();
+
+    await expect.element(settings.newEmail).toHaveAttribute("aria-invalid", "true");
+    await expect.element(settings.newEmail).toHaveFocus();
+    await expect
+      .element(settings.newEmail)
+      .toHaveAccessibleDescription(
+        "We send it a link: your email changes once you open it. This email cannot be yours: an account has it.",
+      );
+  });
+
+  it("says how long to wait when too many changes were asked for", async () => {
+    const settings = await setup(() =>
+      Response.json({ _tag: "TooManyAttempts", retryAfter: 120 }, { status: 429 }),
+    );
+
+    await settings.newEmail.fill("new.ada@example.com");
+    await settings.password.fill(password);
+    await settings.send.click();
+
+    await expect
+      .element(page.getByText("Too many attempts. Try again in 2 minutes.").first())
+      .toBeVisible();
+    await expect.element(settings.password).not.toHaveAttribute("aria-invalid", "true");
     await expect.element(settings.cancel).not.toBeInTheDocument();
   });
 });

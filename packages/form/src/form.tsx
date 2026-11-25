@@ -3,6 +3,7 @@ import { type ComponentProps, type FormEvent, useState } from "react";
 
 import { useFormContext } from "#/context.ts";
 import { ErrorMessages, ErrorText } from "#/field-control-error.tsx";
+import { FieldRefused } from "#/field-refused.ts";
 import { isIssuesByPath, type Message, toMessage } from "#/messages.ts";
 import { SubmitFailed } from "#/submit-failed.ts";
 
@@ -30,6 +31,18 @@ export function Form({
     requestAnimationFrame(() => setAnnouncement({ text, values: form.state.values }));
   };
 
+  // As a server error of the field, which TanStack Form clears once the field holds a valid value again.
+  const refuseField = (element: HTMLFormElement, error: FieldRefused) => {
+    form.setErrorMap({ onServer: { fields: { [error.field]: error.message } } });
+    // A frame later, once the field shows the error it describes itself with.
+    requestAnimationFrame(() => {
+      const control = element.querySelector<HTMLElement>(`[name="${CSS.escape(error.field)}"]`);
+
+      if (control === null || control === document.activeElement) announce([error]);
+      else control.focus();
+    });
+  };
+
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -55,6 +68,8 @@ export function Form({
         }
       },
       (error) => {
+        if (error instanceof FieldRefused) return refuseField(element, error);
+
         if (!(error instanceof SubmitFailed)) return reportError(error);
         form.setErrorMap({ onServer: error.message });
         announce([error]);

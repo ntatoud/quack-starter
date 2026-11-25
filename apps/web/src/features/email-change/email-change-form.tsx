@@ -4,6 +4,7 @@ import {
   WrongPassword,
 } from "@quack/contracts/identity/identity-errors";
 import { EmailChangeRequestPayload } from "@quack/contracts/identity/identity-api";
+import { FieldRefused } from "@quack/form/field-refused";
 import { schemaFormOptions } from "@quack/form/schema-form-options";
 import { SubmitFailed } from "@quack/form/submit-failed";
 import { useAppForm } from "@quack/form/use-app-form";
@@ -21,14 +22,22 @@ import { api } from "#/lib/api.ts";
 
 const decodePayload = Schema.decodeSync(EmailChangeRequestPayload);
 
-const failureMessage = (cause: unknown) => {
-  if (cause instanceof WrongPassword) return "This is not your current password.";
+// A refusal of one field shows on it; the others are about the form as a whole.
+const failure = (cause: unknown) => {
+  if (cause instanceof WrongPassword)
+    return new FieldRefused("password", "This is not your current password.", { cause });
 
-  if (cause instanceof EmailAlreadyTaken) return "This email cannot be yours: an account has it.";
+  if (cause instanceof EmailAlreadyTaken)
+    return new FieldRefused("newEmail", "This email cannot be yours: an account has it.", {
+      cause,
+    });
 
-  if (cause instanceof TooManyAttempts) return tooManyAttemptsMessage(cause.retryAfter);
-
-  return "Could not send the link. Try again.";
+  return new SubmitFailed(
+    cause instanceof TooManyAttempts
+      ? tooManyAttemptsMessage(cause.retryAfter)
+      : "Could not send the link. Try again.",
+    { cause },
+  );
 };
 
 /** Asks for an Email Change: the new email takes effect once the link mailed to it is opened. */
@@ -42,7 +51,7 @@ export function EmailChangeForm({ currentEmail }: { currentEmail: string }) {
       await requestEmailChange
         .mutateAsync({ payload: decodePayload(value) })
         .catch((cause: unknown) => {
-          throw new SubmitFailed(failureMessage(cause), { cause });
+          throw failure(cause);
         });
 
       formApi.reset();
