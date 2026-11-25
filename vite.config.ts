@@ -93,12 +93,8 @@ export default defineConfig({
         rules: { "quack/no-relative-imports": "error" },
       },
       {
-        files: ["apps/server/src/modules/**"],
-        rules: { "quack/module-boundaries": "error" },
-      },
-      {
         files: ["apps/server/src/**"],
-        rules: { "quack/no-sql-unsafe": "error" },
+        rules: { "quack/module-boundaries": "error", "quack/no-sql-unsafe": "error" },
       },
       {
         // The Migrator reads a migration's id and name from its file name: <4-digit id>_<snake_case_name>.ts.
