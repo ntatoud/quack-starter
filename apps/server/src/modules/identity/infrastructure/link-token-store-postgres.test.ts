@@ -27,7 +27,6 @@ const aUser = Effect.gen(function* () {
       timeZone: DateTime.zoneMakeNamedUnsafe("Europe/Paris"),
       profile: null,
     }),
-    "not a hash",
   );
 
   return id;

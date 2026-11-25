@@ -1,5 +1,5 @@
 import { Api } from "@quack/contracts/api";
-import { CurrentUser, sessionCookie } from "@quack/contracts/identity/authentication";
+import { CurrentUser } from "@quack/contracts/identity/authentication";
 import { Effect } from "effect";
 import { HttpApiBuilder } from "effect/http-api";
 
@@ -8,47 +8,31 @@ import { Onboarding } from "#/modules/identity/application/onboarding.ts";
 import { PasswordResets } from "#/modules/identity/application/password-resets.ts";
 import { Users } from "#/modules/identity/application/users.ts";
 import { clientIp } from "#/modules/identity/http/client-ip.ts";
-import { SessionCookie } from "#/modules/identity/http/session-cookie.ts";
 
 export const IdentityHandlers = HttpApiBuilder.group(
   Api,
   "identity",
   Effect.fn(function* (handlers) {
     const identity = yield* Identity;
-    const cookie = yield* SessionCookie;
     const users = yield* Users;
     const onboarding = yield* Onboarding;
     const passwordResets = yield* PasswordResets;
 
     return handlers.handleAll({
+      // Yielded writes and clears the session cookie itself, on the answer of the request.
       signUp: Effect.fn(function* ({ payload }) {
-        const { user, session } = yield* identity.signUp(
+        return yield* identity.signUp(
           payload.email,
           payload.password,
           payload.timeZone,
           yield* clientIp,
         );
-
-        yield* cookie.set(session);
-
-        return user;
       }),
       signIn: Effect.fn(function* ({ payload }) {
-        const { user, session } = yield* identity.signIn(
-          payload.email,
-          payload.password,
-          yield* clientIp,
-        );
-
-        yield* cookie.set(session);
-
-        return user;
+        return yield* identity.signIn(payload.email, payload.password, yield* clientIp);
       }),
       // Not behind `Authentication`, which would refuse a request with no Session.
-      signOut: Effect.fn(function* () {
-        yield* identity.signOut(yield* HttpApiBuilder.securityDecode(sessionCookie));
-        yield* cookie.clear;
-      }),
+      signOut: () => identity.signOut,
       requestPasswordReset: Effect.fn(function* ({ payload }) {
         yield* passwordResets.request(payload.email, yield* clientIp);
       }),

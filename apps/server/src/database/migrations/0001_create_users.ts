@@ -13,10 +13,12 @@ export default Effect.gen(function* () {
       .createTable("users")
       .addColumn("id", "uuid")
       .addColumn("email", "text", (column) => column.notNull())
-      .addColumn("password_hash", "text", (column) => column.notNull())
+      // Changed by whatever must end every Session of the User: Yielded Auth refuses a Session issued under another.
+      .addColumn("security_revision", "text", (column) => column.notNull())
       .addColumn("role", "text", (column) => column.notNull())
       .addColumn("status", sql`user_status`, (column) => column.notNull())
-      .addColumn("created_at", "timestamptz", (column) => column.notNull())
+      // A default for the sign-ups of Yielded Auth, which writes only the columns it maps.
+      .addColumn("created_at", "timestamptz", (column) => column.notNull().defaultTo(sql`now()`))
       .addColumn("last_sign_in_at", "timestamptz")
       .addColumn("onboarded_at", "timestamptz")
       // An IANA name, such as Europe/Paris.

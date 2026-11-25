@@ -106,7 +106,7 @@ const clientOf = (user: User) =>
   HttpApiTest.groups(Api, ["oauth", "grants"]).pipe(
     Effect.provide(
       HttpApiMiddleware.layerClient(Authentication, ({ next, request }) =>
-        next(HttpClientRequest.setHeader(request, "cookie", `session=${user.id}`)),
+        next(HttpClientRequest.setHeader(request, "cookie", `__Host-quack-session=${user.id}`)),
       ),
     ),
   );
@@ -860,7 +860,7 @@ layer(withConfig({}))("OAuthApi token", (it) => {
 
 // Ada must be stored for her Grant to act; each test may be the first to need her.
 const storeAda = Effect.gen(function* () {
-  yield* (yield* UserRepository).create(ada, "unused").pipe(Effect.ignore);
+  yield* (yield* UserRepository).create(ada).pipe(Effect.ignore);
 });
 
 /** The Permissions an access token opens, as `/api/mcp` will act with them. */

@@ -42,7 +42,7 @@ const clientOf = (user: User) =>
   HttpApiTest.groups(Api, ["todos"]).pipe(
     Effect.provide(
       HttpApiMiddleware.layerClient(Authentication, ({ next, request }) =>
-        next(HttpClientRequest.setHeader(request, "cookie", `session=${user.id}`)),
+        next(HttpClientRequest.setHeader(request, "cookie", `__Host-quack-session=${user.id}`)),
       ),
     ),
   );

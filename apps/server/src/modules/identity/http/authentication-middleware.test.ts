@@ -1,11 +1,13 @@
 import { assert, layer } from "@effect/vitest";
-import { Api } from "@quack/contracts/api";
+import { API_PREFIX } from "@quack/contracts/api";
+import { IdentityApi } from "@quack/contracts/identity/identity-api";
 import { Authentication, CurrentUser } from "@quack/contracts/identity/authentication";
 import { Forbidden } from "@quack/contracts/identity/identity-errors";
 import { Email, User, UserId } from "@quack/contracts/identity/user";
 import { RequiredPermission } from "@quack/contracts/permission";
-import { ConfigProvider, DateTime, Effect, Layer, Redacted } from "effect";
-import { Cookies, HttpClientRequest, HttpServer } from "effect/http";
+import { ConfigProvider, DateTime, Effect, Layer, Redacted, Ref } from "effect";
+import { Auth } from "@yielded/auth";
+import { Cookies, HttpRouter, HttpServer } from "effect/http";
 import {
   HttpApi,
   HttpApiBuilder,
@@ -16,11 +18,9 @@ import {
   HttpApiTest,
 } from "effect/http-api";
 
-import { IdentityModule, McpCaller } from "#/modules/identity/index.ts";
-import { LinkTokenStoreMemory } from "#/modules/identity/testing/link-token-store-memory.ts";
-import { TransactionMemory } from "#/modules/transaction/testing/transaction-memory.ts";
-import { SessionStoreMemory } from "#/modules/identity/testing/session-store-memory.ts";
-import { UserRepositoryMemory } from "#/modules/identity/testing/user-repository-memory.ts";
+import { IdentityModule, localAuthRequest, McpCaller } from "#/modules/identity/index.ts";
+import { appAuthTestClient } from "#/modules/identity/testing/app-auth-test-client.ts";
+import { IdentityPglite } from "#/modules/identity/testing/identity-pglite.ts";
 import { MailerMemory } from "#/modules/mail/testing/mailer-memory.ts";
 
 class ProbeApi extends HttpApi.make("probe").add(
@@ -46,41 +46,33 @@ const ProbeHandlers = HttpApiBuilder.group(ProbeApi, "probe", (handlers) =>
     .handle("listTodos", () => Effect.asVoid(CurrentUser)),
 );
 
-const sessionCookieOf = Effect.fn(function* (email: string) {
-  const identity = yield* HttpApiTest.groups(Api, ["identity"]);
+// Named as `Api`, whose handlers serve it.
+class IdentityOnlyApi extends HttpApi.make("quack").add(IdentityApi).prefix(API_PREFIX) {}
 
-  const [, response] = yield* identity.identity.signUp({
+/** The cookies of a browser that signed up as `email`. */
+const signedUp = Effect.fn(function* (email: string) {
+  const jar = yield* Ref.make(Cookies.empty);
+  const identity = yield* appAuthTestClient(IdentityOnlyApi, IdentityModule, jar);
+
+  yield* identity.identity.signUp({
     payload: {
       email: Email.make(email),
       password: Redacted.make("correct horse battery staple"),
       timeZone: DateTime.zoneMakeNamedUnsafe("Europe/Paris"),
     },
-    responseMode: "decoded-and-response",
   });
 
-  return Cookies.toCookieHeader(response.cookies);
+  return yield* Ref.get(jar);
 });
 
-const probeAs = (cookie: string) =>
-  HttpApiTest.groups(ProbeApi, ["probe"]).pipe(
-    Effect.provide(
-      HttpApiMiddleware.layerClient(Authentication, ({ next, request }) =>
-        next(HttpClientRequest.setHeader(request, "cookie", cookie)),
-      ),
-    ),
+const probeAs = (cookies: Cookies.Cookies) =>
+  Effect.flatMap(Ref.make(cookies), (jar) =>
+    appAuthTestClient(ProbeApi, ProbeHandlers.pipe(Layer.provideMerge(IdentityModule)), jar),
   );
 
-const TestLayer = ProbeHandlers.pipe(
-  Layer.provideMerge(IdentityModule),
-  Layer.provide([
-    UserRepositoryMemory,
-    SessionStoreMemory,
-    LinkTokenStoreMemory,
-    TransactionMemory,
-    MailerMemory,
-  ]),
+const TestLayer = Layer.mergeAll(IdentityPglite, MailerMemory).pipe(
   Layer.provideMerge(HttpServer.layerServices),
-  Layer.provide(
+  Layer.provideMerge(
     ConfigProvider.layer(ConfigProvider.fromUnknown({ PUBLIC_URL: "https://quack.test" })),
   ),
 );
@@ -88,7 +80,7 @@ const TestLayer = ProbeHandlers.pipe(
 layer(TestLayer)("AuthenticationMiddleware", (it) => {
   it.effect("refuses a signed-in caller an endpoint that declares no Permission, 403", () =>
     Effect.gen(function* () {
-      const probe = yield* probeAs(yield* sessionCookieOf("rosalind@example.com"));
+      const probe = yield* probeAs(yield* signedUp("rosalind@example.com"));
 
       const opened = yield* probe.probe.open({ responseMode: "response-only" });
       const error = yield* probe.probe.undeclared().pipe(Effect.flip);
@@ -104,7 +96,18 @@ layer(TestLayer)("AuthenticationMiddleware", (it) => {
     "takes the caller of an in-process call from McpCaller, with no cookie, and checks its Permissions",
     () =>
       Effect.gen(function* () {
-        const probe = yield* probeAs("");
+        // In process, as the MCP transport calls the `Api`: no request, so no Yielded boundary either.
+        const probe = yield* HttpApiTest.groups(ProbeApi, ["probe"]).pipe(
+          Effect.provide(
+            ProbeHandlers.pipe(
+              Layer.provideMerge(IdentityModule),
+              HttpRouter.provideRequest(Layer.succeed(Auth.AuthRequest, localAuthRequest)),
+              Layer.merge(
+                HttpApiMiddleware.layerClient(Authentication, ({ next, request }) => next(request)),
+              ),
+            ),
+          ),
+        );
 
         const user = new User({
           id: UserId.make("mcp-caller"),

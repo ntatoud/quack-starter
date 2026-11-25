@@ -8,15 +8,13 @@ export class UserRepository extends Context.Service<
   UserRepository,
   {
     readonly nextId: Effect.Effect<UserId>;
-    create(user: User, passwordHash: string): Effect.Effect<void, EmailAlreadyTaken>;
+    /** A User with no password, who cannot sign in: a sign-up goes through `AppAuth.register`. */
+    create(user: User): Effect.Effect<void, EmailAlreadyTaken>;
     update(user: User): Effect.Effect<void>;
-    setPasswordHash(id: UserId, passwordHash: string): Effect.Effect<void>;
     /** Says whether there was a User to remove. */
     remove(id: UserId): Effect.Effect<boolean>;
     findById(id: UserId): Effect.Effect<Option.Option<User>>;
-    findByEmail(
-      email: Email,
-    ): Effect.Effect<Option.Option<{ readonly user: User; readonly passwordHash: string }>>;
+    findByEmail(email: Email): Effect.Effect<Option.Option<User>>;
     findAll(query: UserListQuery): Effect.Effect<Paginated<User>>;
   }
 >()("@quack/server/identity/UserRepository") {}

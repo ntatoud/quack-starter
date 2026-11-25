@@ -21,7 +21,6 @@ export const ServerConfig = {
   // Off, the User is asked on every authorization request. On, an AI Client whose active Grant already holds
   // what it asks for, for the same resource and redirect URI, gets its code without the consent page.
   rememberConsent: Config.Boolean("OAUTH_REMEMBER_CONSENT").pipe(Config.withDefault(false)),
-  cookieSecure: Config.Boolean("COOKIE_SECURE").pipe(Config.withDefault(true)),
   attemptLimits: Config.all({
     signInFailuresPerEmail: attemptLimit("SIGN_IN_FAILURES_PER_EMAIL", 5, Duration.minutes(15)),
     signInFailuresPerIp: attemptLimit("SIGN_IN_FAILURES_PER_IP", 20, Duration.minutes(15)),

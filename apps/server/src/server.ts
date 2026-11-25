@@ -13,6 +13,7 @@ import {
   OAuthMetadataRoutes,
   AiClientsModule,
   TokenEndpointHeaders,
+  withAppAuthRequests,
 } from "#/modules/identity/index.ts";
 import { SystemHandlers } from "#/modules/system/http/system-handlers.ts";
 import { TodosModule } from "#/modules/todos/index.ts";
@@ -22,11 +23,16 @@ const ApiHandlers = Layer.mergeAll(SystemHandlers, TodosModule, AiClientsModule)
   Layer.provideMerge(IdentityModule),
 );
 
-const ApiRoutes = HttpApiBuilder.layer(Api, { openapiPath: `${API_PREFIX}/openapi.json` }).pipe(
-  Layer.provide(ApiHandlers),
+const ApiRoutes = Layer.unwrap(
+  withAppAuthRequests(
+    HttpApiBuilder.layer(Api, { openapiPath: `${API_PREFIX}/openapi.json` }).pipe(
+      Layer.provide(ApiHandlers),
+    ),
+  ),
 );
 
-const McpRoutes = McpEndpoint.pipe(Layer.provide(ApiHandlers));
+// The tools call handlers that sign in or out, which need Yielded's request boundary even when no tool does so.
+const McpRoutes = Layer.unwrap(withAppAuthRequests(McpEndpoint.pipe(Layer.provide(ApiHandlers))));
 
 const DocsRoute = HttpApiScalar.layer(Api, { path: `${API_PREFIX}/docs` });
 

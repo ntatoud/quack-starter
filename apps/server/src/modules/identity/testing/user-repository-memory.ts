@@ -33,17 +33,17 @@ const keeps = <A>(wanted: A | undefined, value: A | undefined) =>
   wanted === undefined || value === wanted;
 
 export const UserRepositoryMemory = Layer.sync(UserRepository, () => {
-  const users = new Map<UserId, { readonly user: User; readonly passwordHash: string }>();
+  const users = new Map<UserId, { readonly user: User }>();
   // An `Email` is already trimmed and lowercased, so it is its own unique key.
   const idsByEmail = new Map<Email, UserId>();
 
   return UserRepository.of({
     nextId: Effect.sync(() => UserId.make(crypto.randomUUID())),
-    create: (user, passwordHash) =>
+    create: (user) =>
       Effect.suspend(() => {
         if (idsByEmail.has(user.email)) return Effect.fail(new EmailAlreadyTaken());
         idsByEmail.set(user.email, user.id);
-        users.set(user.id, { user, passwordHash });
+        users.set(user.id, { user });
 
         return Effect.void;
       }),
@@ -54,12 +54,6 @@ export const UserRepositoryMemory = Layer.sync(UserRepository, () => {
         if (stored !== undefined) {
           users.set(user.id, { ...stored, user: new User({ ...user, email: stored.user.email }) });
         }
-      }),
-    setPasswordHash: (id, passwordHash) =>
-      Effect.sync(() => {
-        const stored = users.get(id);
-
-        if (stored !== undefined) users.set(id, { ...stored, passwordHash });
       }),
     remove: (id) =>
       Effect.sync(() => {
@@ -74,7 +68,7 @@ export const UserRepositoryMemory = Layer.sync(UserRepository, () => {
     findByEmail: (email) =>
       Effect.sync(() =>
         Option.fromNullishOr(idsByEmail.get(email)).pipe(
-          Option.flatMapNullishOr((id) => users.get(id)),
+          Option.flatMapNullishOr((id) => users.get(id)?.user),
         ),
       ),
     findAll: ({ page, pageSize, orderBy, dir, search = "", status, role, team, onboarded }) =>

@@ -1,11 +1,9 @@
 import { assert, describe, effect, layer } from "@effect/vitest";
-import { Api } from "@quack/contracts/api";
-import { Authentication } from "@quack/contracts/identity/authentication";
-import { OnboardingPayload } from "@quack/contracts/identity/identity-api";
+import { API_PREFIX } from "@quack/contracts/api";
+import { IdentityApi, OnboardingPayload } from "@quack/contracts/identity/identity-api";
 import { CountryCode, Profile } from "@quack/contracts/identity/profile";
 import { type Email, type Password, TimeZone, User } from "@quack/contracts/identity/user";
 import {
-  Clock,
   DateTime,
   ConfigProvider,
   Duration,
@@ -17,21 +15,21 @@ import {
   Ref,
   Schema,
 } from "effect";
-import { Cookies, HttpClientRequest, type HttpClientResponse, HttpServer } from "effect/http";
-import { HttpApiMiddleware, HttpApiTest } from "effect/http-api";
+import { Cookies, type HttpClientResponse, HttpServer } from "effect/http";
+import { HttpApi } from "effect/http-api";
 import { TestClock } from "effect/testing";
 
-import { sessionExtensionThreshold, sessionLifetime } from "#/modules/identity/domain/session.ts";
 import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
 import { IdentityModule } from "#/modules/identity/index.ts";
-import { LinkTokenStoreMemory } from "#/modules/identity/testing/link-token-store-memory.ts";
+import { appAuthTestClient } from "#/modules/identity/testing/app-auth-test-client.ts";
+import { IdentityPglite } from "#/modules/identity/testing/identity-pglite.ts";
 import { sessionModelWalks } from "#/modules/identity/testing/session-model.ts";
-import { TransactionMemory } from "#/modules/transaction/testing/transaction-memory.ts";
-import { SessionStoreMemory } from "#/modules/identity/testing/session-store-memory.ts";
-import { UserRepositoryMemory } from "#/modules/identity/testing/user-repository-memory.ts";
 import { MailerMemory, SentMails } from "#/modules/mail/testing/mailer-memory.ts";
 
-const maxAge = Duration.toSeconds(sessionLifetime);
+const sessionCookie = "__Host-quack-session";
+
+// Named as `Api`, whose handlers serve it.
+class IdentityOnlyApi extends HttpApi.make("quack").add(IdentityApi).prefix(API_PREFIX) {}
 
 const password = Redacted.make("correct horse battery staple");
 
@@ -48,22 +46,7 @@ const asTyped = (email: string) => email as Email;
 const makeBrowser = Effect.gen(function* () {
   const jar = yield* Ref.make(Cookies.empty);
 
-  const client = yield* HttpApiTest.groups(Api, ["identity"]).pipe(
-    Effect.provide(
-      HttpApiMiddleware.layerClient(
-        Authentication,
-        Effect.fn(function* ({ next, request }) {
-          const cookies = yield* Ref.get(jar);
-
-          return yield* next(
-            Cookies.isEmpty(cookies)
-              ? request
-              : HttpClientRequest.setHeader(request, "cookie", Cookies.toCookieHeader(cookies)),
-          );
-        }),
-      ),
-    ),
-  );
+  const client = yield* appAuthTestClient(IdentityOnlyApi, IdentityModule, jar);
 
   const keepCookies = Effect.fn(function* (response: HttpClientResponse.HttpClientResponse) {
     yield* Ref.update(jar, (cookies) =>
@@ -107,7 +90,7 @@ const makeBrowser = Effect.gen(function* () {
     signUp,
     signIn,
     signOut,
-    session: Effect.map(Ref.get(jar), (cookies) => Cookies.getValue(cookies, "session")),
+    session: Effect.map(Ref.get(jar), (cookies) => Cookies.getValue(cookies, sessionCookie)),
     me: client.identity.me(),
     updateProfile: (profile: Profile) => client.identity.updateProfile({ payload: profile }),
     updateTimeZone: (timeZone: TimeZone) =>
@@ -145,16 +128,15 @@ const aProfile = (firstName: string) =>
 
 const assertCookieCleared = (setCookie: ReadonlyArray<string>) => {
   assert.lengthOf(setCookie, 1);
-  assert.match(setCookie[0] ?? "", /^session=; .*Max-Age=0/);
+  assert.match(setCookie[0] ?? "", /^__Host-quack-session=; .*Max-Age=0/);
 };
 
+// The stores only: each browser serves `IdentityModule` on them, inside Yielded's request boundary.
 const withConfig = (env: Record<string, string>) =>
-  IdentityModule.pipe(
-    Layer.provide([SessionStoreMemory, LinkTokenStoreMemory, TransactionMemory]),
-    // Visible, to add Users of every Status and to read the mails sent.
-    Layer.provideMerge([UserRepositoryMemory, MailerMemory]),
+  // Visible, to add Users of every Status and to read the mails sent.
+  Layer.mergeAll(IdentityPglite, MailerMemory).pipe(
     Layer.provideMerge(HttpServer.layerServices),
-    Layer.provide(
+    Layer.provideMerge(
       ConfigProvider.layer(
         ConfigProvider.fromUnknown({ PUBLIC_URL: "https://quack.test/ignored", ...env }),
       ),
@@ -349,7 +331,7 @@ layer(withConfig({ SIGN_UPS_PER_IP: "1000" }))("IdentityApi", (it) => {
 
       for (const session of [atSignUp, atFirstSignIn, atSecondSignIn]) {
         const other = yield* makeBrowser;
-        yield* other.setCookie("session", session);
+        yield* other.setCookie(sessionCookie, session);
         assert.deepStrictEqual(yield* other.me, user);
       }
     }),
@@ -364,14 +346,8 @@ layer(withConfig({ SIGN_UPS_PER_IP: "1000" }))("IdentityApi", (it) => {
 
       assert.lengthOf(setCookie, 1);
       const [nameAndValue, ...attributes] = (setCookie[0] ?? "").split("; ");
-      assert.match(nameAndValue ?? "", /^session=[A-Za-z0-9_-]{43}$/);
-      assert.deepStrictEqual(attributes.toSorted(), [
-        "HttpOnly",
-        `Max-Age=${maxAge}`,
-        "Path=/",
-        "SameSite=Lax",
-        "Secure",
-      ]);
+      assert.match(nameAndValue ?? "", /^__Host-quack-session=[A-Za-z0-9_-]{43}$/);
+      assert.includeMembers(attributes, ["HttpOnly", "Path=/", "SameSite=Lax", "Secure"]);
     }),
   );
 
@@ -385,7 +361,7 @@ layer(withConfig({ SIGN_UPS_PER_IP: "1000" }))("IdentityApi", (it) => {
       assert.strictEqual(status, 204);
       assert.lengthOf(setCookie, 1);
       const [nameAndValue, ...attributes] = (setCookie[0] ?? "").split("; ");
-      assert.strictEqual(nameAndValue, "session=");
+      assert.strictEqual(nameAndValue, "__Host-quack-session=");
       // The attributes of the cookie it replaces, or the browser would keep that one.
       assert.includeMembers(attributes, [
         "Max-Age=0",
@@ -538,7 +514,7 @@ layer(withConfig({ SIGN_UPS_PER_IP: "1000" }))("IdentityApi", (it) => {
   it.effect("fails me with Unauthenticated for a Session the server does not know", () =>
     Effect.gen(function* () {
       const browser = yield* makeBrowser;
-      yield* browser.setCookie("session", "not-a-session-the-server-opened");
+      yield* browser.setCookie(sessionCookie, "not-a-session-the-server-opened");
 
       const error = yield* browser.me.pipe(Effect.flip);
 
@@ -547,158 +523,7 @@ layer(withConfig({ SIGN_UPS_PER_IP: "1000" }))("IdentityApi", (it) => {
   );
 
   it.effect(
-    "fails me with Unauthenticated once the Session has expired: 30 days with no request",
-    () =>
-      Effect.gen(function* () {
-        const browser = yield* makeBrowser;
-        yield* browser.signUp(asTyped("katherine@example.com"));
-
-        yield* TestClock.adjust("30 days");
-
-        const error = yield* browser.me.pipe(Effect.flip);
-        assert.strictEqual(error._tag, "Unauthenticated");
-      }),
-  );
-
-  it.effect("keeps a Session open until it expires: one second before the 30 days", () =>
-    Effect.gen(function* () {
-      const browser = yield* makeBrowser;
-      const { user } = yield* browser.signUp(asTyped("ida@example.com"));
-
-      yield* TestClock.adjust(Duration.subtract(Duration.days(30), Duration.seconds(1)));
-
-      assert.deepStrictEqual(yield* browser.me, user);
-    }),
-  );
-
-  it.effect(
-    "leaves a Session that has 15 days left or more as it is: no cookie, the same expiry",
-    () =>
-      Effect.gen(function* () {
-        const browser = yield* makeBrowser;
-        yield* browser.signUp(asTyped("evelyn@example.com"));
-
-        yield* TestClock.adjust(sessionExtensionThreshold);
-        const { status, setCookie } = yield* browser.meResponse;
-
-        assert.strictEqual(status, 200);
-        assert.deepStrictEqual(setCookie, []);
-
-        yield* TestClock.adjust(Duration.subtract(sessionLifetime, sessionExtensionThreshold));
-        assert.strictEqual((yield* browser.me.pipe(Effect.flip))._tag, "Unauthenticated");
-      }),
-  );
-
-  it.effect(
-    "extends the Session to 30 days when less than 15 days are left, and sets the cookie again",
-    () =>
-      Effect.gen(function* () {
-        const browser = yield* makeBrowser;
-        const { user } = yield* browser.signUp(asTyped("dorothy@example.com"));
-        const token = Option.getOrThrow(yield* browser.session);
-
-        yield* TestClock.adjust(Duration.sum(sessionExtensionThreshold, Duration.hours(1)));
-        const { status, setCookie } = yield* browser.meResponse;
-
-        assert.strictEqual(status, 200);
-        assert.lengthOf(setCookie, 1);
-        const [nameAndValue, ...attributes] = (setCookie[0] ?? "").split("; ");
-        assert.strictEqual(nameAndValue, `session=${token}`);
-        assert.deepStrictEqual(attributes.toSorted(), [
-          "HttpOnly",
-          `Max-Age=${maxAge}`,
-          "Path=/",
-          "SameSite=Lax",
-          "Secure",
-        ]);
-
-        yield* TestClock.adjust(Duration.subtract(sessionLifetime, Duration.days(1)));
-        assert.deepStrictEqual(yield* browser.me, user);
-      }),
-  );
-
-  it.effect("keeps a Session open with no limit, as long as its User comes back", () =>
-    Effect.gen(function* () {
-      const browser = yield* makeBrowser;
-      const { user } = yield* browser.signUp(asTyped("jean@example.com"));
-
-      for (let visit = 0; visit < 10; visit++) {
-        yield* TestClock.adjust("20 days");
-        assert.deepStrictEqual(yield* browser.me, user);
-      }
-    }),
-  );
-
-  it.effect("clears the session cookie when the request has no Session", () =>
-    Effect.gen(function* () {
-      const browser = yield* makeBrowser;
-
-      const { status, setCookie } = yield* browser.meResponse;
-
-      assert.strictEqual(status, 401);
-      assert.lengthOf(setCookie, 1);
-      const [nameAndValue, ...attributes] = (setCookie[0] ?? "").split("; ");
-      assert.strictEqual(nameAndValue, "session=");
-      // The attributes of the cookie it replaces, or the browser would keep that one.
-      assert.includeMembers(attributes, [
-        "Max-Age=0",
-        "Path=/",
-        "HttpOnly",
-        "SameSite=Lax",
-        "Secure",
-      ]);
-    }),
-  );
-
-  it.effect("clears the session cookie of a Session the server does not know", () =>
-    Effect.gen(function* () {
-      const browser = yield* makeBrowser;
-      yield* browser.setCookie("session", "not-a-session-the-server-opened");
-
-      const { status, setCookie } = yield* browser.meResponse;
-
-      assert.strictEqual(status, 401);
-      assertCookieCleared(setCookie);
-      assert.isTrue(Option.isNone(yield* browser.session));
-    }),
-  );
-
-  it.effect("clears the session cookie of a Session that has expired", () =>
-    Effect.gen(function* () {
-      const browser = yield* makeBrowser;
-      yield* browser.signUp(asTyped("adele@example.com"));
-      const token = Option.getOrThrow(yield* browser.session);
-      yield* TestClock.adjust("30 days");
-      // A browser has dropped the cookie by now, at the end of its `Max-Age`: this client kept it.
-      yield* browser.setCookie("session", token);
-
-      const { status, setCookie } = yield* browser.meResponse;
-
-      assert.strictEqual(status, 401);
-      assertCookieCleared(setCookie);
-      assert.isTrue(Option.isNone(yield* browser.session));
-    }),
-  );
-
-  it.effect("removes a Session that has expired when it is read: it opens nothing ever after", () =>
-    Effect.gen(function* () {
-      const browser = yield* makeBrowser;
-      yield* browser.signUp(asTyped("lynn@example.com"));
-      const token = Option.getOrThrow(yield* browser.session);
-      const signedUpAt = yield* Clock.currentTimeMillis;
-      yield* TestClock.adjust("30 days");
-      assert.strictEqual((yield* browser.me.pipe(Effect.flip))._tag, "Unauthenticated");
-
-      // The clock goes back to a time when the Session had not expired: a Session still in the store would open.
-      yield* TestClock.setTime(signedUpAt);
-      yield* browser.setCookie("session", token);
-
-      assert.strictEqual((yield* browser.me.pipe(Effect.flip))._tag, "Unauthenticated");
-    }),
-  );
-
-  it.effect(
-    "sets the session cookie: HttpOnly, Secure, SameSite=Lax, Path=/, 30 days, no Domain",
+    "sets the session cookie: HttpOnly, Secure, SameSite=Lax, Path=/, about 30 days, no Domain",
     () =>
       Effect.gen(function* () {
         const browser = yield* makeBrowser;
@@ -707,35 +532,15 @@ layer(withConfig({ SIGN_UPS_PER_IP: "1000" }))("IdentityApi", (it) => {
 
         assert.lengthOf(setCookie, 1);
         const [nameAndValue, ...attributes] = (setCookie[0] ?? "").split("; ");
-        assert.match(nameAndValue ?? "", /^session=[A-Za-z0-9_-]{43}$/);
-        assert.deepStrictEqual(attributes.toSorted(), [
-          "HttpOnly",
-          `Max-Age=${maxAge}`,
-          "Path=/",
-          "SameSite=Lax",
-          "Secure",
-        ]);
-      }),
-  );
-});
+        assert.match(nameAndValue ?? "", /^__Host-quack-session=[A-Za-z0-9_-]{43}$/);
 
-layer(withConfig({ COOKIE_SECURE: "false" }))("IdentityApi, with COOKIE_SECURE=false", (it) => {
-  it.effect(
-    "sets and clears the session cookie without Secure, for an origin served over http",
-    () =>
-      Effect.gen(function* () {
-        const browser = yield* makeBrowser;
+        const [maxAge, ...others] = attributes.toSorted((a, b) =>
+          a.startsWith("Max-Age") ? -1 : b.startsWith("Max-Age") ? 1 : a.localeCompare(b),
+        );
 
-        const signedUp = yield* browser.signUp(asTyped("ada@example.com"));
-        yield* TestClock.adjust("16 days");
-        const extended = yield* browser.meResponse;
-        const signedOut = yield* browser.signOut;
-        const refused = yield* browser.meResponse;
-
-        for (const { setCookie } of [signedUp, extended, signedOut, refused]) {
-          assert.lengthOf(setCookie, 1);
-          assert.notInclude((setCookie[0] ?? "").split("; "), "Secure");
-        }
+        assert.deepStrictEqual(others, ["HttpOnly", "Path=/", "SameSite=Lax", "Secure"]);
+        // Yielded counts from its own clock: a second may have passed since the Session was issued.
+        assert.closeTo(Number(maxAge?.slice("Max-Age=".length)), Duration.toSeconds("30 days"), 2);
       }),
   );
 });
@@ -919,7 +724,12 @@ describe("IdentityApi, attempt limits", () => {
 
   effect("does not start with a limit under 1, which would refuse nothing", () =>
     Effect.gen(function* () {
-      const started = yield* makeBrowser.pipe(withLimits({ SIGN_UPS_PER_IP: "0" }), Effect.exit);
+      // The browser builds the handlers at its first request.
+      const started = yield* makeBrowser.pipe(
+        Effect.flatMap((browser) => browser.signUp(asTyped("never@example.com"))),
+        withLimits({ SIGN_UPS_PER_IP: "0" }),
+        Effect.exit,
+      );
 
       assert.isTrue(Exit.isFailure(started));
     }),
@@ -1004,7 +814,6 @@ const aUserWithStatus = Effect.fn(function* (email: string, status: "invited" | 
       timeZone: DateTime.zoneMakeNamedUnsafe("Europe/Paris"),
       profile: null,
     }),
-    "not a hash",
   );
 });
 

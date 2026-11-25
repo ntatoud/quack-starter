@@ -45,15 +45,13 @@ const truncateTables = Effect.gen(function* () {
   yield* sql`TRUNCATE ${sql.csv(tables.map(({ tablename }) => sql`${sql(tablename)}`))} RESTART IDENTITY CASCADE`;
 });
 
+// The Users are seeded outside a transaction: Yielded Auth refuses to sign one up inside a transaction it does not
+// own. A seed that fails halfway is run again, since it starts by emptying every table.
 const reset = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
-  yield* sql.withTransaction(
-    truncateTables.pipe(
-      Effect.andThen(Layer.build(IdentitySeed)),
-      Effect.andThen(Layer.build(TodosSeed(devAccountIds()))),
-      Effect.scoped,
-    ),
-  );
+  yield* sql.withTransaction(truncateTables);
+  yield* Layer.build(IdentitySeed).pipe(Effect.scoped);
+  yield* sql.withTransaction(Layer.build(TodosSeed(devAccountIds())).pipe(Effect.scoped));
 });
 
 export const seedDatabase = Effect.fn("seedDatabase")(function* (config: DatabaseSettings) {

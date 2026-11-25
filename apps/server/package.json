@@ -23,12 +23,15 @@
     "@quack/contracts": "workspace:*",
     "@quack/effect-kysely": "workspace:*",
     "@quack/emails": "workspace:*",
+    "@yielded/auth": "0.1.0-beta.49",
+    "@yielded/auth-persistence": "0.1.0-beta.49",
     "effect": "catalog:",
     "kysely": "catalog:",
     "nodemailer": "10.6.1",
     "xstate": "6.0.0-beta.4"
   },
   "devDependencies": {
+    "@effect/sql-pglite": "4.1.5",
     "@effect/vitest": "catalog:",
     "@types/node": "catalog:",
     "kysely-codegen": "0.20.0",

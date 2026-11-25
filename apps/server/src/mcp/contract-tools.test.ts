@@ -4,17 +4,18 @@ import type { Permission } from "@quack/contracts/permission";
 import { Api } from "@quack/contracts/api";
 import { ConfigProvider, DateTime, Effect, Layer } from "effect";
 import { McpProtocol, McpServer, McpTest } from "effect/ai";
-import { HttpClient, HttpServer } from "effect/http";
+import { HttpClient, HttpRouter, HttpServer } from "effect/http";
+import { Auth } from "@yielded/auth";
 
 import { contractTools } from "#/mcp/contract-tools.ts";
 import { deriveTools } from "#/mcp/derive-tools.ts";
-import { IdentityModule, McpCaller, AiClientsModule } from "#/modules/identity/index.ts";
-import { AuthorizationCodeStoreMemory } from "#/modules/identity/testing/authorization-code-store-memory.ts";
-import { GrantStoreMemory } from "#/modules/identity/testing/grant-store-memory.ts";
-import { LinkTokenStoreMemory } from "#/modules/identity/testing/link-token-store-memory.ts";
-import { TransactionMemory } from "#/modules/transaction/testing/transaction-memory.ts";
-import { SessionStoreMemory } from "#/modules/identity/testing/session-store-memory.ts";
-import { UserRepositoryMemory } from "#/modules/identity/testing/user-repository-memory.ts";
+import {
+  AiClientsModule,
+  IdentityModule,
+  localAuthRequest,
+  McpCaller,
+} from "#/modules/identity/index.ts";
+import { IdentityPglite } from "#/modules/identity/testing/identity-pglite.ts";
 import { SystemHandlers } from "#/modules/system/http/system-handlers.ts";
 import { TodosModule } from "#/modules/todos/index.ts";
 import { MailerMemory } from "#/modules/mail/testing/mailer-memory.ts";
@@ -28,17 +29,9 @@ const NoHttpClient = Layer.succeed(
 
 const ApiHandlers = Layer.mergeAll(SystemHandlers, TodosModule, AiClientsModule).pipe(
   Layer.provideMerge(IdentityModule),
-  Layer.provide([
-    UserRepositoryMemory,
-    SessionStoreMemory,
-    AuthorizationCodeStoreMemory,
-    GrantStoreMemory,
-    LinkTokenStoreMemory,
-    TransactionMemory,
-    TodoRepositoryMemory,
-    MailerMemory,
-    NoHttpClient,
-  ]),
+  Layer.provide([IdentityPglite, TodoRepositoryMemory, MailerMemory, NoHttpClient]),
+  // No tool signs in or out: the handlers that would, run here as a trusted local caller of Yielded.
+  HttpRouter.provideRequest(Layer.succeed(Auth.AuthRequest, localAuthRequest)),
   Layer.provide(
     ConfigProvider.layer(ConfigProvider.fromUnknown({ PUBLIC_URL: "https://quack.test" })),
   ),

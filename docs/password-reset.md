@@ -57,8 +57,8 @@ flowchart TD
     X -- no --> G["commit: 410 ExpiredLink"]
     X -- yes --> Y{"Its User can<br/>still sign in?"}
     Y -- no --> G
-    Y -- yes --> P["set the password hash"]
-    P --> Q["remove every Session of the User"]
+    Y -- yes --> P["set the password in Yielded's tables"]
+    P --> Q["new security revision: every Session ends"]
     Q --> Z["commit: success, no Session opened"]
 ```
 

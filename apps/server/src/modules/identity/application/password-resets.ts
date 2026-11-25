@@ -17,8 +17,7 @@ import {
   passwordResetLifetime,
 } from "#/modules/identity/domain/link-token.ts";
 import { LinkTokenStore } from "#/modules/identity/domain/link-token-store.ts";
-import { PasswordHasher } from "#/modules/identity/domain/password-hasher.ts";
-import { SessionStore } from "#/modules/identity/domain/session-store.ts";
+import { PasswordCredentials } from "#/modules/identity/domain/password-credentials.ts";
 import { Transaction } from "#/modules/transaction/index.ts";
 import { canSignIn } from "#/modules/identity/domain/user.ts";
 import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
@@ -37,9 +36,8 @@ export class PasswordResets extends Context.Service<
     PasswordResets,
     Effect.gen(function* () {
       const users = yield* UserRepository;
-      const sessions = yield* SessionStore;
       const links = yield* LinkTokenStore;
-      const hasher = yield* PasswordHasher;
+      const credentials = yield* PasswordCredentials;
       const limiter = yield* AttemptLimiter;
       const mailer = yield* Mailer;
       const transaction = yield* Transaction;
@@ -52,9 +50,9 @@ export class PasswordResets extends Context.Service<
       const sendLink = Effect.fn("PasswordResets.sendLink")(function* (email: Email) {
         const found = yield* users.findByEmail(email);
 
-        if (Option.isNone(found) || !canSignIn(found.value.user)) return;
+        if (Option.isNone(found) || !canSignIn(found.value)) return;
 
-        const { user } = found.value;
+        const user = found.value;
         const token = Base64Url.encode(yield* random.randomBytes(linkTokenBytes));
 
         // Replaces the earlier link of the User: asking again makes it useless.
@@ -113,9 +111,8 @@ export class PasswordResets extends Context.Service<
               // A User suspended since they asked is refused as a stranger would be.
               if (Option.isNone(user) || !canSignIn(user.value)) return false;
 
-              yield* users.setPasswordHash(user.value.id, yield* hasher.hash(password));
               // Whoever knew the old password, or holds a Session opened with it, is shut out.
-              yield* sessions.removeAllOf(user.value.id);
+              yield* credentials.replace(user.value.id, password);
 
               return true;
             }),

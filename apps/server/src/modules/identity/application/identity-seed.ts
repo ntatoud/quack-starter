@@ -9,14 +9,12 @@ import {
   UserId,
   type UserStatus,
 } from "@quack/contracts/identity/user";
+import { Auth } from "@yielded/auth";
 import { DateTime, Effect, Layer, Schema } from "effect";
 
 import { seedDate } from "#/database/seed-date.ts";
+import { AppAuth, localAuthRequest } from "#/modules/identity/domain/app-auth.ts";
 import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
-
-/** The argon2id hash of `devPassword`, a constant so that seeding hashes nothing. */
-export const devPasswordHash =
-  "$argon2id$v=19$m=19456,t=2,p=1$KRL24AiOiRziOzszWPAFpA$0Zrm21ZkbUE8ObVN5MYqUcIG/xABGETqXdzX4X9v0Xs";
 
 const dayMillis = 24 * 60 * 60 * 1000;
 
@@ -145,16 +143,25 @@ export const devAccountIds = (): ReadonlyArray<UserId> =>
 
 export const IdentitySeed = Layer.effectDiscard(
   Effect.gen(function* () {
+    const auth = yield* AppAuth;
     const users = yield* UserRepository;
     const seeded = devUsers();
+    // Each User signs up through Yielded, which hashes the dev password for each: Quack cannot write a credential
+    // itself. Then the User gets the rest of their seeded state, which a sign-up never gives.
     yield* Effect.forEach(
       seeded,
       (user) =>
-        users
-          .create(user, devPasswordHash)
-          .pipe(Effect.catchTag("EmailAlreadyTaken", () => Effect.void)),
-      { discard: true },
-    );
+        Effect.gen(function* () {
+          yield* auth.register({
+            requestId: user.id,
+            email: user.email,
+            newPassword: devPassword,
+            registration: { id: user.id, timeZone: user.timeZone.id },
+          });
+          yield* users.update(user);
+        }),
+      { concurrency: 4, discard: true },
+    ).pipe(Effect.provideService(Auth.AuthRequest, localAuthRequest), Effect.orDie);
     yield* Effect.logInfo(`Seeded ${seeded.length} Users`).pipe(
       Effect.annotateLogs({
         first: seeded.slice(0, 3).map(({ email }) => email),

@@ -61,9 +61,7 @@ const aUser = (
 const created = (...users: ReadonlyArray<User>) =>
   Effect.gen(function* () {
     const repository = yield* UserRepository;
-    yield* Effect.forEach(users, (user) =>
-      repository.create(user, `hash of ${user.email}`).pipe(Effect.orDie),
-    );
+    yield* Effect.forEach(users, (user) => repository.create(user).pipe(Effect.orDie));
   });
 
 const firstPage = { page: 1, pageSize: 20, orderBy: "email", dir: "asc" } as const;
@@ -86,17 +84,14 @@ export const userRepositorySuite = (layer: Layer.Layer<UserRepository>) => {
     it.effect(name, () => body().pipe(Effect.provide(layer)));
 
   describe("UserRepository", () => {
-    test("finds a created User by id, and by email with their password hash", () =>
+    test("finds a created User by id, and by email", () =>
       Effect.gen(function* () {
         const repository = yield* UserRepository;
         const user = yield* aUser(yield* aMark, "ada");
         yield* created(user);
 
         assert.deepStrictEqual(yield* repository.findById(user.id), Option.some(user));
-        assert.deepStrictEqual(
-          yield* repository.findByEmail(user.email),
-          Option.some({ user, passwordHash: `hash of ${user.email}` }),
-        );
+        assert.deepStrictEqual(yield* repository.findByEmail(user.email), Option.some(user));
       }));
 
     test("finds no User for an unknown id or email", () =>
@@ -131,7 +126,7 @@ export const userRepositorySuite = (layer: Layer.Layer<UserRepository>) => {
 
         const results = yield* Effect.forEach(
           [first, second],
-          (user) => Effect.result(repository.create(user, "hash")),
+          (user) => Effect.result(repository.create(user)),
           { concurrency: "unbounded" },
         );
 
@@ -167,26 +162,7 @@ export const userRepositorySuite = (layer: Layer.Layer<UserRepository>) => {
         assert.isTrue(Option.isNone(yield* repository.findById(UserId.make("not-an-id"))));
       }));
 
-    test("replaces the password hash of a User, and keeps the others'", () =>
-      Effect.gen(function* () {
-        const repository = yield* UserRepository;
-        const mark = yield* aMark;
-        const [ada, grace] = [yield* aUser(mark, "ada"), yield* aUser(mark, "grace")];
-        yield* created(ada, grace);
-
-        yield* repository.setPasswordHash(ada.id, "new hash");
-
-        assert.deepStrictEqual(
-          yield* repository.findByEmail(ada.email),
-          Option.some({ user: ada, passwordHash: "new hash" }),
-        );
-        assert.deepStrictEqual(
-          yield* repository.findByEmail(grace.email),
-          Option.some({ user: grace, passwordHash: `hash of ${grace.email}` }),
-        );
-      }));
-
-    test("keeps the email and the password hash on update", () =>
+    test("keeps the email on update", () =>
       Effect.gen(function* () {
         const repository = yield* UserRepository;
         const mark = yield* aMark;
@@ -203,10 +179,7 @@ export const userRepositorySuite = (layer: Layer.Layer<UserRepository>) => {
 
         assert.deepStrictEqual(
           yield* repository.findByEmail(user.email),
-          Option.some({
-            user: new User({ ...suspended, email: user.email }),
-            passwordHash: `hash of ${user.email}`,
-          }),
+          Option.some(new User({ ...suspended, email: user.email })),
         );
         assert.isTrue(Option.isNone(yield* repository.findByEmail(suspended.email)));
       }));

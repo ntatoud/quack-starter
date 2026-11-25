@@ -18,7 +18,7 @@ import { db, type Tables } from "#/database/db.ts";
 
 import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
 
-const UserWithHash = Schema.Struct({ user: User, passwordHash: Schema.String });
+const UserRow = Schema.Struct({ user: User });
 
 const UserList = Schema.Struct({ items: Schema.Array(User), total: Schema.Int });
 
@@ -81,7 +81,7 @@ const order = (ob: OrderByItemBuilder, direction: "asc" | "desc") =>
   direction === "asc" ? ob.asc().nullsLast() : ob.desc().nullsLast();
 
 const findUser = (where: (eb: UsersWithProfiles) => Expression<SqlBool>) =>
-  usersWithProfiles.select((eb) => [userJson(eb).as("user"), "passwordHash"]).where(where);
+  usersWithProfiles.select((eb) => [userJson(eb).as("user")]).where(where);
 
 // Writes the Profile of the User the statement wrote, whose id the `written` CTE returns.
 const writeProfile = (
@@ -126,13 +126,13 @@ export const UserRepositoryPostgres = Layer.effect(
 
     const findById = SqlSchema.findOneOption({
       Request: UserId,
-      Result: UserWithHash,
+      Result: UserRow,
       execute: (id) => execute(findUser((eb) => eb("users.id", "=", id))),
     });
 
     const findByEmail = SqlSchema.findOneOption({
       Request: Email,
-      Result: UserWithHash,
+      Result: UserRow,
       execute: (email) => execute(findUser((eb) => eb("email", "=", email))),
     });
 
@@ -205,8 +205,8 @@ export const UserRepositoryPostgres = Layer.effect(
     });
 
     const insert = SqlSchema.void({
-      Request: UserWithHash,
-      execute: ({ user, passwordHash }) =>
+      Request: User,
+      execute: (user) =>
         execute(
           writeProfile(
             db.with("written", (query) =>
@@ -215,7 +215,7 @@ export const UserRepositoryPostgres = Layer.effect(
                 .values({
                   id: user.id,
                   email: user.email,
-                  passwordHash,
+                  securityRevision: crypto.randomUUID(),
                   role: user.role,
                   status: user.status,
                   createdAt: user.createdAt,
@@ -238,14 +238,27 @@ export const UserRepositoryPostgres = Layer.effect(
             db.with("written", (query) =>
               query
                 .updateTable("users")
-                .set({
+                .set((eb) => ({
                   role: user.role,
+                  // A User who can no longer sign in loses every Session: Yielded refuses the Sessions of an
+                  // earlier revision, which would otherwise open again on reactivation.
+                  securityRevision: eb
+                    .case()
+                    .when(
+                      eb.and([
+                        eb("status", "=", "active"),
+                        eb(eb.val(user.status), "<>", "active"),
+                      ]),
+                    )
+                    .then(sql<string>`gen_random_uuid()::text`)
+                    .else(eb.ref("securityRevision"))
+                    .end(),
                   status: user.status,
                   createdAt: user.createdAt,
                   lastSignInAt: user.lastSignInAt,
                   onboardedAt: user.onboardedAt,
                   timeZone: user.timeZone,
-                })
+                }))
                 .where("id", "=", user.id)
                 .returning("id"),
             ),
@@ -254,23 +267,42 @@ export const UserRepositoryPostgres = Layer.effect(
         ),
     });
 
-    const setPasswordHash = SqlSchema.void({
-      Request: Schema.Struct({ id: UserId, passwordHash: Schema.String }),
-      execute: ({ id, passwordHash }) =>
-        execute(db.updateTable("users").set({ passwordHash }).where("id", "=", id)),
-    });
-
-    // The Profile, the Todos, and the Sessions of the User go with them (`ON DELETE CASCADE`).
+    // The Profile and the Todos of the User go with them (`ON DELETE CASCADE`). The rows of Yielded Auth name
+    // them as text, with no foreign key: they go here, or the email would stay taken.
     const remove = SqlSchema.findAll({
       Request: UserId,
       Result: Schema.Struct({ id: UserId }),
-      execute: (id) => execute(db.deleteFrom("users").where("id", "=", id).returning("id")),
+      execute: (id) =>
+        execute(
+          db
+            .with("identifiers", (query) =>
+              query
+                .deleteFrom("authIdentifiers")
+                .where("subjectId", "=", id)
+                .returning("subjectId"),
+            )
+            .with("credentials", (query) =>
+              query
+                .deleteFrom("authCredentials")
+                .where("subjectId", "=", id)
+                .returning("subjectId"),
+            )
+            .with("passwords", (query) =>
+              query.deleteFrom("authPasswords").where("subjectId", "=", id).returning("subjectId"),
+            )
+            .with("sessions", (query) =>
+              query.deleteFrom("authSessions").where("subjectId", "=", id).returning("subjectId"),
+            )
+            .deleteFrom("users")
+            .where("id", "=", id)
+            .returning("id"),
+        ),
     });
 
     return UserRepository.of({
       nextId: Effect.sync(() => UserId.make(crypto.randomUUID())),
-      create: Effect.fn("UserRepository.create")(function* (user, passwordHash) {
-        yield* insert({ user, passwordHash }).pipe(
+      create: Effect.fn("UserRepository.create")(function* (user) {
+        yield* insert(user).pipe(
           Effect.catchTags({
             SqlError: (error) =>
               error.reason._tag === "UniqueViolation" &&
@@ -282,9 +314,6 @@ export const UserRepositoryPostgres = Layer.effect(
         );
       }),
       update: Effect.fn("UserRepository.update")((user) => update(user).pipe(Effect.orDie)),
-      setPasswordHash: Effect.fn("UserRepository.setPasswordHash")((id, passwordHash) =>
-        byStorableId(id, setPasswordHash({ id, passwordHash }), undefined),
-      ),
       remove: Effect.fn("UserRepository.remove")((id) =>
         byStorableId(id, remove(id).pipe(Effect.map((removed) => removed.length > 0)), false),
       ),
@@ -296,7 +325,10 @@ export const UserRepositoryPostgres = Layer.effect(
         ),
       ),
       findByEmail: Effect.fn("UserRepository.findByEmail")((email) =>
-        findByEmail(email).pipe(Effect.orDie),
+        findByEmail(email).pipe(
+          Effect.map((found) => found.pipe(Option.map(({ user }) => user))),
+          Effect.orDie,
+        ),
       ),
       findAll: Effect.fn("UserRepository.findAll")((query) => list(query).pipe(Effect.orDie)),
     });

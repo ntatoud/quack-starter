@@ -1,9 +1,10 @@
-import { sessionCookie } from "@quack/contracts/identity/authentication";
 import { InvalidCsrfToken } from "@quack/contracts/oauth/oauth-errors";
 import { Context, Effect, Layer, Result } from "effect";
 import { Digest, Mac } from "effect/crypto";
 import { Base64Url } from "effect/encoding";
 import { HttpServerRequest } from "effect/http";
+
+import { sessionCookieName } from "#/modules/identity/http/app-auth-http.ts";
 
 /**
  * The token a page sends back with a decision of the User, proving the decision was made on it.
@@ -22,12 +23,13 @@ export class CsrfTokens extends Context.Service<
     CsrfTokens,
     Effect.gen(function* () {
       const digest = yield* Digest.Digest;
+      const cookieName = yield* sessionCookieName;
 
       // Derived from the session token, which only the User's browser holds (an httpOnly cookie): another site
       // can neither read nor compute it, and it changes with the Session. Prefixed, so it is never the stored hash.
       // Without a Session there is no token: none would tell one caller from another.
       const sessionTokenDigest = Effect.flatMap(HttpServerRequest.HttpServerRequest, (request) => {
-        const session = request.cookies[sessionCookie.key];
+        const session = request.cookies[cookieName];
 
         return session === undefined
           ? Effect.fail(new InvalidCsrfToken())

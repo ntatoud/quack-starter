@@ -9,7 +9,7 @@ A person who has signed up, identified by their email and proving it with a pass
 _Avoid_: Account, member, customer
 
 **Session**:
-The proof that a User has signed in, valid until they sign out or it expires. A request extends a Session that is close to its expiry.
+The proof that a User has signed in, valid until they sign out or it expires.
 _Avoid_: Token, login
 
 **Current User**:
@@ -21,7 +21,7 @@ What a User is allowed to do: `user` or `admin`. A Role gives a set of Permissio
 _Avoid_: Group, profile
 
 **Status**:
-Whether a User can sign in: `active`, `invited` (added, but has not chosen a password yet), or `suspended` (refused by an Admin). Only an `active` User signs in, and a Session of a User who is no longer `active` ends at its next request.
+Whether a User can sign in: `active`, `invited` (added, but has not chosen a password yet), or `suspended` (refused by an Admin). Only an `active` User signs in, and a User who is no longer `active` loses every Session.
 _Avoid_: State, enabled, banned
 
 **Profile**:

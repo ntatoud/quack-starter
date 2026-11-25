@@ -9,9 +9,29 @@ export type Generated<T> = T extends ColumnType<infer S, infer I, infer U>
   ? ColumnType<S, I | undefined, U>
   : ColumnType<T, T | undefined, T>;
 
+export type Int8 = ColumnType<string, bigint | number | string, bigint | number | string>;
+
 export type Timestamp = ColumnType<Date, Date | string, Date | string>;
 
 export type UserStatus = "active" | "invited" | "suspended";
+
+export interface AuthCredentials {
+  active: boolean;
+  credentialId: string;
+  revision: string;
+  subjectId: string;
+}
+
+export interface AuthIdentifiers {
+  active: boolean;
+  credentialId: string | null;
+  moduleId: string | null;
+  namespace: string;
+  revision: string;
+  subjectId: string;
+  value: string;
+  verifiedAt: Int8 | null;
+}
 
 export interface AuthorizationCodes {
   aiClientId: string;
@@ -23,6 +43,55 @@ export interface AuthorizationCodes {
   redirectUri: string;
   resource: string;
   userId: string;
+}
+
+export interface AuthPasswords {
+  credentialId: string;
+  credentialRevision: string;
+  moduleId: string;
+  normalization: string;
+  subjectId: string;
+  verifier: string;
+  verifierVersion: string;
+}
+
+export interface AuthPending {
+  attemptLimit: Int8;
+  bindingDigest: string;
+  consumed: boolean;
+  digest: string;
+  expiresAt: Int8;
+  failedAttempts: Int8;
+  flowId: string;
+  kind: string;
+  moduleId: string;
+  snapshot: string;
+  subjectId: string;
+  version: string;
+}
+
+export interface AuthProofs {
+  binding: string;
+  expiresAt: Int8;
+  failedAttempts: Int8;
+  issuedAt: Int8;
+  moduleId: string;
+  proofId: string;
+  purpose: string;
+  seriesKey: string;
+  verifierDigest: string;
+  verifierKeyId: string;
+}
+
+export interface AuthSessions {
+  absoluteExpiresAt: Int8;
+  digest: string;
+  expiresAt: Int8;
+  issuedAt: Int8;
+  record: string;
+  securityRevision: string;
+  sessionId: string;
+  subjectId: string;
 }
 
 export interface GrantAccessTokens {
@@ -60,12 +129,6 @@ export interface LinkTokens {
   userId: string;
 }
 
-export interface Sessions {
-  expiresAt: Timestamp;
-  tokenHash: string;
-  userId: string;
-}
-
 export interface Todos {
   completed: boolean;
   createdAt: Timestamp;
@@ -85,24 +148,29 @@ export interface UserProfiles {
 }
 
 export interface Users {
-  createdAt: Timestamp;
+  createdAt: Generated<Timestamp>;
   email: string;
   id: string;
   lastSignInAt: Timestamp | null;
   onboardedAt: Timestamp | null;
-  passwordHash: string;
   role: string;
+  securityRevision: string;
   status: UserStatus;
   timeZone: string;
 }
 
 export interface DB {
+  authCredentials: AuthCredentials;
+  authIdentifiers: AuthIdentifiers;
   authorizationCodes: AuthorizationCodes;
+  authPasswords: AuthPasswords;
+  authPending: AuthPending;
+  authProofs: AuthProofs;
+  authSessions: AuthSessions;
   grantAccessTokens: GrantAccessTokens;
   grantRefreshTokens: GrantRefreshTokens;
   grants: Grants;
   linkTokens: LinkTokens;
-  sessions: Sessions;
   todos: Todos;
   userProfiles: UserProfiles;
   users: Users;

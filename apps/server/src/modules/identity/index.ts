@@ -16,7 +16,8 @@ import { GrantsHandlers } from "#/modules/identity/http/grants-handlers.ts";
 import { IdentityHandlers } from "#/modules/identity/http/identity-handlers.ts";
 import { OAuthHandlers } from "#/modules/identity/http/oauth-handlers.ts";
 import { OAuthMetadataRoutes } from "#/modules/identity/http/oauth-metadata.ts";
-import { SessionCookie } from "#/modules/identity/http/session-cookie.ts";
+import { localAuthRequest } from "#/modules/identity/domain/app-auth.ts";
+import { withAppAuthRequests } from "#/modules/identity/http/app-auth-http.ts";
 import { TokenEndpointHeaders } from "#/modules/identity/http/token-endpoint-headers.ts";
 import { UsersHandlers } from "#/modules/identity/http/users-handlers.ts";
 import { AiClientDocumentsHttp } from "#/modules/identity/infrastructure/ai-client-documents-http.ts";
@@ -24,9 +25,9 @@ import { AiClientHttpClient } from "#/modules/identity/infrastructure/ai-client-
 import { AuthorizationCodeStorePostgres } from "#/modules/identity/infrastructure/authorization-code-store-postgres.ts";
 import { GrantStorePostgres } from "#/modules/identity/infrastructure/grant-store-postgres.ts";
 import { LinkTokenStorePostgres } from "#/modules/identity/infrastructure/link-token-store-postgres.ts";
+import { AppAuthPostgres } from "#/modules/identity/infrastructure/app-auth-postgres.ts";
 import { AttemptLimiterMemory } from "#/modules/identity/infrastructure/attempt-limiter-memory.ts";
-import { PasswordHasherArgon2 } from "#/modules/identity/infrastructure/password-hasher-argon2.ts";
-import { SessionStorePostgres } from "#/modules/identity/infrastructure/session-store-postgres.ts";
+import { PasswordCredentialsPostgres } from "#/modules/identity/infrastructure/password-credentials-postgres.ts";
 import { UserRepositoryPostgres } from "#/modules/identity/infrastructure/user-repository-postgres.ts";
 
 export {
@@ -38,27 +39,24 @@ export {
   McpCaller,
   OAuthMetadataRoutes,
   TokenEndpointHeaders,
+  localAuthRequest,
+  withAppAuthRequests,
 };
 
+/** With `AppAuth`, which Yielded Auth stores in Postgres too. */
 export const IdentityPostgres = Layer.mergeAll(
   UserRepositoryPostgres,
-  SessionStorePostgres,
+  PasswordCredentialsPostgres,
   AuthorizationCodeStorePostgres,
   GrantStorePostgres,
   LinkTokenStorePostgres,
-);
+).pipe(Layer.provideMerge(AppAuthPostgres));
 
 export const IdentityModule = Layer.mergeAll(IdentityHandlers, UsersHandlers).pipe(
   Layer.provideMerge(AuthenticationMiddleware),
-  Layer.provide([
-    Identity.layer,
-    Users.layer,
-    Onboarding.layer,
-    PasswordResets.layer,
-    SessionCookie.layer,
-  ]),
-  Layer.provide([PasswordHasherArgon2, AttemptLimiterMemory]),
-  Layer.provide([NodeCrypto.layerSecureRandom, NodeCrypto.layerDigest, NodeCrypto.layerKdf]),
+  Layer.provide([Identity.layer, Users.layer, Onboarding.layer, PasswordResets.layer]),
+  Layer.provide(AttemptLimiterMemory),
+  Layer.provide([NodeCrypto.layerSecureRandom, NodeCrypto.layerDigest]),
 );
 
 /**

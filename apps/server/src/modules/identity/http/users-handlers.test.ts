@@ -105,7 +105,7 @@ const emailsSorted = users.map(({ email }) => email).toSorted();
 const SeededUsers = Layer.effectDiscard(
   Effect.gen(function* () {
     const repository = yield* UserRepository;
-    yield* Effect.forEach(users, (user) => repository.create(user, "no password"));
+    yield* Effect.forEach(users, (user) => repository.create(user));
   }),
 );
 
@@ -116,7 +116,7 @@ const clientOf = (user: User | undefined) =>
         next(
           user === undefined
             ? request
-            : HttpClientRequest.setHeader(request, "cookie", `session=${user.id}`),
+            : HttpClientRequest.setHeader(request, "cookie", `__Host-quack-session=${user.id}`),
         ),
       ),
     ),
@@ -409,7 +409,7 @@ layer(Layer.mergeAll(UsersLayer, HttpServer.layerServices))("UsersApi", (it) => 
 const ownUser = (name: string, status: UserStatus = "active") =>
   Effect.gen(function* () {
     const user = userOf(name, { status, createdOn: 6, lastSignInOn: null, profile: null });
-    yield* (yield* UserRepository).create(user, "no password");
+    yield* (yield* UserRepository).create(user);
 
     return user;
   });
