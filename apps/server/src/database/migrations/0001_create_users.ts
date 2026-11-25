@@ -1,25 +1,26 @@
-import { executor } from "@quack/effect-kysely/kysely";
+import { executor, postgres } from "@quack/effect-kysely/kysely";
 import { Effect } from "effect";
 import { sql } from "kysely";
-import { db } from "#/database/db.ts";
+
+const { schema } = postgres();
 
 export default Effect.gen(function* () {
   const execute = yield* executor;
   // An enum sorts in the order of its labels: alphabetical, as the list of Users sorts by status.
-  yield* execute(db.schema.createType("user_status").asEnum(["active", "invited", "suspended"]));
+  yield* execute(schema.createType("user_status").asEnum(["active", "invited", "suspended"]));
   yield* execute(
-    db.schema
+    schema
       .createTable("users")
       .addColumn("id", "uuid")
       .addColumn("email", "text", (column) => column.notNull())
-      .addColumn("passwordHash", "text", (column) => column.notNull())
+      .addColumn("password_hash", "text", (column) => column.notNull())
       .addColumn("role", "text", (column) => column.notNull())
       .addColumn("status", sql`user_status`, (column) => column.notNull())
-      .addColumn("createdAt", "timestamptz", (column) => column.notNull())
-      .addColumn("lastSignInAt", "timestamptz")
-      .addColumn("onboardedAt", "timestamptz")
+      .addColumn("created_at", "timestamptz", (column) => column.notNull())
+      .addColumn("last_sign_in_at", "timestamptz")
+      .addColumn("onboarded_at", "timestamptz")
       // An IANA name, such as Europe/Paris.
-      .addColumn("timeZone", "text", (column) => column.notNull())
+      .addColumn("time_zone", "text", (column) => column.notNull())
       .addPrimaryKeyConstraint("users_pkey", ["id"])
       .addUniqueConstraint("users_email_key", ["email"]),
   );
@@ -27,6 +28,6 @@ export default Effect.gen(function* () {
 
 export const down = Effect.gen(function* () {
   const execute = yield* executor;
-  yield* execute(db.schema.dropTable("users"));
-  yield* execute(db.schema.dropType("user_status"));
+  yield* execute(schema.dropTable("users"));
+  yield* execute(schema.dropType("user_status"));
 });

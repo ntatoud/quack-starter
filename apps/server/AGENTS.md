@@ -37,7 +37,7 @@ Migrations built by Kysely and run by Effect SQL, tables typed by kysely-codegen
 
 Migrations (`docs/adr/0002-typescript-migrations-applied-at-startup.md`) live in `database/migrations/`, for every module:
 
-- A migration builds its statements with `db.schema` and runs them through `executor`; copy `0003_create_todos.ts`.
+- A migration builds its statements with the `schema` of a `postgres()` of its own, never `db`, and runs them through `executor`: it names tables and columns in snake_case, as Postgres keeps them, so a later change to `db.ts` cannot change what it ran. Copy `0003_create_todos.ts`; `0001_create_users.ts` for an enum, `0006_create_grants.ts` for a `text[]` column.
 - Edit a migration until it is merged; after that, add a new one.
 - A `down` that cannot honestly undo (data dropped) fails with a message saying why.
 - Dev loop: the server applies the migration at startup, `pnpm db:rollback` reverts it, edit, restart, `pnpm db:gen`.

@@ -1,7 +1,8 @@
 {
   "$schema": "./node_modules/fallow/schema.json",
   // Run through with-dev-database.ts and portless, which fallow does not read as entries. The
-  // Migrator loads the migrations from their folder, not through an import.
+  // Migrator loads the migrations from their folder, not through an import. kysely-codegen writes
+  // db.gen.ts, whole, whatever reads it.
   "entry": [
     "apps/server/src/database/rollback-main.ts",
     "apps/server/src/database/seed-main.ts",
@@ -9,6 +10,7 @@
     "apps/server/src/dev/with-public-url.ts",
     "apps/server/src/dev/with-dev-mail.ts",
     "apps/server/src/database/migrations/*.ts",
+    "apps/server/src/database/db.gen.ts",
   ],
   // A migration is history: it repeats the columns of another rather than share code a later change would rewrite.
   "duplicates": { "ignore": ["apps/server/src/database/migrations/*.ts"] },

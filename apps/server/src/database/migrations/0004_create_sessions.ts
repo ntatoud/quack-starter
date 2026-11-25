@@ -1,25 +1,25 @@
-import { executor } from "@quack/effect-kysely/kysely";
+import { executor, postgres } from "@quack/effect-kysely/kysely";
 import { Effect } from "effect";
 
-import { db } from "#/database/db.ts";
+const { schema } = postgres();
 
 export default Effect.gen(function* () {
   const execute = yield* executor;
   yield* execute(
-    db.schema
+    schema
       .createTable("sessions")
-      .addColumn("tokenHash", "text")
-      .addColumn("userId", "uuid", (column) => column.notNull())
-      .addColumn("expiresAt", "timestamptz", (column) => column.notNull())
-      .addPrimaryKeyConstraint("sessions_pkey", ["tokenHash"])
-      .addForeignKeyConstraint("sessions_user_id_fkey", ["userId"], "users", ["id"], (fk) =>
+      .addColumn("token_hash", "text")
+      .addColumn("user_id", "uuid", (column) => column.notNull())
+      .addColumn("expires_at", "timestamptz", (column) => column.notNull())
+      .addPrimaryKeyConstraint("sessions_pkey", ["token_hash"])
+      .addForeignKeyConstraint("sessions_user_id_fkey", ["user_id"], "users", ["id"], (fk) =>
         fk.onDelete("cascade"),
       ),
   );
-  yield* execute(db.schema.createIndex("sessions_user_id_idx").on("sessions").column("userId"));
+  yield* execute(schema.createIndex("sessions_user_id_idx").on("sessions").column("user_id"));
 });
 
 export const down = Effect.gen(function* () {
   const execute = yield* executor;
-  yield* execute(db.schema.dropTable("sessions"));
+  yield* execute(schema.dropTable("sessions"));
 });

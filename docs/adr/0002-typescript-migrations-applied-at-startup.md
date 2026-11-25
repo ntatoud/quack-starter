@@ -1,6 +1,6 @@
 # 0002: Migrations are TypeScript files applied at startup, with a required `down` and our own rollback on Effect's forward-only Migrator
 
-Accepted, 2026-11-18. Decided in [#93](https://github.com/ntatoud/quack-starter/issues/93) and [#99](https://github.com/ntatoud/quack-starter/issues/99).
+Amended by [0007](0007-queries-built-by-kysely-run-by-effect-sql.md) on how a migration is written, 2026-11-24. Accepted, 2026-11-18. Decided in [#93](https://github.com/ntatoud/quack-starter/issues/93) and [#99](https://github.com/ntatoud/quack-starter/issues/99).
 
 ## Context
 
@@ -8,7 +8,7 @@ Effect's `Migrator` loads migrations as modules whose default export is an Effec
 
 ## Decision
 
-- Migrations live in `apps/server/src/database/migrations/`, one folder for every module, since their order is global. A migration is a TypeScript file of plain SQL in a `sql` template, named with a 4-digit id: `0001_create_users.ts`. Its `default` export is its up; a named `down` export is required.
+- Migrations live in `apps/server/src/database/migrations/`, one folder for every module, since their order is global. A migration is a TypeScript file, its statements built by Kysely's schema builder (ADR 0007; plain SQL in a `sql` template before it), named with a 4-digit id: `0001_create_users.ts`. Its `default` export is its up; a named `down` export is required.
 - The server applies the pending migrations at startup, in every environment, before it serves anything (`PgMigrator.layer` under the client). There is no migrate command.
 - A plain Node test checks that the ids run from 1 with no gap or duplicate and that every migration exports `down`, since the Migrator would skip a misnumbered one without a word.
 - Reverting is ours to build on top of the Migrator, in a later change: a rollback command will run the latest migration's `down` and delete its row, in one transaction. A `down` that cannot honestly undo (data dropped) fails with a message saying why.
