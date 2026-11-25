@@ -10,26 +10,33 @@ const at = (iso: string) => DateTime.makeUnsafe(iso);
 // An adapter that persists keeps the Sessions of the tests before, so each test has its own tokens.
 const aTokenHash = Effect.sync(() => crypto.randomUUID());
 
-const aSession = (fields: Partial<Session> = {}) =>
-  Effect.gen(function* () {
-    return {
-      tokenHash: yield* aTokenHash,
-      userId: UserId.make(crypto.randomUUID()),
-      expiresAt: at("2026-02-01T00:00:00Z"),
-      ...fields,
-    } satisfies Session;
-  });
+/**
+ * The promises of a `SessionStore`. `aUser` gives the id of a new User, which an adapter with foreign keys
+ * must have stored.
+ */
+export const sessionStoreSuite = <R>(
+  layer: Layer.Layer<SessionStore | R>,
+  aUser: Effect.Effect<UserId, never, R>,
+) => {
+  const aSession = (fields: Partial<Session> = {}) =>
+    Effect.gen(function* () {
+      return {
+        tokenHash: yield* aTokenHash,
+        userId: fields.userId ?? (yield* aUser),
+        expiresAt: at("2026-02-01T00:00:00Z"),
+        ...fields,
+      } satisfies Session;
+    });
 
-const aSavedSession = (fields: Partial<Session> = {}) =>
-  Effect.gen(function* () {
-    const session = yield* aSession(fields);
-    yield* (yield* SessionStore).save(session);
+  const aSavedSession = (fields: Partial<Session> = {}) =>
+    Effect.gen(function* () {
+      const session = yield* aSession(fields);
+      yield* (yield* SessionStore).save(session);
 
-    return session;
-  });
+      return session;
+    });
 
-export const sessionStoreSuite = (layer: Layer.Layer<SessionStore>) => {
-  const test = (name: string, body: () => Effect.Effect<void, never, SessionStore>) =>
+  const test = (name: string, body: () => Effect.Effect<void, never, SessionStore | R>) =>
     it.effect(name, () => body().pipe(Effect.provide(layer)));
 
   describe("SessionStore", () => {

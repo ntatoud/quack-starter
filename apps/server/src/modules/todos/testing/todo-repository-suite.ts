@@ -7,9 +7,6 @@ import { TodoRepository } from "#/modules/todos/domain/todo-repository.ts";
 
 const at = (iso: string) => DateTime.makeUnsafe(iso);
 
-// An adapter that persists keeps the Todos of the tests before, so each test has its own Owners.
-const anOwner = Effect.sync(() => UserId.make(crypto.randomUUID()));
-
 const aTodo = (fields: Partial<Todo> & Pick<Todo, "id" | "ownerId">) =>
   new Todo({
     title: TodoTitle.make("Ship it"),
@@ -27,8 +24,15 @@ const aSavedTodo = (ownerId: UserId) =>
     return todo;
   });
 
-export const todoRepositorySuite = (layer: Layer.Layer<TodoRepository>) => {
-  const test = (name: string, body: () => Effect.Effect<void, never, TodoRepository>) =>
+/**
+ * The promises of a `TodoRepository`. `anOwner` gives the id of a new User, which an adapter with foreign keys must
+ * have stored. An adapter that persists keeps the Todos of the tests before, so each test has its own Owners.
+ */
+export const todoRepositorySuite = <R>(
+  layer: Layer.Layer<TodoRepository | R>,
+  anOwner: Effect.Effect<UserId, never, R>,
+) => {
+  const test = (name: string, body: () => Effect.Effect<void, never, TodoRepository | R>) =>
     it.effect(name, () => body().pipe(Effect.provide(layer)));
 
   describe("TodoRepository", () => {
