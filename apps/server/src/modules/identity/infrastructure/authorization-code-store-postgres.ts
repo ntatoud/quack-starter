@@ -1,7 +1,10 @@
 import { UserId } from "@quack/contracts/identity/user";
 import { Permission } from "@quack/contracts/permission";
 import { Effect, Layer, Schema } from "effect";
-import { SqlClient, SqlSchema } from "effect/sql";
+import { executor } from "@quack/effect-kysely/kysely";
+import { SqlSchema } from "effect/sql";
+
+import { db } from "#/database/db.ts";
 
 import { AuthorizationCodeStore } from "#/modules/identity/domain/authorization-code-store.ts";
 
@@ -20,22 +23,21 @@ const AuthorizationCodeRow = Schema.Struct({
 export const AuthorizationCodeStorePostgres = Layer.effect(
   AuthorizationCodeStore,
   Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient;
+    const execute = yield* executor;
 
     const insert = SqlSchema.void({
       Request: AuthorizationCodeRow,
-      execute: (code) => sql`INSERT INTO authorization_codes ${sql.insert(code)}`,
+      execute: (code) => execute(db.insertInto("authorizationCodes").values(code)),
     });
 
     // One statement finds and removes the code, so two exchanges of it never both find it.
     const take = SqlSchema.findOneOption({
       Request: Schema.String,
       Result: AuthorizationCodeRow,
-      execute: (codeHash) => sql`
-        DELETE FROM authorization_codes WHERE code_hash = ${codeHash}
-        RETURNING code_hash, user_id, ai_client_id, ai_client_name, redirect_uri, resource,
-          permissions, code_challenge, expires_at
-      `,
+      execute: (codeHash) =>
+        execute(
+          db.deleteFrom("authorizationCodes").where("codeHash", "=", codeHash).returningAll(),
+        ),
     });
 
     return AuthorizationCodeStore.of({

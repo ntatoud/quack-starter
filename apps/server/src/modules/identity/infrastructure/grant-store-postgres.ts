@@ -1,7 +1,10 @@
 import { UserId } from "@quack/contracts/identity/user";
 import { Permission } from "@quack/contracts/permission";
 import { Effect, Layer, Option, Schema, Struct } from "effect";
+import { executor } from "@quack/effect-kysely/kysely";
 import { SqlClient, SqlSchema } from "effect/sql";
+
+import { db } from "#/database/db.ts";
 
 import { GrantStore } from "#/modules/identity/domain/grant-store.ts";
 
@@ -59,87 +62,136 @@ export const GrantStorePostgres = Layer.effect(
   GrantStore,
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-    const grantColumns = sql`id, user_id, ai_client_id, ai_client_name, redirect_uri, resource, permissions, expires_at, last_used_at`;
+    const execute = yield* executor;
+
+    const grantColumns = [
+      "id",
+      "userId",
+      "aiClientId",
+      "aiClientName",
+      "redirectUri",
+      "resource",
+      "permissions",
+      "expiresAt",
+      "lastUsedAt",
+    ] as const;
 
     const upsert = SqlSchema.findOne({
       Request: GrantDraftRow,
       Result: GrantRow,
       // One statement, so no token outlives the terms it was given under.
-      execute: (draft) => sql`
-        WITH saved AS (
-          INSERT INTO grants ${sql.insert(draft)}
-          ON CONFLICT ON CONSTRAINT grants_user_id_ai_client_id_key DO UPDATE SET
-            ai_client_name = EXCLUDED.ai_client_name,
-            redirect_uri = EXCLUDED.redirect_uri,
-            resource = EXCLUDED.resource,
-            permissions = EXCLUDED.permissions,
-            expires_at = EXCLUDED.expires_at
-          RETURNING ${grantColumns}
-        ), revoked_access AS (
-          DELETE FROM grant_access_tokens WHERE grant_id IN (SELECT id FROM saved)
-        ), revoked_refresh AS (
-          DELETE FROM grant_refresh_tokens WHERE grant_id IN (SELECT id FROM saved)
-        )
-        SELECT ${grantColumns} FROM saved
-      `,
+      execute: (draft) =>
+        execute(
+          db
+            .with("saved", (query) =>
+              query
+                .insertInto("grants")
+                .values(draft)
+                .onConflict((conflict) =>
+                  conflict.constraint("grants_user_id_ai_client_id_key").doUpdateSet((eb) => ({
+                    aiClientName: eb.ref("excluded.aiClientName"),
+                    redirectUri: eb.ref("excluded.redirectUri"),
+                    resource: eb.ref("excluded.resource"),
+                    permissions: eb.ref("excluded.permissions"),
+                    expiresAt: eb.ref("excluded.expiresAt"),
+                  })),
+                )
+                .returning(grantColumns),
+            )
+            .with("revoked_access", (query) =>
+              query
+                .deleteFrom("grantAccessTokens")
+                .where("grantId", "in", (eb) => eb.selectFrom("saved").select("id")),
+            )
+            .with("revoked_refresh", (query) =>
+              query
+                .deleteFrom("grantRefreshTokens")
+                .where("grantId", "in", (eb) => eb.selectFrom("saved").select("id")),
+            )
+            .selectFrom("saved")
+            .select(grantColumns),
+        ),
     });
 
     const findOf = SqlSchema.findOneOption({
       Request: GrantDraftRow.mapFields(Struct.pick(["userId", "aiClientId"])),
       Result: GrantRow,
-      execute: ({ userId, aiClientId }) => sql`
-        SELECT ${grantColumns} FROM grants
-        WHERE user_id = ${userId} AND ai_client_id = ${aiClientId}
-      `,
+      execute: ({ userId, aiClientId }) =>
+        execute(
+          db
+            .selectFrom("grants")
+            .select(grantColumns)
+            .where("userId", "=", userId)
+            .where("aiClientId", "=", aiClientId),
+        ),
     });
 
     const listOf = SqlSchema.findAll({
       Request: UserId,
       Result: GrantRow,
-      execute: (userId) => sql`
-        SELECT ${grantColumns} FROM grants WHERE user_id = ${userId}
-        ORDER BY last_used_at DESC NULLS LAST, id
-      `,
+      execute: (userId) =>
+        execute(
+          db
+            .selectFrom("grants")
+            .select(grantColumns)
+            .where("userId", "=", userId)
+            .orderBy("lastUsedAt", (order) => order.desc().nullsLast())
+            .orderBy("id"),
+        ),
     });
 
     const markUsed = SqlSchema.void({
       Request: GrantRow.mapFields(Struct.pick(["id", "lastUsedAt"])),
       execute: ({ id, lastUsedAt }) =>
-        sql`UPDATE grants SET last_used_at = ${lastUsedAt} WHERE id = ${id}`,
+        execute(db.updateTable("grants").set({ lastUsedAt }).where("id", "=", id)),
     });
 
     const insertAccessToken = SqlSchema.void({
       Request: AccessTokenRow,
-      execute: (token) => sql`INSERT INTO grant_access_tokens ${sql.insert(token)}`,
+      execute: (token) => execute(db.insertInto("grantAccessTokens").values(token)),
     });
 
     const findByAccessToken = SqlSchema.findOneOption({
       Request: Schema.String,
       Result: GrantWithAccessTokenRow,
-      execute: (tokenHash) => sql`
-        SELECT grants.*, token.token_hash AS access_token_hash,
-          token.resource AS access_token_resource, token.permissions AS access_token_permissions,
-          token.expires_at AS access_token_expires_at
-        FROM grant_access_tokens AS token JOIN grants ON grants.id = token.grant_id
-        WHERE token.token_hash = ${tokenHash}
-      `,
+      execute: (tokenHash) =>
+        execute(
+          db
+            .selectFrom("grantAccessTokens as token")
+            .innerJoin("grants", "grants.id", "token.grantId")
+            .selectAll("grants")
+            .select([
+              "token.tokenHash as accessTokenHash",
+              "token.resource as accessTokenResource",
+              "token.permissions as accessTokenPermissions",
+              "token.expiresAt as accessTokenExpiresAt",
+            ])
+            .where("token.tokenHash", "=", tokenHash),
+        ),
     });
 
     const insertRefreshToken = SqlSchema.void({
       Request: RefreshTokenRow,
-      execute: (token) => sql`INSERT INTO grant_refresh_tokens ${sql.insert(token)}`,
+      execute: (token) => execute(db.insertInto("grantRefreshTokens").values(token)),
     });
 
     const findByRefreshToken = SqlSchema.findOneOption({
       Request: Schema.String,
       Result: GrantWithRefreshTokenRow,
-      execute: (tokenHash) => sql`
-        SELECT grants.*, token.token_hash AS refresh_token_hash,
-          token.resource AS refresh_token_resource, token.permissions AS refresh_token_permissions,
-          token.replaced AS refresh_token_replaced
-        FROM grant_refresh_tokens AS token JOIN grants ON grants.id = token.grant_id
-        WHERE token.token_hash = ${tokenHash}
-      `,
+      execute: (tokenHash) =>
+        execute(
+          db
+            .selectFrom("grantRefreshTokens as token")
+            .innerJoin("grants", "grants.id", "token.grantId")
+            .selectAll("grants")
+            .select([
+              "token.tokenHash as refreshTokenHash",
+              "token.resource as refreshTokenResource",
+              "token.permissions as refreshTokenPermissions",
+              "token.replaced as refreshTokenReplaced",
+            ])
+            .where("token.tokenHash", "=", tokenHash),
+        ),
     });
 
     // Locks the Grant before the token: a revocation, which deletes the Grant first, then waits for the
@@ -147,55 +199,75 @@ export const GrantStorePostgres = Layer.effect(
     const lockGrant = SqlSchema.findAll({
       Request: Schema.String,
       Result: Schema.Struct({ id: Schema.String }),
-      execute: (id) => sql`SELECT id FROM grants WHERE id = ${id} FOR NO KEY UPDATE`,
+      execute: (id) =>
+        execute(db.selectFrom("grants").select("id").where("id", "=", id).forNoKeyUpdate()),
     });
 
     const markReplaced = SqlSchema.findAll({
       Request: RefreshTokenRow.mapFields(Struct.pick(["tokenHash", "grantId"])),
       Result: Schema.Struct({ tokenHash: Schema.String }),
-      execute: ({ tokenHash, grantId }) => sql`
-        UPDATE grant_refresh_tokens SET replaced = true
-        WHERE token_hash = ${tokenHash} AND grant_id = ${grantId} AND NOT replaced
-        RETURNING token_hash
-      `,
+      execute: ({ tokenHash, grantId }) =>
+        execute(
+          db
+            .updateTable("grantRefreshTokens")
+            .set({ replaced: true })
+            .where("tokenHash", "=", tokenHash)
+            .where("grantId", "=", grantId)
+            .where("replaced", "=", false)
+            .returning("tokenHash"),
+        ),
     });
 
     const extend = SqlSchema.void({
       Request: GrantRow.mapFields(Struct.pick(["id", "expiresAt"])),
       execute: ({ id, expiresAt }) =>
-        sql`UPDATE grants SET expires_at = ${expiresAt} WHERE id = ${id}`,
+        execute(db.updateTable("grants").set({ expiresAt }).where("id", "=", id)),
     });
 
     const changePermissionsOf = SqlSchema.findOneOption({
       Request: GrantRow.mapFields(Struct.pick(["id", "userId", "permissions"])),
       Result: GrantRow,
       // One statement, so no token keeps the Permissions the Grant had.
-      execute: ({ id, userId, permissions }) => sql`
-        WITH changed AS (
-          UPDATE grants SET permissions = ${permissions}::text[]
-          WHERE id = ${id} AND user_id = ${userId}
-          RETURNING ${grantColumns}
-        ), access AS (
-          UPDATE grant_access_tokens SET permissions = ${permissions}::text[]
-          WHERE grant_id IN (SELECT id FROM changed)
-        ), refresh AS (
-          UPDATE grant_refresh_tokens SET permissions = ${permissions}::text[]
-          WHERE grant_id IN (SELECT id FROM changed)
-        )
-        SELECT ${grantColumns} FROM changed
-      `,
+      execute: ({ id, userId, permissions }) =>
+        execute(
+          db
+            .with("changed", (query) =>
+              query
+                .updateTable("grants")
+                .set({ permissions })
+                .where("id", "=", id)
+                .where("userId", "=", userId)
+                .returning(grantColumns),
+            )
+            .with("access", (query) =>
+              query
+                .updateTable("grantAccessTokens")
+                .set({ permissions })
+                .where("grantId", "in", (eb) => eb.selectFrom("changed").select("id")),
+            )
+            .with("refresh", (query) =>
+              query
+                .updateTable("grantRefreshTokens")
+                .set({ permissions })
+                .where("grantId", "in", (eb) => eb.selectFrom("changed").select("id")),
+            )
+            .selectFrom("changed")
+            .select(grantColumns),
+        ),
     });
 
     const revoke = SqlSchema.void({
       Request: Schema.String,
-      execute: (id) => sql`DELETE FROM grants WHERE id = ${id}`,
+      execute: (id) => execute(db.deleteFrom("grants").where("id", "=", id)),
     });
 
     const revokeOf = SqlSchema.findAll({
       Request: GrantRow.mapFields(Struct.pick(["id", "userId"])),
       Result: Schema.Struct({ id: Schema.String }),
       execute: ({ id, userId }) =>
-        sql`DELETE FROM grants WHERE id = ${id} AND user_id = ${userId} RETURNING id`,
+        execute(
+          db.deleteFrom("grants").where("id", "=", id).where("userId", "=", userId).returning("id"),
+        ),
     });
 
     return GrantStore.of({

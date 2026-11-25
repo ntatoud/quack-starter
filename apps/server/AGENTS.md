@@ -28,11 +28,11 @@ To add a context, copy `modules/todos`:
 
 ## Database
 
-Migrations built by Kysely and run by Effect SQL, tables typed by kysely-codegen (`docs/adr/0007-queries-built-by-kysely-run-by-effect-sql.md`); queries are `sql` templates until they move to `db` too. Which database a worktree uses: README.
+Queries and migrations built by Kysely and run by Effect SQL, tables typed by kysely-codegen (`docs/adr/0007-queries-built-by-kysely-run-by-effect-sql.md`). Which database a worktree uses: README.
 
-- An adapter copies `modules/todos/infrastructure/todo-repository-postgres.ts`: one `sql` template per port method, decoded by `SqlSchema` through a row schema private to the adapter.
-- Columns are snake_case and rows arrive in camelCase: write `${sql("createdAt")}`.
+- An adapter copies `modules/todos/infrastructure/todo-repository-postgres.ts`: one query of `db` (`database/db.ts`) per port method, run by the `execute` it reads from `executor` (`@quack/effect-kysely/kysely`) when its Layer is built, decoded by `SqlSchema` through a row schema private to the adapter.
 - `database/db.gen.ts` is generated: after a migration changes the schema, run it on the dev database and `pnpm db:gen`, and commit the file with the migration. CI fails when they disagree. Tables and columns are camelCase in TypeScript, snake_case in Postgres.
+- The seed and the rollback write `sql` templates.
 - A `SqlError` is a defect (`Effect.orDie`), except a `UniqueViolation`, mapped to the domain's error by the name of its constraint. So name every constraint: `.addUniqueConstraint("users_email_key", ["email"])`.
 
 Migrations (`docs/adr/0002-typescript-migrations-applied-at-startup.md`) live in `database/migrations/`, for every module:

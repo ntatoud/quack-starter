@@ -1,6 +1,9 @@
 import { UserId } from "@quack/contracts/identity/user";
 import { Effect, Layer, Schema, Struct } from "effect";
-import { SqlClient, SqlSchema } from "effect/sql";
+import { executor } from "@quack/effect-kysely/kysely";
+import { SqlSchema } from "effect/sql";
+
+import { db } from "#/database/db.ts";
 
 import { SessionStore } from "#/modules/identity/domain/session-store.ts";
 
@@ -13,34 +16,39 @@ const SessionRow = Schema.Struct({
 export const SessionStorePostgres = Layer.effect(
   SessionStore,
   Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient;
+    const execute = yield* executor;
 
     const insert = SqlSchema.void({
       Request: SessionRow,
-      execute: (session) => sql`INSERT INTO sessions ${sql.insert(session)}`,
+      execute: (session) => execute(db.insertInto("sessions").values(session)),
     });
 
     const extend = SqlSchema.void({
       Request: SessionRow.mapFields(Struct.pick(["tokenHash", "expiresAt"])),
       execute: ({ tokenHash, expiresAt }) =>
-        sql`UPDATE sessions SET expires_at = ${expiresAt} WHERE token_hash = ${tokenHash}`,
+        execute(db.updateTable("sessions").set({ expiresAt }).where("tokenHash", "=", tokenHash)),
     });
 
     const findByTokenHash = SqlSchema.findOneOption({
       Request: Schema.String,
       Result: SessionRow,
       execute: (tokenHash) =>
-        sql`SELECT token_hash, user_id, expires_at FROM sessions WHERE token_hash = ${tokenHash}`,
+        execute(
+          db
+            .selectFrom("sessions")
+            .select(["tokenHash", "userId", "expiresAt"])
+            .where("tokenHash", "=", tokenHash),
+        ),
     });
 
     const remove = SqlSchema.void({
       Request: Schema.String,
-      execute: (tokenHash) => sql`DELETE FROM sessions WHERE token_hash = ${tokenHash}`,
+      execute: (tokenHash) => execute(db.deleteFrom("sessions").where("tokenHash", "=", tokenHash)),
     });
 
     const removeAllOf = SqlSchema.void({
       Request: UserId,
-      execute: (userId) => sql`DELETE FROM sessions WHERE user_id = ${userId}`,
+      execute: (userId) => execute(db.deleteFrom("sessions").where("userId", "=", userId)),
     });
 
     return SessionStore.of({
