@@ -63,6 +63,7 @@ export class PasswordResets extends Context.Service<
           userId: user.id,
           purpose: "password_reset",
           expiresAt: DateTime.addDuration(yield* DateTime.now, passwordResetLifetime),
+          newEmail: null,
         });
 
         const url = new URL("/reset-password", publicOrigin);

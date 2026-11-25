@@ -1,8 +1,10 @@
 import { Api } from "@quack/contracts/api";
 import { CurrentUser, sessionCookie } from "@quack/contracts/identity/authentication";
-import { Effect } from "effect";
+import { Me } from "@quack/contracts/identity/user";
+import { Effect, Option } from "effect";
 import { HttpApiBuilder } from "effect/http-api";
 
+import { EmailChanges } from "#/modules/identity/application/email-changes.ts";
 import { Identity } from "#/modules/identity/application/identity.ts";
 import { Onboarding } from "#/modules/identity/application/onboarding.ts";
 import { PasswordResets } from "#/modules/identity/application/password-resets.ts";
@@ -19,6 +21,7 @@ export const IdentityHandlers = HttpApiBuilder.group(
     const users = yield* Users;
     const onboarding = yield* Onboarding;
     const passwordResets = yield* PasswordResets;
+    const emailChanges = yield* EmailChanges;
 
     return handlers.handleAll({
       signUp: Effect.fn(function* ({ payload }) {
@@ -54,7 +57,23 @@ export const IdentityHandlers = HttpApiBuilder.group(
       }),
       confirmPasswordReset: ({ payload }) =>
         passwordResets.confirm(payload.token, payload.password),
-      me: () => Effect.service(CurrentUser),
+      confirmEmailChange: ({ payload }) => emailChanges.confirm(payload.token),
+      me: Effect.fn(function* () {
+        const currentUser = yield* CurrentUser;
+        const pendingEmail = yield* emailChanges.pendingEmail(currentUser.id);
+
+        return new Me({ ...currentUser, pendingEmail: Option.getOrNull(pendingEmail) });
+      }),
+      requestEmailChange: Effect.fn(function* ({ payload }) {
+        const currentUser = yield* CurrentUser;
+
+        yield* emailChanges.request(currentUser.id, payload.newEmail, payload.password);
+      }),
+      cancelEmailChange: Effect.fn(function* () {
+        const currentUser = yield* CurrentUser;
+
+        yield* emailChanges.cancel(currentUser.id);
+      }),
       updateProfile: Effect.fn(function* ({ payload }) {
         const currentUser = yield* CurrentUser;
 

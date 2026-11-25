@@ -63,3 +63,9 @@ export class User extends Schema.Class<User, { readonly brand: unique symbol }>(
   /** Where the User lives: their Days, Today among them, are the dates of this zone. */
   timeZone: TimeZone,
 }) {}
+
+/** The Current User, as `GET /api/me` answers: their User, with what only they see of it. */
+export class Me extends User.extend<Me>("Me")({
+  /** The email of an Email Change waiting for its link to be opened, `null` when there is none. */
+  pendingEmail: Schema.NullOr(Email),
+}) {}

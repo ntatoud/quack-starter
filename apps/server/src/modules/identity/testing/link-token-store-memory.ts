@@ -25,5 +25,17 @@ export const LinkTokenStoreMemory = Layer.sync(LinkTokenStore, () => {
 
         return Option.some(link);
       }),
+    findOf: (userId, purpose) =>
+      Effect.sync(() =>
+        Option.fromNullishOr(
+          links.values().find((link) => link.userId === userId && link.purpose === purpose),
+        ),
+      ),
+    removeOf: (userId, purpose) =>
+      Effect.sync(() => {
+        for (const [tokenHash, link] of links) {
+          if (link.userId === userId && link.purpose === purpose) links.delete(tokenHash);
+        }
+      }),
   });
 });

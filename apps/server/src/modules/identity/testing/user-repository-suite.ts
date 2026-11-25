@@ -2,7 +2,8 @@ import { assert, describe, it } from "@effect/vitest";
 import { CountryCode, Profile, type Team } from "@quack/contracts/identity/profile";
 import { Email, type Role, User, UserId, type UserStatus } from "@quack/contracts/identity/user";
 import type { UserListQuery } from "@quack/contracts/users/users-api";
-import { DateTime, Effect, type Layer, Option, Result } from "effect";
+import { EmailAlreadyTaken } from "@quack/contracts/identity/identity-errors";
+import { DateTime, Effect, Exit, type Layer, Option, Result } from "effect";
 
 import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
 import { day, dayOrNull } from "#/modules/identity/testing/days.ts";
@@ -184,6 +185,39 @@ export const userRepositorySuite = (layer: Layer.Layer<UserRepository>) => {
           yield* repository.findByEmail(grace.email),
           Option.some({ user: grace, passwordHash: `hash of ${grace.email}` }),
         );
+      }));
+
+    test("replaces the email of a User: found by the new one only, with the same password hash", () =>
+      Effect.gen(function* () {
+        const repository = yield* UserRepository;
+        const mark = yield* aMark;
+        const ada = yield* aUser(mark, "ada");
+        yield* created(ada);
+        const newEmail = Email.make(`new.ada.${mark}@example.com`);
+
+        yield* repository.setEmail(ada.id, newEmail).pipe(Effect.orDie);
+
+        assert.isTrue(Option.isNone(yield* repository.findByEmail(ada.email)));
+        assert.deepStrictEqual(
+          yield* repository.findByEmail(newEmail),
+          Option.some({
+            user: new User({ ...ada, email: newEmail }),
+            passwordHash: `hash of ${ada.email}`,
+          }),
+        );
+      }));
+
+    test("fails setEmail with EmailAlreadyTaken when another User has the email", () =>
+      Effect.gen(function* () {
+        const repository = yield* UserRepository;
+        const mark = yield* aMark;
+        const [ada, grace] = [yield* aUser(mark, "ada"), yield* aUser(mark, "grace")];
+        yield* created(ada, grace);
+
+        const exit = yield* Effect.exit(repository.setEmail(ada.id, grace.email));
+
+        assert.deepStrictEqual(exit, Exit.fail(new EmailAlreadyTaken()));
+        assert.deepStrictEqual(yield* repository.findById(ada.id), Option.some(ada));
       }));
 
     test("keeps the email and the password hash on update", () =>

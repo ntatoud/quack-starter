@@ -1,3 +1,4 @@
+import type { UserId } from "@quack/contracts/identity/user";
 import { Context, type Effect, type Option } from "effect";
 
 import type { LinkPurpose, LinkToken } from "#/modules/identity/domain/link-token.ts";
@@ -12,5 +13,8 @@ export class LinkTokenStore extends Context.Service<
      * `purpose`, and gives back an expired one as well: its user judges expiry.
      */
     take(tokenHash: string, purpose: LinkPurpose): Effect.Effect<Option.Option<LinkToken>>;
+    /** The User's link of `purpose`, left in place, expired or not. */
+    findOf(userId: UserId, purpose: LinkPurpose): Effect.Effect<Option.Option<LinkToken>>;
+    removeOf(userId: UserId, purpose: LinkPurpose): Effect.Effect<void>;
   }
 >()("@quack/server/identity/LinkTokenStore") {}

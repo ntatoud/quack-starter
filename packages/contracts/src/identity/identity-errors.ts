@@ -18,6 +18,12 @@ export class InvalidCredentials extends Schema.TaggedError<
   { readonly brand: unique symbol }
 >()("InvalidCredentials", {}) {}
 
+/** The current password a signed-in User typed to confirm a change is not theirs. */
+export class WrongPassword extends Schema.TaggedError<
+  WrongPassword,
+  { readonly brand: unique symbol }
+>()("WrongPassword", {}) {}
+
 /** A link sent by email that was used, has expired, or never existed: the answer does not say which. */
 export class ExpiredLink extends Schema.TaggedError<
   ExpiredLink,

@@ -1,5 +1,5 @@
 import { assert, describe, it } from "@effect/vitest";
-import type { UserId } from "@quack/contracts/identity/user";
+import type { Email, UserId } from "@quack/contracts/identity/user";
 import { DateTime, Effect, type Layer, Option } from "effect";
 
 import type { LinkToken } from "#/modules/identity/domain/link-token.ts";
@@ -25,6 +25,7 @@ export const linkTokenStoreSuite = <R>(
         userId: yield* aUser,
         purpose: "password_reset",
         expiresAt: DateTime.makeUnsafe("2026-02-01T00:00:00Z"),
+        newEmail: null,
         ...fields,
       };
 
@@ -123,6 +124,82 @@ export const linkTokenStoreSuite = <R>(
         ]);
 
         assert.lengthOf(taken.filter(Option.isSome), 1);
+      }));
+    test("keeps the new email of an Email Change link", () =>
+      Effect.gen(function* () {
+        const store = yield* LinkTokenStore;
+
+        const link = yield* aSavedLink({
+          purpose: "email_change",
+          newEmail: "new.ada@example.com" as Email,
+        });
+
+        assert.deepStrictEqual(
+          yield* store.take(link.tokenHash, "email_change"),
+          Option.some(link),
+        );
+      }));
+
+    test("keeps a User's links of different purposes apart", () =>
+      Effect.gen(function* () {
+        const store = yield* LinkTokenStore;
+        const reset = yield* aSavedLink();
+
+        const change = yield* aSavedLink({
+          userId: reset.userId,
+          purpose: "email_change",
+          newEmail: "apart@example.com" as Email,
+        });
+
+        assert.isTrue(Option.isNone(yield* store.take(change.tokenHash, "password_reset")));
+        assert.deepStrictEqual(
+          yield* store.take(reset.tokenHash, "password_reset"),
+          Option.some(reset),
+        );
+        assert.deepStrictEqual(
+          yield* store.take(change.tokenHash, "email_change"),
+          Option.some(change),
+        );
+      }));
+
+    test("finds the User's link of a purpose, and leaves it in place", () =>
+      Effect.gen(function* () {
+        const store = yield* LinkTokenStore;
+
+        const link = yield* aSavedLink({
+          purpose: "email_change",
+          newEmail: "found@example.com" as Email,
+        });
+
+        assert.deepStrictEqual(yield* store.findOf(link.userId, "email_change"), Option.some(link));
+        assert.isTrue(Option.isNone(yield* store.findOf(link.userId, "password_reset")));
+        assert.deepStrictEqual(
+          yield* store.take(link.tokenHash, "email_change"),
+          Option.some(link),
+        );
+      }));
+
+    test("removes the User's link of a purpose only", () =>
+      Effect.gen(function* () {
+        const store = yield* LinkTokenStore;
+        const reset = yield* aSavedLink();
+
+        const change = yield* aSavedLink({
+          userId: reset.userId,
+          purpose: "email_change",
+          newEmail: "removed@example.com" as Email,
+        });
+
+        const other = yield* aSavedLink({
+          purpose: "email_change",
+          newEmail: "other@example.com" as Email,
+        });
+
+        yield* store.removeOf(reset.userId, "email_change");
+
+        assert.isTrue(Option.isNone(yield* store.take(change.tokenHash, "email_change")));
+        assert.isTrue(Option.isSome(yield* store.take(reset.tokenHash, "password_reset")));
+        assert.isTrue(Option.isSome(yield* store.take(other.tokenHash, "email_change")));
       }));
   });
 };

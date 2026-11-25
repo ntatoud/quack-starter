@@ -4,6 +4,7 @@ import { type UserOrder, UserListQuery } from "@quack/contracts/users/users-api"
 import { Effect, Layer, Option, Schema } from "effect";
 import { executor } from "@quack/effect-kysely/kysely";
 import { SqlSchema } from "effect/sql";
+import type { SqlError } from "effect/sql/SqlError";
 import {
   type Expression,
   type ExpressionBuilder,
@@ -118,6 +119,18 @@ const writeProfile = (
             country: eb.ref("excluded.country"),
           })),
         );
+
+// The one SqlError that is no defect: another User has the email.
+const failIfEmailTaken = (write: Effect.Effect<void, SqlError | Schema.SchemaError>) =>
+  write.pipe(
+    Effect.catchTags({
+      SqlError: (error) =>
+        error.reason._tag === "UniqueViolation" && error.reason.constraint === "users_email_key"
+          ? Effect.fail(new EmailAlreadyTaken())
+          : Effect.die(error),
+      SchemaError: Effect.die,
+    }),
+  );
 
 export const UserRepositoryPostgres = Layer.effect(
   UserRepository,
@@ -260,6 +273,12 @@ export const UserRepositoryPostgres = Layer.effect(
         execute(db.updateTable("users").set({ passwordHash }).where("id", "=", id)),
     });
 
+    const setEmail = SqlSchema.void({
+      Request: Schema.Struct({ id: UserId, email: Email }),
+      execute: ({ id, email }) =>
+        execute(db.updateTable("users").set({ email }).where("id", "=", id)),
+    });
+
     // The Profile, the Todos, and the Sessions of the User go with them (`ON DELETE CASCADE`).
     const remove = SqlSchema.findAll({
       Request: UserId,
@@ -270,20 +289,14 @@ export const UserRepositoryPostgres = Layer.effect(
     return UserRepository.of({
       nextId: Effect.sync(() => UserId.make(crypto.randomUUID())),
       create: Effect.fn("UserRepository.create")(function* (user, passwordHash) {
-        yield* insert({ user, passwordHash }).pipe(
-          Effect.catchTags({
-            SqlError: (error) =>
-              error.reason._tag === "UniqueViolation" &&
-              error.reason.constraint === "users_email_key"
-                ? Effect.fail(new EmailAlreadyTaken())
-                : Effect.die(error),
-            SchemaError: Effect.die,
-          }),
-        );
+        yield* failIfEmailTaken(insert({ user, passwordHash }));
       }),
       update: Effect.fn("UserRepository.update")((user) => update(user).pipe(Effect.orDie)),
       setPasswordHash: Effect.fn("UserRepository.setPasswordHash")((id, passwordHash) =>
         byStorableId(id, setPasswordHash({ id, passwordHash }), undefined),
+      ),
+      setEmail: Effect.fn("UserRepository.setEmail")((id, email) =>
+        failIfEmailTaken(setEmail({ id, email })),
       ),
       remove: Effect.fn("UserRepository.remove")((id) =>
         byStorableId(id, remove(id).pipe(Effect.map((removed) => removed.length > 0)), false),
