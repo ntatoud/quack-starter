@@ -189,6 +189,9 @@ catalogs:
     '@effect/sql-pg':
       specifier: 4.1.5
       version: 4.1.5
+    '@effect/sql-pglite':
+      specifier: 4.1.5
+      version: 4.1.5
     '@effect/tsgo':
       specifier: 0.73.2
       version: 0.73.2
@@ -225,6 +228,9 @@ catalogs:
     '@vitest/browser-playwright':
       specifier: 5.1.0
       version: 5.1.0
+    kysely:
+      specifier: 0.29.8
+      version: 0.29.8
     lucide-react:
       specifier: 1.77.0
       version: 1.77.0
@@ -447,6 +453,25 @@ importers:
         specifier: 4.1.5
         version: 4.1.5
     devDependencies:
+      vite-plus:
+        specifier: 'catalog:'
+        version: 1.7.0(@types/node@26.6.6)(@vitest/browser-playwright@5.1.0)(@vitest/ui@5.1.0)(esbuild@0.28.2)(jiti@2.7.0)(playwright@1.65.1)(typescript@7.0.2)(yaml@2.9.1)
+
+  packages/effect-kysely:
+    dependencies:
+      effect:
+        specifier: 4.1.5
+        version: 4.1.5
+      kysely:
+        specifier: 'catalog:'
+        version: 0.29.8
+    devDependencies:
+      '@effect/sql-pglite':
+        specifier: 'catalog:'
+        version: 4.1.5(effect@4.1.5)
+      '@effect/vitest':
+        specifier: 'catalog:'
+        version: 4.1.5(effect@4.1.5)
       vite-plus:
         specifier: 'catalog:'
         version: 1.7.0(@types/node@26.6.6)(@vitest/browser-playwright@5.1.0)(@vitest/ui@5.1.0)(esbuild@0.28.2)(jiti@2.7.0)(playwright@1.65.1)(typescript@7.0.2)(yaml@2.9.1)
@@ -824,6 +849,11 @@ packages:
     peerDependencies:
       effect: 4.1.5
 
+  '@effect/sql-pglite@4.1.5':
+    resolution: {integrity: sha512-E2kEB9PI9DRs+1nSLPxFsj2w43fGnl8gEgJJNqHqEk/3d0Z7D8JiAYQROZRPd8SB5a9Gt4VsRDdE259syvwUmg==}
+    peerDependencies:
+      effect: 4.1.5
+
   '@effect/tsgo-darwin-arm64@0.73.2':
     resolution: {integrity: sha512-+6xuv33cSp44tNWc9erzLKmS7qRB/QdPJYUCJrEY+4lfRhFdAsCvRDw6uw2aqzePuZDHfM3gDqfYEl5g/mWBfQ==}
     cpu: [arm64]
@@ -867,6 +897,9 @@ packages:
     resolution: {integrity: sha512-18u1013wkJtSelk1ZYLc/5aUnluTQyDfi2hAemkJW1GQ9qXw4mtPSiSf0AXZPhesmGCvG1Dk2C4JYD2sz+R72w==}
     peerDependencies:
       effect: 4.1.5
+
+  '@electric-sql/pglite@0.5.17':
+    resolution: {integrity: sha512-8SvKjiUjaU+0O0dbxjOfN+jXz14TEqDWbwDkYOW1aQ11y/ph2JvFVI27ABBo5nfw+ZfSqy4hKCNlbnbB1TDE+g==}
 
   '@emnapi/runtime@1.11.3':
     resolution: {integrity: sha512-Xz4Tpyki7XyrpbUK1jR1AhdAdaXyhhY4lZ3neLodmhpuWfy2PAQN5B46sAiU4liOXGLkHypn/qU+jvfWSCYYLA==}
@@ -3393,6 +3426,10 @@ packages:
     resolution: {integrity: sha512-o+NO+8WrRiQEE4/7nwRJhN1HWpVmJm511pBHUxPLtp0BUISzlBplORYSmTclCnJvQq2tKu/sgl3xVpkc7ZWuQQ==}
     engines: {node: '>=6'}
 
+  kysely@0.29.8:
+    resolution: {integrity: sha512-ixHU1H4R+LeC5Y0nAhYgiGRFpFRHm2DXKEmJSs/vbes9sKXyssyzxzE/NYiOJX5fY0BL28biCre3GqlCqUwyXQ==}
+    engines: {node: '>=22.0.0'}
+
   leac@0.7.0:
     resolution: {integrity: sha512-qMrZeyEekgdRQ9o6a4NAB2EQZrv827GJdn1vnapwSJ90hWRB4TzUSunvacPkxQ2TnNqHNI1/zSt0hlo0crG8Jw==}
 
@@ -4706,6 +4743,11 @@ snapshots:
     dependencies:
       effect: 4.1.5
 
+  '@effect/sql-pglite@4.1.5(effect@4.1.5)':
+    dependencies:
+      '@electric-sql/pglite': 0.5.17
+      effect: 4.1.5
+
   '@effect/tsgo-darwin-arm64@0.73.2':
     optional: true
 
@@ -4740,6 +4782,8 @@ snapshots:
   '@effect/vitest@4.1.5(effect@4.1.5)':
     dependencies:
       effect: 4.1.5
+
+  '@electric-sql/pglite@0.5.17': {}
 
   '@emnapi/runtime@1.11.3':
     dependencies:
@@ -6754,6 +6798,8 @@ snapshots:
   kleur@3.0.3: {}
 
   kleur@4.1.5: {}
+
+  kysely@0.29.8: {}
 
   leac@0.7.0: {}
 

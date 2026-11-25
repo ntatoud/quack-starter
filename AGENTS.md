@@ -29,6 +29,7 @@ packages/form           Form hook and its components: TanStack Form, validated b
 packages/emails         The emails Quack sends, written with React Email: one render function per template
 packages/ui-state       UiState: what a screen shows while data loads, one case per state
 packages/effect-query   TanStack Query options from Effects
+packages/effect-kysely  Kysely queries run on the SqlClient of Effect
 packages/oxlint-plugin  Lint rules of this repo
 ```
 
