@@ -25,6 +25,7 @@ import { sessionExtensionThreshold, sessionLifetime } from "#/modules/identity/d
 import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
 import { IdentityModule } from "#/modules/identity/index.ts";
 import { LinkTokenStoreMemory } from "#/modules/identity/testing/link-token-store-memory.ts";
+import { emailChangeModelWalks } from "#/modules/identity/testing/email-change-model.ts";
 import { sessionModelWalks } from "#/modules/identity/testing/session-model.ts";
 import { TransactionMemory } from "#/modules/transaction/testing/transaction-memory.ts";
 import { SessionStoreMemory } from "#/modules/identity/testing/session-store-memory.ts";
@@ -1494,6 +1495,7 @@ const modelLimits = {
   SIGN_IN_FAILURES_PER_IP: "1000",
   PASSWORD_RESETS_PER_EMAIL: "1000",
   PASSWORD_RESETS_PER_IP: "1000",
+  EMAIL_CHANGES_PER_USER: "1000",
 };
 
 layer(withConfig(modelLimits))("IdentityApi, a Session against its model", (it) => {
@@ -1566,6 +1568,84 @@ layer(withConfig(modelLimits))("IdentityApi, a Session against its model", (it) 
         }
       }),
     // Past the default 5 seconds: one argon2 hash or more for most steps, and the waits for mails never sent.
+    60_000,
+  );
+});
+
+layer(withConfig(modelLimits))("IdentityApi, an Email Change against its model", (it) => {
+  it.effect(
+    "answers every transition of the model as the model does",
+    () =>
+      Effect.gen(function* () {
+        for (const [index, walk] of emailChangeModelWalks.entries()) {
+          const browser = yield* makeBrowser;
+          const otherEmail = asTyped(`model.change.${index}.other@example.com`);
+          yield* (yield* makeBrowser).signUp(otherEmail);
+
+          let emails: ReadonlyArray<Email> = [asTyped(`model.change.${index}@example.com`)];
+          yield* browser.signUp(emails[0] ?? otherEmail);
+
+          let newEmails: ReadonlyArray<Email> = [];
+          let links: ReadonlyArray<string> = [];
+          const taken: Array<string> = [];
+
+          const request = Effect.gen(function* () {
+            const newEmail = asTyped(`model.change.${index}.new.${newEmails.length}@example.com`);
+            yield* browser.requestEmailChange(newEmail);
+            newEmails = [...newEmails, newEmail];
+            links = [...links, yield* emailChangeTokenOf(newEmail)];
+          });
+
+          const confirm = Effect.gen(function* () {
+            yield* browser.confirmEmailChange(links.at(-1) ?? "");
+            emails = [...emails, newEmails.at(-1) ?? otherEmail];
+          });
+
+          const steps = {
+            request: () => answerOf(request),
+            requestWithWrongPassword: () =>
+              answerOf(
+                browser.requestEmailChange(
+                  asTyped(`model.change.${index}.refused@example.com`),
+                  wrongPassword,
+                ),
+              ),
+            requestTakenEmail: () => answerOf(browser.requestEmailChange(otherEmail)),
+            cancel: () => answerOf(browser.cancelEmailChange),
+            confirm: () => answerOf(confirm),
+            confirmReplacedLink: () => answerOf(browser.confirmEmailChange(links.at(-2) ?? "")),
+            takeNewEmail: () =>
+              answerOf(
+                Effect.flatMap(makeBrowser, (other) =>
+                  other.signUp(newEmails.at(-1) ?? otherEmail),
+                ),
+              ),
+            waitADay: () => answerOf(TestClock.adjust("24 hours")),
+            signIn: () => answerOf(browser.signIn(emails.at(-1) ?? otherEmail)),
+            signInWithFormerEmail: () => answerOf(browser.signIn(emails.at(-2) ?? otherEmail)),
+          };
+
+          for (const { event, state } of walk) {
+            taken.push(event.type);
+            const answer = yield* steps[event.type]();
+
+            assert.deepStrictEqual(
+              {
+                answer,
+                email: (yield* browser.me).email,
+                pendingEmail: yield* browser.pendingEmail,
+              },
+              {
+                answer: state.context.answer,
+                email: emails.at(-1),
+                pendingEmail: state.value === "pending" ? newEmails.at(-1) : null,
+              },
+              taken.join(" → "),
+            );
+          }
+        }
+      }),
+    // Past the default 5 seconds: an argon2 hash or more for most steps.
     60_000,
   );
 });
