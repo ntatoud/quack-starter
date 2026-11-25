@@ -50,9 +50,12 @@ const ada = {
   profile: null,
 };
 
+// What the API's me answers: the User, with what only they see of it.
+const adaAsMe = { ...ada, pendingEmail: null };
+
 beforeEach(() => {
   received = [];
-  answer = json(200, ada);
+  answer = json(200, adaAsMe);
 });
 
 describe("fetchCurrentUser", () => {
@@ -93,7 +96,7 @@ describe("fetchCurrentUser", () => {
   });
 
   it("hands over the session cookie the API extends, with its attributes", async () => {
-    answer = json(200, ada, {
+    answer = json(200, adaAsMe, {
       "set-cookie": "session=abc; Max-Age=2592000; Path=/; HttpOnly; Secure; SameSite=Lax",
     });
 
