@@ -58,8 +58,8 @@ new RuleTester().run("module-boundaries", rule, {
     { filename: http, code: `export { UsersModule } from "#/modules/users/index.ts";` },
     { filename: index, code: `export const load = () => import("#/modules/users/index.ts");` },
     {
-      filename: `${src}/api.ts`,
-      code: `import { TodosApi } from "#/modules/todos/http/todos-api.ts";`,
+      filename: `${src}/server.ts`,
+      code: `import { TodosModule } from "#/modules/todos/index.ts";`,
     },
     { filename: `${src}/server.ts`, code: `import * as Http from "node:http";` },
     {
@@ -196,5 +196,10 @@ new RuleTester().run("module-boundaries", rule, {
       code: `import { User } from "../../users/domain/user.ts";`,
       errors: [throughIndex("users")],
     },
+    ...[`${src}/server.ts`, `${src}/mcp/mcp-endpoint.ts`, routesTest].map((filename) => ({
+      filename,
+      code: `import { TodosHandlers } from "#/modules/todos/http/todos-handlers.ts";`,
+      errors: [throughIndex("todos")],
+    })),
   ],
 });

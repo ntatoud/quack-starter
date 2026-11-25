@@ -73,8 +73,11 @@ const testingImportMessage = (
   return undefined;
 };
 
-const layerImportMessage = (from: Location, to: Location & { readonly folder: Folder }) => {
-  if (to.module !== from.module) {
+const layerImportMessage = (
+  from: Location | undefined,
+  to: Location & { readonly folder: Folder },
+) => {
+  if (from === undefined || to.module !== from.module) {
     return `Import another module through its index.ts (#/modules/${to.module}/index.ts), not its internals.`;
   }
 
@@ -104,8 +107,6 @@ const violation = (
 
   if (to.folder === "testing") return testingImportMessage(filename, from, to, fromTesting);
 
-  if (from === undefined) return undefined;
-
   return layerImportMessage(from, { ...to, folder: to.folder });
 };
 
@@ -114,7 +115,7 @@ export default defineRule({
     type: "problem",
     docs: {
       description:
-        "Keep the layers of a module apart: the domain is pure, use cases see the domain only, a module is used through its index.ts, and its testing/ folder by tests only.",
+        "Keep the layers of a module apart: the domain is pure, use cases see the domain only, a module is used through its index.ts, from other modules and from the rest of src alike, and its testing/ folder by tests only.",
     },
   },
   create(context) {

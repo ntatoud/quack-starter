@@ -6,7 +6,11 @@ import { Grants } from "#/modules/identity/application/grants.ts";
 import { Identity } from "#/modules/identity/application/identity.ts";
 import { Onboarding } from "#/modules/identity/application/onboarding.ts";
 import { PasswordResets } from "#/modules/identity/application/password-resets.ts";
-import { devAccountIds, IdentitySeed } from "#/modules/identity/application/identity-seed.ts";
+import {
+  devAccountIds,
+  devUsers,
+  IdentitySeed,
+} from "#/modules/identity/application/identity-seed.ts";
 import { Users } from "#/modules/identity/application/users.ts";
 import { AuthenticationMiddleware } from "#/modules/identity/http/authentication-middleware.ts";
 import { accessTo } from "#/modules/identity/http/authorize.ts";
@@ -33,6 +37,7 @@ export {
   accessTo,
   AiClientHttpClient,
   devAccountIds,
+  devUsers,
   Grants,
   IdentitySeed,
   McpCaller,

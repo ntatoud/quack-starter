@@ -2,8 +2,7 @@ import { ConfigProvider, Effect, Layer, Schema } from "effect";
 import { HttpClient, HttpClientResponse, HttpRouter, HttpServer } from "effect/http";
 import { afterAll, beforeAll, describe, expect, it } from "vite-plus/test";
 
-import { devUsers } from "#/modules/identity/application/identity-seed.ts";
-import { IdentitySeed } from "#/modules/identity/index.ts";
+import { devUsers, IdentitySeed } from "#/modules/identity/index.ts";
 import { AuthorizationCodeStoreMemory } from "#/modules/identity/testing/authorization-code-store-memory.ts";
 import { GrantStoreMemory } from "#/modules/identity/testing/grant-store-memory.ts";
 import { LinkTokenStoreMemory } from "#/modules/identity/testing/link-token-store-memory.ts";
