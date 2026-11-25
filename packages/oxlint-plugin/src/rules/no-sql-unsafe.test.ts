@@ -31,6 +31,8 @@ new RuleTester().run("no-sql-unsafe", rule, {
     { filename: kyselyRunner, code: "client.unsafe(text, parameters);" },
     { filename: adapter, code: "sql.ref(column);" },
     { filename: adapter, code: "String.raw`a`;" },
+    { filename: adapter, code: "const { raw } = String;" },
+    { filename: adapter, code: 'import { sql as k } from "effect/sql"; k.raw(text);' },
   ],
   invalid: [
     { filename: adapter, code: "sql.unsafe(`SELECT * FROM ${table}`);", errors: [error] },
@@ -38,8 +40,14 @@ new RuleTester().run("no-sql-unsafe", rule, {
     { filename: adapter, code: 'sql["unsafe"](text);', errors: [error] },
     { filename: adapter, code: "const { unsafe } = sql;", errors: [error] },
     { filename: adapter, code: "const run = sql.unsafe;", errors: [error] },
+    { filename: adapter, code: "const run = ({ unsafe }) => unsafe;", errors: [error] },
     { filename: adapter, code: "sql.raw(direction);", errors: [raw] },
     { filename: adapter, code: "sql.lit(value);", errors: [raw] },
+    { filename: adapter, code: 'sql["raw"](direction);', errors: [raw] },
+    { filename: adapter, code: "const { raw } = sql;", errors: [raw] },
+    { filename: adapter, code: 'import { sql as k } from "kysely"; k.lit(value);', errors: [raw] },
+    { filename: migration, code: "sql.raw(`text[]`);", errors: [raw] },
+    { filename: kyselyRunner, code: "sql.lit(value);", errors: [raw] },
     {
       filename: "/repo/packages/effect-kysely/src/kysely.test.ts",
       code: "client.unsafe(text);",

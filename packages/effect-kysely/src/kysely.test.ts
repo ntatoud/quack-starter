@@ -1,9 +1,9 @@
 import { PgliteClient } from "@effect/sql-pglite";
 import { assert, layer } from "@effect/vitest";
-import { Duration, Effect, Layer, String } from "effect";
+import { Duration, Effect, Layer, String, Tracer } from "effect";
 import { SqlClient } from "effect/sql";
 import { CamelCasePlugin } from "kysely";
-import { expect, test } from "vite-plus/test";
+import { expect, expectTypeOf, test } from "vite-plus/test";
 
 import { executor, postgres } from "#/kysely.ts";
 
@@ -30,10 +30,9 @@ const Postgres = Layer.effectDiscard(
   Layer.orDie,
 );
 
-const insert = (bodyText: string) =>
+const insert = (bodyText: string, id = crypto.randomUUID()) =>
   Effect.gen(function* () {
     const execute = yield* executor;
-    const id = crypto.randomUUID();
     yield* execute(db.insertInto("notes").values({ id, bodyText }));
 
     return id;
@@ -66,18 +65,50 @@ layer(Postgres, { timeout: Duration.seconds(30) })("execute", (it) => {
   it.effect("joins the transaction of its fiber", () =>
     Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
-      let id = "";
+      const id = crypto.randomUUID();
 
       yield* sql
         .withTransaction(
-          insert("dropped with the transaction").pipe(
-            Effect.tap((inserted) => Effect.sync(() => (id = inserted))),
-            Effect.andThen(Effect.fail("halfway")),
-          ),
+          insert("dropped with the transaction", id).pipe(Effect.andThen(Effect.fail("halfway"))),
         )
         .pipe(Effect.ignore);
 
       assert.deepStrictEqual(yield* find(id), []);
+    }),
+  );
+
+  it.effect("is traced as a sql template, with the text Kysely compiled", () =>
+    Effect.gen(function* () {
+      const tracer = yield* Effect.tracer;
+      const queryTexts: Array<unknown> = [];
+
+      const recording = Tracer.make({
+        span: (options) => {
+          const span = tracer.span(options);
+          const attribute = span.attribute.bind(span);
+
+          span.attribute = (key, value) => {
+            if (key === "db.query.text") queryTexts.push(value);
+            attribute(key, value);
+          };
+
+          return span;
+        },
+      });
+
+      yield* find(crypto.randomUUID()).pipe(Effect.withTracer(recording));
+
+      assert.deepStrictEqual(queryTexts, ['select * from "notes" where "id" = $1']);
+    }),
+  );
+
+  it.effect("types a write without returning as one that returns no rows", () =>
+    Effect.gen(function* () {
+      const execute = yield* executor;
+      const rows = yield* execute(db.deleteFrom("notes").where("id", "=", crypto.randomUUID()));
+
+      expectTypeOf(rows).toEqualTypeOf<ReadonlyArray<never>>();
+      assert.deepStrictEqual(rows, []);
     }),
   );
 
@@ -98,8 +129,12 @@ layer(Postgres, { timeout: Duration.seconds(30) })("execute", (it) => {
   );
 });
 
-test("refuses Kysely's own execute, which would answer no rows", async () => {
+// Every way Kysely runs a query asks its driver for a connection, which the compile-only driver refuses.
+test("refuses Kysely's own execute, stream, and transaction, which would answer no rows", async () => {
   const query = db.selectFrom("notes").selectAll();
+  const refused = /executor of @quack\/effect-kysely/;
 
-  await expect(query.execute()).rejects.toThrow(/executor of @quack\/effect-kysely/);
+  await expect(query.execute()).rejects.toThrow(refused);
+  await expect(query.stream().next()).rejects.toThrow(refused);
+  await expect(db.transaction().execute(async () => {})).rejects.toThrow(refused);
 });
