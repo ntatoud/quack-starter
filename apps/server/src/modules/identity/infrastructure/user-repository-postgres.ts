@@ -2,8 +2,19 @@ import { EmailAlreadyTaken } from "@quack/contracts/identity/identity-errors";
 import { Email, User, UserId } from "@quack/contracts/identity/user";
 import { type UserOrder, UserListQuery } from "@quack/contracts/users/users-api";
 import { Effect, Layer, Option, Schema } from "effect";
-import { SqlClient, SqlSchema } from "effect/sql";
-import type { Fragment } from "effect/sql/Statement";
+import { executor } from "@quack/effect-kysely/kysely";
+import { SqlSchema } from "effect/sql";
+import {
+  type Expression,
+  type ExpressionBuilder,
+  type OrderByItemBuilder,
+  type QueryCreator,
+  type SqlBool,
+  sql,
+} from "kysely";
+import { jsonBuildObject } from "kysely/helpers/postgres";
+
+import { db, type Tables } from "#/database/db.ts";
 
 import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
 
@@ -19,58 +30,110 @@ const byStorableId = <A, E>(id: UserId, query: Effect.Effect<A, E>, none: A): Ef
 
 const escapeLike = (text: string) => text.replaceAll(/[\\%_]/g, "\\$&");
 
+type UsersWithProfiles = ExpressionBuilder<Tables, "users" | "userProfiles">;
+
+const usersWithProfiles = db
+  .selectFrom("users")
+  .leftJoin("userProfiles", "userProfiles.userId", "users.id");
+
+// Built as the encoded User, so the contract's schema decodes it, Profile and dates included.
+const userJson = (eb: UsersWithProfiles) =>
+  jsonBuildObject({
+    id: eb.ref("users.id"),
+    email: eb.ref("email"),
+    role: eb.ref("role"),
+    status: eb.ref("status"),
+    createdAt: eb.ref("createdAt"),
+    lastSignInAt: eb.ref("lastSignInAt"),
+    onboardedAt: eb.ref("onboardedAt"),
+    timeZone: eb.ref("timeZone"),
+    profile: eb
+      .case()
+      .when("userProfiles.userId", "is", null)
+      .then(null)
+      .else(
+        jsonBuildObject({
+          firstName: eb.ref("firstName"),
+          lastName: eb.ref("lastName"),
+          avatarUrl: eb.ref("avatarUrl"),
+          jobTitle: eb.ref("jobTitle"),
+          team: eb.ref("team"),
+          country: eb.ref("country"),
+        }),
+      )
+      .end(),
+  });
+
+const sortKeys: Record<UserOrder, ReadonlyArray<(eb: UsersWithProfiles) => Expression<unknown>>> = {
+  email: [(eb) => eb.ref("email")],
+  name: [(eb) => eb.fn("lower", ["lastName"]), (eb) => eb.fn("lower", ["firstName"])],
+  role: [(eb) => eb.ref("role")],
+  status: [(eb) => eb.ref("status")],
+  team: [(eb) => eb.ref("team")],
+  country: [(eb) => eb.ref("country")],
+  createdAt: [(eb) => eb.ref("createdAt")],
+  lastSignInAt: [(eb) => eb.ref("lastSignInAt")],
+  onboardedAt: [(eb) => eb.ref("onboardedAt")],
+};
+
+// Either way, a User with no value sorts last.
+const order = (ob: OrderByItemBuilder, direction: "asc" | "desc") =>
+  direction === "asc" ? ob.asc().nullsLast() : ob.desc().nullsLast();
+
+const findUser = (where: (eb: UsersWithProfiles) => Expression<SqlBool>) =>
+  usersWithProfiles.select((eb) => [userJson(eb).as("user"), "passwordHash"]).where(where);
+
+// Writes the Profile of the User the statement wrote, whose id the `written` CTE returns.
+const writeProfile = (
+  written: QueryCreator<Tables & { written: { id: string } }>,
+  { profile }: typeof User.Encoded,
+) =>
+  profile === null
+    ? written
+        .deleteFrom("userProfiles")
+        .where("userId", "in", (eb) => eb.selectFrom("written").select("id"))
+    : written
+        .insertInto("userProfiles")
+        .columns(["userId", "firstName", "lastName", "avatarUrl", "jobTitle", "team", "country"])
+        .expression((creator) =>
+          creator
+            .selectFrom("written")
+            .select((eb) => [
+              "id",
+              eb.val(profile.firstName).as("firstName"),
+              eb.val(profile.lastName).as("lastName"),
+              eb.val(profile.avatarUrl).as("avatarUrl"),
+              eb.val(profile.jobTitle).as("jobTitle"),
+              eb.val(profile.team).as("team"),
+              eb.val(profile.country).as("country"),
+            ]),
+        )
+        .onConflict((conflict) =>
+          conflict.column("userId").doUpdateSet((eb) => ({
+            firstName: eb.ref("excluded.firstName"),
+            lastName: eb.ref("excluded.lastName"),
+            avatarUrl: eb.ref("excluded.avatarUrl"),
+            jobTitle: eb.ref("excluded.jobTitle"),
+            team: eb.ref("excluded.team"),
+            country: eb.ref("excluded.country"),
+          })),
+        );
+
 export const UserRepositoryPostgres = Layer.effect(
   UserRepository,
   Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient;
-
-    // Built as the encoded User, so the contract's schema decodes it, Profile and dates included.
-    const userJson = sql`jsonb_build_object(
-      'id', id,
-      'email', email,
-      'role', role,
-      'status', status,
-      'created_at', created_at,
-      'last_sign_in_at', last_sign_in_at,
-      'onboarded_at', onboarded_at,
-      'time_zone', time_zone,
-      'profile', CASE WHEN user_id IS NULL THEN NULL ELSE jsonb_build_object(
-        'first_name', first_name,
-        'last_name', last_name,
-        'avatar_url', avatar_url,
-        'job_title', job_title,
-        'team', team,
-        'country', country
-      ) END
-    )`;
-
-    const usersWithProfiles = sql`users LEFT JOIN user_profiles ON user_profiles.user_id = users.id`;
-
-    const sortKeys: Record<UserOrder, ReadonlyArray<Fragment>> = {
-      email: [sql`email`],
-      name: [sql`lower(last_name)`, sql`lower(first_name)`],
-      role: [sql`role`],
-      status: [sql`status`],
-      team: [sql`team`],
-      country: [sql`country`],
-      createdAt: [sql`created_at`],
-      lastSignInAt: [sql`last_sign_in_at`],
-      onboardedAt: [sql`onboarded_at`],
-    };
-
-    const selectUser = (condition: Fragment) =>
-      sql`SELECT ${userJson} AS user, password_hash FROM ${usersWithProfiles} WHERE ${condition}`;
+    const execute = yield* executor;
 
     const findById = SqlSchema.findOneOption({
       Request: UserId,
       Result: UserWithHash,
-      execute: (id) => selectUser(sql`id = ${id}`),
+      execute: (id) => execute(findUser((eb) => eb("users.id", "=", id))),
     });
 
     const findByEmail = SqlSchema.findOneOption({
       Request: Email,
       Result: UserWithHash,
-      execute: (email) => selectUser(sql`email = ${email}`),
+      execute: (email) => execute(findUser((eb) => eb("email", "=", email))),
     });
 
     // The total comes from every matching row, so a page past the last one still has it.
@@ -80,96 +143,128 @@ export const UserRepositoryPostgres = Layer.effect(
       execute: ({ page, pageSize, orderBy, dir, search = "", status, role, team, onboarded }) => {
         const pattern = `%${escapeLike(search)}%`;
 
-        const filters = [
-          ...(search === ""
-            ? []
-            : [sql`(email ILIKE ${pattern} OR (first_name || ' ' || last_name) ILIKE ${pattern})`]),
-          ...(status === undefined ? [] : [sql`status = ${status}`]),
-          ...(role === undefined ? [] : [sql`role = ${role}`]),
-          ...(team === undefined ? [] : [sql`team = ${team}`]),
-          ...(onboarded === undefined
-            ? []
-            : [onboarded ? sql`onboarded_at IS NOT NULL` : sql`onboarded_at IS NULL`]),
+        const matches = (eb: UsersWithProfiles) =>
+          eb.and([
+            ...(search === ""
+              ? []
+              : [
+                  eb.or([
+                    eb("email", "ilike", pattern),
+                    eb(
+                      sql<string>`${eb.ref("firstName")} || ' ' || ${eb.ref("lastName")}`,
+                      "ilike",
+                      pattern,
+                    ),
+                  ]),
+                ]),
+            ...(status === undefined ? [] : [eb("status", "=", status)]),
+            ...(role === undefined ? [] : [eb("role", "=", role)]),
+            ...(team === undefined ? [] : [eb("team", "=", team)]),
+            ...(onboarded === undefined
+              ? []
+              : [eb("onboardedAt", onboarded ? "is not" : "is", null)]),
+          ]);
+
+        const keys = [
+          ...sortKeys[orderBy].map((key) => ({ key, direction: dir })),
+          { key: (eb: UsersWithProfiles) => eb.ref("email"), direction: "asc" as const },
         ];
 
-        const direction = dir === "asc" ? sql`ASC` : sql`DESC`;
+        const pageIds = keys
+          .reduce(
+            (query, { key, direction }) => query.orderBy(key, (ob) => order(ob, direction)),
+            usersWithProfiles.select("users.id").where(matches),
+          )
+          .limit(pageSize)
+          .offset((page - 1) * pageSize);
 
-        const order = sql.csv([
-          ...sortKeys[orderBy].map((key) => sql`${key} ${direction} NULLS LAST`),
-          sql`email ASC`,
-        ]);
-
-        return sql`WITH matching AS (
-              SELECT * FROM ${usersWithProfiles} WHERE ${sql.and(filters)}
-            ),
-            page AS (
-              SELECT * FROM matching ORDER BY ${order}
-              LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}
-            )
-            SELECT
-              (SELECT count(*)::int FROM matching) AS total,
-              coalesce(jsonb_agg(${userJson} ORDER BY ${order}), '[]') AS items
-            FROM page`;
+        return execute(
+          db.selectNoFrom(() => [
+            usersWithProfiles
+              .select((eb) => eb.cast<number>(eb.fn.countAll(), "integer").as("count"))
+              .where(matches)
+              .as("total"),
+            usersWithProfiles
+              .select((eb) =>
+                eb.fn
+                  .coalesce(
+                    keys.reduce(
+                      (aggregate, { key, direction }) =>
+                        aggregate.orderBy(key, (ob) => order(ob, direction)),
+                      eb.fn.jsonAgg(userJson(eb)),
+                    ),
+                    sql<[]>`'[]'`,
+                  )
+                  .as("items"),
+              )
+              .where("users.id", "in", pageIds)
+              .as("items"),
+          ]),
+        );
       },
     });
-
-    const profileWrite = (user: typeof User.Encoded) =>
-      user.profile === null
-        ? sql`DELETE FROM user_profiles WHERE user_id IN (SELECT id FROM written)`
-        : sql`INSERT INTO user_profiles
-                (user_id, first_name, last_name, avatar_url, job_title, team, country)
-              SELECT id, ${user.profile.firstName}, ${user.profile.lastName}, ${user.profile.avatarUrl},
-                ${user.profile.jobTitle}, ${user.profile.team}, ${user.profile.country}
-              FROM written
-              ON CONFLICT (user_id) DO UPDATE SET
-                first_name = excluded.first_name,
-                last_name = excluded.last_name,
-                avatar_url = excluded.avatar_url,
-                job_title = excluded.job_title,
-                team = excluded.team,
-                country = excluded.country`;
 
     const insert = SqlSchema.void({
       Request: UserWithHash,
       execute: ({ user, passwordHash }) =>
-        sql`WITH written AS (
-              INSERT INTO users
-                (id, email, password_hash, role, status, created_at, last_sign_in_at, onboarded_at, time_zone)
-              VALUES (${user.id}, ${user.email}, ${passwordHash}, ${user.role}, ${user.status},
-                ${user.createdAt}, ${user.lastSignInAt}, ${user.onboardedAt}, ${user.timeZone})
-              RETURNING id
-            )
-            ${profileWrite(user)}`,
+        execute(
+          writeProfile(
+            db.with("written", (query) =>
+              query
+                .insertInto("users")
+                .values({
+                  id: user.id,
+                  email: user.email,
+                  passwordHash,
+                  role: user.role,
+                  status: user.status,
+                  createdAt: user.createdAt,
+                  lastSignInAt: user.lastSignInAt,
+                  onboardedAt: user.onboardedAt,
+                  timeZone: user.timeZone,
+                })
+                .returning("id"),
+            ),
+            user,
+          ),
+        ),
     });
 
     const update = SqlSchema.void({
       Request: User,
       execute: (user) =>
-        sql`WITH written AS (
-              UPDATE users SET
-                role = ${user.role},
-                status = ${user.status},
-                created_at = ${user.createdAt},
-                last_sign_in_at = ${user.lastSignInAt},
-                onboarded_at = ${user.onboardedAt},
-                time_zone = ${user.timeZone}
-              WHERE id = ${user.id}
-              RETURNING id
-            )
-            ${profileWrite(user)}`,
+        execute(
+          writeProfile(
+            db.with("written", (query) =>
+              query
+                .updateTable("users")
+                .set({
+                  role: user.role,
+                  status: user.status,
+                  createdAt: user.createdAt,
+                  lastSignInAt: user.lastSignInAt,
+                  onboardedAt: user.onboardedAt,
+                  timeZone: user.timeZone,
+                })
+                .where("id", "=", user.id)
+                .returning("id"),
+            ),
+            user,
+          ),
+        ),
     });
 
     const setPasswordHash = SqlSchema.void({
       Request: Schema.Struct({ id: UserId, passwordHash: Schema.String }),
       execute: ({ id, passwordHash }) =>
-        sql`UPDATE users SET password_hash = ${passwordHash} WHERE id = ${id}`,
+        execute(db.updateTable("users").set({ passwordHash }).where("id", "=", id)),
     });
 
     // The Profile, the Todos, and the Sessions of the User go with them (`ON DELETE CASCADE`).
     const remove = SqlSchema.findAll({
       Request: UserId,
       Result: Schema.Struct({ id: UserId }),
-      execute: (id) => sql`DELETE FROM users WHERE id = ${id} RETURNING id`,
+      execute: (id) => execute(db.deleteFrom("users").where("id", "=", id).returning("id")),
     });
 
     return UserRepository.of({

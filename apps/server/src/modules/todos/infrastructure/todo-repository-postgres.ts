@@ -1,7 +1,10 @@
 import { UserId } from "@quack/contracts/identity/user";
 import { Todo, TodoId } from "@quack/contracts/todos/todo";
 import { Effect, Layer, Schema, SchemaTransformation } from "effect";
-import { SqlClient, SqlSchema } from "effect/sql";
+import { executor } from "@quack/effect-kysely/kysely";
+import { SqlSchema } from "effect/sql";
+
+import { db } from "#/database/db.ts";
 
 import { TodoRepository } from "#/modules/todos/domain/todo-repository.ts";
 
@@ -26,37 +29,61 @@ const isStorableId = Schema.is(Schema.String.check(Schema.isUUID()));
 export const TodoRepositoryPostgres = Layer.effect(
   TodoRepository,
   Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient;
+    const execute = yield* executor;
 
     const findAll = SqlSchema.findAll({
       Request: UserId,
       Result: TodoRow,
       execute: (ownerId) =>
-        sql`SELECT * FROM todos WHERE owner_id = ${ownerId} ORDER BY created_at, id`,
+        execute(
+          db
+            .selectFrom("todos")
+            .selectAll()
+            .where("ownerId", "=", ownerId)
+            .orderBy("createdAt")
+            .orderBy("id"),
+        ),
     });
 
     const findById = SqlSchema.findOneOption({
       Request: OwnedTodo,
       Result: TodoRow,
       execute: ({ ownerId, id }) =>
-        sql`SELECT * FROM todos WHERE owner_id = ${ownerId} AND id = ${id}`,
+        execute(
+          db.selectFrom("todos").selectAll().where("ownerId", "=", ownerId).where("id", "=", id),
+        ),
     });
 
     const save = SqlSchema.void({
       Request: TodoRow,
       execute: (todo) =>
-        sql`INSERT INTO todos ${sql.insert(todo)}
-            ON CONFLICT (id) DO UPDATE SET
-              title = excluded.title,
-              completed = excluded.completed
-            WHERE todos.owner_id = excluded.owner_id`,
+        execute(
+          db
+            .insertInto("todos")
+            .values(todo)
+            .onConflict((conflict) =>
+              conflict
+                .column("id")
+                .doUpdateSet((eb) => ({
+                  title: eb.ref("excluded.title"),
+                  completed: eb.ref("excluded.completed"),
+                }))
+                .whereRef("todos.ownerId", "=", "excluded.ownerId"),
+            ),
+        ),
     });
 
     const remove = SqlSchema.findAll({
       Request: OwnedTodo,
       Result: Schema.Struct({ id: TodoId }),
       execute: ({ ownerId, id }) =>
-        sql`DELETE FROM todos WHERE owner_id = ${ownerId} AND id = ${id} RETURNING id`,
+        execute(
+          db
+            .deleteFrom("todos")
+            .where("ownerId", "=", ownerId)
+            .where("id", "=", id)
+            .returning("id"),
+        ),
     });
 
     return TodoRepository.of({
