@@ -209,15 +209,15 @@ export const userRepositorySuite = (layer: Layer.Layer<UserRepository>) => {
 
     test("fails setEmail with EmailAlreadyTaken when another User has the email", () =>
       Effect.gen(function* () {
-        const repository = yield* UserRepository;
         const mark = yield* aMark;
-        const [ada, grace] = [yield* aUser(mark, "ada"), yield* aUser(mark, "grace")];
+        const ada = yield* aUser(mark, "ada");
+        const grace = yield* aUser(mark, "grace");
         yield* created(ada, grace);
 
-        const exit = yield* Effect.exit(repository.setEmail(ada.id, grace.email));
+        const exit = yield* Effect.exit((yield* UserRepository).setEmail(ada.id, grace.email));
 
         assert.deepStrictEqual(exit, Exit.fail(new EmailAlreadyTaken()));
-        assert.deepStrictEqual(yield* repository.findById(ada.id), Option.some(ada));
+        assert.deepStrictEqual(yield* (yield* UserRepository).findById(ada.id), Option.some(ada));
       }));
 
     test("keeps the email and the password hash on update", () =>

@@ -6,17 +6,12 @@ import {
 } from "@quack/contracts/identity/identity-errors";
 import type { Email, Password, UserId } from "@quack/contracts/identity/user";
 import { Context, DateTime, Effect, Layer, Option } from "effect";
-import { Digest, SecureRandom } from "effect/crypto";
-import { Base64Url } from "effect/encoding";
+import { Digest } from "effect/crypto";
 
-import { ServerConfig } from "#/config.ts";
+import { makeLinkMaker } from "#/modules/identity/application/link-maker.ts";
 import { sha256Hex } from "#/modules/identity/application/sha256-hex.ts";
 import { AttemptCounter, AttemptLimiter } from "#/modules/identity/domain/attempt-limiter.ts";
-import {
-  emailChangeLifetime,
-  isLinkExpired,
-  linkTokenBytes,
-} from "#/modules/identity/domain/link-token.ts";
+import { emailChangeLifetime, isLinkExpired } from "#/modules/identity/domain/link-token.ts";
 import { LinkTokenStore } from "#/modules/identity/domain/link-token-store.ts";
 import { PasswordHasher } from "#/modules/identity/domain/password-hasher.ts";
 import { canSignIn } from "#/modules/identity/domain/user.ts";
@@ -52,9 +47,8 @@ export class EmailChanges extends Context.Service<
       const limiter = yield* AttemptLimiter;
       const mailer = yield* Mailer;
       const transaction = yield* Transaction;
-      const random = yield* SecureRandom.SecureRandom;
       const digest = yield* Digest.Digest;
-      const publicOrigin = yield* ServerConfig.publicOrigin;
+      const makeLink = yield* makeLinkMaker;
 
       const isTaken = (email: Email) => Effect.map(users.findByEmail(email), Option.isSome);
 
@@ -77,19 +71,16 @@ export class EmailChanges extends Context.Service<
           // The User's own email included: there would be nothing to change.
           if (yield* isTaken(newEmail)) return yield* new EmailAlreadyTaken();
 
-          const token = Base64Url.encode(yield* random.randomBytes(linkTokenBytes));
+          const { url, tokenHash } = yield* makeLink("/confirm-email");
 
           // Replaces the earlier link of the User: asking again makes it useless.
           yield* links.save({
-            tokenHash: yield* sha256Hex(digest, token),
+            tokenHash,
             userId,
             purpose: "email_change",
             expiresAt: DateTime.addDuration(yield* DateTime.now, emailChangeLifetime),
             newEmail,
           });
-
-          const url = new URL("/confirm-email", publicOrigin);
-          url.searchParams.set("token", token);
 
           // Loaded on the first mail, not with the module: the seed and other scripts that load it
           // never send one, and run without the `.tsx` hook of `@quack/emails/register`.
@@ -100,7 +91,7 @@ export class EmailChanges extends Context.Service<
             ]);
 
             return Promise.all([
-              emailChangeConfirmation({ url: url.href, lifetime: emailChangeLifetime }),
+              emailChangeConfirmation({ url, lifetime: emailChangeLifetime }),
               emailChangeNotice({ newEmail }),
             ]);
           });

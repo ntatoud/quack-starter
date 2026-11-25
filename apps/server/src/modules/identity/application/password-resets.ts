@@ -1,21 +1,16 @@
 import { ExpiredLink, type TooManyAttempts } from "@quack/contracts/identity/identity-errors";
 import type { Email, Password } from "@quack/contracts/identity/user";
 import { Context, DateTime, Effect, Layer, Option } from "effect";
-import { Digest, SecureRandom } from "effect/crypto";
-import { Base64Url } from "effect/encoding";
+import { Digest } from "effect/crypto";
 
-import { ServerConfig } from "#/config.ts";
+import { makeLinkMaker } from "#/modules/identity/application/link-maker.ts";
 import { sha256Hex } from "#/modules/identity/application/sha256-hex.ts";
 import {
   AttemptCounter,
   AttemptLimiter,
   type ClientIp,
 } from "#/modules/identity/domain/attempt-limiter.ts";
-import {
-  isLinkExpired,
-  linkTokenBytes,
-  passwordResetLifetime,
-} from "#/modules/identity/domain/link-token.ts";
+import { isLinkExpired, passwordResetLifetime } from "#/modules/identity/domain/link-token.ts";
 import { LinkTokenStore } from "#/modules/identity/domain/link-token-store.ts";
 import { PasswordHasher } from "#/modules/identity/domain/password-hasher.ts";
 import { SessionStore } from "#/modules/identity/domain/session-store.ts";
@@ -43,9 +38,8 @@ export class PasswordResets extends Context.Service<
       const limiter = yield* AttemptLimiter;
       const mailer = yield* Mailer;
       const transaction = yield* Transaction;
-      const random = yield* SecureRandom.SecureRandom;
       const digest = yield* Digest.Digest;
-      const publicOrigin = yield* ServerConfig.publicOrigin;
+      const makeLink = yield* makeLinkMaker;
       // The fibers live as long as the server, not the request that asked for the link.
       const scope = yield* Effect.scope;
 
@@ -55,26 +49,23 @@ export class PasswordResets extends Context.Service<
         if (Option.isNone(found) || !canSignIn(found.value.user)) return;
 
         const { user } = found.value;
-        const token = Base64Url.encode(yield* random.randomBytes(linkTokenBytes));
+        const { url, tokenHash } = yield* makeLink("/reset-password");
 
         // Replaces the earlier link of the User: asking again makes it useless.
         yield* links.save({
-          tokenHash: yield* sha256Hex(digest, token),
+          tokenHash,
           userId: user.id,
           purpose: "password_reset",
           expiresAt: DateTime.addDuration(yield* DateTime.now, passwordResetLifetime),
           newEmail: null,
         });
 
-        const url = new URL("/reset-password", publicOrigin);
-        url.searchParams.set("token", token);
-
         // Loaded on the first mail, not with the module: the seed and other scripts that load it
         // never send one, and run without the `.tsx` hook of `@quack/emails/register`.
         const mail = yield* Effect.promise(async () => {
           const { passwordReset } = await import("@quack/emails/templates/password-reset");
 
-          return passwordReset({ url: url.href, lifetime: passwordResetLifetime });
+          return passwordReset({ url, lifetime: passwordResetLifetime });
         });
 
         yield* mailer.send({ to: user.email, ...mail });
