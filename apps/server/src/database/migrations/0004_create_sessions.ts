@@ -1,20 +1,25 @@
+import { executor } from "@quack/effect-kysely/kysely";
 import { Effect } from "effect";
-import { SqlClient } from "effect/sql";
+
+import { db } from "#/database/db.ts";
 
 export default Effect.gen(function* () {
-  const sql = yield* SqlClient.SqlClient;
-  yield* sql`
-    CREATE TABLE sessions (
-      token_hash text CONSTRAINT sessions_pkey PRIMARY KEY,
-      user_id uuid NOT NULL
-        CONSTRAINT sessions_user_id_fkey REFERENCES users ON DELETE CASCADE,
-      expires_at timestamptz NOT NULL
-    )
-  `;
-  yield* sql`CREATE INDEX sessions_user_id_idx ON sessions (user_id)`;
+  const execute = yield* executor;
+  yield* execute(
+    db.schema
+      .createTable("sessions")
+      .addColumn("tokenHash", "text")
+      .addColumn("userId", "uuid", (column) => column.notNull())
+      .addColumn("expiresAt", "timestamptz", (column) => column.notNull())
+      .addPrimaryKeyConstraint("sessions_pkey", ["tokenHash"])
+      .addForeignKeyConstraint("sessions_user_id_fkey", ["userId"], "users", ["id"], (fk) =>
+        fk.onDelete("cascade"),
+      ),
+  );
+  yield* execute(db.schema.createIndex("sessions_user_id_idx").on("sessions").column("userId"));
 });
 
 export const down = Effect.gen(function* () {
-  const sql = yield* SqlClient.SqlClient;
-  yield* sql`DROP TABLE sessions`;
+  const execute = yield* executor;
+  yield* execute(db.schema.dropTable("sessions"));
 });

@@ -1,28 +1,32 @@
+import { executor } from "@quack/effect-kysely/kysely";
 import { Effect } from "effect";
-import { SqlClient } from "effect/sql";
+import { sql } from "kysely";
+import { db } from "#/database/db.ts";
 
 export default Effect.gen(function* () {
-  const sql = yield* SqlClient.SqlClient;
+  const execute = yield* executor;
   // An enum sorts in the order of its labels: alphabetical, as the list of Users sorts by status.
-  yield* sql`CREATE TYPE user_status AS ENUM ('active', 'invited', 'suspended')`;
-  yield* sql`
-    CREATE TABLE users (
-      id uuid CONSTRAINT users_pkey PRIMARY KEY,
-      email text NOT NULL CONSTRAINT users_email_key UNIQUE,
-      password_hash text NOT NULL,
-      role text NOT NULL,
-      status user_status NOT NULL,
-      created_at timestamptz NOT NULL,
-      last_sign_in_at timestamptz,
-      onboarded_at timestamptz,
-      -- An IANA name, such as Europe/Paris.
-      time_zone text NOT NULL
-    )
-  `;
+  yield* execute(db.schema.createType("user_status").asEnum(["active", "invited", "suspended"]));
+  yield* execute(
+    db.schema
+      .createTable("users")
+      .addColumn("id", "uuid")
+      .addColumn("email", "text", (column) => column.notNull())
+      .addColumn("passwordHash", "text", (column) => column.notNull())
+      .addColumn("role", "text", (column) => column.notNull())
+      .addColumn("status", sql`user_status`, (column) => column.notNull())
+      .addColumn("createdAt", "timestamptz", (column) => column.notNull())
+      .addColumn("lastSignInAt", "timestamptz")
+      .addColumn("onboardedAt", "timestamptz")
+      // An IANA name, such as Europe/Paris.
+      .addColumn("timeZone", "text", (column) => column.notNull())
+      .addPrimaryKeyConstraint("users_pkey", ["id"])
+      .addUniqueConstraint("users_email_key", ["email"]),
+  );
 });
 
 export const down = Effect.gen(function* () {
-  const sql = yield* SqlClient.SqlClient;
-  yield* sql`DROP TABLE users`;
-  yield* sql`DROP TYPE user_status`;
+  const execute = yield* executor;
+  yield* execute(db.schema.dropTable("users"));
+  yield* execute(db.schema.dropType("user_status"));
 });

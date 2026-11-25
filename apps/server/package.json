@@ -12,7 +12,8 @@
     "typecheck:ci": "effect-tsgo tsrs --noEmit",
     "db:rollback": "node --env-file-if-exists=../../.env src/dev/with-dev-database.ts node --env-file-if-exists=../../.env src/database/rollback-main.ts",
     "db:seed": "node --env-file-if-exists=../../.env src/dev/with-dev-database.ts node --env-file-if-exists=../../.env src/database/seed-main.ts",
-    "test": "vp test run"
+    "test": "vp test run",
+    "db:gen": "node --env-file-if-exists=../../.env src/dev/with-dev-database.ts node --env-file-if-exists=../../.env src/database/db-gen-main.ts"
   },
   "dependencies": {
     "@effect/platform-node": "catalog:",
@@ -20,14 +21,18 @@
     "@faker-js/faker": "10.6.0",
     "@quack/brand": "workspace:*",
     "@quack/contracts": "workspace:*",
+    "@quack/effect-kysely": "workspace:*",
     "@quack/emails": "workspace:*",
     "effect": "catalog:",
+    "kysely": "catalog:",
     "nodemailer": "10.6.1",
     "xstate": "6.0.0-beta.4"
   },
   "devDependencies": {
     "@effect/vitest": "catalog:",
     "@types/node": "catalog:",
+    "kysely-codegen": "0.20.0",
+    "pg": "8.23.1",
     "vite-plus": "catalog:"
   }
 }

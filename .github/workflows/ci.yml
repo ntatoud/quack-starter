@@ -63,6 +63,37 @@ jobs:
       - name: Test
         run: vp run ${{ matrix.shard.filter }} --cache test
 
+  # On a real Postgres: db.gen.ts against the migrations.
+  database:
+    name: Database
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: quack
+          POSTGRES_PASSWORD: quack
+          POSTGRES_DB: quack
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -h 127.0.0.1 -U quack"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 15
+    env:
+      DATABASE_URL: postgres://quack:quack@127.0.0.1:5432/quack
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+        with:
+          task-cache-key: database
+      # Migrates the database, then fails if kysely-codegen would write another db.gen.ts.
+      - name: db.gen.ts matches the migrations
+        working-directory: apps/server
+        run: pnpm db:gen --verify
+
   build:
     name: Build
     runs-on: ubuntu-24.04
