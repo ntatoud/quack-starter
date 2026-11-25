@@ -3,8 +3,6 @@ import { defineConfig } from "vite-plus";
 
 // .agents/skills: installed by `npx skills`, kept as its authors wrote them.
 const GENERATED = [
-  // TanStack Router's route tree, and the types of the tables kysely-codegen writes (`pnpm db:gen`), whose
-  // `--verify` compares the file with its own output.
   "**/*.gen.ts",
   "pnpm-lock.yaml",
   "dist",
