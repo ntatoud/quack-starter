@@ -1,0 +1,46 @@
+name: Factory unblock
+
+# When an issue closes, the issues it blocked may be free. Labelling each free one `ready-for-agent`
+# again starts its Implement run in the software factory, whose webhook listens for that label.
+on:
+  issues:
+    types: [closed]
+
+permissions:
+  contents: read
+
+jobs:
+  unblock:
+    name: Hand unblocked issues to the factory
+    if: github.event.issue.state_reason == 'completed' && github.event.issue.issue_dependencies_summary.blocking > 0
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    permissions:
+      issues: write
+    steps:
+      - name: Label the free issues again
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const closed = context.payload.issue.number;
+            const { data: blocked } = await github.request(
+              "GET /repos/{owner}/{repo}/issues/{issue_number}/dependencies/blocking",
+              { owner, repo, issue_number: closed },
+            );
+            // The factory's claim and stop labels: an issue that carries one is held or given up.
+            const held = ["agent:working", "agent:stuck", "agent:queued"];
+            for (const { number } of blocked) {
+              const { data: issue } = await github.rest.issues.get({ owner, repo, issue_number: number });
+              const labels = issue.labels.map((label) => label.name);
+              const free =
+                issue.state === "open" &&
+                labels.includes("ready-for-agent") &&
+                !labels.some((label) => held.includes(label)) &&
+                issue.issue_dependencies_summary.blocked_by === 0;
+              if (!free) continue;
+              // Removed then added: only an `added` event reaches the factory's webhook.
+              await github.rest.issues.removeLabel({ owner, repo, issue_number: number, name: "ready-for-agent" });
+              await github.rest.issues.addLabels({ owner, repo, issue_number: number, labels: ["ready-for-agent"] });
+              core.info(`#${closed} closed: handed #${number} to the factory`);
+            }
