@@ -55,6 +55,7 @@ export interface Grants {
 
 export interface LinkTokens {
   expiresAt: Timestamp;
+  newEmail: string | null;
   purpose: string;
   tokenHash: string;
   userId: string;

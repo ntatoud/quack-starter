@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as GuestRouteRouteImport } from './routes/_guest/route'
+import { Route as LinkRouteRouteImport } from './routes/_link/route'
 import { Route as DotwellKnownSplatRouteImport } from './routes/[.]well-known/$'
 import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authenticated/admin/route'
 import { Route as AuthenticatedAppRouteRouteImport } from './routes/_authenticated/app/route'
@@ -19,6 +20,7 @@ import { Route as GuestForgotPasswordRouteImport } from './routes/_guest/forgot-
 import { Route as GuestResetPasswordRouteImport } from './routes/_guest/reset-password'
 import { Route as GuestSignInRouteImport } from './routes/_guest/sign-in'
 import { Route as GuestSignUpRouteImport } from './routes/_guest/sign-up'
+import { Route as LinkConfirmEmailRouteImport } from './routes/_link/confirm-email'
 import { Route as ApiSplatRouteImport } from './routes/api/$'
 import { Route as OauthAuthorizeRouteImport } from './routes/oauth/authorize'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
@@ -28,6 +30,7 @@ import { Route as AuthenticatedAdminUsersIndexRouteImport } from './routes/_auth
 import { Route as AuthenticatedAdminUsersIdRouteImport } from './routes/_authenticated/admin/users/$id'
 import { Route as AuthenticatedAppSettingsIndexRouteImport } from './routes/_authenticated/app/settings/index'
 import { Route as AuthenticatedAppSettingsAiClientsRouteImport } from './routes/_authenticated/app/settings/ai-clients'
+import { Route as AuthenticatedAppSettingsEmailRouteImport } from './routes/_authenticated/app/settings/email'
 import { Route as AuthenticatedAppSettingsPreferencesRouteImport } from './routes/_authenticated/app/settings/preferences'
 import { Route as AuthenticatedAppSettingsProfileRouteImport } from './routes/_authenticated/app/settings/profile'
 
@@ -42,6 +45,10 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 } as any)
 const GuestRouteRoute = GuestRouteRouteImport.update({
   id: '/_guest',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LinkRouteRoute = LinkRouteRouteImport.update({
+  id: '/_link',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DotwellKnownSplatRoute = DotwellKnownSplatRouteImport.update({
@@ -78,6 +85,11 @@ const GuestSignUpRoute = GuestSignUpRouteImport.update({
   id: '/sign-up',
   path: '/sign-up',
   getParentRoute: () => GuestRouteRoute,
+} as any)
+const LinkConfirmEmailRoute = LinkConfirmEmailRouteImport.update({
+  id: '/confirm-email',
+  path: '/confirm-email',
+  getParentRoute: () => LinkRouteRoute,
 } as any)
 const ApiSplatRoute = ApiSplatRouteImport.update({
   id: '/api/$',
@@ -129,6 +141,12 @@ const AuthenticatedAppSettingsAiClientsRoute =
     path: '/ai-clients',
     getParentRoute: () => AuthenticatedAppSettingsRouteRoute,
   } as any)
+const AuthenticatedAppSettingsEmailRoute =
+  AuthenticatedAppSettingsEmailRouteImport.update({
+    id: '/email',
+    path: '/email',
+    getParentRoute: () => AuthenticatedAppSettingsRouteRoute,
+  } as any)
 const AuthenticatedAppSettingsPreferencesRoute =
   AuthenticatedAppSettingsPreferencesRouteImport.update({
     id: '/preferences',
@@ -151,6 +169,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof GuestResetPasswordRoute
   '/sign-in': typeof GuestSignInRoute
   '/sign-up': typeof GuestSignUpRoute
+  '/confirm-email': typeof LinkConfirmEmailRoute
   '/api/$': typeof ApiSplatRoute
   '/oauth/authorize': typeof OauthAuthorizeRoute
   '/app/settings': typeof AuthenticatedAppSettingsRouteRouteWithChildren
@@ -158,6 +177,7 @@ export interface FileRoutesByFullPath {
   '/app/': typeof AuthenticatedAppIndexRoute
   '/admin/users/$id': typeof AuthenticatedAdminUsersIdRoute
   '/app/settings/ai-clients': typeof AuthenticatedAppSettingsAiClientsRoute
+  '/app/settings/email': typeof AuthenticatedAppSettingsEmailRoute
   '/app/settings/preferences': typeof AuthenticatedAppSettingsPreferencesRoute
   '/app/settings/profile': typeof AuthenticatedAppSettingsProfileRoute
   '/admin/users/': typeof AuthenticatedAdminUsersIndexRoute
@@ -170,12 +190,14 @@ export interface FileRoutesByTo {
   '/reset-password': typeof GuestResetPasswordRoute
   '/sign-in': typeof GuestSignInRoute
   '/sign-up': typeof GuestSignUpRoute
+  '/confirm-email': typeof LinkConfirmEmailRoute
   '/api/$': typeof ApiSplatRoute
   '/oauth/authorize': typeof OauthAuthorizeRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/app': typeof AuthenticatedAppIndexRoute
   '/admin/users/$id': typeof AuthenticatedAdminUsersIdRoute
   '/app/settings/ai-clients': typeof AuthenticatedAppSettingsAiClientsRoute
+  '/app/settings/email': typeof AuthenticatedAppSettingsEmailRoute
   '/app/settings/preferences': typeof AuthenticatedAppSettingsPreferencesRoute
   '/app/settings/profile': typeof AuthenticatedAppSettingsProfileRoute
   '/admin/users': typeof AuthenticatedAdminUsersIndexRoute
@@ -186,6 +208,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/_guest': typeof GuestRouteRouteWithChildren
+  '/_link': typeof LinkRouteRouteWithChildren
   '/_authenticated/admin': typeof AuthenticatedAdminRouteRouteWithChildren
   '/_authenticated/app': typeof AuthenticatedAppRouteRouteWithChildren
   '/.well-known/$': typeof DotwellKnownSplatRoute
@@ -193,6 +216,7 @@ export interface FileRoutesById {
   '/_guest/reset-password': typeof GuestResetPasswordRoute
   '/_guest/sign-in': typeof GuestSignInRoute
   '/_guest/sign-up': typeof GuestSignUpRoute
+  '/_link/confirm-email': typeof LinkConfirmEmailRoute
   '/api/$': typeof ApiSplatRoute
   '/oauth/authorize': typeof OauthAuthorizeRoute
   '/_authenticated/app/settings': typeof AuthenticatedAppSettingsRouteRouteWithChildren
@@ -200,6 +224,7 @@ export interface FileRoutesById {
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
   '/_authenticated/admin/users/$id': typeof AuthenticatedAdminUsersIdRoute
   '/_authenticated/app/settings/ai-clients': typeof AuthenticatedAppSettingsAiClientsRoute
+  '/_authenticated/app/settings/email': typeof AuthenticatedAppSettingsEmailRoute
   '/_authenticated/app/settings/preferences': typeof AuthenticatedAppSettingsPreferencesRoute
   '/_authenticated/app/settings/profile': typeof AuthenticatedAppSettingsProfileRoute
   '/_authenticated/admin/users/': typeof AuthenticatedAdminUsersIndexRoute
@@ -216,6 +241,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/sign-in'
     | '/sign-up'
+    | '/confirm-email'
     | '/api/$'
     | '/oauth/authorize'
     | '/app/settings'
@@ -223,6 +249,7 @@ export interface FileRouteTypes {
     | '/app/'
     | '/admin/users/$id'
     | '/app/settings/ai-clients'
+    | '/app/settings/email'
     | '/app/settings/preferences'
     | '/app/settings/profile'
     | '/admin/users/'
@@ -235,12 +262,14 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/sign-in'
     | '/sign-up'
+    | '/confirm-email'
     | '/api/$'
     | '/oauth/authorize'
     | '/admin'
     | '/app'
     | '/admin/users/$id'
     | '/app/settings/ai-clients'
+    | '/app/settings/email'
     | '/app/settings/preferences'
     | '/app/settings/profile'
     | '/admin/users'
@@ -250,6 +279,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/_guest'
+    | '/_link'
     | '/_authenticated/admin'
     | '/_authenticated/app'
     | '/.well-known/$'
@@ -257,6 +287,7 @@ export interface FileRouteTypes {
     | '/_guest/reset-password'
     | '/_guest/sign-in'
     | '/_guest/sign-up'
+    | '/_link/confirm-email'
     | '/api/$'
     | '/oauth/authorize'
     | '/_authenticated/app/settings'
@@ -264,6 +295,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/'
     | '/_authenticated/admin/users/$id'
     | '/_authenticated/app/settings/ai-clients'
+    | '/_authenticated/app/settings/email'
     | '/_authenticated/app/settings/preferences'
     | '/_authenticated/app/settings/profile'
     | '/_authenticated/admin/users/'
@@ -274,6 +306,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   GuestRouteRoute: typeof GuestRouteRouteWithChildren
+  LinkRouteRoute: typeof LinkRouteRouteWithChildren
   DotwellKnownSplatRoute: typeof DotwellKnownSplatRoute
   ApiSplatRoute: typeof ApiSplatRoute
   OauthAuthorizeRoute: typeof OauthAuthorizeRoute
@@ -300,6 +333,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof GuestRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_link': {
+      id: '/_link'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof LinkRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/.well-known/$': {
@@ -350,6 +390,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/sign-up'
       preLoaderRoute: typeof GuestSignUpRouteImport
       parentRoute: typeof GuestRouteRoute
+    }
+    '/_link/confirm-email': {
+      id: '/_link/confirm-email'
+      path: '/confirm-email'
+      fullPath: '/confirm-email'
+      preLoaderRoute: typeof LinkConfirmEmailRouteImport
+      parentRoute: typeof LinkRouteRoute
     }
     '/api/$': {
       id: '/api/$'
@@ -414,6 +461,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppSettingsAiClientsRouteImport
       parentRoute: typeof AuthenticatedAppSettingsRouteRoute
     }
+    '/_authenticated/app/settings/email': {
+      id: '/_authenticated/app/settings/email'
+      path: '/email'
+      fullPath: '/app/settings/email'
+      preLoaderRoute: typeof AuthenticatedAppSettingsEmailRouteImport
+      parentRoute: typeof AuthenticatedAppSettingsRouteRoute
+    }
     '/_authenticated/app/settings/preferences': {
       id: '/_authenticated/app/settings/preferences'
       path: '/preferences'
@@ -451,6 +505,7 @@ const AuthenticatedAdminRouteRouteWithChildren =
 
 interface AuthenticatedAppSettingsRouteRouteChildren {
   AuthenticatedAppSettingsAiClientsRoute: typeof AuthenticatedAppSettingsAiClientsRoute
+  AuthenticatedAppSettingsEmailRoute: typeof AuthenticatedAppSettingsEmailRoute
   AuthenticatedAppSettingsPreferencesRoute: typeof AuthenticatedAppSettingsPreferencesRoute
   AuthenticatedAppSettingsProfileRoute: typeof AuthenticatedAppSettingsProfileRoute
   AuthenticatedAppSettingsIndexRoute: typeof AuthenticatedAppSettingsIndexRoute
@@ -460,6 +515,7 @@ const AuthenticatedAppSettingsRouteRouteChildren: AuthenticatedAppSettingsRouteR
   {
     AuthenticatedAppSettingsAiClientsRoute:
       AuthenticatedAppSettingsAiClientsRoute,
+    AuthenticatedAppSettingsEmailRoute: AuthenticatedAppSettingsEmailRoute,
     AuthenticatedAppSettingsPreferencesRoute:
       AuthenticatedAppSettingsPreferencesRoute,
     AuthenticatedAppSettingsProfileRoute: AuthenticatedAppSettingsProfileRoute,
@@ -518,10 +574,23 @@ const GuestRouteRouteWithChildren = GuestRouteRoute._addFileChildren(
   GuestRouteRouteChildren,
 )
 
+interface LinkRouteRouteChildren {
+  LinkConfirmEmailRoute: typeof LinkConfirmEmailRoute
+}
+
+const LinkRouteRouteChildren: LinkRouteRouteChildren = {
+  LinkConfirmEmailRoute: LinkConfirmEmailRoute,
+}
+
+const LinkRouteRouteWithChildren = LinkRouteRoute._addFileChildren(
+  LinkRouteRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   GuestRouteRoute: GuestRouteRouteWithChildren,
+  LinkRouteRoute: LinkRouteRouteWithChildren,
   DotwellKnownSplatRoute: DotwellKnownSplatRoute,
   ApiSplatRoute: ApiSplatRoute,
   OauthAuthorizeRoute: OauthAuthorizeRoute,

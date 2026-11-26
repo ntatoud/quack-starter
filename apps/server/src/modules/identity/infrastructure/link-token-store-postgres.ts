@@ -1,4 +1,4 @@
-import { UserId } from "@quack/contracts/identity/user";
+import { Email, UserId } from "@quack/contracts/identity/user";
 import { Effect, Layer, Schema, Struct } from "effect";
 import { executor } from "@quack/effect-kysely/kysely";
 import { SqlSchema } from "effect/sql";
@@ -13,7 +13,10 @@ const LinkTokenRow = Schema.Struct({
   userId: UserId,
   purpose: LinkPurpose,
   expiresAt: Schema.DateTimeUtcFromDate,
+  newEmail: Schema.NullOr(Email),
 });
+
+const OfUser = LinkTokenRow.mapFields(Struct.pick(["userId", "purpose"]));
 
 export const LinkTokenStorePostgres = Layer.effect(
   LinkTokenStore,
@@ -32,6 +35,7 @@ export const LinkTokenStorePostgres = Layer.effect(
               conflict.constraint("linkTokens_user_id_purpose_key").doUpdateSet((eb) => ({
                 tokenHash: eb.ref("excluded.tokenHash"),
                 expiresAt: eb.ref("excluded.expiresAt"),
+                newEmail: eb.ref("excluded.newEmail"),
               })),
             ),
         ),
@@ -51,10 +55,37 @@ export const LinkTokenStorePostgres = Layer.effect(
         ),
     });
 
+    const findOf = SqlSchema.findOneOption({
+      Request: OfUser,
+      Result: LinkTokenRow,
+      execute: ({ userId, purpose }) =>
+        execute(
+          db
+            .selectFrom("linkTokens")
+            .selectAll()
+            .where("userId", "=", userId)
+            .where("purpose", "=", purpose),
+        ),
+    });
+
+    const removeOf = SqlSchema.void({
+      Request: OfUser,
+      execute: ({ userId, purpose }) =>
+        execute(
+          db.deleteFrom("linkTokens").where("userId", "=", userId).where("purpose", "=", purpose),
+        ),
+    });
+
     return LinkTokenStore.of({
       save: Effect.fn("LinkTokenStore.save")((link) => upsert(link).pipe(Effect.orDie)),
       take: Effect.fn("LinkTokenStore.take")((tokenHash, purpose) =>
         take({ tokenHash, purpose }).pipe(Effect.orDie),
+      ),
+      findOf: Effect.fn("LinkTokenStore.findOf")((userId, purpose) =>
+        findOf({ userId, purpose }).pipe(Effect.orDie),
+      ),
+      removeOf: Effect.fn("LinkTokenStore.removeOf")((userId, purpose) =>
+        removeOf({ userId, purpose }).pipe(Effect.orDie),
       ),
     });
   }),

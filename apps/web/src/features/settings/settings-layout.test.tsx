@@ -83,7 +83,7 @@ describe("SettingsLayout", () => {
     await expect.element(profile).not.toHaveAttribute("aria-current");
   });
 
-  it("lists the AI Clients next to the Profile and the Preferences", async () => {
+  it("lists the AI Clients next to the Profile, the Email, and the Preferences", async () => {
     await setup("/app/settings/ai-clients");
     const nav = page.getByRole("navigation", { name: "Settings" });
 
@@ -93,7 +93,7 @@ describe("SettingsLayout", () => {
         .getByRole("link")
         .elements()
         .map((link) => link.textContent),
-    ).toEqual(["Profile", "Preferences", "AI Clients"]);
+    ).toEqual(["Profile", "Email", "Preferences", "AI Clients"]);
     await expect
       .element(nav.getByRole("link", { name: "AI Clients" }))
       .toHaveAttribute("aria-current", "page");

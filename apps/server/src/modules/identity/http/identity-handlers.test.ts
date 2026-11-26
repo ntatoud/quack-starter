@@ -25,6 +25,7 @@ import { sessionExtensionThreshold, sessionLifetime } from "#/modules/identity/d
 import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
 import { IdentityModule } from "#/modules/identity/index.ts";
 import { LinkTokenStoreMemory } from "#/modules/identity/testing/link-token-store-memory.ts";
+import { emailChangeModelWalks } from "#/modules/identity/testing/email-change-model.ts";
 import { sessionModelWalks } from "#/modules/identity/testing/session-model.ts";
 import { TransactionMemory } from "#/modules/transaction/testing/transaction-memory.ts";
 import { SessionStoreMemory } from "#/modules/identity/testing/session-store-memory.ts";
@@ -108,7 +109,9 @@ const makeBrowser = Effect.gen(function* () {
     signIn,
     signOut,
     session: Effect.map(Ref.get(jar), (cookies) => Cookies.getValue(cookies, "session")),
-    me: client.identity.me(),
+    // The User alone, as the other endpoints answer it: `pendingEmail` reads the rest.
+    me: Effect.map(client.identity.me(), ({ pendingEmail: _, ...user }) => new User(user)),
+    pendingEmail: Effect.map(client.identity.me(), (me) => me.pendingEmail),
     updateProfile: (profile: Profile) => client.identity.updateProfile({ payload: profile }),
     updateTimeZone: (timeZone: TimeZone) =>
       client.identity.updateTimeZone({ payload: { timeZone } }),
@@ -130,6 +133,11 @@ const makeBrowser = Effect.gen(function* () {
       ),
     confirmPasswordReset: (token: string, newPassword: Password) =>
       client.identity.confirmPasswordReset({ payload: { token, password: newPassword } }),
+    requestEmailChange: (newEmail: Email, withPassword: Password = password) =>
+      client.identity.requestEmailChange({ payload: { newEmail, password: withPassword } }),
+    cancelEmailChange: client.identity.cancelEmailChange(),
+    confirmEmailChange: (token: string) =>
+      client.identity.confirmEmailChange({ payload: { token } }),
   };
 });
 
@@ -1188,6 +1196,256 @@ layer(withConfig({ SIGN_UPS_PER_IP: "1000", PASSWORD_RESETS_PER_IP: "1000" }))(
   },
 );
 
+/** The token of the `nth` Email Change link mailed to `email`. */
+const emailChangeTokenOf = Effect.fn(function* (email: string, nth = 1) {
+  const mails = yield* mailsTo(email, nth);
+
+  const token = /https:\/\/quack\.test\/confirm-email\?token=([\w-]+)/.exec(
+    mails.at(-1)?.text ?? "",
+  )?.[1];
+
+  assert.isDefined(token, `no Email Change link was mailed to ${email}`);
+
+  return token ?? "";
+});
+
+layer(withConfig({ SIGN_UPS_PER_IP: "1000" }))("IdentityApi, Email Change", (it) => {
+  it.effect("refuses a wrong current password, and mails nothing", () =>
+    Effect.gen(function* () {
+      const browser = yield* makeBrowser;
+      yield* browser.signUp(asTyped("change.wrong@example.com"));
+
+      const error = yield* browser
+        .requestEmailChange(asTyped("change.wrong.new@example.com"), newPassword)
+        .pipe(Effect.flip);
+
+      assert.strictEqual(error._tag, "WrongPassword");
+      assert.isNull(yield* browser.pendingEmail);
+      assert.lengthOf(yield* mailsTo("change.wrong.new@example.com", 0), 0);
+      assert.lengthOf(yield* mailsTo("change.wrong@example.com", 0), 0);
+    }),
+  );
+
+  it.effect("keeps the email until the link is opened, then changes it", () =>
+    Effect.gen(function* () {
+      const browser = yield* makeBrowser;
+      yield* browser.signUp(asTyped("change.ada@example.com"));
+
+      yield* browser.requestEmailChange(asTyped(" Change.Ada.New@Example.com "));
+
+      assert.strictEqual((yield* browser.me).email, "change.ada@example.com");
+      assert.strictEqual(yield* browser.pendingEmail, "change.ada.new@example.com");
+      yield* browser.signIn(asTyped("change.ada@example.com"));
+
+      yield* browser.confirmEmailChange(yield* emailChangeTokenOf("change.ada.new@example.com"));
+
+      assert.strictEqual((yield* browser.me).email, "change.ada.new@example.com");
+      assert.isNull(yield* browser.pendingEmail);
+      yield* browser.signIn(asTyped("change.ada.new@example.com"));
+      const old = yield* browser.signIn(asTyped("change.ada@example.com")).pipe(Effect.flip);
+      assert.strictEqual(old._tag, "InvalidCredentials");
+    }),
+  );
+
+  it.effect("mails the link to the new email, and a notice to the old one", () =>
+    Effect.gen(function* () {
+      const browser = yield* makeBrowser;
+      yield* browser.signUp(asTyped("change.mails@example.com"));
+
+      yield* browser.requestEmailChange(asTyped("change.mails.new@example.com"));
+
+      const [confirmation] = yield* mailsTo("change.mails.new@example.com", 1);
+      const [notice] = yield* mailsTo("change.mails@example.com", 1);
+      assert.match(confirmation?.html ?? "", /https:\/\/quack\.test\/confirm-email\?token=/);
+      assert.match(confirmation?.text ?? "", /lasts 24 hours/);
+      assert.notMatch(notice?.text ?? "", /confirm-email/);
+      assert.match(notice?.text ?? "", /c\*\*\*@example\.com/);
+    }),
+  );
+
+  it.effect("keeps every Session of the User open", () =>
+    Effect.gen(function* () {
+      const laptop = yield* makeBrowser;
+      const phone = yield* makeBrowser;
+      const elsewhere = yield* makeBrowser;
+      yield* laptop.signUp(asTyped("change.sessions@example.com"));
+      yield* phone.signIn(asTyped("change.sessions@example.com"));
+      yield* laptop.requestEmailChange(asTyped("change.sessions.new@example.com"));
+
+      // A device with no Session confirms: the token is the proof.
+      yield* elsewhere.confirmEmailChange(
+        yield* emailChangeTokenOf("change.sessions.new@example.com"),
+      );
+
+      assert.strictEqual((yield* laptop.me).email, "change.sessions.new@example.com");
+      assert.strictEqual((yield* phone.me).email, "change.sessions.new@example.com");
+      assert.strictEqual((yield* Effect.flip(elsewhere.me))._tag, "Unauthenticated");
+    }),
+  );
+
+  it.effect("uses a link once: a second confirm fails with ExpiredLink", () =>
+    Effect.gen(function* () {
+      const browser = yield* makeBrowser;
+      yield* browser.signUp(asTyped("change.once@example.com"));
+      yield* browser.requestEmailChange(asTyped("change.once.new@example.com"));
+      const token = yield* emailChangeTokenOf("change.once.new@example.com");
+
+      yield* browser.confirmEmailChange(token);
+      const again = yield* browser.confirmEmailChange(token).pipe(Effect.flip);
+
+      assert.strictEqual(again._tag, "ExpiredLink");
+    }),
+  );
+
+  it.effect("refuses a link after 24 hours, and takes it one second before", () =>
+    Effect.gen(function* () {
+      const early = yield* makeBrowser;
+      const late = yield* makeBrowser;
+      yield* early.signUp(asTyped("change.early@example.com"));
+      yield* late.signUp(asTyped("change.late@example.com"));
+      yield* early.requestEmailChange(asTyped("change.early.new@example.com"));
+      yield* late.requestEmailChange(asTyped("change.late.new@example.com"));
+
+      yield* TestClock.adjust(Duration.subtract(Duration.hours(24), Duration.seconds(1)));
+      yield* early.confirmEmailChange(yield* emailChangeTokenOf("change.early.new@example.com"));
+      yield* TestClock.adjust("1 second");
+
+      assert.isNull(yield* late.pendingEmail);
+
+      const error = yield* late
+        .confirmEmailChange(yield* emailChangeTokenOf("change.late.new@example.com"))
+        .pipe(Effect.flip);
+
+      assert.strictEqual(error._tag, "ExpiredLink");
+      assert.strictEqual((yield* late.me).email, "change.late@example.com");
+    }),
+  );
+
+  it.effect("invalidates the earlier link when the User asks again", () =>
+    Effect.gen(function* () {
+      const browser = yield* makeBrowser;
+      yield* browser.signUp(asTyped("change.twice@example.com"));
+      yield* browser.requestEmailChange(asTyped("change.twice.first@example.com"));
+      const first = yield* emailChangeTokenOf("change.twice.first@example.com");
+
+      yield* browser.requestEmailChange(asTyped("change.twice.second@example.com"));
+
+      assert.strictEqual(yield* browser.pendingEmail, "change.twice.second@example.com");
+      const refused = yield* browser.confirmEmailChange(first).pipe(Effect.flip);
+      assert.strictEqual(refused._tag, "ExpiredLink");
+      yield* browser.confirmEmailChange(
+        yield* emailChangeTokenOf("change.twice.second@example.com"),
+      );
+      assert.strictEqual((yield* browser.me).email, "change.twice.second@example.com");
+    }),
+  );
+
+  it.effect("cancels: the link stops working, and no email is pending", () =>
+    Effect.gen(function* () {
+      const browser = yield* makeBrowser;
+      yield* browser.signUp(asTyped("change.cancel@example.com"));
+      yield* browser.requestEmailChange(asTyped("change.cancel.new@example.com"));
+
+      yield* browser.cancelEmailChange;
+
+      assert.isNull(yield* browser.pendingEmail);
+
+      const error = yield* browser
+        .confirmEmailChange(yield* emailChangeTokenOf("change.cancel.new@example.com"))
+        .pipe(Effect.flip);
+
+      assert.strictEqual(error._tag, "ExpiredLink");
+      assert.strictEqual((yield* browser.me).email, "change.cancel@example.com");
+    }),
+  );
+
+  it.effect("refuses an email another User has, or the User's own, when asked", () =>
+    Effect.gen(function* () {
+      const browser = yield* makeBrowser;
+      yield* (yield* makeBrowser).signUp(asTyped("change.taken.other@example.com"));
+      yield* browser.signUp(asTyped("change.taken@example.com"));
+
+      const other = yield* browser
+        .requestEmailChange(asTyped("change.taken.other@example.com"))
+        .pipe(Effect.flip);
+
+      const own = yield* browser
+        .requestEmailChange(asTyped("change.taken@example.com"))
+        .pipe(Effect.flip);
+
+      assert.deepStrictEqual([other._tag, own._tag], ["EmailAlreadyTaken", "EmailAlreadyTaken"]);
+    }),
+  );
+
+  it.effect("fails the confirm when another User has taken the new email meanwhile", () =>
+    Effect.gen(function* () {
+      const browser = yield* makeBrowser;
+      yield* browser.signUp(asTyped("change.race@example.com"));
+      yield* browser.requestEmailChange(asTyped("change.race.new@example.com"));
+      const token = yield* emailChangeTokenOf("change.race.new@example.com");
+      yield* (yield* makeBrowser).signUp(asTyped("change.race.new@example.com"));
+
+      const error = yield* browser.confirmEmailChange(token).pipe(Effect.flip);
+
+      assert.strictEqual(error._tag, "EmailAlreadyTaken");
+      assert.strictEqual((yield* browser.me).email, "change.race@example.com");
+      const again = yield* browser.confirmEmailChange(token).pipe(Effect.flip);
+      assert.strictEqual(again._tag, "ExpiredLink");
+    }),
+  );
+
+  it.effect("fails with ExpiredLink for a token it never gave, or one of a Password Reset", () =>
+    Effect.gen(function* () {
+      const browser = yield* makeBrowser;
+      yield* browser.signUp(asTyped("change.reset.link@example.com"));
+      yield* browser.requestPasswordReset(asTyped("change.reset.link@example.com"));
+
+      const unknown = yield* browser.confirmEmailChange("not-a-token").pipe(Effect.flip);
+
+      const reset = yield* browser
+        .confirmEmailChange(yield* resetTokenOf("change.reset.link@example.com"))
+        .pipe(Effect.flip);
+
+      assert.deepStrictEqual([unknown._tag, reset._tag], ["ExpiredLink", "ExpiredLink"]);
+    }),
+  );
+
+  it.effect(
+    "fails requestEmailChange and cancelEmailChange with Unauthenticated without a Session",
+    () =>
+      Effect.gen(function* () {
+        const browser = yield* makeBrowser;
+
+        const request = yield* browser
+          .requestEmailChange(asTyped("change.nobody@example.com"))
+          .pipe(Effect.flip);
+
+        const cancel = yield* browser.cancelEmailChange.pipe(Effect.flip);
+
+        assert.deepStrictEqual([request._tag, cancel._tag], ["Unauthenticated", "Unauthenticated"]);
+      }),
+  );
+});
+
+describe("IdentityApi, Email Change limits", () => {
+  effect("refuses an Email Change past EMAIL_CHANGES_PER_USER, wrong passwords included", () =>
+    Effect.gen(function* () {
+      const browser = yield* makeBrowser;
+      yield* browser.signUp(asTyped("change.limit@example.com"));
+      yield* browser
+        .requestEmailChange(asTyped("change.limit.new@example.com"), newPassword)
+        .pipe(Effect.flip);
+      yield* browser.requestEmailChange(asTyped("change.limit.new@example.com"));
+
+      const error = yield* browser
+        .requestEmailChange(asTyped("change.limit.new@example.com"))
+        .pipe(Effect.flip);
+
+      assert.strictEqual(error._tag, "TooManyAttempts");
+    }).pipe(withLimits({ EMAIL_CHANGES_PER_USER: "2" })),
+  );
+});
+
 describe("IdentityApi, Password Reset limits", () => {
   effect("refuses a request past the limit on the email, known or not: TooManyAttempts", () =>
     Effect.gen(function* () {
@@ -1237,6 +1495,7 @@ const modelLimits = {
   SIGN_IN_FAILURES_PER_IP: "1000",
   PASSWORD_RESETS_PER_EMAIL: "1000",
   PASSWORD_RESETS_PER_IP: "1000",
+  EMAIL_CHANGES_PER_USER: "1000",
 };
 
 layer(withConfig(modelLimits))("IdentityApi, a Session against its model", (it) => {
@@ -1309,6 +1568,84 @@ layer(withConfig(modelLimits))("IdentityApi, a Session against its model", (it) 
         }
       }),
     // Past the default 5 seconds: one argon2 hash or more for most steps, and the waits for mails never sent.
+    60_000,
+  );
+});
+
+layer(withConfig(modelLimits))("IdentityApi, an Email Change against its model", (it) => {
+  it.effect(
+    "answers every transition of the model as the model does",
+    () =>
+      Effect.gen(function* () {
+        for (const [index, walk] of emailChangeModelWalks.entries()) {
+          const browser = yield* makeBrowser;
+          const otherEmail = asTyped(`model.change.${index}.other@example.com`);
+          yield* (yield* makeBrowser).signUp(otherEmail);
+
+          let emails: ReadonlyArray<Email> = [asTyped(`model.change.${index}@example.com`)];
+          yield* browser.signUp(emails[0] ?? otherEmail);
+
+          let newEmails: ReadonlyArray<Email> = [];
+          let links: ReadonlyArray<string> = [];
+          const taken: Array<string> = [];
+
+          const request = Effect.gen(function* () {
+            const newEmail = asTyped(`model.change.${index}.new.${newEmails.length}@example.com`);
+            yield* browser.requestEmailChange(newEmail);
+            newEmails = [...newEmails, newEmail];
+            links = [...links, yield* emailChangeTokenOf(newEmail)];
+          });
+
+          const confirm = Effect.gen(function* () {
+            yield* browser.confirmEmailChange(links.at(-1) ?? "");
+            emails = [...emails, newEmails.at(-1) ?? otherEmail];
+          });
+
+          const steps = {
+            request: () => answerOf(request),
+            requestWithWrongPassword: () =>
+              answerOf(
+                browser.requestEmailChange(
+                  asTyped(`model.change.${index}.refused@example.com`),
+                  wrongPassword,
+                ),
+              ),
+            requestTakenEmail: () => answerOf(browser.requestEmailChange(otherEmail)),
+            cancel: () => answerOf(browser.cancelEmailChange),
+            confirm: () => answerOf(confirm),
+            confirmReplacedLink: () => answerOf(browser.confirmEmailChange(links.at(-2) ?? "")),
+            takeNewEmail: () =>
+              answerOf(
+                Effect.flatMap(makeBrowser, (other) =>
+                  other.signUp(newEmails.at(-1) ?? otherEmail),
+                ),
+              ),
+            waitADay: () => answerOf(TestClock.adjust("24 hours")),
+            signIn: () => answerOf(browser.signIn(emails.at(-1) ?? otherEmail)),
+            signInWithFormerEmail: () => answerOf(browser.signIn(emails.at(-2) ?? otherEmail)),
+          };
+
+          for (const { event, state } of walk) {
+            taken.push(event.type);
+            const answer = yield* steps[event.type]();
+
+            assert.deepStrictEqual(
+              {
+                answer,
+                email: (yield* browser.me).email,
+                pendingEmail: yield* browser.pendingEmail,
+              },
+              {
+                answer: state.context.answer,
+                email: emails.at(-1),
+                pendingEmail: state.value === "pending" ? newEmails.at(-1) : null,
+              },
+              taken.join(" → "),
+            );
+          }
+        }
+      }),
+    // Past the default 5 seconds: an argon2 hash or more for most steps.
     60_000,
   );
 });

@@ -289,7 +289,7 @@ describe("server routes", () => {
     );
 
     expect(me.status).toBe(200);
-    expect(await me.json()).toEqual(user);
+    expect(await me.json()).toEqual({ ...user, pendingEmail: null });
   });
 
   it("signs in a request that carries a valid session cookie: opens a new Session, and leaves the other open", async () => {

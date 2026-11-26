@@ -3,6 +3,7 @@ import { Layer } from "effect";
 
 import { AuthorizationRequests } from "#/modules/identity/application/authorization-requests.ts";
 import { Grants } from "#/modules/identity/application/grants.ts";
+import { EmailChanges } from "#/modules/identity/application/email-changes.ts";
 import { Identity } from "#/modules/identity/application/identity.ts";
 import { Onboarding } from "#/modules/identity/application/onboarding.ts";
 import { PasswordResets } from "#/modules/identity/application/password-resets.ts";
@@ -60,6 +61,7 @@ export const IdentityModule = Layer.mergeAll(IdentityHandlers, UsersHandlers).pi
     Users.layer,
     Onboarding.layer,
     PasswordResets.layer,
+    EmailChanges.layer,
     SessionCookie.layer,
   ]),
   Layer.provide([PasswordHasherArgon2, AttemptLimiterMemory]),

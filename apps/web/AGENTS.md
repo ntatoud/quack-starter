@@ -39,6 +39,6 @@ A table keeps its whole state in the URL, and the API sorts, filters, and pages 
 Build a form with `useAppForm` from `@quack/form/use-app-form`: copy `features/todos/todos-form.tsx`.
 
 - Validation does not transform the values, so decode them in `onSubmit` with the schema given to `schemaFormOptions`.
-- When the request of `onSubmit` fails, throw `new SubmitFailed(message)`. Any other error thrown is reported as a bug.
+- When the request of `onSubmit` fails, throw `new SubmitFailed(message)`, or `new FieldRefused(name, message)` (`@quack/form/field-refused`) when the API refused the value of one field (a wrong password, an email taken): it shows on that field. Any other error thrown is reported as a bug.
 - A control without a `field.Label` takes an `aria-label`.
 - Test a form in the browser with `fetch` stubbed (`features/todos/todos-form.test.tsx`), asserting what a user or assistive tech gets: focus, accessible name and description, the live region.

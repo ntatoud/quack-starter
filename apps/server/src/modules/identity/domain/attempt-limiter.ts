@@ -10,6 +10,7 @@ export type AttemptLimit =
   | "signUpsPerIp"
   | "passwordResetsPerEmail"
   | "passwordResetsPerIp"
+  | "emailChangesPerUser"
   | "clientDocumentFetchesPerUser"
   | "tokenFailuresPerIp";
 
@@ -40,6 +41,10 @@ export class AttemptCounter {
 
   static passwordResetsOfIp(ip: ClientIp) {
     return new AttemptCounter("passwordResetsPerIp", ip);
+  }
+
+  static emailChangesOfUser(userId: UserId) {
+    return new AttemptCounter("emailChangesPerUser", userId);
   }
 
   static clientDocumentFetchesOfUser(userId: UserId) {

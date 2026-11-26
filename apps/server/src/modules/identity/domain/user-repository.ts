@@ -11,6 +11,7 @@ export class UserRepository extends Context.Service<
     create(user: User, passwordHash: string): Effect.Effect<void, EmailAlreadyTaken>;
     update(user: User): Effect.Effect<void>;
     setPasswordHash(id: UserId, passwordHash: string): Effect.Effect<void>;
+    setEmail(id: UserId, email: Email): Effect.Effect<void, EmailAlreadyTaken>;
     /** Says whether there was a User to remove. */
     remove(id: UserId): Effect.Effect<boolean>;
     findById(id: UserId): Effect.Effect<Option.Option<User>>;

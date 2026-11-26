@@ -1,6 +1,6 @@
 # Server
 
-Effect HTTP API, one folder per bounded context in `src/modules/`. Before changing sign-in, sign-up, Sessions, the `AttemptLimiter`, or the seed, read `docs/identity.md`; before changing Password Reset, `docs/password-reset.md`.
+Effect HTTP API, one folder per bounded context in `src/modules/`. Before changing sign-in, sign-up, Sessions, the `AttemptLimiter`, or the seed, read `docs/identity.md`; before changing Password Reset, `docs/password-reset.md`; before changing Email Change, `docs/email-change.md`.
 
 ## Modules
 
@@ -47,7 +47,7 @@ Migrations (`docs/adr/0002-typescript-migrations-applied-at-startup.md`) live in
 ## Tests
 
 - A storage port states its promises as one suite in `testing/` that takes an adapter's Layer (`todoRepositorySuite(layer)`), run from each adapter's test file. Its memory adapter is a test double, in `testing/` too.
-- A flow across requests has a model in `testing/`, an `xstate/fsm` machine: the Grant of an AI Client (`grant-model.ts`), a User's Session and Password Reset (`session-model.ts`). Its handler test replays `coveringWalks`, which take every transition, against the `Api`, and compares each answer with the model's. A change to a rule of the flow changes its model too.
+- A flow across requests has a model in `testing/`, an `xstate/fsm` machine: the Grant of an AI Client (`grant-model.ts`), a User's Session and Password Reset (`session-model.ts`), Email Change (`email-change-model.ts`). Its handler test replays `coveringWalks`, which take every transition, against the `Api`, and compares each answer with the model's. A change to a rule of the flow changes its model too.
 - `grant-store-postgres.test.ts` runs the suite on Postgres when `TEST_DATABASE_URL` names an empty database it may migrate and fill, and is skipped otherwise: CI runs no suite on Postgres, its Database job only checks `db.gen.ts`.
 - Test handlers through `HttpApiTest`, with no server. It builds the routes of the whole `Api`, so the test Layer provides every middleware the `Api` declares: copy `modules/todos/http/todos-handlers.test.ts`.
 - A client that keeps cookies: `makeBrowser` in `modules/identity/http/identity-handlers.test.ts`.

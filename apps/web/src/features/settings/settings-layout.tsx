@@ -1,12 +1,13 @@
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@quack/ui/components/sidebar";
 import { Link, Outlet, useMatchRoute } from "@tanstack/react-router";
-import { BotIcon, SlidersHorizontalIcon, UserIcon } from "lucide-react";
+import { BotIcon, MailIcon, SlidersHorizontalIcon, UserIcon } from "lucide-react";
 
 import { PageContent } from "#/features/layout/page-content.tsx";
 import { PageHeader } from "#/features/layout/page-header.tsx";
 
 export const sections = [
   { to: "/app/settings/profile", label: "Profile", icon: UserIcon },
+  { to: "/app/settings/email", label: "Email", icon: MailIcon },
   { to: "/app/settings/preferences", label: "Preferences", icon: SlidersHorizontalIcon },
   { to: "/app/settings/ai-clients", label: "AI Clients", icon: BotIcon },
 ] as const;
