@@ -1,5 +1,4 @@
-import { booleanFilter } from "@quack/ui/components/data-table/filters/boolean-filter";
-import { selectFilter } from "@quack/ui/components/data-table/filters/select-filter";
+import { booleanFilter, selectFilter } from "@quack/ui/data-table";
 
 import type { UsersSearch } from "#/features/users/admin/users-search.ts";
 import { teamOptions } from "#/features/identity/team-options.ts";

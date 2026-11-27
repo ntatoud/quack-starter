@@ -1,5 +1,5 @@
 import { FieldLabel } from "@quack/ui/components/field";
-import { cn } from "@quack/ui/lib/utils";
+import { cn } from "cn";
 import type { ComponentProps } from "react";
 
 import { useRequiredFieldLayout } from "#/form-field.tsx";

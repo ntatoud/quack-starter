@@ -1,5 +1,5 @@
 import type { User } from "@quack/contracts/identity/user";
-import type { DataTableColumnFor } from "@quack/ui/components/data-table/data-table";
+import type { DataTableColumnFor } from "@quack/ui/data-table";
 
 import {
   CountryCell,

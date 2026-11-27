@@ -1,14 +1,14 @@
 import type { User } from "@quack/contracts/identity/user";
 import { Button } from "@quack/ui/components/button";
-import { DataTableColumnVisibility } from "@quack/ui/components/data-table/column-visibility";
-import { DataTable } from "@quack/ui/components/data-table/data-table";
-import { DataTablePagination } from "@quack/ui/components/data-table/pagination";
 import {
+  DataTable,
+  DataTableColumnVisibility,
   DataTableEmptyState,
   DataTableErrorState,
   DataTableLoadingState,
-} from "@quack/ui/components/data-table/states";
-import { DataTableToolbar } from "@quack/ui/components/data-table/toolbar";
+  DataTablePagination,
+  DataTableToolbar,
+} from "@quack/ui/data-table";
 import { matchQuery } from "@quack/ui-state/ui-state";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
