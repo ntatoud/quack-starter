@@ -339,6 +339,9 @@ importers:
         specifier: 6.0.0-beta.5
         version: 6.0.0-beta.5
     devDependencies:
+      '@effect/sql-pglite':
+        specifier: 'catalog:'
+        version: 4.1.6(effect@4.1.6)
       '@effect/vitest':
         specifier: 'catalog:'
         version: 4.1.6(effect@4.1.6)

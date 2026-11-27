@@ -14,11 +14,11 @@ import { GrantStoreMemory } from "#/modules/identity/testing/grant-store-memory.
 import { LinkTokenStoreMemory } from "#/modules/identity/testing/link-token-store-memory.ts";
 import { TransactionMemory } from "#/modules/transaction/testing/transaction-memory.ts";
 import { SessionStoreMemory } from "#/modules/identity/testing/session-store-memory.ts";
-import { UserRepositoryMemory } from "#/modules/identity/testing/user-repository-memory.ts";
+import { UserRepositoryPostgres } from "#/modules/identity/infrastructure/user-repository-postgres.ts";
 import { SystemModule } from "#/modules/system/index.ts";
 import { TodosModule } from "#/modules/todos/index.ts";
 import { MailerMemory } from "#/modules/mail/testing/mailer-memory.ts";
-import { TodoRepositoryMemory } from "#/modules/todos/testing/todo-repository-memory.ts";
+import { TestDatabase } from "#/testing/test-database.ts";
 
 // No tool fetches an AI Client's document.
 const NoHttpClient = Layer.succeed(
@@ -29,15 +29,14 @@ const NoHttpClient = Layer.succeed(
 const ApiHandlers = Layer.mergeAll(SystemModule, TodosModule, AiClientsModule).pipe(
   Layer.provideMerge(IdentityModule),
   Layer.provide([
-    UserRepositoryMemory,
     SessionStoreMemory,
     AuthorizationCodeStoreMemory,
     GrantStoreMemory,
     LinkTokenStoreMemory,
     TransactionMemory,
-    TodoRepositoryMemory,
     MailerMemory,
     NoHttpClient,
+    UserRepositoryPostgres.pipe(Layer.provideMerge(TestDatabase)),
   ]),
   Layer.provide(
     ConfigProvider.layer(ConfigProvider.fromUnknown({ PUBLIC_URL: "https://quack.test" })),

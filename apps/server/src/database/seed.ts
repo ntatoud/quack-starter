@@ -5,7 +5,7 @@ import type { DatabaseSettings } from "#/config.ts";
 import { databaseAt, withoutPassword } from "#/database/database.ts";
 import { MIGRATIONS_TABLE } from "#/database/rollback.ts";
 import { devAccountIds, IdentityPostgres, IdentitySeed } from "#/modules/identity/index.ts";
-import { TodosPostgres, TodosSeed } from "#/modules/todos/index.ts";
+import { TodosSeed } from "#/modules/todos/index.ts";
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
 
@@ -65,7 +65,7 @@ export const seedDatabase = Effect.fn("seedDatabase")(function* (config: Databas
 
   yield* reset.pipe(
     Effect.provide(
-      Layer.mergeAll(IdentityPostgres, TodosPostgres).pipe(Layer.provideMerge(databaseAt(config))),
+      IdentityPostgres.pipe(Layer.provideMerge(databaseAt(config))),
     ),
   );
 });

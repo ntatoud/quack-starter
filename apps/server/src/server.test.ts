@@ -8,21 +8,21 @@ import { GrantStoreMemory } from "#/modules/identity/testing/grant-store-memory.
 import { LinkTokenStoreMemory } from "#/modules/identity/testing/link-token-store-memory.ts";
 import { TransactionMemory } from "#/modules/transaction/testing/transaction-memory.ts";
 import { SessionStoreMemory } from "#/modules/identity/testing/session-store-memory.ts";
-import { UserRepositoryMemory } from "#/modules/identity/testing/user-repository-memory.ts";
+import { UserRepositoryPostgres } from "#/modules/identity/infrastructure/user-repository-postgres.ts";
 import { MailerMemory } from "#/modules/mail/testing/mailer-memory.ts";
-import { TodoRepositoryMemory } from "#/modules/todos/testing/todo-repository-memory.ts";
+import { TestDatabase } from "#/testing/test-database.ts";
 import { Routes } from "#/server.ts";
 
 const MemoryStorage = Layer.mergeAll(
-  UserRepositoryMemory,
   SessionStoreMemory,
   AuthorizationCodeStoreMemory,
   GrantStoreMemory,
   LinkTokenStoreMemory,
   TransactionMemory,
-  TodoRepositoryMemory,
+  TestDatabase,
   MailerMemory,
-);
+  UserRepositoryPostgres,
+).pipe(Layer.provideMerge(TestDatabase));
 
 // Another origin than the one of the requests below: the documents must not take theirs from `Host`.
 const Config = ConfigProvider.layer(

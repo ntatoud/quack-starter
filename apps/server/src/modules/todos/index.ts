@@ -1,12 +1,9 @@
 import { Layer } from "effect";
 
-import { Todos } from "#/modules/todos/application/todos.ts";
-import { TodosSeed } from "#/modules/todos/application/todos-seed.ts";
-import { TodosHandlers } from "#/modules/todos/http/todos-handlers.ts";
-import { TodoRepositoryPostgres } from "#/modules/todos/infrastructure/todo-repository-postgres.ts";
+import { TodosHandlers } from "#/modules/todos/todos-handlers.ts";
+import { Todos } from "#/modules/todos/todos.ts";
 
-export { TodosSeed };
+export { TodosSeed } from "#/modules/todos/todos-seed.ts";
 
-export const TodosPostgres = TodoRepositoryPostgres;
-
+/** The Todos endpoints of the `Api`. Needs the database. */
 export const TodosModule = TodosHandlers.pipe(Layer.provide(Todos.layer));

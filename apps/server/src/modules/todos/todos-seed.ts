@@ -5,7 +5,7 @@ import { Todo, TodoId, TodoTitle } from "@quack/contracts/todos/todo";
 import { DateTime, Effect, Layer } from "effect";
 
 import { seedDate } from "#/database/seed-date.ts";
-import { TodoRepository } from "#/modules/todos/domain/todo-repository.ts";
+import { Todos } from "#/modules/todos/todos.ts";
 
 const drafts = [
   { title: "Read the README", completed: true },
@@ -45,9 +45,8 @@ const devTodos = (owners: ReadonlyArray<UserId>): ReadonlyArray<Todo> =>
 export const TodosSeed = (owners: ReadonlyArray<UserId>) =>
   Layer.effectDiscard(
     Effect.gen(function* () {
-      const repository = yield* TodoRepository;
       const seeded = devTodos(owners);
-      yield* Effect.forEach(seeded, repository.save, { discard: true });
+      yield* (yield* Todos).insert(seeded);
       yield* Effect.logInfo(`Seeded ${seeded.length} Todos`);
     }),
-  );
+  ).pipe(Layer.provide(Todos.layer));
