@@ -20,7 +20,7 @@ import {
   EmptyTitle,
 } from "@quack/ui/components/empty";
 import { Skeleton } from "@quack/ui/components/skeleton";
-import { matchQuery } from "@quack/ui-state/query";
+import { matchQuery } from "@quack/ui-state/ui-state";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 

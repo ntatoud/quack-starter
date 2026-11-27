@@ -6,7 +6,7 @@
     "#/*": "./src/*"
   },
   "exports": {
-    "./*": "./src/*.ts"
+    "./ui-state": "./src/ui-state.ts"
   },
   "scripts": {
     "typecheck": "effect-tsgo tsc --noEmit",

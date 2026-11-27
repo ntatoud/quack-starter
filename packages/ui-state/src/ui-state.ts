@@ -1,3 +1,4 @@
+import type { QueryObserverResult } from "@tanstack/react-query";
 import { Data, Option } from "effect";
 
 export type UiState<A, E> = Data.TaggedEnum<{
@@ -47,3 +48,22 @@ export const UiState = {
     return handle(state);
   },
 };
+
+/** A query starts loading as soon as it exists, so it is never Idle. */
+export type QueryUiState<A, E> = Exclude<UiState<A, E>, { readonly _tag: "Idle" }>;
+
+const fromQuery = <A, E>(result: QueryObserverResult<A, E>): QueryUiState<A, E> => {
+  if (result.isPending) return UiState.pending();
+
+  if (result.isLoadingError) return UiState.error(result.error);
+
+  return UiState.success(
+    result.data,
+    result.isRefetchError ? Option.some(result.error) : Option.none(),
+  );
+};
+
+export const matchQuery = <A, E, C extends UiStateCases<QueryUiState<A, E>>>(
+  result: QueryObserverResult<A, E>,
+  cases: C & NoExtraCases<QueryUiState<A, E>, C>,
+) => UiState.match(fromQuery(result), cases);

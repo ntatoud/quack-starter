@@ -1,6 +1,5 @@
 import { Schema, SchemaTransformation } from "effect";
 
-import type { FieldOption } from "#/field-option.ts";
 import { schemaFormOptions } from "#/schema-form-options.ts";
 import { useAppForm } from "#/use-app-form.ts";
 
@@ -25,7 +24,7 @@ const OptionalColor = Schema.Struct({
 
 const decodeOptionalColor = Schema.decodeSync(OptionalColor);
 
-const colors: ReadonlyArray<FieldOption> = [
+const colors = [
   { value: "red", label: "Red" },
   { value: "blue", label: "Blue" },
   { value: "green", label: "Green" },
