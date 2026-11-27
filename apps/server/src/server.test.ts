@@ -1,10 +1,12 @@
-import { ConfigProvider, Effect, Layer, Schema } from "effect";
+import { ConfigProvider, Effect, Layer, Redacted, Schema } from "effect";
 import { HttpClient, HttpClientResponse, HttpRouter, HttpServer } from "effect/http";
 import { afterAll, beforeAll, describe, expect, it } from "vite-plus/test";
 
-import { devUsers, IdentityPostgres, IdentitySeed } from "#/modules/identity/index.ts";
+import { Email } from "@quack/contracts/identity/user";
+
+import { IdentityPostgres } from "#/modules/identity/index.ts";
 import { MailerMemory } from "#/modules/mail/index.ts";
-import { TestDatabase } from "#/modules/testing/index.ts";
+import { aUser, knownPassword, TestDatabase } from "#/modules/testing/index.ts";
 import { TransactionPostgres } from "#/modules/transaction/index.ts";
 import { Routes } from "#/server.ts";
 
@@ -987,14 +989,21 @@ describe("server routes of an AI Client", () => {
   });
 });
 
+const admin = Email.make("admin@quack.test");
+
+// An Admin, and Users of more than one Role and Status.
+const StoredUsers = Layer.effectDiscard(
+  Effect.all([aUser({ role: "admin", email: admin }), aUser(), aUser({ status: "suspended" })]),
+);
+
 const makeSeeded = () =>
   HttpRouter.toWebHandler(
-    Layer.mergeAll(Routes, IdentitySeed).pipe(
+    Layer.mergeAll(Routes, StoredUsers).pipe(
       Layer.provide([HttpServer.layerServices, Storage, Config, RecordingHttpClient]),
     ),
   );
 
-describe("server routes, with the dev Users seeded", () => {
+describe("server routes, with Users stored", () => {
   let seeded: ReturnType<typeof makeSeeded>;
   let cookie = "";
 
@@ -1005,7 +1014,7 @@ describe("server routes, with the dev Users seeded", () => {
       new Request("http://api.test/api/sign-in", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email: "admin@quack.dev", password: "quack-password" }),
+        body: JSON.stringify({ email: admin, password: Redacted.value(knownPassword) }),
       }),
     );
 
@@ -1020,7 +1029,7 @@ describe("server routes, with the dev Users seeded", () => {
   it("answers /api/users to an Admin, sorted as the query asks, and with 400 when the query is out of bounds", async () => {
     const firstPage = await usersAt("");
     expect(firstPage.status).toBe(200);
-    expect(await firstPage.json()).toMatchObject({ total: devUsers().length });
+    expect(await firstPage.json()).toMatchObject({ total: 3 });
 
     const outOfBounds = await Promise.all(
       ["?pageSize=0", "?pageSize=101", "?pageSize=2.5", "?page=0", "?orderBy=id", "?dir=up"].map(

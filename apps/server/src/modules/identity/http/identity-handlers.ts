@@ -6,9 +6,7 @@ import { HttpApiBuilder } from "effect/http-api";
 
 import { EmailChanges } from "#/modules/identity/application/email-changes.ts";
 import { Identity } from "#/modules/identity/application/identity.ts";
-import { Onboarding } from "#/modules/identity/application/onboarding.ts";
 import { PasswordResets } from "#/modules/identity/application/password-resets.ts";
-import { Users } from "#/modules/identity/application/users.ts";
 import { clientIp } from "#/modules/identity/http/client-ip.ts";
 import { SessionCookie } from "#/modules/identity/http/session-cookie.ts";
 
@@ -18,8 +16,6 @@ export const IdentityHandlers = HttpApiBuilder.group(
   Effect.fn(function* (handlers) {
     const identity = yield* Identity;
     const cookie = yield* SessionCookie;
-    const users = yield* Users;
-    const onboarding = yield* Onboarding;
     const passwordResets = yield* PasswordResets;
     const emailChanges = yield* EmailChanges;
 
@@ -73,21 +69,6 @@ export const IdentityHandlers = HttpApiBuilder.group(
         const currentUser = yield* CurrentUser;
 
         yield* emailChanges.cancel(currentUser.id);
-      }),
-      updateProfile: Effect.fn(function* ({ payload }) {
-        const currentUser = yield* CurrentUser;
-
-        return yield* users.updateProfile(currentUser.id, payload);
-      }),
-      updateTimeZone: Effect.fn(function* ({ payload }) {
-        const currentUser = yield* CurrentUser;
-
-        return yield* users.updateTimeZone(currentUser.id, payload.timeZone);
-      }),
-      completeOnboarding: Effect.fn(function* ({ payload }) {
-        const currentUser = yield* CurrentUser;
-
-        return yield* onboarding.complete(currentUser.id, payload);
       }),
     });
   }),

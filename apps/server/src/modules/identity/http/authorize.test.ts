@@ -5,8 +5,8 @@ import { RequiredPermission } from "@quack/contracts/permission";
 import { Effect } from "effect";
 import { HttpApiEndpoint } from "effect/http-api";
 
-import { rolePermissions } from "#/modules/identity/domain/role-permissions.ts";
 import { accessTo, authorize } from "#/modules/identity/http/authorize.ts";
+import { rolePermissions } from "#/modules/users/index.ts";
 
 const listUsers = HttpApiEndpoint.get("listUsers", "/users")
   .annotate(RequiredPermission, "users:list")

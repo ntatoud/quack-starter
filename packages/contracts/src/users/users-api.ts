@@ -2,8 +2,9 @@ import { Schema, SchemaTransformation } from "effect";
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from "effect/http-api";
 
 import { Authentication } from "#/identity/authentication.ts";
-import { Team } from "#/identity/profile.ts";
-import { Role, User, UserId, UserStatus } from "#/identity/user.ts";
+import { Unauthenticated } from "#/identity/identity-errors.ts";
+import { PersonName, Profile, Team } from "#/identity/profile.ts";
+import { Role, TimeZone, User, UserId, UserStatus } from "#/identity/user.ts";
 import { Paginated, PaginationQuery } from "#/pagination/paginated.ts";
 import { RequiredPermission } from "#/permission.ts";
 import { sortingFields } from "#/sorting/sorting.ts";
@@ -64,6 +65,24 @@ export const UserChanges = Schema.Struct({
 
 export type UserChanges = typeof UserChanges.Type;
 
+export const TimeZonePayload = Schema.Struct({ timeZone: TimeZone });
+
+/** Trims what was typed, then decodes it with `schema`, whose `Schema.Trimmed` would only refuse the spaces. */
+const trimmed = <S extends Schema.Codec<string, string>>(schema: S) =>
+  Schema.String.pipe(Schema.decodeTo(schema, SchemaTransformation.trim()));
+
+/** What the onboarding asks for: the fields a Profile requires. */
+export const OnboardingPayload = Schema.Struct({
+  firstName: trimmed(PersonName),
+  lastName: trimmed(PersonName),
+});
+
+export type OnboardingPayload = typeof OnboardingPayload.Type;
+
+const SignedOut = Unauthenticated.pipe(HttpApiSchema.status(401));
+
+// The Current User's own endpoints are added after the prefix, which covers the endpoints added before it only:
+// their paths stay under `/me`.
 export class UsersApi extends HttpApiGroup.make("users")
   .add(
     HttpApiEndpoint.get("list", "/", {
@@ -88,5 +107,23 @@ export class UsersApi extends HttpApiGroup.make("users")
       error: [NotFound, DeleteSelf],
     }).annotate(RequiredPermission, "users:delete"),
   )
-  .middleware(Authentication)
-  .prefix("/users") {}
+  .prefix("/users")
+  .add(
+    /** Replaces the whole Profile of the Current User, and answers with their User. */
+    HttpApiEndpoint.put("updateProfile", "/me/profile", {
+      payload: Profile,
+      success: User,
+      error: SignedOut,
+    }).annotate(RequiredPermission, "none"),
+    HttpApiEndpoint.put("updateTimeZone", "/me/time-zone", {
+      payload: TimeZonePayload,
+      success: User,
+      error: SignedOut,
+    }).annotate(RequiredPermission, "none"),
+    HttpApiEndpoint.post("completeOnboarding", "/me/onboarding", {
+      payload: OnboardingPayload,
+      success: User,
+      error: SignedOut,
+    }).annotate(RequiredPermission, "none"),
+  )
+  .middleware(Authentication) {}

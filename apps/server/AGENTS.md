@@ -13,6 +13,8 @@ To add a context, copy `modules/todos`:
 5. Test it through the `Api` in `<name>.test.ts`, beside `index.ts`.
 6. Add the module to `server.ts`, before `IdentityModule`.
 
+`modules/users` is the other shape to copy: its `Users` service is what the other modules ask of the Users (`register`, `verifyPassword`, `find`...), its Layer apart from the endpoints, since `Authentication` asks it too. Hashing, email uniqueness and Status rules stay inside it.
+
 A module's seed goes through the `Api`, as a User would: `seedTodos` takes a signed-in client, and `database/seed.ts` signs in as each dev account.
 
 - A module reaches another one through its `index.ts`, and identity through the contract (`CurrentUser`, `UserId`).
@@ -51,7 +53,7 @@ Migrations (`docs/adr/0002-typescript-migrations-applied-at-startup.md`) live in
 ## Tests
 
 - Tests run on Postgres, never on memory doubles of storage. A vitest `globalSetup` migrates a template database once per run, on the server `TEST_DATABASE_URL` names (CI's), or else on the container of `compose.yaml`, started as `pnpm dev` starts it: `pnpm test` needs Docker. `TestDatabase` (`modules/testing`) clones it with `CREATE DATABASE ... TEMPLATE` each time its Layer is built, and drops the clone on release: provide it to each test for a fresh database. `testDatabaseUrl` gives such a clone by its URL, for what connects by URL, such as `seedDatabase`.
-- The `testing` module (`modules/testing/index.ts`) makes the state no endpoint can make: `aUser({ role?, status? })` stores a User with a known password, `signedIn(user, groups)` gives a client of those groups with the User's Session, `makeBrowser` a client of the identity endpoints that keeps cookies. Tests import it, never a module's `lib/`.
+- The `testing` module (`modules/testing/index.ts`) makes the state no endpoint can make: `aUser({ role?, status?, ... })` stores a User with `knownPassword` (any field of a User may be given), `setStatus(id, status)` changes the Status of one, `signedIn(user, groups)` gives a client of those groups with the User's Session, `makeBrowser` a client of the identity endpoints that keeps cookies. Tests import it, never a module's `lib/`.
 - A storage port states its promises as one suite in `testing/` that takes an adapter's Layer and a way to store a User (`sessionStoreSuite(layer, anOwner)`), run from the Postgres adapter's test file. Identity's ports remain until its modules leave it; a new module has none.
 - A flow across requests has a model in `testing/`, an `xstate/fsm` machine: the Grant of an AI Client (`grant-model.ts`), a User's Session and Password Reset (`session-model.ts`), Email Change (`email-change-model.ts`). Its handler test replays `coveringWalks` (`modules/testing`), which take every transition, against the `Api`, and compares each answer with the model's. A change to a rule of the flow changes its model too.
 - Test handlers through `HttpApiTest`, with no server. It builds the routes of the whole `Api`, so the test Layer provides every middleware the `Api` declares: copy `modules/todos/todos.test.ts`.

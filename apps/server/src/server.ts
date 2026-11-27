@@ -16,10 +16,12 @@ import {
 } from "#/modules/identity/index.ts";
 import { SystemModule } from "#/modules/system/index.ts";
 import { TodosModule } from "#/modules/todos/index.ts";
+import { Users, UsersModule } from "#/modules/users/index.ts";
 
 // One instance of the handlers serves both the HTTP API and the tools, which call it in process.
-const ApiHandlers = Layer.mergeAll(SystemModule, TodosModule, AiClientsModule).pipe(
+const ApiHandlers = Layer.mergeAll(SystemModule, TodosModule, UsersModule, AiClientsModule).pipe(
   Layer.provideMerge(IdentityModule),
+  Layer.provideMerge(Users.layer),
 );
 
 const ApiRoutes = HttpApiBuilder.layer(Api, { openapiPath: `${API_PREFIX}/openapi.json` }).pipe(

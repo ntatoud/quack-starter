@@ -1,19 +1,16 @@
 import { assert, it } from "@effect/vitest";
 import { DateTime, Effect, Layer, Option } from "effect";
+import { SqlClient } from "effect/sql";
 import { describe } from "vite-plus/test";
 
 import { GrantStore } from "#/modules/identity/domain/grant-store.ts";
-import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
 import { GrantStorePostgres } from "#/modules/identity/infrastructure/grant-store-postgres.ts";
-import { UserRepositoryPostgres } from "#/modules/identity/infrastructure/user-repository-postgres.ts";
 import { grantStoreSuite } from "#/modules/identity/testing/grant-store-suite.ts";
 import { aUser, TestDatabase } from "#/modules/testing/index.ts";
 
 const aUserId = Effect.map(aUser(), ({ id }) => id);
 
-const Postgres = Layer.mergeAll(GrantStorePostgres, UserRepositoryPostgres).pipe(
-  Layer.provide(TestDatabase),
-);
+const Postgres = GrantStorePostgres.pipe(Layer.provideMerge(TestDatabase));
 
 describe("GrantStorePostgres", () => {
   grantStoreSuite(Postgres, aUserId);
@@ -42,7 +39,7 @@ describe("GrantStorePostgres", () => {
       });
       yield* store.saveRefreshToken({ ...token, tokenHash: refreshTokenHash, replaced: false });
 
-      yield* (yield* UserRepository).remove(userId);
+      yield* (yield* SqlClient.SqlClient)`DELETE FROM users WHERE id = ${userId}`;
 
       assert.isTrue(Option.isNone(yield* store.findOf(userId, grant.aiClientId)));
       assert.isTrue(Option.isNone(yield* store.findByAccessToken(accessTokenHash)));

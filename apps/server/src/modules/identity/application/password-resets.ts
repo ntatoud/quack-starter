@@ -12,12 +12,10 @@ import {
 } from "#/modules/identity/domain/attempt-limiter.ts";
 import { isLinkExpired, passwordResetLifetime } from "#/modules/identity/domain/link-token.ts";
 import { LinkTokenStore } from "#/modules/identity/domain/link-token-store.ts";
-import { PasswordHasher } from "#/modules/identity/domain/password-hasher.ts";
 import { SessionStore } from "#/modules/identity/domain/session-store.ts";
 import { Transaction } from "#/modules/transaction/index.ts";
-import { canSignIn } from "#/modules/identity/domain/user.ts";
-import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
 import { Mailer } from "#/modules/mail/index.ts";
+import { Users } from "#/modules/users/index.ts";
 
 export class PasswordResets extends Context.Service<
   PasswordResets,
@@ -31,10 +29,9 @@ export class PasswordResets extends Context.Service<
   static readonly layer = Layer.effect(
     PasswordResets,
     Effect.gen(function* () {
-      const users = yield* UserRepository;
+      const users = yield* Users;
       const sessions = yield* SessionStore;
       const links = yield* LinkTokenStore;
-      const hasher = yield* PasswordHasher;
       const limiter = yield* AttemptLimiter;
       const mailer = yield* Mailer;
       const transaction = yield* Transaction;
@@ -44,11 +41,11 @@ export class PasswordResets extends Context.Service<
       const scope = yield* Effect.scope;
 
       const sendLink = Effect.fn("PasswordResets.sendLink")(function* (email: Email) {
-        const found = yield* users.findByEmail(email);
+        const found = yield* users.find({ email });
 
-        if (Option.isNone(found) || !canSignIn(found.value.user)) return;
+        if (Option.isNone(found)) return;
 
-        const { user } = found.value;
+        const user = found.value;
         const { url, tokenHash } = yield* makeLink("/reset-password");
 
         // Replaces the earlier link of the User: asking again makes it useless.
@@ -100,12 +97,12 @@ export class PasswordResets extends Context.Service<
               if (Option.isNone(link) || isLinkExpired(link.value, yield* DateTime.now))
                 return false;
 
-              const user = yield* users.findById(link.value.userId);
+              const user = yield* users.find({ id: link.value.userId });
 
               // A User suspended since they asked is refused as a stranger would be.
-              if (Option.isNone(user) || !canSignIn(user.value)) return false;
+              if (Option.isNone(user)) return false;
 
-              yield* users.setPasswordHash(user.value.id, yield* hasher.hash(password));
+              yield* users.changePassword(user.value.id, password);
               // Whoever knew the old password, or holds a Session opened with it, is shut out.
               yield* sessions.removeAllOf(user.value.id);
 

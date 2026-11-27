@@ -1,5 +1,5 @@
 import { brand } from "@quack/brand/brand";
-import { OnboardingPayload } from "@quack/contracts/identity/identity-api";
+import { OnboardingPayload } from "@quack/contracts/users/users-api";
 import type { User } from "@quack/contracts/identity/user";
 import { schemaFormOptions } from "@quack/form/schema-form-options";
 import { SubmitFailed } from "@quack/form/submit-failed";
@@ -33,7 +33,7 @@ export function OnboardingDialog({
 }) {
   const formId = useId();
   const signOut = useSignOut();
-  const completeOnboarding = useMutation(api.identity.completeOnboarding.mutationOptions());
+  const completeOnboarding = useMutation(api.users.completeOnboarding.mutationOptions());
 
   const form = useAppForm({
     ...schemaFormOptions(OnboardingPayload, emptyOnboardingPayload),

@@ -2,10 +2,10 @@ import { Authentication } from "@quack/contracts/identity/authentication";
 import { Effect, Layer, Option } from "effect";
 
 import { Identity } from "#/modules/identity/application/identity.ts";
-import { rolePermissions } from "#/modules/identity/domain/role-permissions.ts";
 import { callAs } from "#/modules/identity/http/authorize.ts";
 import { McpCaller } from "#/modules/identity/http/mcp-caller.ts";
 import { SessionCookie } from "#/modules/identity/http/session-cookie.ts";
+import { rolePermissions } from "#/modules/users/index.ts";
 
 export const AuthenticationMiddleware = Layer.effect(
   Authentication,

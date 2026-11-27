@@ -28,7 +28,7 @@ const countryOptions = countryCodes
 
 export function ProfileForm({ currentUser }: { currentUser: typeof User.Encoded }) {
   const updateCurrentUser = useUpdateCurrentUser();
-  const updateProfile = useMutation(api.identity.updateProfile.mutationOptions());
+  const updateProfile = useMutation(api.users.updateProfile.mutationOptions());
 
   const form = useAppForm({
     ...schemaFormOptions(ProfileDraft, profileDraftOf(currentUser.profile)),

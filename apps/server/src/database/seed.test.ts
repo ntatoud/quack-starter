@@ -83,4 +83,39 @@ describe("seedDatabase on a local database", () => {
         assert.deepStrictEqual(twice, expected);
       }).pipe(Effect.scoped),
   );
+
+  it.live(
+    "seeds the dev accounts, admin@quack.dev the only Admin, and 100 other Users of every Status",
+    () =>
+      Effect.gen(function* () {
+        const config = { url: Redacted.make(yield* testDatabaseUrl), maxConnections: 1 };
+
+        yield* seedDatabase(config);
+
+        const users = yield* Effect.gen(function* () {
+          const sql = yield* SqlClient.SqlClient;
+
+          return yield* sql<{
+            readonly email: string;
+            readonly role: string;
+            readonly status: string;
+          }>`SELECT email, role, status FROM users ORDER BY email`;
+        }).pipe(Effect.provide(databaseAt(config)));
+
+        assert.lengthOf(users, 102);
+        assert.deepStrictEqual(
+          users.filter(({ role }) => role === "admin").map(({ email }) => email),
+          ["admin@quack.dev"],
+        );
+        assert.deepStrictEqual(
+          users.filter(({ email }) => email.endsWith("@quack.dev")).map(({ status }) => status),
+          ["active", "active"],
+        );
+        assert.deepStrictEqual([...new Set(users.map(({ status }) => status))].toSorted(), [
+          "active",
+          "invited",
+          "suspended",
+        ]);
+      }).pipe(Effect.scoped),
+  );
 });

@@ -4,16 +4,17 @@ import { Authentication } from "@quack/contracts/identity/authentication";
 import {
   Email,
   type Password,
-  type Role,
   User,
+  UserId,
   type UserStatus,
 } from "@quack/contracts/identity/user";
-import { DateTime, Effect, Layer, Option, Redacted } from "effect";
+import { DateTime, Effect, Option, Redacted } from "effect";
 import { Cookies, HttpClientRequest } from "effect/http";
 import { HttpApiMiddleware, HttpApiTest } from "effect/http-api";
 import type { HttpApi, HttpApiGroup } from "effect/http-api";
 
-import { PasswordHasher, PasswordHasherArgon2, UserRepository } from "#/modules/identity/index.ts";
+import { hashPassword } from "#/modules/users/lib/password.ts";
+import { userQueries } from "#/modules/users/lib/user-queries.ts";
 
 /** The password of every User `aUser` stores. */
 export const knownPassword: Password = Redacted.make("correct horse battery staple");
@@ -22,41 +23,45 @@ export const knownPassword: Password = Redacted.make("correct horse battery stap
 let knownPasswordHash: string | undefined;
 
 const hashOfKnownPassword = Effect.gen(function* () {
-  knownPasswordHash ??= yield* (yield* PasswordHasher).hash(knownPassword);
+  knownPasswordHash ??= yield* hashPassword(knownPassword);
 
   return knownPasswordHash;
-}).pipe(
-  Effect.provide(
-    PasswordHasherArgon2.pipe(Layer.provide([NodeCrypto.layerKdf, NodeCrypto.layerSecureRandom])),
-  ),
-);
+}).pipe(Effect.provide([NodeCrypto.layerKdf, NodeCrypto.layerSecureRandom]));
 
 /**
- * A User of the test's own, stored with `knownPassword`, of its own email: no endpoint makes an Admin, nor a User of
- * any Status at once.
+ * A User of the test's own, stored with `knownPassword`, of its own email unless `fields` gives one: no endpoint
+ * makes an Admin, nor a User of any Status or of any date at once.
  */
-export const aUser = Effect.fn("aUser")(function* ({
-  role = "user",
-  status = "active",
-}: { readonly role?: Role; readonly status?: UserStatus } = {}) {
-  const users = yield* UserRepository;
-  const id = yield* users.nextId;
+export const aUser = Effect.fn("aUser")(function* (
+  fields: Partial<ConstructorParameters<typeof User>[0]> = {},
+) {
+  const { create } = yield* userQueries;
+  const id = fields.id ?? UserId.make(crypto.randomUUID());
 
   const user = new User({
     id,
     email: Email.make(`${id}@example.com`),
-    role,
-    status,
+    role: "user",
+    status: "active",
     createdAt: yield* DateTime.now,
     lastSignInAt: null,
     onboardedAt: null,
     timeZone: DateTime.zoneMakeNamedUnsafe("Europe/Paris"),
     profile: null,
+    ...fields,
   });
 
-  yield* users.create(user, yield* hashOfKnownPassword).pipe(Effect.orDie);
+  yield* create(user, yield* hashOfKnownPassword).pipe(Effect.orDie);
 
   return user;
+});
+
+/** Sets the Status of a stored User, as an Admin would, but to any Status, and with no Admin to ask. */
+export const setStatus = Effect.fn("setStatus")(function* (id: UserId, status: UserStatus) {
+  const { findById, update } = yield* userQueries;
+  const user = yield* Effect.flatMap(findById(id), Effect.fromOption).pipe(Effect.orDie);
+
+  yield* update(new User({ ...user, status }));
 });
 
 export type ApiGroups = typeof Api extends HttpApi.HttpApi<string, infer Groups> ? Groups : never;
