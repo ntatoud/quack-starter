@@ -22,7 +22,7 @@ import {
   FieldSet,
 } from "@quack/ui/components/field";
 import { Skeleton } from "@quack/ui/components/skeleton";
-import { matchQuery } from "@quack/ui-state/query";
+import { matchQuery } from "@quack/ui-state/ui-state";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { ChevronDownIcon, TriangleAlertIcon } from "lucide-react";

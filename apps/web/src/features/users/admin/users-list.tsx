@@ -9,7 +9,7 @@ import {
   DataTableLoadingState,
 } from "@quack/ui/components/data-table/states";
 import { DataTableToolbar } from "@quack/ui/components/data-table/toolbar";
-import { matchQuery } from "@quack/ui-state/query";
+import { matchQuery } from "@quack/ui-state/ui-state";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Option } from "effect";

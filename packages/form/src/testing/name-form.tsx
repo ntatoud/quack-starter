@@ -1,7 +1,6 @@
 import { Schema } from "effect";
 
 import { schemaFormOptions } from "#/schema-form-options.ts";
-import type { Size } from "#/size.ts";
 import { useAppForm } from "#/use-app-form.ts";
 
 const Name = Schema.Struct({
@@ -16,7 +15,7 @@ export function NameForm({
   labelClassName,
 }: {
   onSubmit?: () => void | Promise<void>;
-  size?: Size;
+  size?: "sm" | "md" | "lg";
   labelClassName?: string;
 }) {
   const form = useAppForm({ ...schemaFormOptions(Name, { name: "" }), onSubmit });

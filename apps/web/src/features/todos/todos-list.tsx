@@ -5,7 +5,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@quack/ui/components/empty";
-import { matchQuery } from "@quack/ui-state/query";
+import { matchQuery } from "@quack/ui-state/ui-state";
 import { useQuery } from "@tanstack/react-query";
 import { Option } from "effect";
 import { ListTodoIcon } from "lucide-react";

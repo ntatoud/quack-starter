@@ -1,7 +1,7 @@
 import type { Grant } from "@quack/contracts/grants/grant";
 import { Button } from "@quack/ui/components/button";
 import { Skeleton } from "@quack/ui/components/skeleton";
-import { matchQuery } from "@quack/ui-state/query";
+import { matchQuery } from "@quack/ui-state/ui-state";
 import { useQuery } from "@tanstack/react-query";
 import { Option } from "effect";
 import { CircleAlertIcon } from "lucide-react";

@@ -70,7 +70,13 @@ class TestClient extends Context.Service<TestClient, HttpApiClient.ForApi<typeof
 const runtime = ManagedRuntime.make(TestClient.layer);
 const api = makeHttpApiProcedures(TestApi, { client: Effect.service(TestClient), runtime });
 
-afterAll(() => runtime.dispose());
+const emptyRuntime = ManagedRuntime.make(Layer.empty);
+
+/** Procedures whose client is the given Effect, for what the API cannot make it do: die, or hang. */
+const withClient = (client: Effect.Effect<never>) =>
+  makeHttpApiProcedures(TestApi, { client, runtime: emptyRuntime });
+
+afterAll(() => Promise.all([runtime.dispose(), emptyRuntime.dispose()]));
 
 describe("makeHttpApiProcedures", () => {
   it("runs queries and mutations through the typed client", async () => {
@@ -88,6 +94,25 @@ describe("makeHttpApiProcedures", () => {
     });
   });
 
+  it("builds keys that narrow from the procedure to one input", () => {
+    const input = { params: { id: "1" } };
+
+    expect(api.items.get.key()).toEqual([["items", "get"]]);
+    expect(api.items.get.key({ type: "query" })).toEqual([["items", "get"], { type: "query" }]);
+    expect(api.items.get.queryOptions({ input }).queryKey).toEqual([
+      ["items", "get"],
+      { type: "query", input },
+    ]);
+    expect(api.items.create.mutationOptions().mutationKey).toEqual([
+      ["items", "create"],
+      { type: "mutation" },
+    ]);
+  });
+
+  it("keeps the caller's overrides", () => {
+    expect(api.items.list.queryOptions({ staleTime: 1000 }).staleTime).toBe(1000);
+  });
+
   it("puts the endpoints of a top-level group at the root", async () => {
     expect(api.version.key()).toEqual([["version"]]);
     await expect(new QueryClient().fetchQuery(api.version.queryOptions())).resolves.toBe("1.0.0");
@@ -96,10 +121,40 @@ describe("makeHttpApiProcedures", () => {
   it("rejects with the endpoint's typed error", async () => {
     const options = api.items.get.queryOptions({ input: { params: { id: "missing" } } });
 
-    await expect(new QueryClient().fetchQuery(options)).rejects.toMatchObject({
-      _tag: "ItemNotFound",
-      id: "missing",
-    });
+    await expect(new QueryClient().fetchQuery(options)).rejects.toEqual(
+      new ItemNotFound({ id: "missing" }),
+    );
+  });
+
+  it("rejects with the defect when the Effect dies", async () => {
+    const defect = new Error("unexpected");
+
+    await expect(
+      new QueryClient().fetchQuery(withClient(Effect.die(defect)).items.list.queryOptions()),
+    ).rejects.toBe(defect);
+  });
+
+  it("interrupts the Effect when the query is cancelled", async () => {
+    let interrupted = false;
+
+    const hangs = withClient(
+      Effect.never.pipe(
+        Effect.onInterrupt(() =>
+          Effect.sync(() => {
+            interrupted = true;
+          }),
+        ),
+      ),
+    );
+
+    const queryClient = new QueryClient();
+    const options = hangs.items.list.queryOptions();
+
+    const pending = queryClient.fetchQuery(options);
+    await queryClient.cancelQueries({ queryKey: options.queryKey });
+
+    await expect(pending).rejects.toBeDefined();
+    await expect.poll(() => interrupted).toBe(true);
   });
 
   it("invalidates a whole group, or one procedure", async () => {

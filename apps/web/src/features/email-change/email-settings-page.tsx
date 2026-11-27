@@ -1,5 +1,5 @@
 import { Skeleton } from "@quack/ui/components/skeleton";
-import { matchQuery } from "@quack/ui-state/query";
+import { matchQuery } from "@quack/ui-state/ui-state";
 import { useQuery } from "@tanstack/react-query";
 
 import { LoadFailed } from "#/components/load-failed.tsx";
