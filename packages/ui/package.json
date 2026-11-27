@@ -2,10 +2,12 @@
   "name": "@quack/ui",
   "private": true,
   "type": "module",
+  "imports": {
+    "#/*": "./src/*"
+  },
   "exports": {
     "./globals.css": "./src/styles/globals.css",
-    "./lib/*": "./src/lib/*.ts",
-    "./hooks/*": "./src/hooks/*.ts",
+    "./data-table": "./src/data-table/index.ts",
     "./components/*": "./src/components/*.tsx",
     "./testing/*": "./src/testing/*.ts"
   },

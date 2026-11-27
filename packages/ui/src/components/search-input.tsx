@@ -8,7 +8,7 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "@quack/ui/components/input-group";
-import { isFunction } from "@quack/ui/lib/guards";
+import { isFunction } from "#/lib/guards.ts";
 
 const setRef = <T,>(ref: React.Ref<T> | undefined, value: T) => {
   if (isFunction(ref)) {

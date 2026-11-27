@@ -25,7 +25,11 @@ export default defineConfig({
     plugins: ["eslint", "oxc", "react", "unicorn", "typescript"],
     jsPlugins: ["@shadcn/lint", "@quack/oxlint-plugin", ...(antiSlop.jsPlugins ?? [])],
     settings: {
-      shadcn: { ui: "@quack/ui/components", themeImports: ["^@quack/ui/", "^@quack/brand/"] },
+      shadcn: {
+        ui: "@quack/ui/components",
+        componentImports: ["^@quack/ui/data-table$"],
+        themeImports: ["^@quack/ui/", "^@quack/brand/"],
+      },
     },
     categories: {
       correctness: "error",

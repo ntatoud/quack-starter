@@ -1,4 +1,4 @@
-import { cn } from "@quack/ui/lib/utils";
+import { cn } from "cn";
 import type { ComponentProps } from "react";
 
 /**

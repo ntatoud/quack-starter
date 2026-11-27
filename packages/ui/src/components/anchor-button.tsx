@@ -1,7 +1,7 @@
 import type { VariantProps } from "class-variance-authority";
 import type * as React from "react";
 
-import { cn } from "@quack/ui/lib/utils";
+import { cn } from "cn";
 
 import { buttonVariants } from "@quack/ui/components/button";
 

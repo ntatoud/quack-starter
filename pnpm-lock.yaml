@@ -393,6 +393,9 @@ importers:
       boring-avatars:
         specifier: 2.0.4
         version: 2.0.4(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      cn:
+        specifier: 0.5.2
+        version: 0.5.2
       effect:
         specifier: 4.1.6
         version: 4.1.6
@@ -549,6 +552,9 @@ importers:
       '@tanstack/react-form':
         specifier: 1.33.6
         version: 1.33.6(@tanstack/react-start@1.169.7(@voidzero-dev/vite-plus-core@8.3.8001(@types/node@26.6.11)(esbuild@0.28.2)(jiti@2.7.0)(typescript@7.0.2)(yaml@2.9.1))(esbuild@0.28.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(supports-color@7.2.0))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      cn:
+        specifier: 0.5.2
+        version: 0.5.2
       effect:
         specifier: 4.1.6
         version: 4.1.6

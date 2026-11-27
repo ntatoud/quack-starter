@@ -6,7 +6,7 @@ import { useShortcut, useShortcutHint } from "@ui-sdk/react/shortcuts";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "cn";
 
-import { useIsMobile } from "@quack/ui/hooks/use-mobile";
+import { useIsMobile } from "#/hooks/use-mobile.ts";
 import { Button } from "@quack/ui/components/button";
 import { Input } from "@quack/ui/components/input";
 import { Separator } from "@quack/ui/components/separator";
@@ -20,7 +20,7 @@ import {
 import { Skeleton } from "@quack/ui/components/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@quack/ui/components/tooltip";
 import { PanelLeftIcon } from "lucide-react";
-import { isFunction, isText } from "@quack/ui/lib/guards";
+import { isFunction, isText } from "#/lib/guards.ts";
 
 export const SIDEBAR_COOKIE_NAME = "sidebar_state";
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;

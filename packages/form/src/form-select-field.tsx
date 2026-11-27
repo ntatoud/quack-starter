@@ -5,7 +5,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@quack/ui/components/select";
-import { cn } from "@quack/ui/lib/utils";
+import { cn } from "cn";
 
 import type { FieldOption } from "#/field-option.ts";
 import { textSize } from "#/size.ts";

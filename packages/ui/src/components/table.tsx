@@ -1,7 +1,7 @@
 import { cva, type VariantProps } from "class-variance-authority";
 import * as React from "react";
 
-import { cn } from "@quack/ui/lib/utils";
+import { cn } from "cn";
 
 /** Scrolls a table wider than its parent. A table in a `ScrollArea`, as `DataTable` is, goes without it. */
 function TableContainer({ className, ...props }: React.ComponentProps<"div">) {

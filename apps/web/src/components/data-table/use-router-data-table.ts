@@ -1,10 +1,11 @@
 import { useRouterDataTableStore } from "#/components/data-table/router-store.ts";
-import type {
-  DataTableFilterKey,
-  DataTableSorting,
-  DataTableStateValue,
-} from "@quack/ui/lib/data-table/state";
-import { type DataTableFiltersOf, useDataTable } from "@quack/ui/hooks/use-data-table";
+import {
+  type DataTableFilterKey,
+  type DataTableFiltersOf,
+  type DataTableSorting,
+  type DataTableStateValue,
+  useDataTable,
+} from "@quack/ui/data-table";
 
 /**
  * `useDataTable` with its state in the URL: `search` is what the route's `validateSearch` answered

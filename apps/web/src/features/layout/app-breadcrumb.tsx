@@ -5,7 +5,7 @@ import {
   BreadcrumbList,
   BreadcrumbSeparator,
 } from "@quack/ui/components/breadcrumb";
-import { cn } from "@quack/ui/lib/utils";
+import { cn } from "cn";
 import { Link, type LinkProps } from "@tanstack/react-router";
 import { Fragment } from "react";
 

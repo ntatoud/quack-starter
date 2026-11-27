@@ -1,4 +1,4 @@
-import { DataTable, type DataTableColumn } from "@quack/ui/components/data-table/data-table";
+import { DataTable, type DataTableColumn } from "@quack/ui/data-table";
 import {
   createMemoryHistory,
   createRootRoute,

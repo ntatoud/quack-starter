@@ -1,6 +1,6 @@
 import { useNavigate, useRouter } from "@tanstack/react-router";
 
-import type { DataTableStateValue, DataTableStore } from "@quack/ui/lib/data-table/state";
+import type { DataTableStateValue, DataTableStore } from "@quack/ui/data-table";
 
 /**
  * The TanStack Router adapter of a table: its state is the search of the current route, what its `validateSearch`

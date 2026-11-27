@@ -1,5 +1,5 @@
 import { Button } from "@quack/ui/components/button";
-import { cn } from "@quack/ui/lib/utils";
+import { cn } from "cn";
 import { useStore } from "@tanstack/react-form";
 import type { ComponentProps } from "react";
 

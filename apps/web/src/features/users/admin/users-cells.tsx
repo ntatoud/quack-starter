@@ -1,6 +1,6 @@
 import type { Role, User, UserStatus } from "@quack/contracts/identity/user";
 import { Badge } from "@quack/ui/components/badge";
-import { cn } from "@quack/ui/lib/utils";
+import { cn } from "cn";
 import { DateTime } from "effect";
 
 import { labelOf } from "#/features/users/admin/users-filters.ts";

@@ -14,9 +14,7 @@ import {
   dataTableSearchSchema,
 } from "#/components/data-table/search-schema.ts";
 import { useRouterDataTable } from "#/components/data-table/use-router-data-table.ts";
-import { multiSelectFilter } from "@quack/ui/components/data-table/filters/multi-select-filter";
-import { DataTablePagination } from "@quack/ui/components/data-table/pagination";
-import { DataTableToolbar } from "@quack/ui/components/data-table/toolbar";
+import { DataTablePagination, DataTableToolbar, multiSelectFilter } from "@quack/ui/data-table";
 
 import { render } from "vitest-browser-react";
 
