@@ -1,4 +1,4 @@
-import { CalendarCheckIcon, ListTodoIcon, ShieldIcon } from "lucide-react";
+import { ListTodoIcon, ShieldIcon } from "lucide-react";
 
 import { isAdmin } from "#/features/identity/is-admin.ts";
 import { SidebarFrame, SidebarSection } from "#/features/layout/sidebar-frame.tsx";
@@ -9,7 +9,6 @@ export function AppSidebar({ currentUser }: SidebarProps) {
   return (
     <SidebarFrame currentUser={currentUser} home="/app">
       <SidebarSection>
-        <SidebarLink to="/app/today" icon={<CalendarCheckIcon />} label="Today" />
         <SidebarLink to="/app" icon={<ListTodoIcon />} label="Todos" />
       </SidebarSection>
       {isAdmin(currentUser) && (

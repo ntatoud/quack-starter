@@ -26,7 +26,6 @@ import { Route as OauthAuthorizeRouteImport } from './routes/oauth/authorize'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app/index'
 import { Route as AuthenticatedAppSettingsRouteRouteImport } from './routes/_authenticated/app/settings/route'
-import { Route as AuthenticatedAppTodayRouteImport } from './routes/_authenticated/app/today'
 import { Route as AuthenticatedAdminUsersIndexRouteImport } from './routes/_authenticated/admin/users/index'
 import { Route as AuthenticatedAdminUsersIdRouteImport } from './routes/_authenticated/admin/users/$id'
 import { Route as AuthenticatedAppSettingsIndexRouteImport } from './routes/_authenticated/app/settings/index'
@@ -118,11 +117,6 @@ const AuthenticatedAppSettingsRouteRoute =
     path: '/settings',
     getParentRoute: () => AuthenticatedAppRouteRoute,
   } as any)
-const AuthenticatedAppTodayRoute = AuthenticatedAppTodayRouteImport.update({
-  id: '/today',
-  path: '/today',
-  getParentRoute: () => AuthenticatedAppRouteRoute,
-} as any)
 const AuthenticatedAdminUsersIndexRoute =
   AuthenticatedAdminUsersIndexRouteImport.update({
     id: '/users/',
@@ -179,7 +173,6 @@ export interface FileRoutesByFullPath {
   '/api/$': typeof ApiSplatRoute
   '/oauth/authorize': typeof OauthAuthorizeRoute
   '/app/settings': typeof AuthenticatedAppSettingsRouteRouteWithChildren
-  '/app/today': typeof AuthenticatedAppTodayRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/app/': typeof AuthenticatedAppIndexRoute
   '/admin/users/$id': typeof AuthenticatedAdminUsersIdRoute
@@ -200,7 +193,6 @@ export interface FileRoutesByTo {
   '/confirm-email': typeof LinkConfirmEmailRoute
   '/api/$': typeof ApiSplatRoute
   '/oauth/authorize': typeof OauthAuthorizeRoute
-  '/app/today': typeof AuthenticatedAppTodayRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/app': typeof AuthenticatedAppIndexRoute
   '/admin/users/$id': typeof AuthenticatedAdminUsersIdRoute
@@ -228,7 +220,6 @@ export interface FileRoutesById {
   '/api/$': typeof ApiSplatRoute
   '/oauth/authorize': typeof OauthAuthorizeRoute
   '/_authenticated/app/settings': typeof AuthenticatedAppSettingsRouteRouteWithChildren
-  '/_authenticated/app/today': typeof AuthenticatedAppTodayRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
   '/_authenticated/admin/users/$id': typeof AuthenticatedAdminUsersIdRoute
@@ -254,7 +245,6 @@ export interface FileRouteTypes {
     | '/api/$'
     | '/oauth/authorize'
     | '/app/settings'
-    | '/app/today'
     | '/admin/'
     | '/app/'
     | '/admin/users/$id'
@@ -275,7 +265,6 @@ export interface FileRouteTypes {
     | '/confirm-email'
     | '/api/$'
     | '/oauth/authorize'
-    | '/app/today'
     | '/admin'
     | '/app'
     | '/admin/users/$id'
@@ -302,7 +291,6 @@ export interface FileRouteTypes {
     | '/api/$'
     | '/oauth/authorize'
     | '/_authenticated/app/settings'
-    | '/_authenticated/app/today'
     | '/_authenticated/admin/'
     | '/_authenticated/app/'
     | '/_authenticated/admin/users/$id'
@@ -445,13 +433,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppSettingsRouteRouteImport
       parentRoute: typeof AuthenticatedAppRouteRoute
     }
-    '/_authenticated/app/today': {
-      id: '/_authenticated/app/today'
-      path: '/today'
-      fullPath: '/app/today'
-      preLoaderRoute: typeof AuthenticatedAppTodayRouteImport
-      parentRoute: typeof AuthenticatedAppRouteRoute
-    }
     '/_authenticated/admin/users/': {
       id: '/_authenticated/admin/users/'
       path: '/users'
@@ -548,14 +529,12 @@ const AuthenticatedAppSettingsRouteRouteWithChildren =
 
 interface AuthenticatedAppRouteRouteChildren {
   AuthenticatedAppSettingsRouteRoute: typeof AuthenticatedAppSettingsRouteRouteWithChildren
-  AuthenticatedAppTodayRoute: typeof AuthenticatedAppTodayRoute
   AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
 }
 
 const AuthenticatedAppRouteRouteChildren: AuthenticatedAppRouteRouteChildren = {
   AuthenticatedAppSettingsRouteRoute:
     AuthenticatedAppSettingsRouteRouteWithChildren,
-  AuthenticatedAppTodayRoute: AuthenticatedAppTodayRoute,
   AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,
 }
 

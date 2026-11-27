@@ -10,7 +10,6 @@ import { TransactionMemory } from "#/modules/transaction/testing/transaction-mem
 import { SessionStoreMemory } from "#/modules/identity/testing/session-store-memory.ts";
 import { UserRepositoryMemory } from "#/modules/identity/testing/user-repository-memory.ts";
 import { MailerMemory } from "#/modules/mail/testing/mailer-memory.ts";
-import { HabitRepositoryMemory } from "#/modules/habits/testing/habit-repository-memory.ts";
 import { TodoRepositoryMemory } from "#/modules/todos/testing/todo-repository-memory.ts";
 import { Routes } from "#/server.ts";
 
@@ -22,7 +21,6 @@ const MemoryStorage = Layer.mergeAll(
   LinkTokenStoreMemory,
   TransactionMemory,
   TodoRepositoryMemory,
-  HabitRepositoryMemory,
   MailerMemory,
 );
 
