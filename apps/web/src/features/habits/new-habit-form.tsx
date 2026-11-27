@@ -5,12 +5,19 @@ import { useMutation } from "@tanstack/react-query";
 import { Schema } from "effect";
 
 import { habitColorOptions } from "#/features/habits/habit-colors.tsx";
-import { HabitDraft } from "#/features/habits/habit-draft.ts";
+import { HabitDraft, targetOf, targetOptions } from "#/features/habits/habit-draft.ts";
 import { invalidateHabits } from "#/features/habits/invalidate-habits.ts";
 import { api } from "#/lib/api.ts";
 
 const decodeHabitDraft = Schema.decodeSync(HabitDraft);
-const emptyHabitDraft: typeof HabitDraft.Encoded = { name: "", color: "" };
+
+const emptyHabitDraft: typeof HabitDraft.Encoded = {
+  name: "",
+  color: "",
+  target: "Done",
+  quantity: "",
+  unit: "",
+};
 
 export function NewHabitForm() {
   const createHabit = useMutation(api.habits.create.mutationOptions(invalidateHabits));
@@ -18,12 +25,14 @@ export function NewHabitForm() {
   const form = useAppForm({
     ...schemaFormOptions(HabitDraft, emptyHabitDraft),
     onSubmit: async ({ value, formApi }) => {
+      const draft = decodeHabitDraft(value);
       await createHabit
         .mutateAsync({
           payload: {
-            ...decodeHabitDraft(value),
+            name: draft.name,
+            color: draft.color,
             schedule: { _tag: "EveryDay" },
-            target: { _tag: "Done" },
+            target: targetOf(draft),
           },
         })
         .catch((cause: unknown) => {
@@ -53,6 +62,38 @@ export function NewHabitForm() {
               </field.Root>
             )}
           </form.AppField>
+          <form.AppField name="target">
+            {(field) => (
+              <field.Root className="w-32">
+                <field.Label className="sr-only">Target</field.Label>
+                <field.Select options={targetOptions} />
+              </field.Root>
+            )}
+          </form.AppField>
+          <form.Subscribe selector={(state) => state.values.target}>
+            {(target) =>
+              target !== "Done" && (
+                <>
+                  <form.AppField name="quantity">
+                    {(field) => (
+                      <field.Root className="w-24">
+                        <field.Label className="sr-only">Quantity</field.Label>
+                        <field.Text inputMode="numeric" placeholder="Quantity" />
+                      </field.Root>
+                    )}
+                  </form.AppField>
+                  <form.AppField name="unit">
+                    {(field) => (
+                      <field.Root className="w-32">
+                        <field.Label className="sr-only">Unit</field.Label>
+                        <field.Text placeholder="Unit, like glasses" />
+                      </field.Root>
+                    )}
+                  </form.AppField>
+                </>
+              )
+            }
+          </form.Subscribe>
           <form.SubmitButton>Add</form.SubmitButton>
         </div>
         {/* Today is not announced when it changes, so a screen reader hears the success here. */}

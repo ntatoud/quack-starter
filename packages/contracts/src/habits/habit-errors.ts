@@ -1,7 +1,7 @@
 import { Schema } from "effect";
 
 import { Day } from "#/habits/day.ts";
-import { HabitId } from "#/habits/habit.ts";
+import { HabitId, Quantity, Target } from "#/habits/habit.ts";
 
 export class HabitNotFound extends Schema.TaggedError<
   HabitNotFound,
@@ -23,5 +23,20 @@ export class CheckInDayNotAllowed extends Schema.TaggedError<
 }) {
   override get message() {
     return `A Check-in cannot be written for ${this.day}`;
+  }
+}
+
+/** The quantity of a Check-in does not fit the Target in force on its Day: a done Habit takes none, any other one. */
+export class CheckInQuantityRefused extends Schema.TaggedError<
+  CheckInQuantityRefused,
+  { readonly brand: unique symbol }
+>()("CheckInQuantityRefused", {
+  target: Target,
+  quantity: Schema.NullOr(Quantity),
+}) {
+  override get message() {
+    return this.target._tag === "Done"
+      ? "A Check-in of a done Habit holds no quantity"
+      : `A Check-in of this Habit holds a quantity of ${this.target.unit}`;
   }
 }

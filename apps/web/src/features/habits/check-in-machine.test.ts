@@ -9,12 +9,12 @@ const run = (...events: ReadonlyArray<Event>) => runMachine(checkInMachine, ...e
 
 describe("checkInMachine", () => {
   it("runs one request at a time", () => {
-    expect(run({ type: "check" }, { type: "uncheck" }).value).toBe("checking");
-    expect(run({ type: "uncheck" }, { type: "check" }).value).toBe("unchecking");
+    expect(run({ type: "check", quantity: null }, { type: "uncheck" }).value).toBe("checking");
+    expect(run({ type: "uncheck" }, { type: "check", quantity: null }).value).toBe("unchecking");
   });
 
   it("says which request failed", () => {
-    expect(run({ type: "check" }, { type: "failed" })).toMatchObject({
+    expect(run({ type: "check", quantity: null }, { type: "failed" })).toMatchObject({
       value: "failed",
       context: { failedTo: "check" },
     });
@@ -24,19 +24,38 @@ describe("checkInMachine", () => {
     });
   });
 
-  it("clears a failure with the next request, of either kind", () => {
-    expect(run({ type: "check" }, { type: "failed" }, { type: "uncheck" }).value).toBe(
-      "unchecking",
+  it("holds the total it sends until the API answers", () => {
+    expect(run({ type: "check", quantity: 3 })).toMatchObject({
+      value: "checking",
+      context: { quantity: 3 },
+    });
+    expect(run({ type: "check", quantity: 3 }, { type: "succeeded" }).context.quantity).toBe(
+      undefined,
     );
     expect(
-      run({ type: "uncheck" }, { type: "failed" }, { type: "check" }, { type: "succeeded" }).value,
+      run({ type: "check", quantity: 3 }, { type: "failed" }, { type: "check", quantity: 0 }),
+    ).toMatchObject({ value: "checking", context: { quantity: 0, failedTo: undefined } });
+  });
+
+  it("clears a failure with the next request, of either kind", () => {
+    expect(
+      run({ type: "check", quantity: null }, { type: "failed" }, { type: "uncheck" }).value,
+    ).toBe("unchecking");
+    expect(
+      run(
+        { type: "uncheck" },
+        { type: "failed" },
+        { type: "check", quantity: null },
+        { type: "succeeded" },
+      ).value,
     ).toBe("idle");
   });
 });
 
 describe("checkInMachine, explored", () => {
   const snapshots = reachableSnapshots(checkInMachine, [
-    { type: "check" },
+    { type: "check", quantity: null },
+    { type: "check", quantity: 2 },
     { type: "uncheck" },
     { type: "succeeded" },
     { type: "failed" },
@@ -51,6 +70,12 @@ describe("checkInMachine, explored", () => {
   it("knows which request failed only while it says so", () => {
     for (const snapshot of snapshots) {
       if (snapshot.value !== "failed") expect(snapshot.context.failedTo).toBeUndefined();
+    }
+  });
+
+  it("holds a total only while it sends one", () => {
+    for (const snapshot of snapshots) {
+      if (snapshot.value !== "checking") expect(snapshot.context.quantity).toBeUndefined();
     }
   });
 });

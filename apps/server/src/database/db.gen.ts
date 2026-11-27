@@ -40,6 +40,7 @@ export interface AuthorizationCodes {
 export interface CheckIns {
   day: Timestamp;
   habitId: string;
+  quantity: number | null;
 }
 
 export interface GrantAccessTokens {

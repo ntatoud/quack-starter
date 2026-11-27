@@ -1,5 +1,6 @@
 import { executor, postgres } from "@quack/effect-kysely/kysely";
 import { Effect } from "effect";
+import { sql } from "kysely";
 
 const { schema } = postgres();
 
@@ -44,6 +45,9 @@ export default Effect.gen(function* () {
       .createTable("check_ins")
       .addColumn("habit_id", "uuid", (column) => column.notNull())
       .addColumn("day", "date", (column) => column.notNull())
+      // The Day's total of a quantity Habit, null for a done one.
+      .addColumn("quantity", "integer")
+      .addCheckConstraint("check_ins_quantity_check", sql`quantity >= 0`)
       .addForeignKeyConstraint("check_ins_habit_id_fkey", ["habit_id"], "habits", ["id"], (fk) =>
         fk.onDelete("cascade"),
       )

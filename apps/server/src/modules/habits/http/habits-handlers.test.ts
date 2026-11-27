@@ -1,8 +1,12 @@
 import { assert, layer } from "@effect/vitest";
 import { Api } from "@quack/contracts/api";
 import { Day } from "@quack/contracts/habits/day";
-import { HabitId, HabitName, type NewHabit } from "@quack/contracts/habits/habit";
-import { CheckInDayNotAllowed, HabitNotFound } from "@quack/contracts/habits/habit-errors";
+import { HabitId, HabitName, HabitUnit, type NewHabit } from "@quack/contracts/habits/habit";
+import {
+  CheckInDayNotAllowed,
+  CheckInQuantityRefused,
+  HabitNotFound,
+} from "@quack/contracts/habits/habit-errors";
 import { Authentication } from "@quack/contracts/identity/authentication";
 import { Email, type TimeZone, User, UserId } from "@quack/contracts/identity/user";
 import { DateTime, Effect, Layer } from "effect";
@@ -45,6 +49,23 @@ const clientOf = (user: User) =>
 
 const at = (iso: string) => TestClock.setTime(DateTime.toEpochMillis(DateTime.makeUnsafe(iso)));
 
+// What a Check-in of a done Habit records.
+const none = { quantity: null };
+
+const water: NewHabit = {
+  name: HabitName.make("Water"),
+  color: "blue",
+  schedule: { _tag: "EveryDay" },
+  target: { _tag: "AtLeast", quantity: 8, unit: HabitUnit.make("glasses") },
+};
+
+const smoking: NewHabit = {
+  name: HabitName.make("No smoking"),
+  color: "red",
+  schedule: { _tag: "EveryDay" },
+  target: { _tag: "AtMost", quantity: 0, unit: HabitUnit.make("cigarettes") },
+};
+
 const meditate: NewHabit = {
   name: HabitName.make("Meditate"),
   color: "teal",
@@ -70,7 +91,7 @@ layer(Layer.mergeAll(HabitsLayer, HttpServer.layerServices))("HabitsApi", (it) =
       assert.strictEqual(habit.color, "teal");
       assert.isFalse(habit.archived);
       assert.strictEqual(habit.firstDay, "2026-06-01");
-      assert.deepStrictEqual(
+      assert.deepStrictEqual<unknown>(
         habit.versions.map(({ effectiveFrom, schedule, target }) => ({
           effectiveFrom,
           schedule,
@@ -150,9 +171,12 @@ layer(Layer.mergeAll(HabitsLayer, HttpServer.layerServices))("HabitsApi", (it) =
       const habit = yield* client.habits.create({ payload: meditate });
       const params = { id: habit.id, day: Day.make("2026-06-01") };
 
-      const checkIn = yield* client.habits.checkIn({ params });
+      const checkIn = yield* client.habits.checkIn({ params, payload: none });
 
-      assert.deepStrictEqual({ ...checkIn }, { habitId: habit.id, day: "2026-06-01" });
+      assert.deepStrictEqual(
+        { ...checkIn },
+        { habitId: habit.id, day: "2026-06-01", quantity: null },
+      );
 
       const checked = (yield* client.habits.today()).habits.find(
         (due) => due.habit.id === habit.id,
@@ -177,14 +201,111 @@ layer(Layer.mergeAll(HabitsLayer, HttpServer.layerServices))("HabitsApi", (it) =
       const habit = yield* client.habits.create({ payload: meditate });
       const params = { id: habit.id, day: Day.make("2026-06-01") };
 
-      yield* client.habits.checkIn({ params });
-      const again = yield* client.habits.checkIn({ params });
+      yield* client.habits.checkIn({ params, payload: none });
+      const again = yield* client.habits.checkIn({ params, payload: none });
 
-      assert.deepStrictEqual({ ...again }, { habitId: habit.id, day: "2026-06-01" });
+      assert.deepStrictEqual(
+        { ...again },
+        { habitId: habit.id, day: "2026-06-01", quantity: null },
+      );
       yield* client.habits.uncheck({ params });
       const today = yield* client.habits.today();
       assert.isNull(today.habits.find((due) => due.habit.id === habit.id)?.checkIn);
     }),
+  );
+
+  it.effect("records the Day's total of an at-least Habit, a new total replacing the last", () =>
+    Effect.gen(function* () {
+      yield* at("2026-06-01T08:00:00Z");
+      const client = yield* clientOf(ada);
+      const habit = yield* client.habits.create({ payload: water });
+      const params = { id: habit.id, day: Day.make("2026-06-01") };
+
+      const first = yield* client.habits.checkIn({ params, payload: { quantity: 3 } });
+      const second = yield* client.habits.checkIn({ params, payload: { quantity: 5 } });
+
+      assert.deepStrictEqual<unknown>(habit.versions[0]?.target, {
+        _tag: "AtLeast",
+        quantity: 8,
+        unit: "glasses",
+      });
+      assert.strictEqual(first.quantity, 3);
+      assert.deepStrictEqual({ ...second }, { habitId: habit.id, day: "2026-06-01", quantity: 5 });
+      const today = yield* client.habits.today();
+      assert.deepStrictEqual(
+        today.habits.find((due) => due.habit.id === habit.id)?.checkIn,
+        second,
+      );
+    }),
+  );
+
+  it.effect("keeps a total of 0 of an at-most Habit as a Check-in", () =>
+    Effect.gen(function* () {
+      yield* at("2026-06-01T08:00:00Z");
+      const client = yield* clientOf(ada);
+      const habit = yield* client.habits.create({ payload: smoking });
+      const params = { id: habit.id, day: Day.make("2026-06-01") };
+
+      yield* client.habits.checkIn({ params, payload: { quantity: 2 } });
+      yield* client.habits.checkIn({ params, payload: { quantity: 0 } });
+
+      const today = yield* client.habits.today();
+      assert.deepStrictEqual(
+        { ...today.habits.find((due) => due.habit.id === habit.id)?.checkIn },
+        { habitId: habit.id, day: "2026-06-01", quantity: 0 },
+      );
+    }),
+  );
+
+  it.effect(
+    "refuses a Check-in without a total for a quantity Habit, with one for a done Habit",
+    () =>
+      Effect.gen(function* () {
+        yield* at("2026-06-01T08:00:00Z");
+        const client = yield* clientOf(ada);
+        const day = Day.make("2026-06-01");
+        const drinking = yield* client.habits.create({ payload: water });
+        const quitting = yield* client.habits.create({ payload: smoking });
+        const meditating = yield* client.habits.create({ payload: meditate });
+
+        const noTotal = yield* client.habits
+          .checkIn({ params: { id: drinking.id, day }, payload: none })
+          .pipe(Effect.flip);
+
+        const noTotalAtMost = yield* client.habits
+          .checkIn({ params: { id: quitting.id, day }, payload: none })
+          .pipe(Effect.flip);
+
+        const aTotal = yield* client.habits
+          .checkIn({ params: { id: meditating.id, day }, payload: { quantity: 1 } })
+          .pipe(Effect.flip);
+
+        const response = yield* client.habits.checkIn({
+          params: { id: meditating.id, day },
+          payload: { quantity: 1 },
+          responseMode: "response-only",
+        });
+
+        assert.deepStrictEqual(
+          noTotal,
+          new CheckInQuantityRefused({ target: water.target, quantity: null }),
+        );
+        assert.deepStrictEqual(
+          noTotalAtMost,
+          new CheckInQuantityRefused({ target: smoking.target, quantity: null }),
+        );
+        assert.deepStrictEqual(
+          aTotal,
+          new CheckInQuantityRefused({ target: meditate.target, quantity: 1 }),
+        );
+        assert.strictEqual(response.status, 422);
+
+        const checkIns = (yield* client.habits.today()).habits
+          .filter((due) => [drinking.id, quitting.id, meditating.id].includes(due.habit.id))
+          .map((due) => due.checkIn);
+
+        assert.deepStrictEqual(checkIns, [null, null, null]);
+      }),
   );
 
   it.effect("unchecks a Habit not checked in as a no-op", () =>
@@ -213,16 +334,18 @@ layer(Layer.mergeAll(HabitsLayer, HttpServer.layerServices))("HabitsApi", (it) =
       const tomorrow = Day.make("2026-06-02");
 
       const refused = yield* client.habits
-        .checkIn({ params: { id: habit.id, day: tomorrow } })
+        .checkIn({ params: { id: habit.id, day: tomorrow }, payload: none })
         .pipe(Effect.flip);
 
       const response = yield* client.habits.checkIn({
         params: { id: habit.id, day: tomorrow },
+        payload: none,
         responseMode: "response-only",
       });
 
       const checkIn = yield* client.habits.checkIn({
         params: { id: habit.id, day: Day.make("2026-06-01") },
+        payload: none,
       });
 
       assert.deepStrictEqual(refused, new CheckInDayNotAllowed({ day: tomorrow }));
@@ -239,7 +362,7 @@ layer(Layer.mergeAll(HabitsLayer, HttpServer.layerServices))("HabitsApi", (it) =
       yield* at("2026-06-02T08:00:00Z");
       const params = { id: habit.id, day: Day.make("2026-06-01") };
 
-      const checkIn = yield* client.habits.checkIn({ params }).pipe(Effect.flip);
+      const checkIn = yield* client.habits.checkIn({ params, payload: none }).pipe(Effect.flip);
       const uncheck = yield* client.habits.uncheck({ params }).pipe(Effect.flip);
 
       assert.deepStrictEqual(checkIn, new CheckInDayNotAllowed({ day: params.day }));
@@ -256,10 +379,11 @@ layer(Layer.mergeAll(HabitsLayer, HttpServer.layerServices))("HabitsApi", (it) =
       const params = { id: habit.id, day: Day.make("2026-06-01") };
 
       const seenByGrace = (yield* asGrace.habits.today()).habits.map((due) => due.habit.id);
-      const checkIn = yield* asGrace.habits.checkIn({ params }).pipe(Effect.flip);
+      const checkIn = yield* asGrace.habits.checkIn({ params, payload: none }).pipe(Effect.flip);
 
       const checkInResponse = yield* asGrace.habits.checkIn({
         params,
+        payload: none,
         responseMode: "response-only",
       });
 
@@ -287,7 +411,7 @@ layer(Layer.mergeAll(HabitsLayer, HttpServer.layerServices))("HabitsApi", (it) =
       const id = HabitId.make("missing");
 
       const error = yield* client.habits
-        .checkIn({ params: { id, day: Day.make("2026-06-01") } })
+        .checkIn({ params: { id, day: Day.make("2026-06-01") }, payload: none })
         .pipe(Effect.flip);
 
       assert.deepStrictEqual(error, new HabitNotFound({ id }));

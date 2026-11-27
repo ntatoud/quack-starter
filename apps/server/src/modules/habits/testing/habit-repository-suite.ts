@@ -5,7 +5,7 @@ import { Habit, HabitId, HabitName, HabitVersion } from "@quack/contracts/habits
 import type { UserId } from "@quack/contracts/identity/user";
 import { DateTime, Effect, type Layer, Option } from "effect";
 
-import { CheckInExists, HabitRepository } from "#/modules/habits/domain/habit-repository.ts";
+import { HabitRepository } from "#/modules/habits/domain/habit-repository.ts";
 
 const firstDay = Day.make("2026-06-01");
 
@@ -46,8 +46,8 @@ const idsInOrder = (ownerId: UserId) =>
 const aCheckIn = (ownerId: UserId) =>
   Effect.gen(function* () {
     const habit = yield* aSavedHabit(ownerId);
-    const checkIn = new CheckIn({ habitId: habit.id, day: firstDay });
-    yield* (yield* HabitRepository).addCheckIn(checkIn).pipe(Effect.orDie);
+    const checkIn = new CheckIn({ habitId: habit.id, day: firstDay, quantity: null });
+    yield* (yield* HabitRepository).saveCheckIn(checkIn);
 
     return checkIn;
   });
@@ -130,31 +130,36 @@ export const habitRepositorySuite = <R>(
         const owner = yield* anOwner;
         const [habit, other] = [yield* aSavedHabit(owner), yield* aSavedHabit(owner)];
         const ofAnotherOwner = yield* aSavedHabit(yield* anOwner);
-        const onTheDay = new CheckIn({ habitId: habit.id, day: firstDay });
-        const onOther = new CheckIn({ habitId: other.id, day: firstDay });
+        const onTheDay = new CheckIn({ habitId: habit.id, day: firstDay, quantity: null });
+        const onOther = new CheckIn({ habitId: other.id, day: firstDay, quantity: 3 });
 
-        yield* repository.addCheckIn(onTheDay);
-        yield* repository.addCheckIn(onOther);
-        yield* repository.addCheckIn(
-          new CheckIn({ habitId: habit.id, day: Day.make("2026-06-02") }),
+        yield* repository.saveCheckIn(onTheDay);
+        yield* repository.saveCheckIn(onOther);
+        yield* repository.saveCheckIn(
+          new CheckIn({ habitId: habit.id, day: Day.make("2026-06-02"), quantity: null }),
         );
-        yield* repository.addCheckIn(new CheckIn({ habitId: ofAnotherOwner.id, day: firstDay }));
+        yield* repository.saveCheckIn(
+          new CheckIn({ habitId: ofAnotherOwner.id, day: firstDay, quantity: null }),
+        );
 
         const found = yield* repository.findCheckIns(owner, firstDay);
 
         assert.sameDeepMembers([...found], [onTheDay, onOther]);
-      }).pipe(Effect.orDie));
+      }));
 
-    test("keeps one Check-in per Habit and Day", () =>
+    test("keeps one Check-in per Habit and Day, the last one saved, a total of 0 included", () =>
       Effect.gen(function* () {
         const repository = yield* HabitRepository;
         const owner = yield* anOwner;
-        const checkIn = yield* aCheckIn(owner);
+        const habit = yield* aSavedHabit(owner);
+        const last = new CheckIn({ habitId: habit.id, day: firstDay, quantity: 0 });
 
-        const second = yield* repository.addCheckIn(checkIn).pipe(Effect.flip, Effect.orDie);
+        yield* repository.saveCheckIn(
+          new CheckIn({ habitId: habit.id, day: firstDay, quantity: 4 }),
+        );
+        yield* repository.saveCheckIn(last);
 
-        assert.deepStrictEqual(second, new CheckInExists());
-        assert.deepStrictEqual(yield* repository.findCheckIns(owner, firstDay), [checkIn]);
+        assert.deepStrictEqual(yield* repository.findCheckIns(owner, firstDay), [last]);
       }));
 
     test("removes a Check-in, and nothing for a Day without one", () =>
@@ -163,8 +168,8 @@ export const habitRepositorySuite = <R>(
         const owner = yield* anOwner;
         const checkIn = yield* aCheckIn(owner);
 
-        yield* repository.removeCheckIn(checkIn);
-        yield* repository.removeCheckIn(checkIn);
+        yield* repository.removeCheckIn(checkIn.habitId, checkIn.day);
+        yield* repository.removeCheckIn(checkIn.habitId, checkIn.day);
 
         assert.deepStrictEqual(yield* repository.findCheckIns(owner, firstDay), []);
       }));

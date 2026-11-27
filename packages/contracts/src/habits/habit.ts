@@ -32,7 +32,28 @@ export const Schedule = Schema.TaggedUnion({ EveryDay: {} });
 
 export type Schedule = typeof Schedule.Type;
 
-export const Target = Schema.TaggedUnion({ Done: {} });
+/** A whole number of 0 or more: a Day's total, or a Target to stay at most. */
+export const Quantity = Schema.Int.check(
+  Schema.isGreaterThanOrEqualTo(0, { message: "Enter a whole number of 0 or more" }),
+);
+
+export const HabitUnit = Schema.Trimmed.check(
+  Schema.isNonEmpty({ message: "Unit is required" }),
+  Schema.isMaxLength(16, { message: "Unit must be at most 16 characters" }),
+).pipe(Schema.brand("HabitUnit"));
+
+export type HabitUnit = typeof HabitUnit.Type;
+
+export const Target = Schema.TaggedUnion({
+  Done: {},
+  AtLeast: {
+    quantity: Schema.Int.check(
+      Schema.isGreaterThanOrEqualTo(1, { message: "Enter a whole number of 1 or more" }),
+    ),
+    unit: HabitUnit,
+  },
+  AtMost: { quantity: Quantity, unit: HabitUnit },
+});
 
 export type Target = typeof Target.Type;
 

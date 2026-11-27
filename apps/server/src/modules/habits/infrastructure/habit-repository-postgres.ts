@@ -10,13 +10,15 @@ import { jsonBuildObject } from "kysely/helpers/postgres";
 
 import { db, type Tables } from "#/database/db.ts";
 
-import { CheckInExists, HabitRepository } from "#/modules/habits/domain/habit-repository.ts";
+import { HabitRepository } from "#/modules/habits/domain/habit-repository.ts";
 
 const HabitResult = Schema.Struct({ habit: Habit });
 
 const OwnedHabit = Schema.Struct({ ownerId: UserId, id: HabitId });
 
 const OwnedDay = Schema.Struct({ ownerId: UserId, day: Day });
+
+const HabitDay = Schema.Struct({ habitId: HabitId, day: Day });
 
 // The column is a uuid: Postgres refuses any other id, which no Habit can have.
 const isStorableId = Schema.is(Schema.String.check(Schema.isUUID()));
@@ -105,19 +107,29 @@ export const HabitRepositoryPostgres = Layer.effect(
           db
             .selectFrom("checkIns")
             .innerJoin("habits", "habits.id", "checkIns.habitId")
-            .select(["checkIns.habitId", "checkIns.day"])
+            .select(["checkIns.habitId", "checkIns.day", "checkIns.quantity"])
             .where("habits.ownerId", "=", ownerId)
             .where("checkIns.day", "=", asDate(day)),
         ),
     });
 
-    const insertCheckIn = SqlSchema.void({
+    const upsertCheckIn = SqlSchema.void({
       Request: CheckIn,
-      execute: (checkIn) => execute(db.insertInto("checkIns").values(checkIn)),
+      execute: (checkIn) =>
+        execute(
+          db
+            .insertInto("checkIns")
+            .values(checkIn)
+            .onConflict((conflict) =>
+              conflict
+                .constraint("check_ins_habit_id_day_key")
+                .doUpdateSet((eb) => ({ quantity: eb.ref("excluded.quantity") })),
+            ),
+        ),
     });
 
     const deleteCheckIn = SqlSchema.void({
-      Request: CheckIn,
+      Request: HabitDay,
       execute: ({ habitId, day }) =>
         execute(
           db.deleteFrom("checkIns").where("habitId", "=", habitId).where("day", "=", asDate(day)),
@@ -144,20 +156,11 @@ export const HabitRepositoryPostgres = Layer.effect(
       findCheckIns: Effect.fn("HabitRepository.findCheckIns")((ownerId, day) =>
         findCheckIns({ ownerId, day }).pipe(Effect.orDie),
       ),
-      addCheckIn: Effect.fn("HabitRepository.addCheckIn")((checkIn) =>
-        insertCheckIn(checkIn).pipe(
-          Effect.catchTags({
-            SqlError: (error) =>
-              error.reason._tag === "UniqueViolation" &&
-              error.reason.constraint === "check_ins_habit_id_day_key"
-                ? Effect.fail(new CheckInExists())
-                : Effect.die(error),
-            SchemaError: Effect.die,
-          }),
-        ),
+      saveCheckIn: Effect.fn("HabitRepository.saveCheckIn")((checkIn) =>
+        upsertCheckIn(checkIn).pipe(Effect.orDie),
       ),
-      removeCheckIn: Effect.fn("HabitRepository.removeCheckIn")((checkIn) =>
-        deleteCheckIn(checkIn).pipe(Effect.orDie),
+      removeCheckIn: Effect.fn("HabitRepository.removeCheckIn")((habitId, day) =>
+        deleteCheckIn({ habitId, day }).pipe(Effect.orDie),
       ),
     });
   }),
