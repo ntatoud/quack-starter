@@ -1,7 +1,8 @@
 import { assert, layer } from "@effect/vitest";
 import { Api } from "@quack/contracts/api";
 import { Day } from "@quack/contracts/habits/day";
-import { HabitId, HabitName, type NewHabit } from "@quack/contracts/habits/habit";
+import type { Today, TodayHabit } from "@quack/contracts/habits/check-in";
+import { HabitId, HabitName, type IsoWeekday, type NewHabit } from "@quack/contracts/habits/habit";
 import { CheckInDayNotAllowed, HabitNotFound } from "@quack/contracts/habits/habit-errors";
 import { Authentication } from "@quack/contracts/identity/authentication";
 import { Email, type TimeZone, User, UserId } from "@quack/contracts/identity/user";
@@ -76,7 +77,13 @@ layer(Layer.mergeAll(HabitsLayer, HttpServer.layerServices))("HabitsApi", (it) =
           schedule,
           target,
         })),
-        [{ effectiveFrom: "2026-06-01", schedule: { _tag: "EveryDay" }, target: { _tag: "Done" } }],
+        [
+          {
+            effectiveFrom: Day.make("2026-06-01"),
+            schedule: { _tag: "EveryDay" },
+            target: { _tag: "Done" },
+          },
+        ],
       );
     }),
   );
@@ -291,6 +298,171 @@ layer(Layer.mergeAll(HabitsLayer, HttpServer.layerServices))("HabitsApi", (it) =
         .pipe(Effect.flip);
 
       assert.deepStrictEqual(error, new HabitNotFound({ id }));
+    }),
+  );
+
+  // 2026-06-01 is a Monday.
+  const onDays = (...days: readonly [IsoWeekday, ...Array<IsoWeekday>]): NewHabit => ({
+    ...meditate,
+    name: HabitName.make("Run"),
+    schedule: { _tag: "Weekdays", days },
+  });
+
+  const timesAWeek = (times: number): NewHabit => ({
+    ...meditate,
+    name: HabitName.make("Swim"),
+    schedule: { _tag: "Weekly", times },
+  });
+
+  const sectionsOf = (today: Today, id: HabitId) => ({
+    due: today.habits.find((entry) => entry.habit.id === id),
+    doneThisWeek: today.doneThisWeek.find((entry) => entry.habit.id === id),
+  });
+
+  it.effect("lists a Habit on some days of the week on those days only", () =>
+    Effect.gen(function* () {
+      yield* at("2026-06-01T08:00:00Z");
+      const client = yield* clientOf(ada);
+      const habit = yield* client.habits.create({ payload: onDays(1, 3, 5) });
+
+      const listedOn = function* (iso: string) {
+        yield* at(iso);
+        const today = yield* client.habits.today();
+
+        return today.habits.some((entry) => entry.habit.id === habit.id);
+      };
+
+      assert.isTrue(yield* listedOn("2026-06-01T08:00:00Z"));
+      assert.isFalse(yield* listedOn("2026-06-02T08:00:00Z"));
+      assert.isTrue(yield* listedOn("2026-06-03T08:00:00Z"));
+      assert.isFalse(yield* listedOn("2026-06-04T08:00:00Z"));
+      assert.isTrue(yield* listedOn("2026-06-05T08:00:00Z"));
+      assert.isFalse(yield* listedOn("2026-06-06T08:00:00Z"));
+      assert.isFalse(yield* listedOn("2026-06-07T08:00:00Z"));
+      assert.isTrue(yield* listedOn("2026-06-08T08:00:00Z"));
+    }),
+  );
+
+  it.effect("reads the days of the week where the Owner lives", () =>
+    Effect.gen(function* () {
+      yield* at("2026-06-01T08:00:00Z");
+      const client = yield* clientOf(alan);
+      const habit = yield* client.habits.create({ payload: onDays(7) });
+
+      // Already Monday the 8th in UTC, still Sunday the 7th in New York.
+      yield* at("2026-06-08T02:00:00Z");
+      const today = yield* client.habits.today();
+
+      assert.strictEqual(today.day, "2026-06-07");
+      assert.include(
+        today.habits.map((entry) => entry.habit.id),
+        habit.id,
+      );
+      assert.isNull(sectionsOf(today, habit.id).due?.thisWeek);
+    }),
+  );
+
+  it.effect("accepts and keeps a Check-in on a Day a Habit is not due", () =>
+    Effect.gen(function* () {
+      yield* at("2026-06-01T08:00:00Z");
+      const client = yield* clientOf(ada);
+      const habit = yield* client.habits.create({ payload: onDays(1) });
+      yield* at("2026-06-02T08:00:00Z");
+      const params = { id: habit.id, day: Day.make("2026-06-02") };
+
+      const checkIn = yield* client.habits.checkIn({ params });
+      const again = yield* client.habits.checkIn({ params, responseMode: "response-only" });
+
+      assert.deepStrictEqual({ ...checkIn }, { habitId: habit.id, day: "2026-06-02" });
+      assert.strictEqual(again.status, 200);
+    }),
+  );
+
+  it.effect(
+    "lists a Habit a number of times a week every Day, with its progress, until its count is reached",
+    () =>
+      Effect.gen(function* () {
+        yield* at("2026-06-01T08:00:00Z");
+        const client = yield* clientOf(ada);
+        const habit = yield* client.habits.create({ payload: timesAWeek(2) });
+
+        type Progress = { checkIns: number; times: number } | null;
+
+        const progressOn = function* (iso: string, day: string, checkIn: boolean) {
+          yield* at(iso);
+
+          if (checkIn)
+            yield* client.habits.checkIn({ params: { id: habit.id, day: Day.make(day) } });
+          const { due, doneThisWeek } = sectionsOf(yield* client.habits.today(), habit.id);
+
+          const progress = (entry: TodayHabit | undefined): Progress =>
+            entry?.thisWeek ? { ...entry.thisWeek } : null;
+
+          return { due: progress(due), doneThisWeek: progress(doneThisWeek) };
+        };
+
+        assert.deepStrictEqual(yield* progressOn("2026-06-01T08:00:00Z", "2026-06-01", false), {
+          due: { checkIns: 0, times: 2 },
+          doneThisWeek: null,
+        });
+        assert.deepStrictEqual(yield* progressOn("2026-06-01T09:00:00Z", "2026-06-01", true), {
+          due: { checkIns: 1, times: 2 },
+          doneThisWeek: null,
+        });
+        assert.deepStrictEqual(yield* progressOn("2026-06-03T08:00:00Z", "2026-06-03", false), {
+          due: { checkIns: 1, times: 2 },
+          doneThisWeek: null,
+        });
+        assert.deepStrictEqual(yield* progressOn("2026-06-03T09:00:00Z", "2026-06-03", true), {
+          due: null,
+          doneThisWeek: { checkIns: 2, times: 2 },
+        });
+        assert.deepStrictEqual(yield* progressOn("2026-06-07T08:00:00Z", "2026-06-07", false), {
+          due: null,
+          doneThisWeek: { checkIns: 2, times: 2 },
+        });
+        // A new week starts on Monday.
+        assert.deepStrictEqual(yield* progressOn("2026-06-08T08:00:00Z", "2026-06-08", false), {
+          due: { checkIns: 0, times: 2 },
+          doneThisWeek: null,
+        });
+      }),
+  );
+
+  it.effect("lets a Habit done this week be checked in again, and counts it", () =>
+    Effect.gen(function* () {
+      yield* at("2026-06-01T08:00:00Z");
+      const client = yield* clientOf(ada);
+      const habit = yield* client.habits.create({ payload: timesAWeek(1) });
+      yield* client.habits.checkIn({ params: { id: habit.id, day: Day.make("2026-06-01") } });
+
+      yield* at("2026-06-02T08:00:00Z");
+      const before = sectionsOf(yield* client.habits.today(), habit.id).doneThisWeek;
+      yield* client.habits.checkIn({ params: { id: habit.id, day: Day.make("2026-06-02") } });
+      const after = sectionsOf(yield* client.habits.today(), habit.id).doneThisWeek;
+
+      assert.isNull(before?.checkIn);
+      assert.deepStrictEqual({ ...after?.thisWeek }, { checkIns: 2, times: 1 });
+      assert.deepStrictEqual({ ...after?.checkIn }, { habitId: habit.id, day: "2026-06-02" });
+    }),
+  );
+
+  it.effect("starts the week on Monday where the Owner lives", () =>
+    Effect.gen(function* () {
+      yield* at("2026-06-06T12:00:00Z");
+      const client = yield* clientOf(alan);
+      const habit = yield* client.habits.create({ payload: timesAWeek(1) });
+      yield* client.habits.checkIn({ params: { id: habit.id, day: Day.make("2026-06-06") } });
+
+      // Already Monday the 8th in UTC, still Sunday the 7th in New York.
+      yield* at("2026-06-08T02:00:00Z");
+      const sunday = sectionsOf(yield* client.habits.today(), habit.id);
+      // Monday the 8th in New York.
+      yield* at("2026-06-08T05:00:00Z");
+      const monday = sectionsOf(yield* client.habits.today(), habit.id);
+
+      assert.deepStrictEqual({ ...sunday.doneThisWeek?.thisWeek }, { checkIns: 1, times: 1 });
+      assert.deepStrictEqual({ ...monday.due?.thisWeek }, { checkIns: 0, times: 1 });
     }),
   );
 });

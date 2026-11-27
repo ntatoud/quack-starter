@@ -7,7 +7,14 @@ import { TodayList } from "#/features/habits/today-list.tsx";
 
 const day = "2026-06-01";
 
-const habit = (id: string, name: string, position = 0) => ({
+type Entry = {
+  id: string;
+  name: string;
+  checked: boolean;
+  thisWeek?: { checkIns: number; times: number };
+};
+
+const habit = ({ id, name, thisWeek }: Entry, position: number) => ({
   id,
   ownerId: "user-1",
   name,
@@ -16,16 +23,28 @@ const habit = (id: string, name: string, position = 0) => ({
   archived: false,
   firstDay: day,
   createdAt: "2026-06-01T08:00:00.000Z",
-  versions: [{ effectiveFrom: day, schedule: { _tag: "EveryDay" }, target: { _tag: "Done" } }],
+  versions: [
+    {
+      effectiveFrom: day,
+      schedule: thisWeek ? { _tag: "Weekly", times: thisWeek.times } : { _tag: "EveryDay" },
+      target: { _tag: "Done" },
+    },
+  ],
 });
 
-const today = (...habits: ReadonlyArray<{ id: string; name: string; checked: boolean }>) =>
+const entryOf = (entry: Entry, position: number) => ({
+  habit: habit(entry, position),
+  checkIn: entry.checked ? { habitId: entry.id, day } : null,
+  thisWeek: entry.thisWeek ?? null,
+});
+
+const today = (...habits: ReadonlyArray<Entry>) => todayWith(habits, []);
+
+const todayWith = (habits: ReadonlyArray<Entry>, doneThisWeek: ReadonlyArray<Entry>) =>
   Response.json({
     day,
-    habits: habits.map(({ id, name, checked }, position) => ({
-      habit: habit(id, name, position),
-      checkIn: checked ? { habitId: id, day } : null,
-    })),
+    habits: habits.map(entryOf),
+    doneThisWeek: doneThisWeek.map((entry, position) => entryOf(entry, habits.length + position)),
   });
 
 // The API client keeps the `fetch` it first saw, so one stub serves every test and each test sets its response.
@@ -172,5 +191,69 @@ describe("TodayList", () => {
     await page.getByRole("button", { name: "Try again" }).click();
 
     await expect.element(meditate).toBeVisible();
+  });
+
+  it("shows the week's progress of a Habit a number of times a week", async () => {
+    await setup(() =>
+      today(
+        { id: "1", name: "Meditate", checked: false },
+        { id: "2", name: "Swim", checked: true, thisWeek: { checkIns: 2, times: 3 } },
+      ),
+    );
+
+    await expect.element(page.getByText("2/3 this week")).toBeVisible();
+    expect(page.getByText(/this week/).elements()).toHaveLength(1);
+  });
+
+  it("lists the Habits done this week in their own section, where they can still be checked in", async () => {
+    const requests: Array<string> = [];
+    let checked = false;
+    await setup((request) => {
+      if (request.method === "GET") {
+        return todayWith(
+          [{ id: "1", name: "Meditate", checked: false }],
+          [{ id: "2", name: "Swim", checked, thisWeek: { checkIns: checked ? 4 : 3, times: 3 } }],
+        );
+      }
+
+      requests.push(`${request.method} ${new URL(request.url).pathname}`);
+      checked = true;
+
+      return Response.json({ habitId: "2", day });
+    });
+
+    const doneThisWeek = page.getByRole("region", { name: "Done this week" });
+    const swim = doneThisWeek.getByRole("checkbox", { name: "Check in Swim" });
+
+    await expect.element(swim).not.toBeChecked();
+    await expect.element(doneThisWeek.getByText("3/3 this week")).toBeVisible();
+    expect(doneThisWeek.getByRole("checkbox", { name: "Check in Meditate" }).elements()).toEqual(
+      [],
+    );
+
+    await swim.click();
+
+    await expect.element(doneThisWeek.getByText("4/3 this week")).toBeVisible();
+    await expect.element(swim).toBeChecked();
+    expect(requests).toEqual(["PUT /api/habits/2/check-ins/2026-06-01"]);
+  });
+
+  it("leaves out the section of the Habits done this week when there is none", async () => {
+    await setup(() => today({ id: "1", name: "Meditate", checked: false }));
+
+    await expect.element(meditate).toBeVisible();
+    expect(page.getByRole("region", { name: "Done this week" }).elements()).toEqual([]);
+  });
+
+  it("says nothing is left today when every Habit due is done this week", async () => {
+    await setup(() =>
+      todayWith(
+        [],
+        [{ id: "2", name: "Swim", checked: false, thisWeek: { checkIns: 1, times: 1 } }],
+      ),
+    );
+
+    await expect.element(page.getByText("Nothing left today")).toBeVisible();
+    await expect.element(page.getByRole("checkbox", { name: "Check in Swim" })).toBeVisible();
   });
 });

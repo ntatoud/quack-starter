@@ -18,7 +18,8 @@ export class HabitRepository extends Context.Service<
     findAll(ownerId: UserId): Effect.Effect<ReadonlyArray<Habit>>;
     findById(ownerId: UserId, id: HabitId): Effect.Effect<Option.Option<Habit>>;
     create(habit: Habit): Effect.Effect<void>;
-    findCheckIns(ownerId: UserId, day: Day): Effect.Effect<ReadonlyArray<CheckIn>>;
+    /** The Check-ins of the Owner's Habits from one Day to another, both included. */
+    findCheckIns(ownerId: UserId, from: Day, to: Day): Effect.Effect<ReadonlyArray<CheckIn>>;
     addCheckIn(checkIn: CheckIn): Effect.Effect<void, CheckInExists>;
     removeCheckIn(checkIn: CheckIn): Effect.Effect<void>;
   }

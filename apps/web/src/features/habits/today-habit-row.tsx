@@ -9,7 +9,13 @@ import { invalidateHabits } from "#/features/habits/invalidate-habits.ts";
 import { api } from "#/lib/api.ts";
 import { useFsm } from "#/lib/use-fsm.ts";
 
-export function TodayHabitRow({ day, due: { habit, checkIn } }: { day: Day; due: TodayHabit }) {
+export function TodayHabitRow({
+  day,
+  due: { habit, checkIn, thisWeek },
+}: {
+  day: Day;
+  due: TodayHabit;
+}) {
   const [state, send] = useFsm(checkInMachine);
   // The refetch of Today runs before the machine hears of the answer: the row goes from its own check to the API's
   // with no flicker, and back to the API's after a failure.
@@ -44,6 +50,11 @@ export function TodayHabitRow({ day, due: { habit, checkIn } }: { day: Day; due:
           <HabitColorDot color={habit.color} />
           {habit.name}
         </span>
+        {thisWeek !== null && (
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {thisWeek.checkIns}/{thisWeek.times} this week
+          </span>
+        )}
         {state.value === "failed" && (
           <span role="alert" className="text-sm text-destructive">
             {state.context.failedTo === "check"

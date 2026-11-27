@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
-import { page, userEvent } from "vite-plus/test/browser";
+import { type Locator, page, userEvent } from "vite-plus/test/browser";
 import { render } from "vitest-browser-react";
 
 import { NewHabitForm } from "#/features/habits/new-habit-form.tsx";
@@ -67,7 +67,7 @@ describe("NewHabitForm", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("creates a Habit every Day whose Target is done, clears the form, and announces it", async () => {
+  it("creates a Habit every Day by default, whose Target is done, clears the form, and announces it", async () => {
     const requests: Array<unknown> = [];
 
     const { name, color } = await setup(async (request) => {
@@ -104,5 +104,89 @@ describe("NewHabitForm", () => {
 
     await expect.poll(said).toContain("Could not add the habit. Try again.");
     await expect.element(name).toHaveValue("Meditate");
+  });
+
+  const named = async (name: Locator, color: Locator) => {
+    await name.fill("Run");
+    await color.click();
+    await page.getByRole("option", { name: "Teal" }).click();
+  };
+
+  const chooseSchedule = async (label: string) => {
+    await page.getByRole("combobox", { name: "Schedule" }).click();
+    await page.getByRole("option", { name: label }).click();
+  };
+
+  it("creates a Habit on the days of the week chosen, and asks only for them", async () => {
+    const requests: Array<unknown> = [];
+
+    const { name, color, add } = await setup(async (request) => {
+      requests.push(await request.json());
+
+      return created("Run", "teal");
+    });
+
+    await named(name, color);
+    await chooseSchedule("Some days of the week");
+
+    await expect
+      .element(page.getByRole("combobox", { name: "Times a week" }))
+      .not.toBeInTheDocument();
+    await page.getByRole("button", { name: "Friday" }).click();
+    await page.getByRole("button", { name: "Monday" }).click();
+    await add.click();
+
+    await expect.element(name).toHaveValue("");
+    expect(requests).toEqual([
+      {
+        name: "Run",
+        color: "teal",
+        schedule: { _tag: "Weekdays", days: [1, 5] },
+        target: { _tag: "Done" },
+      },
+    ]);
+  });
+
+  it("asks for a day of the week at least, and sends nothing without one", async () => {
+    const { name, color, add } = await setup(() => created("Run", "teal"));
+
+    await named(name, color);
+    await chooseSchedule("Some days of the week");
+    await add.click();
+
+    await expect
+      .element(page.getByRole("group", { name: "Days of the week" }))
+      .toHaveAccessibleDescription("Choose at least one day");
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("creates a Habit a number of times a week, and asks only for that number", async () => {
+    const requests: Array<unknown> = [];
+
+    const { name, color, add } = await setup(async (request) => {
+      requests.push(await request.json());
+
+      return created("Run", "teal");
+    });
+
+    await named(name, color);
+    await chooseSchedule("A number of times a week");
+
+    await expect
+      .element(page.getByRole("group", { name: "Days of the week" }))
+      .not.toBeInTheDocument();
+    await page.getByRole("combobox", { name: "Times a week" }).click();
+    await page.getByRole("option", { name: "5 times a week" }).click();
+    await add.click();
+
+    await expect.element(name).toHaveValue("");
+    expect(requests).toEqual([
+      {
+        name: "Run",
+        color: "teal",
+        schedule: { _tag: "Weekly", times: 5 },
+        target: { _tag: "Done" },
+      },
+    ]);
   });
 });

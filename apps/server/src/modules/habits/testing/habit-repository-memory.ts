@@ -25,11 +25,14 @@ export const HabitRepositoryMemory = Layer.sync(HabitRepository, () => {
     findById: (ownerId, id) =>
       Effect.sync(() => Option.fromNullishOr(habits.get(id)).pipe(Option.filter(ownedBy(ownerId)))),
     create: (habit) => Effect.sync(() => void habits.set(habit.id, habit)),
-    findCheckIns: (ownerId, day) =>
+    findCheckIns: (ownerId, from, to) =>
       Effect.sync(() =>
         Array.filter(
           checkIns.values(),
-          (checkIn) => checkIn.day === day && habits.get(checkIn.habitId)?.ownerId === ownerId,
+          (checkIn) =>
+            checkIn.day >= from &&
+            checkIn.day <= to &&
+            habits.get(checkIn.habitId)?.ownerId === ownerId,
         ),
       ),
     addCheckIn: (checkIn) =>

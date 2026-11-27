@@ -16,7 +16,7 @@ const HabitResult = Schema.Struct({ habit: Habit });
 
 const OwnedHabit = Schema.Struct({ ownerId: UserId, id: HabitId });
 
-const OwnedDay = Schema.Struct({ ownerId: UserId, day: Day });
+const OwnedDays = Schema.Struct({ ownerId: UserId, from: Day, to: Day });
 
 // The column is a uuid: Postgres refuses any other id, which no Habit can have.
 const isStorableId = Schema.is(Schema.String.check(Schema.isUUID()));
@@ -98,16 +98,17 @@ export const HabitRepositoryPostgres = Layer.effect(
     });
 
     const findCheckIns = SqlSchema.findAll({
-      Request: OwnedDay,
+      Request: OwnedDays,
       Result: CheckIn,
-      execute: ({ ownerId, day }) =>
+      execute: ({ ownerId, from, to }) =>
         execute(
           db
             .selectFrom("checkIns")
             .innerJoin("habits", "habits.id", "checkIns.habitId")
             .select(["checkIns.habitId", "checkIns.day"])
             .where("habits.ownerId", "=", ownerId)
-            .where("checkIns.day", "=", asDate(day)),
+            .where("checkIns.day", ">=", asDate(from))
+            .where("checkIns.day", "<=", asDate(to)),
         ),
     });
 
@@ -141,8 +142,8 @@ export const HabitRepositoryPostgres = Layer.effect(
           : Effect.succeedNone,
       ),
       create: Effect.fn("HabitRepository.create")((habit) => insert(habit).pipe(Effect.orDie)),
-      findCheckIns: Effect.fn("HabitRepository.findCheckIns")((ownerId, day) =>
-        findCheckIns({ ownerId, day }).pipe(Effect.orDie),
+      findCheckIns: Effect.fn("HabitRepository.findCheckIns")((ownerId, from, to) =>
+        findCheckIns({ ownerId, from, to }).pipe(Effect.orDie),
       ),
       addCheckIn: Effect.fn("HabitRepository.addCheckIn")((checkIn) =>
         insertCheckIn(checkIn).pipe(

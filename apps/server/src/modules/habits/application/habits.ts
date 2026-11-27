@@ -1,12 +1,15 @@
-import { CheckIn, Today, TodayHabit } from "@quack/contracts/habits/check-in";
+import { CheckIn, Today, TodayHabit, WeekProgress } from "@quack/contracts/habits/check-in";
 import type { Day } from "@quack/contracts/habits/day";
 import { Habit, HabitVersion, type NewHabit } from "@quack/contracts/habits/habit";
 import { CheckInDayNotAllowed, HabitNotFound } from "@quack/contracts/habits/habit-errors";
 import type { UserId } from "@quack/contracts/identity/user";
 import { Array, Context, DateTime, Effect, Layer, Option } from "effect";
 
-import { canCheckInOn, isDueOn } from "#/modules/habits/domain/habit.ts";
+import { canCheckInOn, isDueOn, mondayOf, weekProgressOn } from "#/modules/habits/domain/habit.ts";
 import { HabitRepository } from "#/modules/habits/domain/habit-repository.ts";
+
+const isDoneThisWeek = ({ thisWeek }: TodayHabit) =>
+  thisWeek !== null && thisWeek.checkIns >= thisWeek.times;
 
 export class Habits extends Context.Service<
   Habits,
@@ -68,20 +71,30 @@ export class Habits extends Context.Service<
         today: Effect.fn("Habits.today")(function* (ownerId, today) {
           const [habits, checkIns] = yield* Effect.all([
             repository.findAll(ownerId),
-            repository.findCheckIns(ownerId, today),
+            repository.findCheckIns(ownerId, mondayOf(today), today),
           ]);
+
+          const onToday = habits
+            .filter((habit) => isDueOn(habit, today))
+            .map((habit) => {
+              const thisWeek = weekProgressOn(habit, today, checkIns);
+
+              return new TodayHabit({
+                habit,
+                checkIn:
+                  checkIns.find(({ habitId, day }) => habitId === habit.id && day === today) ??
+                  null,
+                thisWeek: Option.match(thisWeek, {
+                  onNone: () => null,
+                  onSome: (progress) => new WeekProgress(progress),
+                }),
+              });
+            });
 
           return new Today({
             day: today,
-            habits: habits
-              .filter((habit) => isDueOn(habit, today))
-              .map(
-                (habit) =>
-                  new TodayHabit({
-                    habit,
-                    checkIn: checkIns.find(({ habitId }) => habitId === habit.id) ?? null,
-                  }),
-              ),
+            habits: onToday.filter((entry) => !isDoneThisWeek(entry)),
+            doneThisWeek: onToday.filter(isDoneThisWeek),
           });
         }),
         checkIn: Effect.fn("Habits.checkIn")(function* (ownerId, today, checkIn) {

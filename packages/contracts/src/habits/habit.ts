@@ -28,7 +28,20 @@ export const HabitColor = Schema.Literals([
 
 export type HabitColor = typeof HabitColor.Type;
 
-export const Schedule = Schema.TaggedUnion({ EveryDay: {} });
+/** 1 for Monday to 7 for Sunday. */
+export const IsoWeekday = Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 7 }));
+
+export type IsoWeekday = typeof IsoWeekday.Type;
+
+export const Schedule = Schema.TaggedUnion({
+  EveryDay: {},
+  Weekdays: {
+    days: Schema.NonEmptyArray(IsoWeekday).check(
+      Schema.isUnique({ message: "Choose each day once" }),
+    ),
+  },
+  Weekly: { times: Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 7 })) },
+});
 
 export type Schedule = typeof Schedule.Type;
 

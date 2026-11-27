@@ -140,9 +140,35 @@ export const habitRepositorySuite = <R>(
         );
         yield* repository.addCheckIn(new CheckIn({ habitId: ofAnotherOwner.id, day: firstDay }));
 
-        const found = yield* repository.findCheckIns(owner, firstDay);
+        const found = yield* repository.findCheckIns(owner, firstDay, firstDay);
 
         assert.sameDeepMembers([...found], [onTheDay, onOther]);
+      }).pipe(Effect.orDie));
+
+    test("finds the Check-ins of a range of Days, both ends included", () =>
+      Effect.gen(function* () {
+        const repository = yield* HabitRepository;
+        const owner = yield* anOwner;
+        const habit = yield* aSavedHabit(owner);
+        const on = (day: string) => new CheckIn({ habitId: habit.id, day: Day.make(day) });
+
+        const [before, first, inside, last, after] = [
+          on("2026-05-31"),
+          on("2026-06-01"),
+          on("2026-06-03"),
+          on("2026-06-07"),
+          on("2026-06-08"),
+        ];
+
+        yield* Effect.forEach([before, first, inside, last, after], repository.addCheckIn);
+
+        const found = yield* repository.findCheckIns(
+          owner,
+          Day.make("2026-06-01"),
+          Day.make("2026-06-07"),
+        );
+
+        assert.sameDeepMembers([...found], [first, inside, last]);
       }).pipe(Effect.orDie));
 
     test("keeps one Check-in per Habit and Day", () =>
@@ -154,7 +180,9 @@ export const habitRepositorySuite = <R>(
         const second = yield* repository.addCheckIn(checkIn).pipe(Effect.flip, Effect.orDie);
 
         assert.deepStrictEqual(second, new CheckInExists());
-        assert.deepStrictEqual(yield* repository.findCheckIns(owner, firstDay), [checkIn]);
+        assert.deepStrictEqual(yield* repository.findCheckIns(owner, firstDay, firstDay), [
+          checkIn,
+        ]);
       }));
 
     test("removes a Check-in, and nothing for a Day without one", () =>
@@ -166,7 +194,7 @@ export const habitRepositorySuite = <R>(
         yield* repository.removeCheckIn(checkIn);
         yield* repository.removeCheckIn(checkIn);
 
-        assert.deepStrictEqual(yield* repository.findCheckIns(owner, firstDay), []);
+        assert.deepStrictEqual(yield* repository.findCheckIns(owner, firstDay, firstDay), []);
       }));
   });
 };
