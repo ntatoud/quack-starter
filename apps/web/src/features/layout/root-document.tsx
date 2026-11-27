@@ -9,8 +9,20 @@ import { usePreferences } from "#/features/preferences/preferences.ts";
 // Out of the production bundle: the build replaces import.meta.env.DEV with false and drops the import.
 const Devtools = import.meta.env.DEV ? lazy(() => import("#/features/layout/devtools.tsx")) : null;
 
-export function RootDocument({ children }: { children: ReactNode }) {
+/** What every page renders in its body. A test renders the app with it alone, in the page it runs in. */
+export function RootBody({ children }: { children: ReactNode }) {
   const { colorScheme, sidebarSide } = usePreferences();
+
+  return (
+    <Preferences preferences={[colorScheme, sidebarSide]}>
+      {children}
+      <Toaster />
+    </Preferences>
+  );
+}
+
+export function RootDocument({ children }: { children: ReactNode }) {
+  const { colorScheme } = usePreferences();
   const { value: colorSchemeValue } = usePreference(colorScheme);
 
   return (
@@ -20,15 +32,14 @@ export function RootDocument({ children }: { children: ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        <Preferences preferences={[colorScheme, sidebarSide]}>
+        <RootBody>
           {children}
-          <Toaster />
           {Devtools && (
             <Suspense>
               <Devtools />
             </Suspense>
           )}
-        </Preferences>
+        </RootBody>
         <Scripts />
       </body>
     </html>

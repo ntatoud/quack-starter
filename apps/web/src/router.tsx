@@ -1,10 +1,14 @@
 import { Unauthenticated } from "@quack/contracts/identity/identity-errors";
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { createRouter } from "@tanstack/react-router";
+import { createRouter, type RouterHistory } from "@tanstack/react-router";
 
 import { setCurrentUserData } from "#/features/identity/current-user.ts";
 import { signInLocation } from "#/features/identity/redirect-target.ts";
-import { cookiePreferences, PreferencesContext } from "#/features/preferences/preferences.ts";
+import {
+  cookiePreferences,
+  type Preferences,
+  PreferencesContext,
+} from "#/features/preferences/preferences.ts";
 import { routeTree } from "#/routeTree.gen.ts";
 
 export interface RouterContext {
@@ -15,7 +19,13 @@ export interface RouterContext {
 const retry = (failureCount: number, error: Error): boolean =>
   !(error instanceof Unauthenticated) && failureCount < 3;
 
-export function getRouter() {
+/** A test passes its own history and Preferences, which then live in memory, not in the URL bar and the cookies. */
+export interface RouterOptions {
+  readonly history?: RouterHistory;
+  readonly preferences?: Preferences;
+}
+
+export function getRouter({ history, preferences = cookiePreferences() }: RouterOptions = {}) {
   const onError = (error: Error): void => {
     if (!(error instanceof Unauthenticated)) return;
     setCurrentUserData(queryClient, null);
@@ -34,8 +44,6 @@ export function getRouter() {
     defaultOptions: { queries: { retry } },
   });
 
-  const preferences = cookiePreferences();
-
   const router = createRouter({
     routeTree,
     context: { queryClient },
@@ -47,6 +55,8 @@ export function getRouter() {
       </QueryClientProvider>
     ),
   });
+
+  if (history !== undefined) router.update({ ...router.options, history });
 
   return router;
 }
