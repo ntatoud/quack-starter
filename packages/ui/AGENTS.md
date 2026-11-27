@@ -7,3 +7,5 @@ Before using ui-sdk, follow the `ui-sdk` skill if it is installed, and read `nod
 ui-sdk keeps its own `data-slot` on a part, so style a part by that slot and its state attributes (`data-open`, `data-pressed`), read from the rendered DOM. Tests run in the browser (`vitest-browser-react`).
 
 The `shadcn` package stays only for `shadcn/tailwind.css`, which `globals.css` imports: the `data-open`, `data-closed`, `data-checked`, `data-unchecked`, `data-active` variants and the `no-scrollbar` utility. Its CLI is not used, so a component is written by hand, not added with `shadcn add`.
+
+`@shadcn/lint` checks the classes given to a component of this package: no raw Tailwind palette (`bg-amber-500`), no class Tailwind cannot generate, no `className` it cannot read, no inline style but CSS custom properties. A color the theme lacks is added to `packages/brand/src/theme.css` and mapped in `globals.css`.

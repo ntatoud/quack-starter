@@ -61,10 +61,7 @@ export function GrantEntry({
           <ul aria-label="Why it needs a look" className="flex flex-wrap gap-1">
             {attention.map((reason) => (
               <li key={reason}>
-                <Badge
-                  variant="outline"
-                  className="border-amber-600/50 text-amber-700 dark:text-amber-400"
-                >
+                <Badge variant="outline" className="border-warning/50 text-warning">
                   {reason}
                 </Badge>
               </li>

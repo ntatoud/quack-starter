@@ -24,6 +24,7 @@
   "devDependencies": {
     "@effect/tsgo": "catalog:",
     "@quack/oxlint-plugin": "workspace:*",
+    "@shadcn/lint": "0.2.5",
     "@types/node": "catalog:",
     "fallow": "3.49.0",
     "portless": "0.18.1",
