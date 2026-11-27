@@ -25,7 +25,7 @@
     "@effect/tsgo": "catalog:",
     "@quack/oxlint-plugin": "workspace:*",
     "@types/node": "catalog:",
-    "fallow": "3.46.0",
+    "fallow": "3.49.0",
     "portless": "0.18.1",
     "tsrs": "catalog:",
     "typescript": "catalog:",

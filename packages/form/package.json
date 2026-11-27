@@ -18,7 +18,7 @@
   },
   "dependencies": {
     "@quack/ui": "workspace:*",
-    "@tanstack/react-form": "1.33.5",
+    "@tanstack/react-form": "1.33.6",
     "effect": "catalog:",
     "lucide-react": "catalog:"
   },
