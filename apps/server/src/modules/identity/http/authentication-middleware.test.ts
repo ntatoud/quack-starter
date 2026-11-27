@@ -17,7 +17,7 @@ import {
 } from "effect/http-api";
 
 import { IdentityModule, IdentityPostgres, McpCaller } from "#/modules/identity/index.ts";
-import { MailerMemory } from "#/modules/mail/testing/mailer-memory.ts";
+import { MailerMemory } from "#/modules/mail/index.ts";
 import { TestDatabase } from "#/modules/testing/index.ts";
 import { TransactionPostgres } from "#/modules/transaction/index.ts";
 

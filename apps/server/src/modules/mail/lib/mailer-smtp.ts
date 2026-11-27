@@ -2,7 +2,7 @@ import { Effect, Layer, Redacted } from "effect";
 import { createTransport } from "nodemailer";
 
 import { MailConfig } from "#/config.ts";
-import { Mailer } from "#/modules/mail/domain/mailer.ts";
+import { Mailer } from "#/modules/mail/lib/mailer.ts";
 
 export const MailerSmtp = Layer.effect(
   Mailer,

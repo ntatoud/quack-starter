@@ -5,19 +5,19 @@ import { ConfigProvider, Effect, Layer } from "effect";
 import { McpProtocol, McpServer, McpTest } from "effect/ai";
 import { HttpClient, HttpServer } from "effect/http";
 
-import { contractTools } from "#/mcp/contract-tools.ts";
-import { deriveTools } from "#/mcp/derive-tools.ts";
 import {
   IdentityModule,
   IdentityPostgres,
   McpCaller,
   AiClientsModule,
 } from "#/modules/identity/index.ts";
+import { MailerMemory } from "#/modules/mail/index.ts";
+import { contractTools } from "#/modules/mcp/lib/contract-tools.ts";
+import { deriveTools } from "#/modules/mcp/lib/derive-tools.ts";
 import { SystemModule } from "#/modules/system/index.ts";
 import { aUser, TestDatabase } from "#/modules/testing/index.ts";
 import { TodosModule } from "#/modules/todos/index.ts";
 import { TransactionPostgres } from "#/modules/transaction/index.ts";
-import { MailerMemory } from "#/modules/mail/testing/mailer-memory.ts";
 
 // No tool fetches an AI Client's document.
 const NoHttpClient = Layer.succeed(

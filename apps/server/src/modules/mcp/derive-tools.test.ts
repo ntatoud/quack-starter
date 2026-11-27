@@ -6,7 +6,7 @@ import { RequiredPermission } from "@quack/contracts/permission";
 import { Cause, Effect, Exit, Schema } from "effect";
 import { HttpApi, HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "effect/http-api";
 
-import { deriveTools } from "#/mcp/derive-tools.ts";
+import { deriveTools } from "#/modules/mcp/lib/derive-tools.ts";
 
 const offered = (endpoint: HttpApiEndpoint.Constraint) =>
   HttpApi.make("probe").add(

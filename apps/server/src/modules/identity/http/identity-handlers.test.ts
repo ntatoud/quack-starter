@@ -22,7 +22,7 @@ import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
 import { IdentityModule, IdentityPostgres } from "#/modules/identity/index.ts";
 import { emailChangeModelWalks } from "#/modules/identity/testing/email-change-model.ts";
 import { sessionModelWalks } from "#/modules/identity/testing/session-model.ts";
-import { MailerMemory, SentMails } from "#/modules/mail/testing/mailer-memory.ts";
+import { MailerMemory, SentMails } from "#/modules/mail/index.ts";
 import { makeBrowser, TestDatabase } from "#/modules/testing/index.ts";
 import { TransactionPostgres } from "#/modules/transaction/index.ts";
 

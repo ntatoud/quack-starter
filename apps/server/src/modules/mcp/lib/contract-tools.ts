@@ -5,13 +5,13 @@ import { McpServer, Toolkit } from "effect/ai";
 import { HttpClient, HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http";
 import { HttpApiBuilder, HttpApiClient, HttpApiMiddleware } from "effect/http-api";
 
+import { accessTo, McpCaller } from "#/modules/identity/index.ts";
 import {
   type DerivedTool,
   endpointsByTool,
   type EndpointRequest,
   type ToolInput,
-} from "#/mcp/derive-tools.ts";
-import { accessTo, McpCaller } from "#/modules/identity/index.ts";
+} from "#/modules/mcp/lib/derive-tools.ts";
 
 type Endpoint = (request: EndpointRequest) => Effect.Effect<Schema.Json, unknown>;
 

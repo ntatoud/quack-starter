@@ -1,8 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
 import { ConfigProvider, Effect, Layer, Logger, Queue } from "effect";
 
-import { Mailer } from "#/modules/mail/domain/mailer.ts";
-import { MailerSmtp } from "#/modules/mail/infrastructure/mailer-smtp.ts";
+import { Mailer, MailerSmtp } from "#/modules/mail/index.ts";
 
 // Port 1 is reserved and nothing listens on it: the connection is refused at once.
 const unreachableSmtp = ConfigProvider.layer(

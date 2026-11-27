@@ -114,10 +114,9 @@ export default defineConfig({
             "warn",
             {
               allow: [
-                // The Api, beside the index.ts of each module, and the assembled Routes.
+                // The Api, the MCP endpoint and the SMTP adapter, beside the index.ts of their module, and the assembled Routes.
                 "apps/server/src/modules/*/*.test.ts",
                 "apps/server/src/server.test.ts",
-                "apps/server/src/mcp/*.test.ts",
                 // Scripts beside the server.
                 "apps/server/src/database/*.test.ts",
                 "apps/server/src/dev/*.test.ts",

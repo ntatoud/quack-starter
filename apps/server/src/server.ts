@@ -7,7 +7,7 @@ import { HttpRouter } from "effect/http";
 import { HttpApiBuilder, HttpApiScalar } from "effect/http-api";
 
 import { ServerConfig } from "#/config.ts";
-import { McpEndpoint } from "#/mcp/mcp-endpoint.ts";
+import { McpEndpoint } from "#/modules/mcp/index.ts";
 import {
   IdentityModule,
   OAuthMetadataRoutes,

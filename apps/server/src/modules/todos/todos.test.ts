@@ -5,7 +5,7 @@ import { ConfigProvider, Effect, Layer } from "effect";
 import { HttpServer } from "effect/http";
 
 import { IdentityModule, IdentityPostgres } from "#/modules/identity/index.ts";
-import { MailerMemory } from "#/modules/mail/testing/mailer-memory.ts";
+import { MailerMemory } from "#/modules/mail/index.ts";
 import { aUser, signedIn, TestDatabase } from "#/modules/testing/index.ts";
 import { seedTodos, TodosModule } from "#/modules/todos/index.ts";
 import { TransactionPostgres } from "#/modules/transaction/index.ts";
