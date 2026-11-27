@@ -9,7 +9,7 @@ import { api } from "#/lib/api.ts";
 export function TodayPage() {
   const today = useQuery(api.habits.today.queryOptions());
 
-  // A Habit done this week counts for Today once checked in on it, as an extra.
+  // A Habit done this week asks for nothing more today: it counts only once checked in, so the count never drops.
   const due = [
     ...(today.data?.habits ?? []),
     ...(today.data?.doneThisWeek ?? []).filter(({ checkIn }) => checkIn !== null),

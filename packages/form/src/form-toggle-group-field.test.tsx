@@ -5,13 +5,15 @@ import { render } from "vitest-browser-react";
 import { DaysForm } from "#/testing/days-form.tsx";
 
 describe("field.ToggleGroup", () => {
-  it("is a group named by its label and described by its description, its options named in full", async () => {
+  it("is a group named by its label, its options named in full and described by its description", async () => {
     await render(<DaysForm onSubmit={() => {}} />);
 
-    const group = page.getByRole("group", { name: "Days" });
+    const tuesday = page
+      .getByRole("group", { name: "Days" })
+      .getByRole("button", { name: "Tuesday" });
 
-    await expect.element(group).toHaveAccessibleDescription("When you are in.");
-    await expect.element(group.getByRole("button", { name: "Tuesday" })).toHaveTextContent("T");
+    await expect.element(tuesday).toHaveTextContent("T");
+    await expect.element(tuesday).toHaveAccessibleDescription("When you are in.");
   });
 
   it("submits the options pressed, in their order", async () => {
@@ -25,13 +27,14 @@ describe("field.ToggleGroup", () => {
     await expect.poll(() => submitted).toEqual([["mon", "wed"]]);
   });
 
-  it("reports its error on the group", async () => {
+  it("focuses its first option on an error, which describes it", async () => {
     await render(<DaysForm onSubmit={() => {}} />);
 
     await page.getByRole("button", { name: "Save" }).click();
 
-    const group = page.getByRole("group", { name: "Days" });
-    await expect.element(group).toHaveAttribute("aria-invalid", "true");
-    await expect.element(group).toHaveAccessibleDescription("When you are in. Choose a day");
+    const monday = page.getByRole("button", { name: "Monday" });
+    await expect.element(monday).toHaveFocus();
+    await expect.element(monday).toHaveAttribute("aria-invalid", "true");
+    await expect.element(monday).toHaveAccessibleDescription("When you are in. Choose a day");
   });
 });

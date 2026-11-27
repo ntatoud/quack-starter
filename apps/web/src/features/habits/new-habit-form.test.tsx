@@ -154,9 +154,12 @@ describe("NewHabitForm", () => {
     await chooseSchedule("Some days of the week");
     await add.click();
 
-    await expect
-      .element(page.getByRole("group", { name: "Days of the week" }))
-      .toHaveAccessibleDescription("Choose at least one day");
+    const monday = page
+      .getByRole("group", { name: "Days of the week" })
+      .getByRole("button", { name: "Monday" });
+
+    await expect.element(monday).toHaveFocus();
+    await expect.element(monday).toHaveAccessibleDescription("Choose at least one day");
     expect(fetch).not.toHaveBeenCalled();
   });
 

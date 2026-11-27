@@ -27,14 +27,15 @@ export function FormToggleGroupField({
         }}
         // A label names a group only by reference: `for` points at a control it can focus.
         aria-labelledby={labelIdOf(id)}
-        aria-invalid={invalid}
-        aria-describedby={describedBy}
       >
         {options.map(({ value, label, short }) => (
           <ToggleGroupItem
             key={value}
             value={value}
             name={field.name}
+            // On each option, not the group: `form.Root` focuses the first invalid control, and a group takes no focus.
+            aria-invalid={invalid}
+            aria-describedby={describedBy}
             {...(short === undefined ? {} : { "aria-label": label })}
           >
             {short ?? label}
