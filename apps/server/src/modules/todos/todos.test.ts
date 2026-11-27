@@ -115,7 +115,8 @@ it.effect("fails with TodoNotFound for an unknown id", () =>
   }).pipe(Effect.provide(TodosApi)),
 );
 
-it.effect("seeds a few todos of the signed-in User, some completed, some not", () =>
+// The seed spaces its Todos on the real clock.
+it.live("seeds a few todos of the signed-in User, some completed, some not", () =>
   Effect.gen(function* () {
     const { user, client } = yield* signedInUser;
 

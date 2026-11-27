@@ -1,6 +1,6 @@
 import type { Api } from "@quack/contracts/api";
 import { TodoTitle } from "@quack/contracts/todos/todo";
-import { Effect } from "effect";
+import { Duration, Effect } from "effect";
 import type { HttpApiClient } from "effect/http-api";
 
 const drafts = [
@@ -20,6 +20,9 @@ export const seedTodos = Effect.fn("seedTodos")(function* (
     if (completed) {
       yield* todos.complete({ params: { id: todo.id } });
     }
+
+    // The list orders Todos by creation time, to the millisecond: one apart, they keep the order of the drafts.
+    yield* Effect.sleep(Duration.millis(1));
   }
 
   yield* Effect.logInfo(`Seeded ${drafts.length} Todos`);
