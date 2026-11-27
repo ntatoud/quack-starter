@@ -103,7 +103,33 @@ export default defineConfig({
       },
       {
         files: ["apps/server/src/**"],
-        rules: { "quack/module-boundaries": "error", "quack/no-sql-unsafe": "error" },
+        rules: { "quack/no-sql-unsafe": "error" },
+      },
+      {
+        files: ["apps/server/src/**", "apps/web/src/**"],
+        rules: {
+          "quack/module-boundaries": "error",
+          // A warning while the modules move to index.ts and lib/: the tests outside these paths go with them.
+          "quack/test-placement": [
+            "warn",
+            {
+              allow: [
+                // The Api, beside the index.ts of each module, and the assembled Routes.
+                "apps/server/src/modules/*/*.test.ts",
+                "apps/server/src/server.test.ts",
+                "apps/server/src/mcp/*.test.ts",
+                // Scripts beside the server.
+                "apps/server/src/database/*.test.ts",
+                "apps/server/src/dev/*.test.ts",
+                // Pages, beside the index.ts of each feature, and the server-side boundaries.
+                "apps/web/src/features/*/*.test.{ts,tsx}",
+                "apps/web/src/lib/api-relay.test.ts",
+                "apps/web/src/frame-ancestors.test.ts",
+                "apps/web/src/routes-redirects.test.tsx",
+              ],
+            },
+          ],
+        },
       },
       {
         // The Migrator reads a migration's id and name from its file name: <4-digit id>_<snake_case_name>.ts.
