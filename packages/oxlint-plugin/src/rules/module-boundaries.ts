@@ -1,3 +1,4 @@
+import * as Fs from "node:fs";
 import * as Path from "node:path/posix";
 
 import { defineRule } from "vite-plus/lint/plugins";
@@ -26,9 +27,14 @@ const isPlatformOrTransport = (specifier: string) =>
   specifier.startsWith("@effect/platform-") ||
   /^effect\/http(-api)?(\/|$)/.test(specifier);
 
+/** The server's modules and the web app's features: both are modules. */
+type Area = "modules" | "features";
+
 interface Location {
   readonly src: string;
+  readonly area: Area;
   readonly module: string;
+  readonly rest: string;
   /** Undefined for a file at the module's root, such as its `index.ts`. */
   readonly folder: Folder | undefined;
 }
@@ -39,14 +45,43 @@ const isTest = (path: string) => /\.test\.tsx?$/.test(path);
 const srcOf = (path: string) => /^(.*\/src)\//.exec(path)?.[1];
 
 const locate = (path: string): Location | undefined => {
-  const match = /^(.*\/src)\/modules\/([^/]+)\/(?:([^/]+)\/)?/.exec(path);
+  const match = /^(.*\/src)\/(modules|features)\/([^/]+)\/(.+)$/.exec(path);
 
   if (match === null) return undefined;
-  const [, src, module, folder] = match;
+  const [, src, area, module, rest] = match;
 
-  if (src === undefined || module === undefined) return undefined;
+  if (src === undefined || module === undefined || rest === undefined) return undefined;
+  const folder = rest.includes("/") ? rest.split("/")[0] : undefined;
 
-  return { src, module, folder: isFolder(folder) ? folder : undefined };
+  return {
+    src,
+    area: area === "features" ? "features" : "modules",
+    module,
+    rest,
+    folder: area === "modules" && isFolder(folder) ? folder : undefined,
+  };
+};
+
+/**
+ * A module that has moved to the index.ts and lib/ shape. The others keep the layer rule until they move. Read anew
+ * each time, as an editor keeps the linter running while a module moves.
+ */
+const hasLib = ({ src, area, module }: Location) =>
+  Fs.statSync(`${src}/${area}/${module}/lib`, { throwIfNoEntry: false })?.isDirectory() ?? false;
+
+const throughIndex = (to: Location) =>
+  `Import another module through its index.ts (#/${to.area}/${to.module}/index.ts), not its internals.`;
+
+/** Only the testing module reaches into another module's lib/, to make state no interface can make. */
+const libImportMessage = (from: Location | undefined, to: Location) => {
+  if (/^index(\.tsx?)?$/.test(to.rest)) return undefined;
+  const sameArea = from?.area === to.area;
+
+  if (sameArea && from.module === to.module) return undefined;
+
+  if (sameArea && from.module === "testing" && to.rest.startsWith("lib/")) return undefined;
+
+  return throughIndex(to);
 };
 
 /** Undefined for a specifier that leaves the package. */
@@ -78,7 +113,7 @@ const layerImportMessage = (
   to: Location & { readonly folder: Folder },
 ) => {
   if (from === undefined || to.module !== from.module) {
-    return `Import another module through its index.ts (#/modules/${to.module}/index.ts), not its internals.`;
+    return throughIndex(to);
   }
 
   if (isLayer(from.folder) && !ALLOWED[from.folder].layers.some((layer) => layer === to.folder)) {
@@ -86,6 +121,21 @@ const layerImportMessage = (
   }
 
   return undefined;
+};
+
+const moduleImportMessage = (
+  filename: string,
+  from: Location | undefined,
+  to: Location,
+  fromTesting: boolean,
+) => {
+  if (hasLib(to)) return libImportMessage(from, to);
+
+  if (to.folder === undefined) return undefined;
+
+  if (to.folder === "testing") return testingImportMessage(filename, from, to, fromTesting);
+
+  return layerImportMessage(from, { ...to, folder: to.folder });
 };
 
 /** The message of the rule an import breaks, if any. */
@@ -103,11 +153,7 @@ const violation = (
   const target = resolve(specifier, filename, src);
   const to = target === undefined ? undefined : locate(target);
 
-  if (to?.folder === undefined) return undefined;
-
-  if (to.folder === "testing") return testingImportMessage(filename, from, to, fromTesting);
-
-  return layerImportMessage(from, { ...to, folder: to.folder });
+  return to === undefined ? undefined : moduleImportMessage(filename, from, to, fromTesting);
 };
 
 export default defineRule({
@@ -115,7 +161,7 @@ export default defineRule({
     type: "problem",
     docs: {
       description:
-        "Keep the layers of a module apart: the domain is pure, use cases see the domain only, a module is used through its index.ts, from other modules and from the rest of src alike, and its testing/ folder by tests only.",
+        "Use a module through its index.ts, from other modules and from the rest of src alike. A module with a lib/ hides it from all but the testing module. A module without one keeps its layers apart until it moves: the domain is pure, use cases see the domain only, and its testing/ folder is for tests only.",
     },
   },
   create(context) {

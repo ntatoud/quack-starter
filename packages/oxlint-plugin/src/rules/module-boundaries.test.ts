@@ -1,5 +1,9 @@
+import * as Fs from "node:fs";
+import * as Os from "node:os";
+import * as Path from "node:path";
+
 import { RuleTester } from "vite-plus/lint/plugins-dev";
-import { describe, it } from "vite-plus/test";
+import { afterAll, describe, it } from "vite-plus/test";
 
 import rule from "#/rules/module-boundaries.ts";
 
@@ -19,6 +23,28 @@ const infrastructureTest = `${src}/modules/todos/infrastructure/todo-repository-
 const httpTest = `${src}/modules/todos/http/todos-handlers.test.tsx`;
 const routesTest = `${src}/server.test.ts`;
 
+// The rule reads the disk to know whether a module has a lib/: `notes` has one, in the server and in the web app, and
+// so has the server's `todos`.
+const root = Fs.mkdtempSync(Path.join(Os.tmpdir(), "module-boundaries-"));
+const deepSrc = `${root}/apps/server/src`;
+const webSrc = `${root}/apps/web/src`;
+
+for (const lib of ["modules/notes/lib", "modules/todos/lib"]) {
+  Fs.mkdirSync(`${deepSrc}/${lib}`, { recursive: true });
+}
+
+Fs.mkdirSync(`${webSrc}/features/notes/lib`, { recursive: true });
+
+afterAll(() => Fs.rmSync(root, { recursive: true, force: true }));
+
+const notesIndex = `${deepSrc}/modules/notes/index.ts`;
+const notesLib = `${deepSrc}/modules/notes/lib/notes.ts`;
+const notesTest = `${deepSrc}/modules/notes/notes.test.ts`;
+const testingModule = `${deepSrc}/modules/testing/index.ts`;
+const otherModule = `${deepSrc}/modules/todos/lib/todos.ts`;
+const webRoute = `${webSrc}/routes/notes.tsx`;
+const webFeature = `${webSrc}/features/todos/todos-list.tsx`;
+
 const NO_OTHER_LAYER = { message: "The domain depends on no other layer." };
 const NO_PLATFORM = { message: "The domain stays free of platform and transport code." };
 
@@ -32,8 +58,8 @@ const TESTS_ONLY = {
 
 const TESTS_ONLY_ACROSS = { message: "Only a test imports another module's testing/ folder." };
 
-const throughIndex = (module: string) => ({
-  message: `Import another module through its index.ts (#/modules/${module}/index.ts), not its internals.`,
+const throughIndex = (module: string, folder = "modules") => ({
+  message: `Import another module through its index.ts (#/${folder}/${module}/index.ts), not its internals.`,
 });
 
 new RuleTester().run("module-boundaries", rule, {
@@ -90,6 +116,22 @@ new RuleTester().run("module-boundaries", rule, {
       filename: routesTest,
       code: `import { TodoRepositoryMemory } from "#/modules/todos/testing/todo-repository-memory.ts";`,
     },
+    { filename: notesIndex, code: `import { Notes } from "#/modules/notes/lib/notes.ts";` },
+    { filename: notesLib, code: `import { NotesSeed } from "#/modules/notes/lib/notes-seed.ts";` },
+    { filename: notesLib, code: `import { Note } from "./note.ts";` },
+    { filename: notesTest, code: `import { NotesModule } from "#/modules/notes/index.ts";` },
+    ...[otherModule, `${deepSrc}/server.ts`, testingModule, `${deepSrc}/server.test.ts`].map(
+      (filename) => ({ filename, code: `import { NotesModule } from "#/modules/notes/index.ts";` }),
+    ),
+    { filename: testingModule, code: `import { Notes } from "#/modules/notes/lib/notes.ts";` },
+    {
+      filename: `${deepSrc}/modules/testing/lib/users.ts`,
+      code: `import { Notes } from "#/modules/notes/lib/notes.ts";`,
+    },
+    { filename: webRoute, code: `import { NotesList } from "#/features/notes/index.ts";` },
+    { filename: webFeature, code: `import { NotesList } from "#/features/notes/index";` },
+    // A web feature without lib/ has no layers to keep apart yet.
+    { filename: webRoute, code: `import { TodosList } from "#/features/todos/todos-list.tsx";` },
   ],
   invalid: [
     ...[domain, application, infrastructure, http, index, `${src}/main.ts`].map((filename) => ({
@@ -200,6 +242,32 @@ new RuleTester().run("module-boundaries", rule, {
       filename,
       code: `import { TodosHandlers } from "#/modules/todos/http/todos-handlers.ts";`,
       errors: [throughIndex("todos")],
+    })),
+    ...[otherModule, `${deepSrc}/server.ts`, `${deepSrc}/server.test.ts`].map((filename) => ({
+      filename,
+      code: `import { Notes } from "#/modules/notes/lib/notes.ts";`,
+      errors: [throughIndex("notes")],
+    })),
+    {
+      filename: otherModule,
+      code: `export const load = () => import("../../notes/lib/notes.ts");`,
+      errors: [throughIndex("notes")],
+    },
+    // Past its index.ts, a module with a lib/ is closed to all, a file at its root included.
+    {
+      filename: testingModule,
+      code: `import { NotesSeed } from "#/modules/notes/notes-seed.ts";`,
+      errors: [throughIndex("notes")],
+    },
+    {
+      filename: notesTest,
+      code: `import { Todos } from "#/modules/todos/lib/todos.ts";`,
+      errors: [throughIndex("todos")],
+    },
+    ...[webRoute, webFeature].map((filename) => ({
+      filename,
+      code: `import { NotesList } from "#/features/notes/lib/notes-list.tsx";`,
+      errors: [throughIndex("notes", "features")],
     })),
   ],
 });
