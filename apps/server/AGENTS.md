@@ -7,12 +7,16 @@ Effect HTTP API, one folder per bounded context in `src/modules/`. Before changi
 To add a context, copy `modules/todos`:
 
 1. Add its schemas and `*-api.ts` to `packages/contracts`, and its group to `api.ts`.
-2. Write `domain/` (behavior, ports), `application/` (use cases), `infrastructure/` (adapters), `http/` (handlers), `testing/` (port suites, test doubles). Lint tells what each layer may import (`quack/module-boundaries`).
-3. Export from `index.ts` the module without its storage (`TodosModule` requires `TodoRepository`) and its Postgres adapters apart (`TodosPostgres`).
-4. Add the module to `server.ts`, before `IdentityModule`, and its storage to `main.ts`.
+2. Write `lib/<name>.ts`: one service, a `Context.Service` whose Layer reads `executor` once and holds the module's queries. No repository: the queries are the module's own.
+3. Write `lib/<name>-handlers.ts`: each handler reads `CurrentUser` and passes it to the service.
+4. Export from `index.ts`, the module's surface, its Layer (`TodosModule`, which requires the database) and what other modules call. Nothing imports a module's `lib/` but its own files (`quack/module-boundaries`).
+5. Test it through the `Api` in `<name>.test.ts`, beside `index.ts`.
+6. Add the module to `server.ts`, before `IdentityModule`.
+
+A module's seed goes through the `Api`, as a User would: `seedTodos` takes a signed-in client, and `database/seed.ts` signs in as each dev account.
 
 - A module reaches another one through its `index.ts`, and identity through the contract (`CurrentUser`, `UserId`).
-- Only a handler reads `CurrentUser`. It passes the Owner to the use case as `ownerId`, and the repository filters by it: another Owner's data is not found (404), so the API never tells that it exists.
+- Only a handler reads `CurrentUser`. It passes the Owner to the service as `ownerId`, and every query filters by it: another Owner's data is not found (404), so the API never tells that it exists.
 - A server variable goes in `ServerConfig` (`config.ts`), or `DatabaseConfig` for the database, and in `.env.example`.
 - Writes of several stores that stand or fall together run in `Transaction.run` (`modules/transaction`): Postgres runs them in one transaction. Writes of one adapter use `sql.withTransaction` in it.
 - A mail goes out through `Mailer` (`modules/mail`, exported from its `index.ts` once a module sends one), which returns before it is sent and never fails: a failed send is logged and the mail lost. A link in it starts from `ServerConfig.publicOrigin`, never from the request. Tests provide `MailerMemory` and read `SentMails`. Its content comes from a template of `@quack/emails`, which is `.tsx`: Node loads it through `--import @quack/emails/register`, which the `dev` and `start` scripts pass.
@@ -30,9 +34,9 @@ To add a context, copy `modules/todos`:
 
 Queries and migrations built by Kysely and run by Effect SQL, tables typed by kysely-codegen (`docs/adr/0007-queries-built-by-kysely-run-by-effect-sql.md`). Which database a worktree uses: README.
 
-- An adapter copies `modules/todos/infrastructure/todo-repository-postgres.ts`: one query of `db` (`database/db.ts`) per port method, run by the `execute` it reads from `executor` (`@quack/effect-kysely/kysely`) when its Layer is built, decoded by `SqlSchema` through a row schema private to the adapter.
+- A module's queries copy `modules/todos/lib/todos.ts`: queries of `db` (`database/db.ts`), run by the `execute` its service reads from `executor` (`@quack/effect-kysely/kysely`) when its Layer is built, decoded by `SqlSchema` through a row schema private to the module. Logic that fits in SQL stays there: completing a Todo is one `UPDATE ... RETURNING`.
 - `database/db.gen.ts` is generated: after a migration changes the schema, run it on the dev database and `pnpm db:gen`, and commit the file with the migration. CI fails when they disagree. Tables and columns are camelCase in TypeScript, snake_case in Postgres.
-- The seed and the rollback write `sql` templates.
+- The reset of the seed and the rollback write `sql` templates.
 - A `SqlError` is a defect (`Effect.orDie`), except a `UniqueViolation`, mapped to the domain's error by the name of its constraint. So name every constraint: `.addUniqueConstraint("users_email_key", ["email"])`.
 
 Migrations (`docs/adr/0002-typescript-migrations-applied-at-startup.md`) live in `database/migrations/`, for every module:
@@ -46,9 +50,9 @@ Migrations (`docs/adr/0002-typescript-migrations-applied-at-startup.md`) live in
 
 ## Tests
 
-- Tests run on Postgres, never on memory doubles of storage. A vitest `globalSetup` migrates a template database once per run, on the server `TEST_DATABASE_URL` names (CI's), or else on the container of `compose.yaml`, started as `pnpm dev` starts it: `pnpm test` needs Docker. `TestDatabase` (`modules/testing`) clones it with `CREATE DATABASE ... TEMPLATE` each time its Layer is built, and drops the clone on release: provide it to each test for a fresh database.
+- Tests run on Postgres, never on memory doubles of storage. A vitest `globalSetup` migrates a template database once per run, on the server `TEST_DATABASE_URL` names (CI's), or else on the container of `compose.yaml`, started as `pnpm dev` starts it: `pnpm test` needs Docker. `TestDatabase` (`modules/testing`) clones it with `CREATE DATABASE ... TEMPLATE` each time its Layer is built, and drops the clone on release: provide it to each test for a fresh database. `testDatabaseUrl` gives such a clone by its URL, for what connects by URL, such as `seedDatabase`.
 - The `testing` module (`modules/testing/index.ts`) makes the state no endpoint can make: `aUser({ role?, status? })` stores a User with a known password, `signedIn(user, groups)` gives a client of those groups with the User's Session, `makeBrowser` a client of the identity endpoints that keeps cookies. Tests import it, never a module's `lib/`.
-- A storage port states its promises as one suite in `testing/` that takes an adapter's Layer and a way to store a User (`todoRepositorySuite(layer, anOwner)`), run from the Postgres adapter's test file.
+- A storage port states its promises as one suite in `testing/` that takes an adapter's Layer and a way to store a User (`sessionStoreSuite(layer, anOwner)`), run from the Postgres adapter's test file. Identity's ports remain until its modules leave it; a new module has none.
 - A flow across requests has a model in `testing/`, an `xstate/fsm` machine: the Grant of an AI Client (`grant-model.ts`), a User's Session and Password Reset (`session-model.ts`), Email Change (`email-change-model.ts`). Its handler test replays `coveringWalks` (`modules/testing`), which take every transition, against the `Api`, and compares each answer with the model's. A change to a rule of the flow changes its model too.
-- Test handlers through `HttpApiTest`, with no server. It builds the routes of the whole `Api`, so the test Layer provides every middleware the `Api` declares: copy `modules/todos/http/todos-handlers.test.ts`.
+- Test handlers through `HttpApiTest`, with no server. It builds the routes of the whole `Api`, so the test Layer provides every middleware the `Api` declares: copy `modules/todos/todos.test.ts`.
 - Test on the assembled `Routes` (`server.test.ts`) what `HttpApiTest` cannot see: the docs, CORS, an endpoint that reads the cookie without declaring `Authentication` (`signOut`), and anything that reads `X-Forwarded-For`.

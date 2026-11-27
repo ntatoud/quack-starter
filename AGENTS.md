@@ -58,7 +58,7 @@ The server implements `Api` (`packages/contracts/src/api.ts`) and the web app de
 - Effect v4: read its docs for agents in `apps/server/node_modules/effect/ai-docs` before writing Effect code, since v4 differs from v3.
 - A service is a `Context.Service` class with a static `layer`. Write its methods inline in `Service.of({ ... })` as `Effect.fn("Service.method")`; a helper several methods share stays a local function.
 - Errors are `Schema.TaggedError` classes, and code fails with them rather than throwing.
-- Import through `#/` (the package's `src`) with the file extension: `#/modules/todos/domain/todo.ts`.
+- Import through `#/` (the package's `src`) with the file extension: `#/modules/todos/lib/todos.ts`.
 - A comment says why the code is the way it is, or a constraint the code cannot show (a security reason, a browser quirk, a unit). A number a test would explain in a comment becomes an expression (`Duration.toSeconds(sessionLifetime)`).
 - A test sits next to its code: `*.test.ts` runs in Node, `*.test.tsx` in a real browser. Effect code uses `@effect/vitest`.
 - Tests run shuffled, so each test owns its data: its own email and address, the time read with `DateTime.now`, since the tests of one `layer(...)` share its services and `TestClock`.

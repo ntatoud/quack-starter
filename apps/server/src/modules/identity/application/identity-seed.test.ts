@@ -2,7 +2,7 @@ import { assert, describe, it } from "@effect/vitest";
 import { DateTime } from "effect";
 
 import { seedDate } from "#/database/seed-date.ts";
-import { devAccountIds, devUsers } from "#/modules/identity/application/identity-seed.ts";
+import { devUsers } from "#/modules/identity/application/identity-seed.ts";
 
 describe("devUsers", () => {
   it("gives the same Users, ids and dates included, at every run", () => {
@@ -74,16 +74,5 @@ describe("devUsers", () => {
 
     assert.isAbove(withProfile.length, seeded.length / 2);
     assert.isBelow(withProfile.length, seeded.length);
-  });
-});
-
-describe("devAccountIds", () => {
-  it("gives the ids of admin@quack.dev and user@quack.dev among the seeded Users", () => {
-    const emailsById = new Map(devUsers().map(({ id, email }) => [id, email]));
-
-    assert.deepStrictEqual(
-      devAccountIds().map((id) => String(emailsById.get(id))),
-      ["admin@quack.dev", "user@quack.dev"],
-    );
   });
 });

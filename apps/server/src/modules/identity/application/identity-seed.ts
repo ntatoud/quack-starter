@@ -140,9 +140,6 @@ export const devUsers = (): ReadonlyArray<User> => {
   return [...devAccountUsers(faker), ...randomUsers(faker, 100)];
 };
 
-export const devAccountIds = (): ReadonlyArray<UserId> =>
-  devAccountUsers(seededFaker()).map(({ id }) => id);
-
 export const IdentitySeed = Layer.effectDiscard(
   Effect.gen(function* () {
     const users = yield* UserRepository;

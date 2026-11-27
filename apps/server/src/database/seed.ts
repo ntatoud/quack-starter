@@ -1,11 +1,19 @@
-import { Effect, Layer, Redacted, Schema } from "effect";
+import { Api } from "@quack/contracts/api";
+import { Authentication } from "@quack/contracts/identity/authentication";
+import { devAccounts, devPassword } from "@quack/contracts/identity/dev-accounts";
+import { Email } from "@quack/contracts/identity/user";
+import { ConfigProvider, Effect, Layer, Option, Redacted, Schema } from "effect";
+import { Cookies, HttpClientRequest, HttpServer } from "effect/http";
+import { HttpApiMiddleware, HttpApiTest } from "effect/http-api";
 import { SqlClient, SqlSchema } from "effect/sql";
 
 import type { DatabaseSettings } from "#/config.ts";
 import { databaseAt, withoutPassword } from "#/database/database.ts";
 import { MIGRATIONS_TABLE } from "#/database/rollback.ts";
-import { devAccountIds, IdentityPostgres, IdentitySeed } from "#/modules/identity/index.ts";
-import { TodosPostgres, TodosSeed } from "#/modules/todos/index.ts";
+import { IdentityModule, IdentityPostgres, IdentitySeed } from "#/modules/identity/index.ts";
+import { Mailer } from "#/modules/mail/index.ts";
+import { seedTodos, TodosModule } from "#/modules/todos/index.ts";
+import { TransactionPostgres } from "#/modules/transaction/index.ts";
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
 
@@ -45,12 +53,57 @@ const truncateTables = Effect.gen(function* () {
   yield* sql`TRUNCATE ${sql.csv(tables.map(({ tablename }) => sql`${sql(tablename)}`))} RESTART IDENTITY CASCADE`;
 });
 
+// The Api the seed calls in process, as a browser would: it sends no mail, and no link it makes leaves the seed.
+const SeedApi = TodosModule.pipe(
+  Layer.provideMerge(IdentityModule),
+  Layer.provide([
+    TransactionPostgres,
+    Layer.succeed(Mailer, Mailer.of({ send: () => Effect.void })),
+  ]),
+  Layer.provideMerge(HttpServer.layerServices),
+  Layer.provide(
+    ConfigProvider.layer(ConfigProvider.fromUnknown({ PUBLIC_URL: "http://localhost" })),
+  ),
+);
+
+// As `signedIn` of the testing module, which the seed, run outside tests, cannot import.
+const withCookie = (cookie: string | undefined) =>
+  HttpApiMiddleware.layerClient(Authentication, ({ next, request }) =>
+    next(cookie === undefined ? request : HttpClientRequest.setHeader(request, "cookie", cookie)),
+  );
+
+const signedInAs = Effect.fn("signedInAs")(function* (email: string) {
+  const visitor = yield* HttpApiTest.groups(Api, ["identity"]).pipe(
+    Effect.provide(withCookie(undefined)),
+  );
+
+  const [, response] = yield* visitor.identity.signIn({
+    payload: { email: Email.make(email), password: Redacted.make(devPassword) },
+    responseMode: "decoded-and-response",
+  });
+
+  const session = Cookies.getValue(response.cookies, "session");
+
+  return yield* HttpApiTest.groups(Api, ["identity", "todos"]).pipe(
+    Effect.provide(
+      withCookie(Option.getOrUndefined(Option.map(session, (token) => `session=${token}`))),
+    ),
+  );
+});
+
+// The Todos go through the Api, signed in as each dev account: the seed makes no state the Api cannot.
+const seedTodosOfDevAccounts = Effect.forEach(
+  Object.values(devAccounts),
+  (email) => Effect.flatMap(signedInAs(email), ({ todos }) => seedTodos(todos)),
+  { discard: true },
+).pipe(Effect.provide(SeedApi));
+
 const reset = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
   yield* sql.withTransaction(
     truncateTables.pipe(
       Effect.andThen(Layer.build(IdentitySeed)),
-      Effect.andThen(Layer.build(TodosSeed(devAccountIds()))),
+      Effect.andThen(seedTodosOfDevAccounts),
       Effect.scoped,
     ),
   );
@@ -63,9 +116,5 @@ export const seedDatabase = Effect.fn("seedDatabase")(function* (config: Databas
     return yield* new NotLocalDatabase({ url: withoutPassword(url) });
   }
 
-  yield* reset.pipe(
-    Effect.provide(
-      Layer.mergeAll(IdentityPostgres, TodosPostgres).pipe(Layer.provideMerge(databaseAt(config))),
-    ),
-  );
+  yield* reset.pipe(Effect.provide(IdentityPostgres.pipe(Layer.provideMerge(databaseAt(config)))));
 });
