@@ -2,27 +2,19 @@ import { ConfigProvider, Effect, Layer, Schema } from "effect";
 import { HttpClient, HttpClientResponse, HttpRouter, HttpServer } from "effect/http";
 import { afterAll, beforeAll, describe, expect, it } from "vite-plus/test";
 
-import { devUsers, IdentitySeed } from "#/modules/identity/index.ts";
-import { AuthorizationCodeStoreMemory } from "#/modules/identity/testing/authorization-code-store-memory.ts";
-import { GrantStoreMemory } from "#/modules/identity/testing/grant-store-memory.ts";
-import { LinkTokenStoreMemory } from "#/modules/identity/testing/link-token-store-memory.ts";
-import { TransactionMemory } from "#/modules/transaction/testing/transaction-memory.ts";
-import { SessionStoreMemory } from "#/modules/identity/testing/session-store-memory.ts";
-import { UserRepositoryMemory } from "#/modules/identity/testing/user-repository-memory.ts";
+import { devUsers, IdentityPostgres, IdentitySeed } from "#/modules/identity/index.ts";
 import { MailerMemory } from "#/modules/mail/testing/mailer-memory.ts";
-import { TodoRepositoryMemory } from "#/modules/todos/testing/todo-repository-memory.ts";
+import { TestDatabase } from "#/modules/testing/index.ts";
+import { TodosPostgres } from "#/modules/todos/index.ts";
+import { TransactionPostgres } from "#/modules/transaction/index.ts";
 import { Routes } from "#/server.ts";
 
-const MemoryStorage = Layer.mergeAll(
-  UserRepositoryMemory,
-  SessionStoreMemory,
-  AuthorizationCodeStoreMemory,
-  GrantStoreMemory,
-  LinkTokenStoreMemory,
-  TransactionMemory,
-  TodoRepositoryMemory,
+const Storage = Layer.mergeAll(
+  IdentityPostgres,
+  TodosPostgres,
+  TransactionPostgres,
   MailerMemory,
-);
+).pipe(Layer.provideMerge(TestDatabase));
 
 // Another origin than the one of the requests below: the documents must not take theirs from `Host`.
 const Config = ConfigProvider.layer(
@@ -45,9 +37,7 @@ const RecordingHttpClient = Layer.succeed(
 );
 
 const { handler, dispose } = HttpRouter.toWebHandler(
-  Routes.pipe(
-    Layer.provide([HttpServer.layerServices, MemoryStorage, Config, RecordingHttpClient]),
-  ),
+  Routes.pipe(Layer.provide([HttpServer.layerServices, Storage, Config, RecordingHttpClient])),
 );
 
 const get = (path: string) => handler(new Request(new URL(path, "http://api.test")));
@@ -1004,7 +994,7 @@ describe("server routes of an AI Client", () => {
 const makeSeeded = () =>
   HttpRouter.toWebHandler(
     Layer.mergeAll(Routes, IdentitySeed).pipe(
-      Layer.provide([HttpServer.layerServices, MemoryStorage, Config, RecordingHttpClient]),
+      Layer.provide([HttpServer.layerServices, Storage, Config, RecordingHttpClient]),
     ),
   );
 

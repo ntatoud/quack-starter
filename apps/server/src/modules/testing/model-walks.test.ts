@@ -2,7 +2,7 @@ import { describe, expect, it } from "vite-plus/test";
 import { createFSM } from "xstate/fsm";
 import { adjacencyMapToArray, getAdjacencyMap } from "xstate/graph";
 
-import { coveringWalks, takesEvent } from "#/modules/identity/testing/model-walks.ts";
+import { coveringWalks, takesEvent } from "#/modules/testing/index.ts";
 
 type Event = { readonly type: "open" } | { readonly type: "close" } | { readonly type: "lock" };
 

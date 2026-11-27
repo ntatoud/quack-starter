@@ -1,52 +1,27 @@
-import { Email, User } from "@quack/contracts/identity/user";
 import { assert, it } from "@effect/vitest";
-import { DateTime, Effect, Layer, Option, Redacted } from "effect";
+import { DateTime, Effect, Layer, Option } from "effect";
 import { describe } from "vite-plus/test";
 
-import { databaseAt } from "#/database/database.ts";
 import { GrantStore } from "#/modules/identity/domain/grant-store.ts";
 import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
 import { GrantStorePostgres } from "#/modules/identity/infrastructure/grant-store-postgres.ts";
 import { UserRepositoryPostgres } from "#/modules/identity/infrastructure/user-repository-postgres.ts";
 import { grantStoreSuite } from "#/modules/identity/testing/grant-store-suite.ts";
+import { aUser, TestDatabase } from "#/modules/testing/index.ts";
 
-// A database of its own, which these tests migrate and fill: never one a server uses.
-const url = process.env.TEST_DATABASE_URL;
-
-const aUser = Effect.gen(function* () {
-  const users = yield* UserRepository;
-  const id = yield* users.nextId;
-
-  yield* users.create(
-    new User({
-      id,
-      email: Email.make(`${id}@example.com`),
-      role: "user",
-      status: "active",
-      createdAt: yield* DateTime.now,
-      lastSignInAt: null,
-      onboardedAt: null,
-      timeZone: DateTime.zoneMakeNamedUnsafe("Europe/Paris"),
-      profile: null,
-    }),
-    "not a hash",
-  );
-
-  return id;
-}).pipe(Effect.orDie);
+const aUserId = Effect.map(aUser(), ({ id }) => id);
 
 const Postgres = Layer.mergeAll(GrantStorePostgres, UserRepositoryPostgres).pipe(
-  Layer.provide(databaseAt({ url: Redacted.make(url ?? ""), maxConnections: 2 })),
-  Layer.orDie,
+  Layer.provide(TestDatabase),
 );
 
-describe.skipIf(url === undefined)("GrantStorePostgres", () => {
-  grantStoreSuite(Postgres, aUser);
+describe("GrantStorePostgres", () => {
+  grantStoreSuite(Postgres, aUserId);
 
   it.effect("removing a User removes their Grants and tokens", () =>
     Effect.gen(function* () {
       const store = yield* GrantStore;
-      const userId = yield* aUser;
+      const userId = yield* aUserId;
 
       const grant = yield* store.save({
         userId,

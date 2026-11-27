@@ -1,6 +1,4 @@
 import { assert, describe, effect, layer } from "@effect/vitest";
-import { Api } from "@quack/contracts/api";
-import { Authentication } from "@quack/contracts/identity/authentication";
 import { OnboardingPayload } from "@quack/contracts/identity/identity-api";
 import { CountryCode, Profile } from "@quack/contracts/identity/profile";
 import { type Email, type Password, TimeZone, User } from "@quack/contracts/identity/user";
@@ -14,23 +12,19 @@ import {
   Layer,
   Option,
   Redacted,
-  Ref,
   Schema,
 } from "effect";
-import { Cookies, HttpClientRequest, type HttpClientResponse, HttpServer } from "effect/http";
-import { HttpApiMiddleware, HttpApiTest } from "effect/http-api";
+import { HttpServer } from "effect/http";
 import { TestClock } from "effect/testing";
 
 import { sessionExtensionThreshold, sessionLifetime } from "#/modules/identity/domain/session.ts";
 import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
-import { IdentityModule } from "#/modules/identity/index.ts";
-import { LinkTokenStoreMemory } from "#/modules/identity/testing/link-token-store-memory.ts";
+import { IdentityModule, IdentityPostgres } from "#/modules/identity/index.ts";
 import { emailChangeModelWalks } from "#/modules/identity/testing/email-change-model.ts";
 import { sessionModelWalks } from "#/modules/identity/testing/session-model.ts";
-import { TransactionMemory } from "#/modules/transaction/testing/transaction-memory.ts";
-import { SessionStoreMemory } from "#/modules/identity/testing/session-store-memory.ts";
-import { UserRepositoryMemory } from "#/modules/identity/testing/user-repository-memory.ts";
 import { MailerMemory, SentMails } from "#/modules/mail/testing/mailer-memory.ts";
+import { makeBrowser, TestDatabase } from "#/modules/testing/index.ts";
+import { TransactionPostgres } from "#/modules/transaction/index.ts";
 
 const maxAge = Duration.toSeconds(sessionLifetime);
 
@@ -45,101 +39,6 @@ const nameOfAda = Schema.decodeSync(OnboardingPayload)({
 
 /** The email as typed, not normalized: the server must normalize it. */
 const asTyped = (email: string) => email as Email;
-
-const makeBrowser = Effect.gen(function* () {
-  const jar = yield* Ref.make(Cookies.empty);
-
-  const client = yield* HttpApiTest.groups(Api, ["identity"]).pipe(
-    Effect.provide(
-      HttpApiMiddleware.layerClient(
-        Authentication,
-        Effect.fn(function* ({ next, request }) {
-          const cookies = yield* Ref.get(jar);
-
-          return yield* next(
-            Cookies.isEmpty(cookies)
-              ? request
-              : HttpClientRequest.setHeader(request, "cookie", Cookies.toCookieHeader(cookies)),
-          );
-        }),
-      ),
-    ),
-  );
-
-  const keepCookies = Effect.fn(function* (response: HttpClientResponse.HttpClientResponse) {
-    yield* Ref.update(jar, (cookies) =>
-      Cookies.fromIterable(
-        Object.values(Cookies.merge(cookies, response.cookies).cookies).filter(
-          (cookie) =>
-            cookie.options?.maxAge === undefined ||
-            Duration.isGreaterThan(Duration.fromInputUnsafe(cookie.options.maxAge), Duration.zero),
-        ),
-      ),
-    );
-
-    return Cookies.toSetCookieHeaders(response.cookies);
-  });
-
-  const signUp = Effect.fn(function* (email: Email, timeZone: TimeZone = paris) {
-    const [user, response] = yield* client.identity.signUp({
-      payload: { email, password, timeZone },
-      responseMode: "decoded-and-response",
-    });
-
-    return { user, setCookie: yield* keepCookies(response) };
-  });
-
-  const signIn = Effect.fn(function* (email: Email, withPassword: Password = password) {
-    const [user, response] = yield* client.identity.signIn({
-      payload: { email, password: withPassword },
-      responseMode: "decoded-and-response",
-    });
-
-    return { user, setCookie: yield* keepCookies(response) };
-  });
-
-  const signOut = Effect.gen(function* () {
-    const response = yield* client.identity.signOut({ responseMode: "response-only" });
-
-    return { status: response.status, setCookie: yield* keepCookies(response) };
-  });
-
-  return {
-    signUp,
-    signIn,
-    signOut,
-    session: Effect.map(Ref.get(jar), (cookies) => Cookies.getValue(cookies, "session")),
-    // The User alone, as the other endpoints answer it: `pendingEmail` reads the rest.
-    me: Effect.map(client.identity.me(), ({ pendingEmail: _, ...user }) => new User(user)),
-    pendingEmail: Effect.map(client.identity.me(), (me) => me.pendingEmail),
-    updateProfile: (profile: Profile) => client.identity.updateProfile({ payload: profile }),
-    updateTimeZone: (timeZone: TimeZone) =>
-      client.identity.updateTimeZone({ payload: { timeZone } }),
-    completeOnboarding: (payload: OnboardingPayload) =>
-      client.identity.completeOnboarding({ payload }),
-    meResponse: Effect.gen(function* () {
-      const response = yield* client.identity.me({ responseMode: "response-only" });
-
-      return { status: response.status, setCookie: yield* keepCookies(response) };
-    }),
-    setCookie: (name: string, value: string) => Ref.update(jar, Cookies.setUnsafe(name, value)),
-    requestPasswordReset: (email: Email) =>
-      Effect.map(
-        client.identity.requestPasswordReset({
-          payload: { email },
-          responseMode: "decoded-and-response",
-        }),
-        ([, response]) => response.status,
-      ),
-    confirmPasswordReset: (token: string, newPassword: Password) =>
-      client.identity.confirmPasswordReset({ payload: { token, password: newPassword } }),
-    requestEmailChange: (newEmail: Email, withPassword: Password = password) =>
-      client.identity.requestEmailChange({ payload: { newEmail, password: withPassword } }),
-    cancelEmailChange: client.identity.cancelEmailChange(),
-    confirmEmailChange: (token: string) =>
-      client.identity.confirmEmailChange({ payload: { token } }),
-  };
-});
 
 const aProfile = (firstName: string) =>
   new Profile({
@@ -158,10 +57,10 @@ const assertCookieCleared = (setCookie: ReadonlyArray<string>) => {
 
 const withConfig = (env: Record<string, string>) =>
   IdentityModule.pipe(
-    Layer.provide([SessionStoreMemory, LinkTokenStoreMemory, TransactionMemory]),
     // Visible, to add Users of every Status and to read the mails sent.
-    Layer.provideMerge([UserRepositoryMemory, MailerMemory]),
+    Layer.provideMerge([IdentityPostgres, TransactionPostgres, MailerMemory]),
     Layer.provideMerge(HttpServer.layerServices),
+    Layer.provide(TestDatabase),
     Layer.provide(
       ConfigProvider.layer(
         ConfigProvider.fromUnknown({ PUBLIC_URL: "https://quack.test/ignored", ...env }),
@@ -1135,16 +1034,14 @@ layer(withConfig({ SIGN_UPS_PER_IP: "1000", PASSWORD_RESETS_PER_IP: "1000" }))(
         yield* browser.requestPasswordReset(asTyped("reset.late@example.com"));
         yield* browser.requestPasswordReset(asTyped("reset.early@example.com"));
 
+        const early = yield* resetTokenOf("reset.early@example.com");
+        const lateToken = yield* resetTokenOf("reset.late@example.com");
+
         yield* TestClock.adjust(Duration.subtract(Duration.hours(1), Duration.seconds(1)));
-        yield* browser.confirmPasswordReset(
-          yield* resetTokenOf("reset.early@example.com"),
-          newPassword,
-        );
+        yield* browser.confirmPasswordReset(early, newPassword);
         yield* TestClock.adjust("1 second");
 
-        const late = yield* browser
-          .confirmPasswordReset(yield* resetTokenOf("reset.late@example.com"), newPassword)
-          .pipe(Effect.flip);
+        const late = yield* browser.confirmPasswordReset(lateToken, newPassword).pipe(Effect.flip);
 
         assert.strictEqual(late._tag, "ExpiredLink");
         yield* browser.signIn(asTyped("reset.late@example.com"));

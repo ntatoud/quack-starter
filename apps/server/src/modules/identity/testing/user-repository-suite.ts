@@ -3,7 +3,7 @@ import { CountryCode, Profile, type Team } from "@quack/contracts/identity/profi
 import { Email, type Role, User, UserId, type UserStatus } from "@quack/contracts/identity/user";
 import type { UserListQuery } from "@quack/contracts/users/users-api";
 import { EmailAlreadyTaken } from "@quack/contracts/identity/identity-errors";
-import { DateTime, Effect, Exit, type Layer, Option, Result } from "effect";
+import { DateTime, Effect, type Layer, Option, Result } from "effect";
 
 import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
 import { day, dayOrNull } from "#/modules/identity/testing/days.ts";
@@ -214,9 +214,9 @@ export const userRepositorySuite = (layer: Layer.Layer<UserRepository>) => {
         const grace = yield* aUser(mark, "grace");
         yield* created(ada, grace);
 
-        const exit = yield* Effect.exit((yield* UserRepository).setEmail(ada.id, grace.email));
+        const result = yield* Effect.result((yield* UserRepository).setEmail(ada.id, grace.email));
 
-        assert.deepStrictEqual(exit, Exit.fail(new EmailAlreadyTaken()));
+        assert.deepStrictEqual(result, Result.fail(new EmailAlreadyTaken()));
         assert.deepStrictEqual(yield* (yield* UserRepository).findById(ada.id), Option.some(ada));
       }));
 

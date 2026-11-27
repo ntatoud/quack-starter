@@ -1,5 +1,5 @@
 import { assert, describe, it } from "@effect/vitest";
-import { UserId } from "@quack/contracts/identity/user";
+import type { UserId } from "@quack/contracts/identity/user";
 import { DateTime, Effect, type Layer, Option } from "effect";
 
 import type { Session } from "#/modules/identity/domain/session.ts";
@@ -10,27 +10,31 @@ const at = (iso: string) => DateTime.makeUnsafe(iso);
 // An adapter that persists keeps the Sessions of the tests before, so each test has its own tokens.
 const aTokenHash = Effect.sync(() => crypto.randomUUID());
 
-const aSession = (fields: Partial<Session> = {}) =>
-  Effect.gen(function* () {
-    return {
-      tokenHash: yield* aTokenHash,
-      userId: UserId.make(crypto.randomUUID()),
-      expiresAt: at("2026-02-01T00:00:00Z"),
-      ...fields,
-    } satisfies Session;
-  });
-
-const aSavedSession = (fields: Partial<Session> = {}) =>
-  Effect.gen(function* () {
-    const session = yield* aSession(fields);
-    yield* (yield* SessionStore).save(session);
-
-    return session;
-  });
-
-export const sessionStoreSuite = (layer: Layer.Layer<SessionStore>) => {
-  const test = (name: string, body: () => Effect.Effect<void, never, SessionStore>) =>
+/** `aUser` gives the id of a User the adapter may refer to: one that exists, when the storage checks it. */
+export const sessionStoreSuite = <R>(
+  layer: Layer.Layer<SessionStore | R>,
+  aUser: Effect.Effect<UserId, never, R>,
+) => {
+  const test = (name: string, body: () => Effect.Effect<void, never, SessionStore | R>) =>
     it.effect(name, () => body().pipe(Effect.provide(layer)));
+
+  const aSession = (fields: Partial<Session> = {}) =>
+    Effect.gen(function* () {
+      return {
+        tokenHash: yield* aTokenHash,
+        userId: yield* aUser,
+        expiresAt: at("2026-02-01T00:00:00Z"),
+        ...fields,
+      } satisfies Session;
+    });
+
+  const aSavedSession = (fields: Partial<Session> = {}) =>
+    Effect.gen(function* () {
+      const session = yield* aSession(fields);
+      yield* (yield* SessionStore).save(session);
+
+      return session;
+    });
 
   describe("SessionStore", () => {
     test("finds a saved Session by the hash of its token", () =>

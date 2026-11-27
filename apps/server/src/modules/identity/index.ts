@@ -33,6 +33,8 @@ import { AttemptLimiterMemory } from "#/modules/identity/infrastructure/attempt-
 import { PasswordHasherArgon2 } from "#/modules/identity/infrastructure/password-hasher-argon2.ts";
 import { SessionStorePostgres } from "#/modules/identity/infrastructure/session-store-postgres.ts";
 import { UserRepositoryPostgres } from "#/modules/identity/infrastructure/user-repository-postgres.ts";
+import { PasswordHasher } from "#/modules/identity/domain/password-hasher.ts";
+import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
 
 export {
   accessTo,
@@ -43,7 +45,10 @@ export {
   IdentitySeed,
   McpCaller,
   OAuthMetadataRoutes,
+  PasswordHasher,
+  PasswordHasherArgon2,
   TokenEndpointHeaders,
+  UserRepository,
 };
 
 export const IdentityPostgres = Layer.mergeAll(

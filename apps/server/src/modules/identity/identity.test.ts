@@ -13,8 +13,8 @@ import { SessionStore } from "#/modules/identity/domain/session-store.ts";
 import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
 import { AttemptLimiterMemory } from "#/modules/identity/infrastructure/attempt-limiter-memory.ts";
 import { PasswordHasherArgon2 } from "#/modules/identity/infrastructure/password-hasher-argon2.ts";
-import { SessionStoreMemory } from "#/modules/identity/testing/session-store-memory.ts";
-import { UserRepositoryMemory } from "#/modules/identity/testing/user-repository-memory.ts";
+import { IdentityPostgres } from "#/modules/identity/index.ts";
+import { TestDatabase } from "#/modules/testing/index.ts";
 
 const password = Redacted.make("correct horse battery staple");
 
@@ -53,8 +53,9 @@ const IdentityLayer = Identity.layer.pipe(
     AttemptLimiterMemory.pipe(Layer.provide(ConfigProvider.layer(ConfigProvider.fromUnknown({})))),
   ]),
   // The stores stay visible, to see what a sign-up leaves in them.
-  Layer.provideMerge([SessionStoreMemory, UserRepositoryMemory]),
+  Layer.provideMerge(IdentityPostgres),
   Layer.provide([NodeCrypto.layerSecureRandom, NodeCrypto.layerDigest, NodeCrypto.layerKdf]),
+  Layer.provide(TestDatabase),
 );
 
 layer(IdentityLayer)("Identity", (it) => {

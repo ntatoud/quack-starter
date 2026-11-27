@@ -1,7 +1,7 @@
 import { setup, types } from "xstate/fsm";
 import { getAdjacencyMap } from "xstate/graph";
 
-import { coveringWalks, takesEvent } from "#/modules/identity/testing/model-walks.ts";
+import { coveringWalks, takesEvent } from "#/modules/testing/index.ts";
 
 /** What the User got for the last event: the tag of the error when the server names one the User sees. */
 type Answer = "ok" | "refused" | "WrongPassword" | "EmailAlreadyTaken" | null;

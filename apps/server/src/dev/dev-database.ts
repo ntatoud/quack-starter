@@ -55,7 +55,7 @@ export class MigrationsDiverged extends Schema.TaggedError<
 
 const repoRoot = fileURLToPath(new URL("../../../../", import.meta.url));
 const composeFile = Path.join(repoRoot, "compose.yaml");
-const serverUrl = "postgres://quack:quack@127.0.0.1:54320";
+export const serverUrl = "postgres://quack:quack@127.0.0.1:54320";
 
 const commandNotFound = ChildProcessSpawner.ExitCode(127);
 
@@ -68,7 +68,7 @@ const composeUp = (env: Readonly<Record<string, string | undefined>>) =>
     { stdout: "inherit", stderr: "inherit" },
   );
 
-const startPostgres = Effect.fn("startPostgres")(function* (
+export const startPostgres = Effect.fn("startPostgres")(function* (
   env: Readonly<Record<string, string | undefined>>,
 ) {
   const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;

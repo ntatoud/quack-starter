@@ -1,7 +1,7 @@
 import { setup, types } from "xstate/fsm";
 import { getAdjacencyMap } from "xstate/graph";
 
-import { coveringWalks, takesEvent } from "#/modules/identity/testing/model-walks.ts";
+import { coveringWalks, takesEvent } from "#/modules/testing/index.ts";
 
 /** What the User got for the last event. */
 type Answer = "ok" | "refused" | "mailed" | "notMailed" | null;

@@ -16,11 +16,11 @@ import { HttpClientRequest, HttpServer } from "effect/http";
 import { HttpApiMiddleware, HttpApiTest } from "effect/http-api";
 
 import { Users } from "#/modules/identity/application/users.ts";
-import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
+import { IdentityPostgres, UserRepository } from "#/modules/identity/index.ts";
 import { day, dayOrNull } from "#/modules/identity/testing/days.ts";
 import { UsersHandlers } from "#/modules/identity/http/users-handlers.ts";
 import { authenticationByUserId } from "#/modules/identity/testing/authentication-by-user-id.ts";
-import { UserRepositoryMemory } from "#/modules/identity/testing/user-repository-memory.ts";
+import { TestDatabase } from "#/modules/testing/index.ts";
 
 const userOf = (
   name: string,
@@ -41,7 +41,7 @@ const userOf = (
   },
 ) =>
   new User({
-    id: UserId.make(name),
+    id: UserId.make(crypto.randomUUID()),
     email: Email.make(`${name}@example.com`),
     role,
     status,
@@ -124,8 +124,9 @@ const clientOf = (user: User | undefined) =>
 
 const UsersLayer = UsersHandlers.pipe(
   Layer.provide(Users.layer),
-  Layer.provideMerge(Layer.provideMerge(SeededUsers, UserRepositoryMemory)),
+  Layer.provideMerge(Layer.provideMerge(SeededUsers, IdentityPostgres)),
   Layer.provideMerge(authenticationByUserId(users)),
+  Layer.provide(TestDatabase),
 );
 
 layer(Layer.mergeAll(UsersLayer, HttpServer.layerServices))("UsersApi", (it) => {
@@ -349,7 +350,7 @@ layer(Layer.mergeAll(UsersLayer, HttpServer.layerServices))("UsersApi", (it) => 
   it.effect("answers UserNotFound, 404, for an id no User has", () =>
     Effect.gen(function* () {
       const client = yield* clientOf(grace);
-      const id = UserId.make("nobody");
+      const id = UserId.make(crypto.randomUUID());
 
       const error = yield* client.users.get({ params: { id } }).pipe(Effect.flip);
       const response = yield* client.users.get({ params: { id }, responseMode: "response-only" });
@@ -506,7 +507,7 @@ layer(Layer.mergeAll(UsersLayer, HttpServer.layerServices))("UsersApi changes", 
   it.effect("answers UserNotFound, 404, for a change to an id no User has", () =>
     Effect.gen(function* () {
       const client = yield* clientOf(grace);
-      const id = UserId.make("nobody");
+      const id = UserId.make(crypto.randomUUID());
 
       const error = yield* client.users
         .update({ params: { id }, payload: { role: "admin" } })
@@ -560,7 +561,7 @@ layer(Layer.mergeAll(UsersLayer, HttpServer.layerServices))("UsersApi changes", 
   it.effect("answers UserNotFound, 404, to delete an id no User has", () =>
     Effect.gen(function* () {
       const client = yield* clientOf(grace);
-      const id = UserId.make("nobody");
+      const id = UserId.make(crypto.randomUUID());
 
       const error = yield* client.users.remove({ params: { id } }).pipe(Effect.flip);
 

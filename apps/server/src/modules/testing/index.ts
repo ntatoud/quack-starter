@@ -1,0 +1,7 @@
+export { makeBrowser } from "#/modules/testing/lib/browser.ts";
+
+export { coveringWalks, takesEvent } from "#/modules/testing/lib/model-walks.ts";
+
+export { TestDatabase } from "#/modules/testing/lib/test-database.ts";
+
+export { aUser, signedIn } from "#/modules/testing/lib/users.ts";

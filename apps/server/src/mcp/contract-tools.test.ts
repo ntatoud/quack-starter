@@ -1,24 +1,23 @@
 import { assert, layer } from "@effect/vitest";
-import { Email, User, UserId } from "@quack/contracts/identity/user";
 import type { Permission } from "@quack/contracts/permission";
 import { Api } from "@quack/contracts/api";
-import { ConfigProvider, DateTime, Effect, Layer } from "effect";
+import { ConfigProvider, Effect, Layer } from "effect";
 import { McpProtocol, McpServer, McpTest } from "effect/ai";
 import { HttpClient, HttpServer } from "effect/http";
 
 import { contractTools } from "#/mcp/contract-tools.ts";
 import { deriveTools } from "#/mcp/derive-tools.ts";
-import { IdentityModule, McpCaller, AiClientsModule } from "#/modules/identity/index.ts";
-import { AuthorizationCodeStoreMemory } from "#/modules/identity/testing/authorization-code-store-memory.ts";
-import { GrantStoreMemory } from "#/modules/identity/testing/grant-store-memory.ts";
-import { LinkTokenStoreMemory } from "#/modules/identity/testing/link-token-store-memory.ts";
-import { TransactionMemory } from "#/modules/transaction/testing/transaction-memory.ts";
-import { SessionStoreMemory } from "#/modules/identity/testing/session-store-memory.ts";
-import { UserRepositoryMemory } from "#/modules/identity/testing/user-repository-memory.ts";
+import {
+  IdentityModule,
+  IdentityPostgres,
+  McpCaller,
+  AiClientsModule,
+} from "#/modules/identity/index.ts";
 import { SystemModule } from "#/modules/system/index.ts";
-import { TodosModule } from "#/modules/todos/index.ts";
+import { aUser, TestDatabase } from "#/modules/testing/index.ts";
+import { TodosModule, TodosPostgres } from "#/modules/todos/index.ts";
+import { TransactionPostgres } from "#/modules/transaction/index.ts";
 import { MailerMemory } from "#/modules/mail/testing/mailer-memory.ts";
-import { TodoRepositoryMemory } from "#/modules/todos/testing/todo-repository-memory.ts";
 
 // No tool fetches an AI Client's document.
 const NoHttpClient = Layer.succeed(
@@ -28,17 +27,9 @@ const NoHttpClient = Layer.succeed(
 
 const ApiHandlers = Layer.mergeAll(SystemModule, TodosModule, AiClientsModule).pipe(
   Layer.provideMerge(IdentityModule),
-  Layer.provide([
-    UserRepositoryMemory,
-    SessionStoreMemory,
-    AuthorizationCodeStoreMemory,
-    GrantStoreMemory,
-    LinkTokenStoreMemory,
-    TransactionMemory,
-    TodoRepositoryMemory,
-    MailerMemory,
-    NoHttpClient,
-  ]),
+  Layer.provideMerge([IdentityPostgres, TodosPostgres, TransactionPostgres]),
+  Layer.provide([MailerMemory, NoHttpClient]),
+  Layer.provide(TestDatabase),
   Layer.provide(
     ConfigProvider.layer(ConfigProvider.fromUnknown({ PUBLIC_URL: "https://quack.test" })),
   ),
@@ -50,20 +41,10 @@ const everyTodosPermission: ReadonlyArray<Permission> = [
   "todos:delete",
 ];
 
-/** An MCP client whose every request comes from a Grant of a new User, holding `permissions`. */
-const clientWith = (name: string, permissions: ReadonlyArray<Permission> = everyTodosPermission) =>
+/** An MCP client whose every request comes from a Grant of a new stored User, holding `permissions`. */
+const clientWith = (permissions: ReadonlyArray<Permission> = everyTodosPermission) =>
   Effect.gen(function* () {
-    const user = new User({
-      id: UserId.make(name),
-      email: Email.make(`${name}@example.com`),
-      role: "user",
-      status: "active",
-      createdAt: yield* DateTime.now,
-      lastSignInAt: null,
-      onboardedAt: null,
-      timeZone: DateTime.zoneMakeNamedUnsafe("Europe/Paris"),
-      profile: null,
-    });
+    const user = yield* aUser();
 
     const asCaller = McpServer.middleware<{ provides: McpCaller }>()((effect) =>
       Effect.provideService(effect, McpCaller, { user, permissions: new Set(permissions) }),
@@ -84,7 +65,7 @@ const textOf = (content: ReadonlyArray<unknown>) =>
 layer(Layer.mergeAll(ApiHandlers, HttpServer.layerServices))("ContractTools", (it) => {
   it.effect("lists the tools of the Todos, with their description, input, and hints", () =>
     Effect.gen(function* () {
-      const { client } = yield* clientWith("ada-lists");
+      const { client } = yield* clientWith();
 
       const { tools } = yield* client.listTools();
 
@@ -135,7 +116,7 @@ layer(Layer.mergeAll(ApiHandlers, HttpServer.layerServices))("ContractTools", (i
 
   it.effect("creates a Todo the caller owns, and lists it wrapped as { items }", () =>
     Effect.gen(function* () {
-      const { client, user } = yield* clientWith("grace-creates");
+      const { client, user } = yield* clientWith();
 
       const created = yield* client.callTool({
         name: "todos_create",
@@ -157,7 +138,7 @@ layer(Layer.mergeAll(ApiHandlers, HttpServer.layerServices))("ContractTools", (i
 
   it.effect("removes a Todo, and answers with no structured content", () =>
     Effect.gen(function* () {
-      const { client } = yield* clientWith("hedy-removes");
+      const { client } = yield* clientWith();
 
       const created = yield* client.callTool({
         name: "todos_create",
@@ -177,8 +158,8 @@ layer(Layer.mergeAll(ApiHandlers, HttpServer.layerServices))("ContractTools", (i
 
   it.effect("answers a Todo of another Owner as an error result, with its tag and message", () =>
     Effect.gen(function* () {
-      const owner = yield* clientWith("joan-owns");
-      const other = yield* clientWith("radia-other");
+      const owner = yield* clientWith();
+      const other = yield* clientWith();
 
       const created = yield* owner.client.callTool({
         name: "todos_create",
@@ -199,7 +180,7 @@ layer(Layer.mergeAll(ApiHandlers, HttpServer.layerServices))("ContractTools", (i
 
   it.effect("lists the tools whose Permission the Grant lacks, and refuses a call to one", () =>
     Effect.gen(function* () {
-      const { client } = yield* clientWith("mary-lists-only", ["todos:list"]);
+      const { client } = yield* clientWith(["todos:list"]);
 
       const { tools } = yield* client.listTools();
 

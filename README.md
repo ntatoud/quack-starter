@@ -15,7 +15,7 @@ A starting point for TypeScript web applications.
 - Node.js 26 (see `.node-version`)
 - pnpm 12
 - [Vite+](https://viteplus.dev) (`vp`), which can also manage Node.js and pnpm for you
-- Docker (Docker Desktop or OrbStack), running: the server stores its data in PostgreSQL and sends its mail to Mailpit, both of which `pnpm dev` starts
+- Docker (Docker Desktop or OrbStack), running: the server stores its data in PostgreSQL and sends its mail to Mailpit, both of which `pnpm dev` starts; the server's tests run on that PostgreSQL too, which `pnpm test` starts the same way
 
 ## Getting started
 
