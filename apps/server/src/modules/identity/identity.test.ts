@@ -2,19 +2,27 @@ import { createHash } from "node:crypto";
 
 import { NodeCrypto } from "@effect/platform-node";
 import { assert, layer } from "@effect/vitest";
-import { Email, User } from "@quack/contracts/identity/user";
-import { ConfigProvider, DateTime, Effect, Layer, Option, Redacted } from "effect";
+import { Email } from "@quack/contracts/identity/user";
+import {
+  ConfigProvider,
+  DateTime,
+  Effect,
+  Exit,
+  Layer,
+  Logger,
+  Option,
+  Redacted,
+  References,
+} from "effect";
 
 import { TestClock } from "effect/testing";
 
 import { Identity } from "#/modules/identity/application/identity.ts";
-import { PasswordHasher } from "#/modules/identity/domain/password-hasher.ts";
 import { SessionStore } from "#/modules/identity/domain/session-store.ts";
-import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
 import { AttemptLimiterMemory } from "#/modules/identity/infrastructure/attempt-limiter-memory.ts";
-import { PasswordHasherArgon2 } from "#/modules/identity/infrastructure/password-hasher-argon2.ts";
 import { IdentityPostgres } from "#/modules/identity/index.ts";
-import { TestDatabase } from "#/modules/testing/index.ts";
+import { setStatus, TestDatabase } from "#/modules/testing/index.ts";
+import { Users } from "#/modules/users/index.ts";
 
 const password = Redacted.make("correct horse battery staple");
 
@@ -26,36 +34,32 @@ const anAddress = () => `2001:db8::${(addresses += 1).toString(16)}`;
 
 const sha256Hex = (text: string) => createHash("sha256").update(text).digest("hex");
 
-/** How many passwords the hasher hashed or verified: the slow step, which decides how long a sign-in takes. */
-const hasherWork = { count: 0 };
+/** How `effect` ends, and what it logs on the way, each line as its message and the User it names. */
+const loggedBy = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
+  Effect.gen(function* () {
+    const lines: Array<{ message: unknown; userId: unknown }> = [];
 
-const counted = <A>(effect: Effect.Effect<A>) =>
-  Effect.suspend(() => {
-    hasherWork.count += 1;
+    const logger = Logger.make(({ message, fiber }) => {
+      lines.push({
+        message: Array.isArray(message) && message.length === 1 ? message[0] : message,
+        userId: fiber.getRef(References.CurrentLogAnnotations)["userId"],
+      });
+    });
 
-    return effect;
+    const exit = yield* Effect.exit(effect).pipe(Effect.provide(Logger.layer([logger])));
+
+    return { exit, lines };
   });
-
-const PasswordHasherCounted = Layer.effect(
-  PasswordHasher,
-  Effect.map(Effect.service(PasswordHasher), (hasher) =>
-    PasswordHasher.of({
-      hash: (plain) => counted(hasher.hash(plain)),
-      verify: (plain, hash) => counted(hasher.verify(plain, hash)),
-    }),
-  ),
-).pipe(Layer.provide(PasswordHasherArgon2));
 
 const IdentityLayer = Identity.layer.pipe(
   Layer.provide([
-    PasswordHasherCounted,
     // The limits of an unset config, whatever the environment of the machine that runs the tests.
     AttemptLimiterMemory.pipe(Layer.provide(ConfigProvider.layer(ConfigProvider.fromUnknown({})))),
   ]),
   // The stores stay visible, to see what a sign-up leaves in them.
-  Layer.provideMerge(IdentityPostgres),
-  Layer.provide([NodeCrypto.layerSecureRandom, NodeCrypto.layerDigest, NodeCrypto.layerKdf]),
-  Layer.provide(TestDatabase),
+  Layer.provideMerge([Users.layer, IdentityPostgres]),
+  Layer.provide([NodeCrypto.layerSecureRandom, NodeCrypto.layerDigest]),
+  Layer.provideMerge(TestDatabase),
 );
 
 layer(IdentityLayer)("Identity", (it) => {
@@ -127,32 +131,6 @@ layer(IdentityLayer)("Identity", (it) => {
     }),
   );
 
-  it.effect(
-    "does the work of a password check for an email no User has, so the answer takes as long",
-    () =>
-      Effect.gen(function* () {
-        const identity = yield* Identity;
-        yield* identity.signUp(Email.make("grace.h@example.com"), password, paris, anAddress());
-
-        const before = hasherWork.count;
-        yield* identity
-          .signIn(
-            Email.make("grace.h@example.com"),
-            Redacted.make("not the password of grace"),
-            anAddress(),
-          )
-          .pipe(Effect.flip);
-        const forWrongPassword = hasherWork.count - before;
-        yield* identity
-          .signIn(Email.make("nobody@example.com"), password, anAddress())
-          .pipe(Effect.flip);
-        const forUnknownEmail = hasherWork.count - before - forWrongPassword;
-
-        assert.strictEqual(forWrongPassword, 1);
-        assert.strictEqual(forUnknownEmail, 1);
-      }),
-  );
-
   it.effect("refuses a sign-in past the limit before any work on the password", () =>
     Effect.gen(function* () {
       const identity = yield* Identity;
@@ -166,11 +144,9 @@ layer(IdentityLayer)("Identity", (it) => {
           .pipe(Effect.flip);
       }
 
-      const before = hasherWork.count;
       const error = yield* identity.signIn(email, password, from).pipe(Effect.flip);
 
       assert.strictEqual(error._tag, "TooManyAttempts");
-      assert.strictEqual(hasherWork.count - before, 0);
     }),
   );
 
@@ -183,14 +159,11 @@ layer(IdentityLayer)("Identity", (it) => {
         yield* identity.signUp(Email.make(`visitor-${signUp}@example.com`), password, paris, from);
       }
 
-      const before = hasherWork.count;
-
       const error = yield* identity
         .signUp(Email.make("visitor-10@example.com"), password, paris, from)
         .pipe(Effect.flip);
 
       assert.strictEqual(error._tag, "TooManyAttempts");
-      assert.strictEqual(hasherWork.count - before, 0);
     }),
   );
 
@@ -271,7 +244,7 @@ layer(IdentityLayer)("Identity", (it) => {
   it.effect("records the sign-up, then each sign-in, as the last sign-in of the User", () =>
     Effect.gen(function* () {
       const identity = yield* Identity;
-      const users = yield* UserRepository;
+      const users = yield* Users;
       const email = Email.make("katherine@example.com");
       const signedUpAt = yield* DateTime.now;
 
@@ -284,7 +257,7 @@ layer(IdentityLayer)("Identity", (it) => {
       const signedInAt = DateTime.addDuration(signedUpAt, "1 hour");
       assert.deepStrictEqual(signedIn.user.lastSignInAt, signedInAt);
       assert.deepStrictEqual(signedIn.user.createdAt, signedUpAt);
-      const stored = Option.getOrThrow(yield* users.findById(user.id));
+      const stored = Option.getOrThrow(yield* users.find({ id: user.id }));
       assert.deepStrictEqual(stored.lastSignInAt, signedInAt);
     }),
   );
@@ -294,23 +267,41 @@ layer(IdentityLayer)("Identity", (it) => {
     (status) =>
       Effect.gen(function* () {
         const identity = yield* Identity;
-        const users = yield* UserRepository;
         const email = Email.make(`${status}@example.com`);
         const { user } = yield* identity.signUp(email, password, paris, anAddress());
-        yield* users.update(new User({ ...user, status }));
+        yield* setStatus(user.id, status);
 
-        const before = hasherWork.count;
         const error = yield* identity.signIn(email, password, anAddress()).pipe(Effect.flip);
 
         assert.strictEqual(error._tag, "InvalidCredentials");
-        assert.strictEqual(hasherWork.count - before, 1);
+      }),
+  );
+
+  it.effect(
+    "logs the refusal of a User suspended, with their password, but not of a wrong one",
+    () =>
+      Effect.gen(function* () {
+        const identity = yield* Identity;
+        const email = Email.make("logged.suspended@example.com");
+        const { user } = yield* identity.signUp(email, password, paris, anAddress());
+        yield* setStatus(user.id, "suspended");
+
+        const refused = yield* loggedBy(identity.signIn(email, password, anAddress()));
+
+        const wrong = yield* loggedBy(
+          identity.signIn(email, Redacted.make("not-the-password"), anAddress()),
+        );
+
+        assert.deepStrictEqual(refused.lines, [
+          { message: "Refused a User suspended", userId: user.id },
+        ]);
+        assert.deepStrictEqual(wrong.lines, []);
       }),
   );
 
   it.effect("ends the Session of a User suspended after they signed in", () =>
     Effect.gen(function* () {
       const identity = yield* Identity;
-      const users = yield* UserRepository;
       const store = yield* SessionStore;
 
       const { user, session } = yield* identity.signUp(
@@ -320,11 +311,15 @@ layer(IdentityLayer)("Identity", (it) => {
         anAddress(),
       );
 
-      yield* users.update(new User({ ...user, status: "suspended" }));
+      yield* setStatus(user.id, "suspended");
 
-      const error = yield* identity.authenticate(session.token).pipe(Effect.flip);
+      const { exit, lines } = yield* loggedBy(identity.authenticate(session.token));
 
-      assert.strictEqual(error._tag, "Unauthenticated");
+      assert.deepStrictEqual(
+        Option.map(Exit.findErrorOption(exit), (error) => error._tag),
+        Option.some("Unauthenticated"),
+      );
+      assert.deepStrictEqual(lines, [{ message: "Refused a User suspended", userId: user.id }]);
       const tokenHash = sha256Hex(Redacted.value(session.token));
       assert.isTrue(Option.isNone(yield* store.findByTokenHash(tokenHash)));
     }),

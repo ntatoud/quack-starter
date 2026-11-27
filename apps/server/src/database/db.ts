@@ -1,4 +1,5 @@
 import { postgres } from "@quack/effect-kysely/kysely";
+import { Schema } from "effect";
 import { CamelCasePlugin } from "kysely";
 
 import type { DB } from "#/database/db.gen.ts";
@@ -15,3 +16,7 @@ export type Tables = {
 
 // Names the columns in snake_case, as the SqlClient does for `sql("createdAt")`; the client maps rows back.
 export const db = postgres<Tables>({ plugins: [new CamelCasePlugin()] });
+
+// An id of a uuid column: Postgres refuses to compare it with any other text, and fails the request, where no row
+// could have it. A query by an id that is not one finds nothing without running.
+export const isStorableId = Schema.is(Schema.String.check(Schema.isUUID()));

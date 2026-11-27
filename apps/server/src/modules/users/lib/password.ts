@@ -1,9 +1,8 @@
+import { NodeCrypto } from "@effect/platform-node";
 import type { Password } from "@quack/contracts/identity/user";
-import { Effect, Layer, Option, Redacted, Result } from "effect";
+import { Effect, Option, Redacted, Result } from "effect";
 import { Kdf, Mac, SecureRandom } from "effect/crypto";
 import { Base64 } from "effect/encoding";
-
-import { PasswordHasher } from "#/modules/identity/domain/password-hasher.ts";
 
 interface Costs {
   /** KiB. */
@@ -53,38 +52,45 @@ const parsePhc = (hash: string): Option.Option<Argon2Hash> => {
   });
 };
 
+// A failure here is a runtime without Argon2id or a cost out of bounds: a defect, not a wrong password.
+const derive = Effect.fnUntraced(function* (
+  password: Password,
+  costs: Costs,
+  salt: Uint8Array,
+  length: number,
+) {
+  const kdf = yield* Kdf.Kdf;
+
+  return yield* kdf
+    .derive(Kdf.argon2id(costs), new TextEncoder().encode(Redacted.value(password)), {
+      salt,
+      length,
+    })
+    .pipe(Effect.orDie);
+});
+
+// Node's crypto, provided here: hashing stays inside this module, and no caller provides it again.
+const nodeCrypto = Effect.provide([NodeCrypto.layerKdf, NodeCrypto.layerSecureRandom]);
+
 // The costs travel in the PHC string, so they can be raised without breaking stored hashes.
-export const PasswordHasherArgon2 = Layer.effect(
-  PasswordHasher,
-  Effect.gen(function* () {
-    const kdf = yield* Kdf.Kdf;
-    const random = yield* SecureRandom.SecureRandom;
+export const hashPassword = Effect.fn("hashPassword")(function* (password: Password) {
+  const random = yield* SecureRandom.SecureRandom;
+  const salt = yield* random.randomBytes(saltLength);
+  const tag = yield* derive(password, currentCosts, salt, tagLength);
 
-    // A failure here is a runtime without Argon2id or a cost out of bounds: a defect, not a wrong password.
-    const derive = (password: Password, costs: Costs, salt: Uint8Array, length: number) =>
-      kdf
-        .derive(Kdf.argon2id(costs), new TextEncoder().encode(Redacted.value(password)), {
-          salt,
-          length,
-        })
-        .pipe(Effect.orDie);
+  return formatPhc({ costs: currentCosts, salt, tag });
+}, nodeCrypto);
 
-    return PasswordHasher.of({
-      hash: Effect.fn("PasswordHasher.hash")(function* (password) {
-        const salt = yield* random.randomBytes(saltLength);
-        const tag = yield* derive(password, currentCosts, salt, tagLength);
+/** A hash this module cannot read is `false`, not an error. */
+export const isPasswordOf = Effect.fn("isPasswordOf")(function* (
+  password: Password,
+  storedHash: string,
+) {
+  const stored = parsePhc(storedHash);
 
-        return formatPhc({ costs: currentCosts, salt, tag });
-      }),
-      verify: Effect.fn("PasswordHasher.verify")(function* (password, storedHash) {
-        const stored = parsePhc(storedHash);
+  if (Option.isNone(stored)) return false;
+  const { costs, salt, tag } = stored.value;
+  const derived = yield* derive(password, costs, salt, tag.length);
 
-        if (Option.isNone(stored)) return false;
-        const { costs, salt, tag } = stored.value;
-        const derived = yield* derive(password, costs, salt, tag.length);
-
-        return Mac.timingSafeEqual(derived, tag);
-      }),
-    });
-  }),
-);
+  return Mac.timingSafeEqual(derived, tag);
+}, nodeCrypto);

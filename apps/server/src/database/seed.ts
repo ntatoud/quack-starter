@@ -1,7 +1,7 @@
 import { Api } from "@quack/contracts/api";
 import { Authentication } from "@quack/contracts/identity/authentication";
 import { devAccounts, devPassword } from "@quack/contracts/identity/dev-accounts";
-import { Email } from "@quack/contracts/identity/user";
+import { Email, Role, TimeZone } from "@quack/contracts/identity/user";
 import { ConfigProvider, Effect, Layer, Option, Redacted, Schema } from "effect";
 import { Cookies, HttpClientRequest, HttpServer } from "effect/http";
 import { HttpApiMiddleware, HttpApiTest } from "effect/http-api";
@@ -10,10 +10,11 @@ import { SqlClient, SqlSchema } from "effect/sql";
 import type { DatabaseSettings } from "#/config.ts";
 import { databaseAt, withoutPassword } from "#/database/database.ts";
 import { MIGRATIONS_TABLE } from "#/database/rollback.ts";
-import { IdentityModule, IdentityPostgres, IdentitySeed } from "#/modules/identity/index.ts";
+import { IdentityModule, IdentityPostgres } from "#/modules/identity/index.ts";
 import { Mailer } from "#/modules/mail/index.ts";
 import { seedTodos, TodosModule } from "#/modules/todos/index.ts";
 import { TransactionPostgres } from "#/modules/transaction/index.ts";
+import { seedDevAccount, seedUsers, Users, UsersModule } from "#/modules/users/index.ts";
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
 
@@ -54,8 +55,9 @@ const truncateTables = Effect.gen(function* () {
 });
 
 // The Api the seed calls in process, as a browser would: it sends no mail, and no link it makes leaves the seed.
-const SeedApi = TodosModule.pipe(
+const SeedApi = Layer.mergeAll(TodosModule, UsersModule).pipe(
   Layer.provideMerge(IdentityModule),
+  Layer.provideMerge(Users.layer),
   Layer.provide([
     TransactionPostgres,
     Layer.succeed(Mailer, Mailer.of({ send: () => Effect.void })),
@@ -66,46 +68,58 @@ const SeedApi = TodosModule.pipe(
   ),
 );
 
-// As `signedIn` of the testing module, which the seed, run outside tests, cannot import.
+// As the clients of the testing module, which the seed, run outside tests, cannot import.
 const withCookie = (cookie: string | undefined) =>
   HttpApiMiddleware.layerClient(Authentication, ({ next, request }) =>
     next(cookie === undefined ? request : HttpClientRequest.setHeader(request, "cookie", cookie)),
   );
 
-const signedInAs = Effect.fn("signedInAs")(function* (email: string) {
-  const visitor = yield* HttpApiTest.groups(Api, ["identity"]).pipe(
-    Effect.provide(withCookie(undefined)),
-  );
+const password = Redacted.make(devPassword);
 
-  const [, response] = yield* visitor.identity.signIn({
-    payload: { email: Email.make(email), password: Redacted.make(devPassword) },
-    responseMode: "decoded-and-response",
-  });
+const paris = Schema.decodeSync(TimeZone)("Europe/Paris");
 
+const makeVisitor = HttpApiTest.groups(Api, ["identity"]).pipe(
+  Effect.provide(withCookie(undefined)),
+);
+
+const clientWithSession = (response: { readonly cookies: Cookies.Cookies }) => {
   const session = Cookies.getValue(response.cookies, "session");
 
-  return yield* HttpApiTest.groups(Api, ["identity", "todos"]).pipe(
+  return HttpApiTest.groups(Api, ["identity", "todos", "users"]).pipe(
     Effect.provide(
       withCookie(Option.getOrUndefined(Option.map(session, (token) => `session=${token}`))),
     ),
   );
+};
+
+/** Signs the dev account up through the Api, as a browser would, and answers a client with its Session. */
+const signUpDevAccount = Effect.fn("signUpDevAccount")(function* (role: Role) {
+  const visitor = yield* makeVisitor;
+
+  const [user, response] = yield* visitor.identity.signUp({
+    payload: { email: Email.make(devAccounts[role]), password, timeZone: paris },
+    responseMode: "decoded-and-response",
+  });
+
+  return { user, client: yield* clientWithSession(response) };
 });
 
-// The Todos go through the Api, signed in as each dev account: the seed makes no state the Api cannot.
-const seedTodosOfDevAccounts = Effect.forEach(
-  Object.values(devAccounts),
-  (email) => Effect.flatMap(signedInAs(email), ({ todos }) => seedTodos(todos)),
+// The dev accounts and their Todos go through the Api: the seed makes no state the Api can make.
+const seedDevAccounts = Effect.forEach(
+  Role.literals,
+  (role) =>
+    Effect.gen(function* () {
+      const { user, client } = yield* signUpDevAccount(role);
+      yield* seedDevAccount(client.users, user.id, role);
+      yield* seedTodos(client.todos);
+    }),
   { discard: true },
 ).pipe(Effect.provide(SeedApi));
 
 const reset = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
   yield* sql.withTransaction(
-    truncateTables.pipe(
-      Effect.andThen(Layer.build(IdentitySeed)),
-      Effect.andThen(seedTodosOfDevAccounts),
-      Effect.scoped,
-    ),
+    truncateTables.pipe(Effect.andThen(seedUsers), Effect.andThen(seedDevAccounts), Effect.scoped),
   );
 });
 

@@ -1,7 +1,5 @@
 import { assert, describe, effect, layer } from "@effect/vitest";
-import { OnboardingPayload } from "@quack/contracts/identity/identity-api";
-import { CountryCode, Profile } from "@quack/contracts/identity/profile";
-import { type Email, type Password, TimeZone, User } from "@quack/contracts/identity/user";
+import { type Email, type Password, TimeZone } from "@quack/contracts/identity/user";
 import {
   Clock,
   DateTime,
@@ -18,37 +16,20 @@ import { HttpServer } from "effect/http";
 import { TestClock } from "effect/testing";
 
 import { sessionExtensionThreshold, sessionLifetime } from "#/modules/identity/domain/session.ts";
-import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
 import { IdentityModule, IdentityPostgres } from "#/modules/identity/index.ts";
 import { emailChangeModelWalks } from "#/modules/identity/testing/email-change-model.ts";
 import { sessionModelWalks } from "#/modules/identity/testing/session-model.ts";
 import { MailerMemory, SentMails } from "#/modules/mail/index.ts";
-import { makeBrowser, TestDatabase } from "#/modules/testing/index.ts";
+import { aUser, makeBrowser, setStatus, TestDatabase } from "#/modules/testing/index.ts";
 import { TransactionPostgres } from "#/modules/transaction/index.ts";
+import { Users } from "#/modules/users/index.ts";
 
 const maxAge = Duration.toSeconds(sessionLifetime);
 
 const password = Redacted.make("correct horse battery staple");
 
-const paris = Schema.decodeSync(TimeZone)("Europe/Paris");
-
-const nameOfAda = Schema.decodeSync(OnboardingPayload)({
-  firstName: " Ada ",
-  lastName: "Lovelace",
-});
-
 /** The email as typed, not normalized: the server must normalize it. */
 const asTyped = (email: string) => email as Email;
-
-const aProfile = (firstName: string) =>
-  new Profile({
-    firstName,
-    lastName: "Lovelace",
-    avatarUrl: null,
-    jobTitle: "Analyst",
-    team: "engineering",
-    country: CountryCode.make("GB"),
-  });
 
 const assertCookieCleared = (setCookie: ReadonlyArray<string>) => {
   assert.lengthOf(setCookie, 1);
@@ -58,9 +39,9 @@ const assertCookieCleared = (setCookie: ReadonlyArray<string>) => {
 const withConfig = (env: Record<string, string>) =>
   IdentityModule.pipe(
     // Visible, to add Users of every Status and to read the mails sent.
-    Layer.provideMerge([IdentityPostgres, TransactionPostgres, MailerMemory]),
+    Layer.provideMerge([Users.layer, IdentityPostgres, TransactionPostgres, MailerMemory]),
     Layer.provideMerge(HttpServer.layerServices),
-    Layer.provide(TestDatabase),
+    Layer.provideMerge(TestDatabase),
     Layer.provide(
       ConfigProvider.layer(
         ConfigProvider.fromUnknown({ PUBLIC_URL: "https://quack.test/ignored", ...env }),
@@ -102,42 +83,6 @@ layer(withConfig({ SIGN_UPS_PER_IP: "1000" }))("IdentityApi", (it) => {
 
       assert.strictEqual(DateTime.zoneToString(user.timeZone), "Asia/Tokyo");
       assert.strictEqual(DateTime.zoneToString((yield* browser.me).timeZone), "Asia/Tokyo");
-    }),
-  );
-
-  it.effect("changes the time zone of the Current User: me answers with it from then on", () =>
-    Effect.gen(function* () {
-      const browser = yield* makeBrowser;
-      yield* browser.signUp(asTyped("ada.moves@example.com"));
-      const newYork = yield* Schema.decodeEffect(TimeZone)("America/New_York");
-
-      const updated = yield* browser.updateTimeZone(newYork);
-
-      assert.strictEqual(DateTime.zoneToString(updated.timeZone), "America/New_York");
-      assert.deepStrictEqual(yield* browser.me, updated);
-    }),
-  );
-
-  it.effect("changes the time zone of the Current User only", () =>
-    Effect.gen(function* () {
-      const ada = yield* makeBrowser;
-      const charles = yield* makeBrowser;
-      yield* ada.signUp(asTyped("ada.zone@example.com"));
-      yield* charles.signUp(asTyped("charles.zone@example.com"));
-
-      yield* ada.updateTimeZone(yield* Schema.decodeEffect(TimeZone)("Asia/Tokyo"));
-
-      assert.strictEqual(DateTime.zoneToString((yield* charles.me).timeZone), "Europe/Paris");
-    }),
-  );
-
-  it.effect("fails updateTimeZone with Unauthenticated without a Session", () =>
-    Effect.gen(function* () {
-      const browser = yield* makeBrowser;
-
-      const error = yield* browser.updateTimeZone(paris).pipe(Effect.flip);
-
-      assert.strictEqual(error._tag, "Unauthenticated");
     }),
   );
 
@@ -326,117 +271,11 @@ layer(withConfig({ SIGN_UPS_PER_IP: "1000" }))("IdentityApi", (it) => {
     }),
   );
 
-  it.effect(
-    "completes the onboarding: the name makes the Profile, nothing else filled in, and the date is set",
-    () =>
-      Effect.gen(function* () {
-        const browser = yield* makeBrowser;
-        const { user } = yield* browser.signUp(asTyped("ada.onboarding@example.com"));
-        const now = yield* DateTime.now;
-
-        const onboarded = yield* browser.completeOnboarding(nameOfAda);
-
-        assert.deepStrictEqual(
-          onboarded,
-          new User({
-            ...user,
-            onboardedAt: now,
-            timeZone: DateTime.zoneMakeNamedUnsafe("Europe/Paris"),
-            profile: new Profile({
-              firstName: "Ada",
-              lastName: "Lovelace",
-              jobTitle: "",
-              team: null,
-              country: null,
-              avatarUrl: null,
-            }),
-          }),
-        );
-        assert.deepStrictEqual(yield* browser.me, onboarded);
-      }),
-  );
-
-  it.effect("completes the onboarding again: changes the name, keeps the first date", () =>
-    Effect.gen(function* () {
-      const browser = yield* makeBrowser;
-      yield* browser.signUp(asTyped("ada.twice@example.com"));
-      const first = yield* browser.completeOnboarding(nameOfAda);
-      yield* TestClock.adjust("1 hour");
-
-      const again = yield* browser.completeOnboarding({ ...nameOfAda, lastName: "Byron" });
-
-      assert.strictEqual(again.profile?.lastName, "Byron");
-      assert.deepStrictEqual(again.onboardedAt, first.onboardedAt);
-    }),
-  );
-
-  it.effect("fails completeOnboarding with Unauthenticated without a Session", () =>
-    Effect.gen(function* () {
-      const browser = yield* makeBrowser;
-
-      const error = yield* browser.completeOnboarding(nameOfAda).pipe(Effect.flip);
-
-      assert.strictEqual(error._tag, "Unauthenticated");
-    }),
-  );
-
   it.effect("fails me with Unauthenticated without a Session", () =>
     Effect.gen(function* () {
       const browser = yield* makeBrowser;
 
       const error = yield* browser.me.pipe(Effect.flip);
-
-      assert.strictEqual(error._tag, "Unauthenticated");
-    }),
-  );
-
-  it.effect("updates the Profile of the Current User: me answers with it from then on", () =>
-    Effect.gen(function* () {
-      const browser = yield* makeBrowser;
-      const { user } = yield* browser.signUp(asTyped("augusta@example.com"));
-
-      const updated = yield* browser.updateProfile(aProfile("Ada"));
-
-      assert.deepStrictEqual(updated, new User({ ...user, profile: aProfile("Ada") }));
-      assert.deepStrictEqual(yield* browser.me, updated);
-    }),
-  );
-
-  it.effect("replaces the whole Profile at each update", () =>
-    Effect.gen(function* () {
-      const browser = yield* makeBrowser;
-      yield* browser.signUp(asTyped("byron@example.com"));
-      yield* browser.updateProfile(aProfile("Ada"));
-
-      yield* browser.updateProfile(
-        new Profile({ ...aProfile("Augusta"), team: null, country: null }),
-      );
-
-      assert.deepStrictEqual(
-        (yield* browser.me).profile,
-        new Profile({ ...aProfile("Augusta"), team: null, country: null }),
-      );
-    }),
-  );
-
-  it.effect("updates the Profile of the Current User only", () =>
-    Effect.gen(function* () {
-      const ada = yield* makeBrowser;
-      const charles = yield* makeBrowser;
-      yield* ada.signUp(asTyped("ada.king@example.com"));
-      yield* charles.signUp(asTyped("charles@example.com"));
-
-      yield* ada.updateProfile(aProfile("Ada"));
-
-      assert.isNull((yield* charles.me).profile);
-    }),
-  );
-
-  it.effect("fails updateProfile with Unauthenticated without a Session", () =>
-    Effect.gen(function* () {
-      const browser = yield* makeBrowser;
-
-      const error = yield* browser.updateProfile(aProfile("Ada")).pipe(Effect.flip);
 
       assert.strictEqual(error._tag, "Unauthenticated");
     }),
@@ -534,6 +373,22 @@ layer(withConfig({ SIGN_UPS_PER_IP: "1000" }))("IdentityApi", (it) => {
         assert.deepStrictEqual(yield* browser.me, user);
       }
     }),
+  );
+
+  it.effect(
+    "refuses the Session of a User deleted since they signed in, and clears its cookie",
+    () =>
+      Effect.gen(function* () {
+        const browser = yield* makeBrowser;
+        const { user } = yield* browser.signUp(asTyped("deleted.later@example.com"));
+        const admin = yield* aUser({ role: "admin" });
+        yield* (yield* Users).remove(user.id, admin.id);
+
+        const { status, setCookie } = yield* browser.meResponse;
+
+        assert.strictEqual(status, 401);
+        assertCookieCleared(setCookie);
+      }),
   );
 
   it.effect("clears the session cookie when the request has no Session", () =>
@@ -896,24 +751,8 @@ const resetTokenOf = Effect.fn(function* (email: string, nth = 1) {
   return token ?? "";
 });
 
-const aUserWithStatus = Effect.fn(function* (email: string, status: "invited" | "suspended") {
-  const users = yield* UserRepository;
-
-  yield* users.create(
-    new User({
-      id: yield* users.nextId,
-      email: asTyped(email),
-      role: "user",
-      status,
-      createdAt: yield* DateTime.now,
-      lastSignInAt: null,
-      onboardedAt: null,
-      timeZone: DateTime.zoneMakeNamedUnsafe("Europe/Paris"),
-      profile: null,
-    }),
-    "not a hash",
-  );
-});
+const aUserWithStatus = (email: string, status: "invited" | "suspended") =>
+  aUser({ email: asTyped(email), status });
 
 layer(withConfig({ SIGN_UPS_PER_IP: "1000", PASSWORD_RESETS_PER_IP: "1000" }))(
   "IdentityApi, Password Reset",
@@ -1083,7 +922,7 @@ layer(withConfig({ SIGN_UPS_PER_IP: "1000", PASSWORD_RESETS_PER_IP: "1000" }))(
         const { user } = yield* browser.signUp(asTyped("reset.later.suspended@example.com"));
         yield* browser.requestPasswordReset(asTyped("reset.later.suspended@example.com"));
         const token = yield* resetTokenOf("reset.later.suspended@example.com");
-        yield* (yield* UserRepository).update(new User({ ...user, status: "suspended" }));
+        yield* setStatus(user.id, "suspended");
 
         const error = yield* browser.confirmPasswordReset(token, newPassword).pipe(Effect.flip);
 
@@ -1121,6 +960,25 @@ layer(withConfig({ SIGN_UPS_PER_IP: "1000" }))("IdentityApi, Email Change", (it)
       assert.lengthOf(yield* mailsTo("change.wrong.new@example.com", 0), 0);
       assert.lengthOf(yield* mailsTo("change.wrong@example.com", 0), 0);
     }),
+  );
+
+  // `Authentication` reads the User before the request does: a suspended User asks for nothing.
+  it.effect(
+    "refuses the Email Change of a User suspended since they signed in, and mails nothing",
+    () =>
+      Effect.gen(function* () {
+        const browser = yield* makeBrowser;
+        const { user } = yield* browser.signUp(asTyped("change.suspended@example.com"));
+        yield* setStatus(user.id, "suspended");
+
+        const error = yield* browser
+          .requestEmailChange(asTyped("change.suspended.new@example.com"))
+          .pipe(Effect.flip);
+
+        assert.strictEqual(error._tag, "Unauthenticated");
+        assert.lengthOf(yield* mailsTo("change.suspended.new@example.com", 0), 0);
+        assert.lengthOf(yield* mailsTo("change.suspended@example.com", 0), 0);
+      }),
   );
 
   it.effect("keeps the email until the link is opened, then changes it", () =>
@@ -1400,8 +1258,6 @@ layer(withConfig(modelLimits))("IdentityApi, a Session against its model", (it) 
     "answers every transition of the model as the model does",
     () =>
       Effect.gen(function* () {
-        const users = yield* UserRepository;
-
         for (const [index, walk] of sessionModelWalks.entries()) {
           const browser = yield* makeBrowser;
           const email = asTyped(`model.session.${index}@example.com`);
@@ -1411,12 +1267,6 @@ layer(withConfig(modelLimits))("IdentityApi, a Session against its model", (it) 
           let passwords: ReadonlyArray<Password> = [password];
           let links: ReadonlyArray<string> = [];
           const taken: Array<string> = [];
-
-          const setStatus = (status: "active" | "suspended") =>
-            Effect.gen(function* () {
-              const found = yield* users.findById(user.id);
-              yield* users.update(new User({ ...Option.getOrThrow(found), status }));
-            });
 
           const chooseWithLastLink = Effect.gen(function* () {
             const chosen = Redacted.make(`the password chosen with link ${links.length}`);
@@ -1438,8 +1288,8 @@ layer(withConfig(modelLimits))("IdentityApi, a Session against its model", (it) 
             signIn: () => answerOf(browser.signIn(email, passwords.at(-1))),
             signInWithFormerPassword: () => answerOf(browser.signIn(email, passwords.at(-2))),
             signOut: () => answerOf(browser.signOut),
-            suspend: () => answerOf(setStatus("suspended")),
-            reactivate: () => answerOf(setStatus("active")),
+            suspend: () => answerOf(setStatus(user.id, "suspended")),
+            reactivate: () => answerOf(setStatus(user.id, "active")),
             requestReset: () => requestLink,
             confirmReset: () => answerOf(chooseWithLastLink),
             confirmReplacedLink: () =>

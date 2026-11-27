@@ -13,11 +13,9 @@ import { sha256Hex } from "#/modules/identity/application/sha256-hex.ts";
 import { AttemptCounter, AttemptLimiter } from "#/modules/identity/domain/attempt-limiter.ts";
 import { emailChangeLifetime, isLinkExpired } from "#/modules/identity/domain/link-token.ts";
 import { LinkTokenStore } from "#/modules/identity/domain/link-token-store.ts";
-import { PasswordHasher } from "#/modules/identity/domain/password-hasher.ts";
-import { canSignIn } from "#/modules/identity/domain/user.ts";
-import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
 import { Mailer } from "#/modules/mail/index.ts";
 import { Transaction } from "#/modules/transaction/index.ts";
+import { Users } from "#/modules/users/index.ts";
 
 export class EmailChanges extends Context.Service<
   EmailChanges,
@@ -41,16 +39,13 @@ export class EmailChanges extends Context.Service<
   static readonly layer = Layer.effect(
     EmailChanges,
     Effect.gen(function* () {
-      const users = yield* UserRepository;
+      const users = yield* Users;
       const links = yield* LinkTokenStore;
-      const hasher = yield* PasswordHasher;
       const limiter = yield* AttemptLimiter;
       const mailer = yield* Mailer;
       const transaction = yield* Transaction;
       const digest = yield* Digest.Digest;
       const makeLink = yield* makeLinkMaker;
-
-      const isTaken = (email: Email) => Effect.map(users.findByEmail(email), Option.isSome);
 
       return EmailChanges.of({
         request: Effect.fn("EmailChanges.request")(function* (userId, newEmail, password) {
@@ -59,17 +54,15 @@ export class EmailChanges extends Context.Service<
 
           // The Current User: found, since their Session was.
           const user = yield* Effect.orDie(
-            Effect.flatMap(users.findById(userId), (found) => Effect.fromOption(found)),
+            Effect.flatMap(users.find({ id: userId }), (found) => Effect.fromOption(found)),
           );
 
-          const { passwordHash } = yield* Effect.orDie(
-            Effect.flatMap(users.findByEmail(user.email), (found) => Effect.fromOption(found)),
-          );
-
-          if (!(yield* hasher.verify(password, passwordHash))) return yield* new WrongPassword();
+          if (Option.isNone(yield* users.verifyPassword(user.email, password))) {
+            return yield* new WrongPassword();
+          }
 
           // The User's own email included: there would be nothing to change.
-          if (yield* isTaken(newEmail)) return yield* new EmailAlreadyTaken();
+          if (yield* users.isEmailTaken(newEmail)) return yield* new EmailAlreadyTaken();
 
           const { url, tokenHash } = yield* makeLink("/confirm-email");
 
@@ -115,8 +108,7 @@ export class EmailChanges extends Context.Service<
           const tokenHash = yield* sha256Hex(digest, token);
 
           // In one transaction, so the link is spent only with the email changed, or refused. A refused link stays
-          // spent: it ends committed. The email is checked before it is set: a unique violation would abort the
-          // transaction, and with it the spending of the link.
+          // spent: it ends committed.
           const outcome = yield* transaction.run(
             Effect.gen(function* () {
               const link = yield* links.take(tokenHash, "email_change");
@@ -128,16 +120,15 @@ export class EmailChanges extends Context.Service<
               )
                 return "expired";
 
-              const user = yield* users.findById(link.value.userId);
+              const user = yield* users.find({ id: link.value.userId });
 
               // A User suspended since they asked is refused as a stranger would be.
-              if (Option.isNone(user) || !canSignIn(user.value)) return "expired";
+              if (Option.isNone(user)) return "expired";
 
-              if (yield* isTaken(link.value.newEmail)) return "taken";
-
-              yield* users.setEmail(user.value.id, link.value.newEmail);
-
-              return "changed";
+              return yield* users.changeEmail(user.value.id, link.value.newEmail).pipe(
+                Effect.as("changed" as const),
+                Effect.catchTag("EmailAlreadyTaken", () => Effect.succeed("taken" as const)),
+              );
             }),
           );
 

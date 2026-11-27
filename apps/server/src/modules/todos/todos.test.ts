@@ -9,13 +9,14 @@ import { MailerMemory } from "#/modules/mail/index.ts";
 import { aUser, signedIn, TestDatabase } from "#/modules/testing/index.ts";
 import { seedTodos, TodosModule } from "#/modules/todos/index.ts";
 import { TransactionPostgres } from "#/modules/transaction/index.ts";
+import { Users } from "#/modules/users/index.ts";
 
 const TodosApi = TodosModule.pipe(
   Layer.provideMerge(IdentityModule),
-  Layer.provideMerge([IdentityPostgres, TransactionPostgres]),
+  Layer.provideMerge([Users.layer, IdentityPostgres, TransactionPostgres]),
   Layer.provide(MailerMemory),
   Layer.provideMerge(HttpServer.layerServices),
-  Layer.provide(TestDatabase),
+  Layer.provideMerge(TestDatabase),
   Layer.provide(
     ConfigProvider.layer(ConfigProvider.fromUnknown({ PUBLIC_URL: "https://quack.test" })),
   ),

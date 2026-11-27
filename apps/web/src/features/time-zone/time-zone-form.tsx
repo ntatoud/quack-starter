@@ -1,4 +1,4 @@
-import { TimeZonePayload } from "@quack/contracts/identity/identity-api";
+import { TimeZonePayload } from "@quack/contracts/users/users-api";
 import type { User } from "@quack/contracts/identity/user";
 import { schemaFormOptions } from "@quack/form/schema-form-options";
 import { SubmitFailed } from "@quack/form/submit-failed";
@@ -25,7 +25,7 @@ const timeZoneOptions = (current: string) =>
 
 export function TimeZoneForm({ currentUser }: { currentUser: typeof User.Encoded }) {
   const updateCurrentUser = useUpdateCurrentUser();
-  const updateTimeZone = useMutation(api.identity.updateTimeZone.mutationOptions());
+  const updateTimeZone = useMutation(api.users.updateTimeZone.mutationOptions());
 
   const form = useAppForm({
     ...schemaFormOptions(TimeZonePayload, { timeZone: currentUser.timeZone }),

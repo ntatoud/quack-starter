@@ -4,7 +4,7 @@ import {
   type TooManyAttempts,
   Unauthenticated,
 } from "@quack/contracts/identity/identity-errors";
-import { type Email, type Password, type TimeZone, User } from "@quack/contracts/identity/user";
+import type { Email, Password, TimeZone, User } from "@quack/contracts/identity/user";
 import { Context, DateTime, Effect, Layer, Option, Redacted } from "effect";
 import { Digest, SecureRandom } from "effect/crypto";
 import { Base64Url } from "effect/encoding";
@@ -15,7 +15,6 @@ import {
   type ClientIp,
 } from "#/modules/identity/domain/attempt-limiter.ts";
 import { sha256Hex } from "#/modules/identity/application/sha256-hex.ts";
-import { PasswordHasher } from "#/modules/identity/domain/password-hasher.ts";
 import {
   expiryFrom,
   extension,
@@ -24,8 +23,7 @@ import {
   sessionTokenBytes,
 } from "#/modules/identity/domain/session.ts";
 import { SessionStore } from "#/modules/identity/domain/session-store.ts";
-import { canSignIn, signedIn } from "#/modules/identity/domain/user.ts";
-import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
+import { Users } from "#/modules/users/index.ts";
 
 export interface OpenedSession {
   readonly token: Redacted.Redacted<string>;
@@ -64,9 +62,8 @@ export class Identity extends Context.Service<
   static readonly layer = Layer.effect(
     Identity,
     Effect.gen(function* () {
-      const users = yield* UserRepository;
+      const users = yield* Users;
       const sessions = yield* SessionStore;
-      const hasher = yield* PasswordHasher;
       const limiter = yield* AttemptLimiter;
       const random = yield* SecureRandom.SecureRandom;
       const digest = yield* Digest.Digest;
@@ -92,21 +89,7 @@ export class Identity extends Context.Service<
         signUp: Effect.fn("Identity.signUp")(function* (email, password, timeZone, ip) {
           // Counted before it is known to succeed: one that fails costs a hash, and tells whether a User has the email.
           yield* limiter.take([AttemptCounter.signUpsOfIp(ip)]);
-          const now = yield* DateTime.now;
-
-          const user = new User({
-            id: yield* users.nextId,
-            email,
-            role: "user",
-            status: "active",
-            createdAt: now,
-            lastSignInAt: now,
-            onboardedAt: null,
-            profile: null,
-            timeZone,
-          });
-
-          yield* users.create(user, yield* hasher.hash(password));
+          const user = yield* users.register(email, password, timeZone);
 
           return { user, session: yield* openSession(user) };
         }),
@@ -117,19 +100,9 @@ export class Identity extends Context.Service<
           // Counted as a failure up front: sign-ins arriving at once would all pass before the first one is counted.
           yield* limiter.take([failuresOfEmail, failuresOfIp]);
 
-          const found = yield* users.findByEmail(email);
+          const found = yield* users.signIn(email, password);
 
           if (Option.isNone(found)) {
-            // The slow step of a sign-in, done for nothing: without it, a fast answer would say that no User has this email.
-            yield* hasher.hash(password);
-
-            return yield* new InvalidCredentials();
-          }
-
-          const { passwordHash } = found.value;
-
-          // After the password: whoever does not know it must not learn the status of the User.
-          if (!(yield* hasher.verify(password, passwordHash)) || !canSignIn(found.value.user)) {
             return yield* new InvalidCredentials();
           }
 
@@ -137,8 +110,7 @@ export class Identity extends Context.Service<
           // the failures on the emails of others.
           yield* limiter.reset(failuresOfEmail);
           yield* limiter.giveBack(failuresOfIp);
-          const user = signedIn(found.value.user, yield* DateTime.now);
-          yield* users.update(user);
+          const user = found.value;
 
           return { user, session: yield* openSession(user) };
         }),
@@ -161,13 +133,9 @@ export class Identity extends Context.Service<
             return yield* new Unauthenticated();
           }
 
-          const user = yield* users.findById(session.value.userId);
+          const user = yield* users.find({ id: session.value.userId });
 
           if (Option.isNone(user)) {
-            return yield* new Unauthenticated();
-          }
-
-          if (!canSignIn(user.value)) {
             // A User suspended after signing in loses their Session at their next request.
             yield* sessions.remove(tokenHash);
 

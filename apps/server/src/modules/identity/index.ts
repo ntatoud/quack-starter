@@ -5,10 +5,7 @@ import { AuthorizationRequests } from "#/modules/identity/application/authorizat
 import { Grants } from "#/modules/identity/application/grants.ts";
 import { EmailChanges } from "#/modules/identity/application/email-changes.ts";
 import { Identity } from "#/modules/identity/application/identity.ts";
-import { Onboarding } from "#/modules/identity/application/onboarding.ts";
 import { PasswordResets } from "#/modules/identity/application/password-resets.ts";
-import { devUsers, IdentitySeed } from "#/modules/identity/application/identity-seed.ts";
-import { Users } from "#/modules/identity/application/users.ts";
 import { AuthenticationMiddleware } from "#/modules/identity/http/authentication-middleware.ts";
 import { accessTo } from "#/modules/identity/http/authorize.ts";
 import { McpCaller } from "#/modules/identity/http/mcp-caller.ts";
@@ -19,53 +16,36 @@ import { OAuthHandlers } from "#/modules/identity/http/oauth-handlers.ts";
 import { OAuthMetadataRoutes } from "#/modules/identity/http/oauth-metadata.ts";
 import { SessionCookie } from "#/modules/identity/http/session-cookie.ts";
 import { TokenEndpointHeaders } from "#/modules/identity/http/token-endpoint-headers.ts";
-import { UsersHandlers } from "#/modules/identity/http/users-handlers.ts";
 import { AiClientDocumentsHttp } from "#/modules/identity/infrastructure/ai-client-documents-http.ts";
 import { AiClientHttpClient } from "#/modules/identity/infrastructure/ai-client-http-client.ts";
 import { AuthorizationCodeStorePostgres } from "#/modules/identity/infrastructure/authorization-code-store-postgres.ts";
 import { GrantStorePostgres } from "#/modules/identity/infrastructure/grant-store-postgres.ts";
 import { LinkTokenStorePostgres } from "#/modules/identity/infrastructure/link-token-store-postgres.ts";
 import { AttemptLimiterMemory } from "#/modules/identity/infrastructure/attempt-limiter-memory.ts";
-import { PasswordHasherArgon2 } from "#/modules/identity/infrastructure/password-hasher-argon2.ts";
 import { SessionStorePostgres } from "#/modules/identity/infrastructure/session-store-postgres.ts";
-import { UserRepositoryPostgres } from "#/modules/identity/infrastructure/user-repository-postgres.ts";
-import { PasswordHasher } from "#/modules/identity/domain/password-hasher.ts";
-import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
 
 export {
   accessTo,
   AiClientHttpClient,
-  devUsers,
   Grants,
-  IdentitySeed,
   McpCaller,
   OAuthMetadataRoutes,
-  PasswordHasher,
-  PasswordHasherArgon2,
   TokenEndpointHeaders,
-  UserRepository,
 };
 
 export const IdentityPostgres = Layer.mergeAll(
-  UserRepositoryPostgres,
   SessionStorePostgres,
   AuthorizationCodeStorePostgres,
   GrantStorePostgres,
   LinkTokenStorePostgres,
 );
 
-export const IdentityModule = Layer.mergeAll(IdentityHandlers, UsersHandlers).pipe(
+/** The identity endpoints and the `Authentication` middleware. Requires `Users` (`UsersModule`) and its storage. */
+export const IdentityModule = IdentityHandlers.pipe(
   Layer.provideMerge(AuthenticationMiddleware),
-  Layer.provide([
-    Identity.layer,
-    Users.layer,
-    Onboarding.layer,
-    PasswordResets.layer,
-    EmailChanges.layer,
-    SessionCookie.layer,
-  ]),
-  Layer.provide([PasswordHasherArgon2, AttemptLimiterMemory]),
-  Layer.provide([NodeCrypto.layerSecureRandom, NodeCrypto.layerDigest, NodeCrypto.layerKdf]),
+  Layer.provide([Identity.layer, PasswordResets.layer, EmailChanges.layer, SessionCookie.layer]),
+  Layer.provide(AttemptLimiterMemory),
+  Layer.provide([NodeCrypto.layerSecureRandom, NodeCrypto.layerDigest]),
 );
 
 /**

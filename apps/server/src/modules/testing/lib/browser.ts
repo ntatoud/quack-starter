@@ -1,7 +1,5 @@
 import { Api } from "@quack/contracts/api";
 import { Authentication } from "@quack/contracts/identity/authentication";
-import type { OnboardingPayload } from "@quack/contracts/identity/identity-api";
-import type { Profile } from "@quack/contracts/identity/profile";
 import { type Email, type Password, TimeZone, User } from "@quack/contracts/identity/user";
 import { Duration, Effect, Ref, Schema } from "effect";
 import { Cookies, HttpClientRequest, type HttpClientResponse } from "effect/http";
@@ -81,11 +79,6 @@ export const makeBrowser = Effect.gen(function* () {
     // The User alone, as the other endpoints answer it: `pendingEmail` reads the rest.
     me: Effect.map(client.identity.me(), ({ pendingEmail: _, ...user }) => new User(user)),
     pendingEmail: Effect.map(client.identity.me(), (me) => me.pendingEmail),
-    updateProfile: (profile: Profile) => client.identity.updateProfile({ payload: profile }),
-    updateTimeZone: (timeZone: TimeZone) =>
-      client.identity.updateTimeZone({ payload: { timeZone } }),
-    completeOnboarding: (payload: OnboardingPayload) =>
-      client.identity.completeOnboarding({ payload }),
     meResponse: Effect.gen(function* () {
       const response = yield* client.identity.me({ responseMode: "response-only" });
 

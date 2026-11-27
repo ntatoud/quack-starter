@@ -5,7 +5,7 @@ import { executor } from "@quack/effect-kysely/kysely";
 import { Context, DateTime, Effect, Layer, Option, Schema, SchemaTransformation } from "effect";
 import { SqlSchema } from "effect/sql";
 
-import { db } from "#/database/db.ts";
+import { db, isStorableId } from "#/database/db.ts";
 
 const TodoRow = Schema.Struct({
   id: TodoId,
@@ -21,9 +21,6 @@ const TodoRow = Schema.Struct({
 );
 
 const OwnedTodo = Schema.Struct({ ownerId: UserId, id: TodoId });
-
-// The column is a uuid: Postgres refuses any other id, which no Todo can have.
-const isStorableId = Schema.is(Schema.String.check(Schema.isUUID()));
 
 // A service rather than plain query functions: its Layer takes the database once, so the handlers do not
 // require `SqlClient` on every request.

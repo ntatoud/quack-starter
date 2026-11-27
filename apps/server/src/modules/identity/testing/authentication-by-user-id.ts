@@ -3,8 +3,8 @@ import { Unauthenticated } from "@quack/contracts/identity/identity-errors";
 import type { User } from "@quack/contracts/identity/user";
 import { Effect, Layer, Redacted } from "effect";
 
-import { rolePermissions } from "#/modules/identity/domain/role-permissions.ts";
 import { callAs } from "#/modules/identity/http/authorize.ts";
+import { rolePermissions } from "#/modules/users/index.ts";
 
 /**
  * `Authentication` for tests that need a Current User, not a Session: the session cookie is the

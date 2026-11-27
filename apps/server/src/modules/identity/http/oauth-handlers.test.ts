@@ -14,11 +14,11 @@ import { TestClock } from "effect/testing";
 
 import { AuthorizationCodeStore } from "#/modules/identity/domain/authorization-code-store.ts";
 import { GrantStore } from "#/modules/identity/domain/grant-store.ts";
-import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
 import { Grants, AiClientsModule, IdentityPostgres } from "#/modules/identity/index.ts";
 import { grantModelWalks, isLive } from "#/modules/identity/testing/grant-model.ts";
 import { authenticationByUserId } from "#/modules/identity/testing/authentication-by-user-id.ts";
-import { TestDatabase } from "#/modules/testing/index.ts";
+import { aUser, setStatus, TestDatabase } from "#/modules/testing/index.ts";
+import { Users } from "#/modules/users/index.ts";
 
 const ada = new User({
   id: UserId.make(crypto.randomUUID()),
@@ -39,14 +39,7 @@ const grace = new User({
 });
 
 // Each database is built apart, so the same two Users are stored in every one.
-const StoredUsers = Layer.effectDiscard(
-  Effect.gen(function* () {
-    const users = yield* UserRepository;
-
-    yield* users.create(ada, "unused");
-    yield* users.create(grace, "unused");
-  }),
-);
+const StoredUsers = Layer.effectDiscard(Effect.all([aUser(ada), aUser(grace)]));
 
 const publicOrigin = "https://quack.test";
 const resource = `${publicOrigin}/api/mcp`;
@@ -140,9 +133,10 @@ const withEnv = (env: Record<string, string>) =>
   Layer.mergeAll(
     AiClientsModule.pipe(
       Layer.provide(StubHttpClient),
-      Layer.provideMerge(StoredUsers.pipe(Layer.provideMerge(IdentityPostgres))),
+      Layer.provideMerge(StoredUsers),
+      Layer.provideMerge([Users.layer, IdentityPostgres]),
       Layer.provideMerge(authenticationByUserId([ada, grace])),
-      Layer.provide(TestDatabase),
+      Layer.provideMerge(TestDatabase),
       Layer.provide(
         ConfigProvider.layer(ConfigProvider.fromUnknown({ PUBLIC_URL: publicOrigin, ...env })),
       ),
@@ -1076,7 +1070,7 @@ layer(withConfig({}))("OAuthApi token, a User no longer active", (it) => {
       const tokens = yield* tokensOfANewAiClient();
       assert.isTrue(yield* opens(tokens.access_token));
 
-      yield* (yield* UserRepository).update(new User({ ...ada, status: "suspended" }));
+      yield* setStatus(ada.id, "suspended");
 
       assert.isFalse(yield* opens(tokens.access_token));
       assert.isTrue(Option.isNone(yield* (yield* GrantStore).findOf(ada.id, tokens.clientId)));

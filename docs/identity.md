@@ -9,13 +9,13 @@ The rules of `modules/identity` that its code does not show on its own. The dura
 
 ## Sign-in
 
-- Only a User whose Status lets them (`canSignIn` in `domain/user.ts`) signs in. Another one gets `InvalidCredentials` after the check of their password, so the refusal tells nothing to whoever does not know it, and their Session ends at its next request.
+- Only a User whose Status lets them (`canSignIn` in `modules/users/lib/users.ts`) signs in. Another one gets `InvalidCredentials` after the check of their password, so the refusal tells nothing to whoever does not know it, and their Session ends at its next request.
 - A sign-in records `lastSignInAt`.
 
 ## Onboarding
 
 - A User is onboarded once `onboardedAt` is set, whatever their Profile: a Profile filled in for them does not spare them the onboarding.
-- `completeOnboarding` sets the name of the Profile, creating it with nothing else filled in, and records `onboardedAt` (`onboarded` in `domain/user.ts`). A second one changes the name and keeps the first date.
+- `completeOnboarding` sets the name of the Profile, creating it with nothing else filled in, and records `onboardedAt` (`onboarded` in `modules/users/lib/users.ts`). A second one changes the name and keeps the first date.
 - Only the web app holds a User who is not onboarded back; the API answers them as any other.
 
 ## Password Reset
@@ -34,6 +34,6 @@ Slows down the guessing of passwords and of OAuth secrets (port: `domain/attempt
 
 ## Seed
 
-`IdentitySeed` (`application/identity-seed.ts`) creates the Users of `devUsers()` through `UserRepository.create` and logs their credentials. It gives the same Users at every run (ids from a seeded faker, dates spread over the two years before the fixed `seedDate` of `database/seed-date.ts`, every Status, some with no Profile or never signed in; onboarded when they have a Profile and signed in), so the data is in a known state, but for what the sign-ins below change. Every seeded User has the hash `devPasswordHash`, computed once from the dev password, so seeding hashes nothing; a test checks it still verifies. The `user` and `admin` accounts are in `@quack/contracts/identity/dev-accounts`, which the sign-in page reads for its one-click sign-in in dev.
+The seed (`database/seed.ts`) stores the Users of `seedUsers` (`modules/users`) and logs their credentials: 100 Users, the same at every run (ids from a seeded faker, dates spread over the two years before the fixed `seedDate` of `database/seed-date.ts`, every Status, some with no Profile or never signed in; onboarded when they have a Profile and signed in), all with the dev password, hashed once. It then signs the `user` and `admin` dev accounts up through the Api, onboards them and fills in their Profile, and gives `admin` its Role through `Users.grantRole`: no endpoint makes the first Admin. The dev accounts are in `@quack/contracts/identity/dev-accounts`, which the sign-in page reads for its one-click sign-in in dev.
 
-Those two accounts are the first draws of the faker, so their ids do not change with the random Users. `seedDatabase` then signs in as each through the `Api`, called in process, and hands the client to the todos module's `seedTodos`, which creates a few Todos and completes some, as a User would: the todos module knows nothing of identity's seed, and its Todos take the ids and dates of the run. Signing in leaves each account a Session and sets its `lastSignInAt` to the run. The random Users get no Todos.
+The `Api` is called in process, and the client of each dev account goes to the todos module's `seedTodos`, which creates a few Todos and completes some, as a User would: the todos module knows nothing of the seed of Users. The dev accounts, their Sessions and their Todos take the ids and dates of the run. The random Users get no Todos.

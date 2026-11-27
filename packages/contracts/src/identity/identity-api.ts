@@ -1,4 +1,4 @@
-import { Schema, SchemaTransformation } from "effect";
+import { Schema } from "effect";
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from "effect/http-api";
 
 import { Authentication } from "#/identity/authentication.ts";
@@ -7,10 +7,8 @@ import {
   ExpiredLink,
   InvalidCredentials,
   TooManyAttempts,
-  Unauthenticated,
   WrongPassword,
 } from "#/identity/identity-errors.ts";
-import { PersonName, Profile } from "#/identity/profile.ts";
 import { Email, Me, Password, TimeZone, User } from "#/identity/user.ts";
 import { RequiredPermission } from "#/permission.ts";
 
@@ -21,8 +19,6 @@ export const SignInPayload = Credentials;
 
 /** The time zone is the browser's: the User changes it later in the settings. */
 export const SignUpPayload = Schema.Struct({ ...Credentials.fields, timeZone: TimeZone });
-
-export const TimeZonePayload = Schema.Struct({ timeZone: TimeZone });
 
 export const PasswordResetRequestPayload = Schema.Struct({ email: Email });
 
@@ -35,18 +31,6 @@ export const PasswordResetConfirmPayload = Schema.Struct({
 export const EmailChangeRequestPayload = Schema.Struct({ newEmail: Email, password: Password });
 
 export const EmailChangeConfirmPayload = Schema.Struct({ token: Schema.NonEmptyString });
-
-/** Trims what was typed, then decodes it with `schema`, whose `Schema.Trimmed` would only refuse the spaces. */
-const trimmed = <S extends Schema.Codec<string, string>>(schema: S) =>
-  Schema.String.pipe(Schema.decodeTo(schema, SchemaTransformation.trim()));
-
-/** What the onboarding asks for: the fields a Profile requires. */
-export const OnboardingPayload = Schema.Struct({
-  firstName: trimmed(PersonName),
-  lastName: trimmed(PersonName),
-});
-
-export type OnboardingPayload = typeof OnboardingPayload.Type;
 
 export class IdentityApi extends HttpApiGroup.make("identity").add(
   HttpApiEndpoint.post("signUp", "/sign-up", {
@@ -110,28 +94,6 @@ export class IdentityApi extends HttpApiGroup.make("identity").add(
     .middleware(Authentication),
   /** The link of the pending Email Change stops working. */
   HttpApiEndpoint.delete("cancelEmailChange", "/me/email-change")
-    .annotate(RequiredPermission, "none")
-    .middleware(Authentication),
-  /** Replaces the whole Profile of the Current User, and answers with their User. */
-  HttpApiEndpoint.put("updateProfile", "/me/profile", {
-    payload: Profile,
-    success: User,
-    error: Unauthenticated.pipe(HttpApiSchema.status(401)),
-  })
-    .annotate(RequiredPermission, "none")
-    .middleware(Authentication),
-  HttpApiEndpoint.put("updateTimeZone", "/me/time-zone", {
-    payload: TimeZonePayload,
-    success: User,
-    error: Unauthenticated.pipe(HttpApiSchema.status(401)),
-  })
-    .annotate(RequiredPermission, "none")
-    .middleware(Authentication),
-  HttpApiEndpoint.post("completeOnboarding", "/me/onboarding", {
-    payload: OnboardingPayload,
-    success: User,
-    error: Unauthenticated.pipe(HttpApiSchema.status(401)),
-  })
     .annotate(RequiredPermission, "none")
     .middleware(Authentication),
 ) {}

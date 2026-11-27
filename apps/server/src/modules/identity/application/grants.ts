@@ -29,9 +29,7 @@ import {
   type TokenTerms,
 } from "#/modules/identity/domain/grant.ts";
 import { GrantStore } from "#/modules/identity/domain/grant-store.ts";
-import { rolePermissions } from "#/modules/identity/domain/role-permissions.ts";
-import { canSignIn } from "#/modules/identity/domain/user.ts";
-import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
+import { rolePermissions, Users } from "#/modules/users/index.ts";
 
 const refused = (error: TokenRequestRefused["error"], error_description: string) =>
   new TokenRequestRefused({ error, error_description });
@@ -128,7 +126,7 @@ export class Grants extends Context.Service<
     Effect.gen(function* () {
       const codes = yield* AuthorizationCodeStore;
       const grants = yield* GrantStore;
-      const users = yield* UserRepository;
+      const users = yield* Users;
       const limiter = yield* AttemptLimiter;
       const random = yield* SecureRandom.SecureRandom;
       const digest = yield* Digest.Digest;
@@ -207,12 +205,11 @@ export class Grants extends Context.Service<
        * it is read, as their Session does.
        */
       const revokeUnlessLive = Effect.fnUntraced(function* (grant: Grant) {
-        const user = yield* users.findById(grant.userId);
+        const user = yield* users.find({ id: grant.userId });
 
         if (
           DateTime.isGreaterThanOrEqualTo(yield* DateTime.now, grant.expiresAt) ||
-          Option.isNone(user) ||
-          !canSignIn(user.value)
+          Option.isNone(user)
         ) {
           yield* grants.revoke(grant.id);
 

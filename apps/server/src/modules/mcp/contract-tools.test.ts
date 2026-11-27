@@ -18,6 +18,7 @@ import { SystemModule } from "#/modules/system/index.ts";
 import { aUser, TestDatabase } from "#/modules/testing/index.ts";
 import { TodosModule } from "#/modules/todos/index.ts";
 import { TransactionPostgres } from "#/modules/transaction/index.ts";
+import { Users, UsersModule } from "#/modules/users/index.ts";
 
 // No tool fetches an AI Client's document.
 const NoHttpClient = Layer.succeed(
@@ -25,11 +26,11 @@ const NoHttpClient = Layer.succeed(
   HttpClient.make(() => Effect.die("these tests fetch nothing")),
 );
 
-const ApiHandlers = Layer.mergeAll(SystemModule, TodosModule, AiClientsModule).pipe(
+const ApiHandlers = Layer.mergeAll(SystemModule, TodosModule, UsersModule, AiClientsModule).pipe(
   Layer.provideMerge(IdentityModule),
-  Layer.provideMerge([IdentityPostgres, TransactionPostgres]),
+  Layer.provideMerge([Users.layer, IdentityPostgres, TransactionPostgres]),
   Layer.provide([MailerMemory, NoHttpClient]),
-  Layer.provide(TestDatabase),
+  Layer.provideMerge(TestDatabase),
   Layer.provide(
     ConfigProvider.layer(ConfigProvider.fromUnknown({ PUBLIC_URL: "https://quack.test" })),
   ),

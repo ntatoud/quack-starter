@@ -19,6 +19,7 @@ import {
 import { IdentityModule, IdentityPostgres, McpCaller } from "#/modules/identity/index.ts";
 import { MailerMemory } from "#/modules/mail/index.ts";
 import { TestDatabase } from "#/modules/testing/index.ts";
+import { Users } from "#/modules/users/index.ts";
 import { TransactionPostgres } from "#/modules/transaction/index.ts";
 
 class ProbeApi extends HttpApi.make("probe").add(
@@ -70,7 +71,7 @@ const probeAs = (cookie: string) =>
 
 const TestLayer = ProbeHandlers.pipe(
   Layer.provideMerge(IdentityModule),
-  Layer.provide([IdentityPostgres, TransactionPostgres, MailerMemory]),
+  Layer.provide([Users.layer, IdentityPostgres, TransactionPostgres, MailerMemory]),
   Layer.provideMerge(HttpServer.layerServices),
   Layer.provide(TestDatabase),
   Layer.provide(

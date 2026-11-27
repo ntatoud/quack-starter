@@ -1,5 +1,6 @@
 import { base, en, Faker } from "@faker-js/faker";
-import { devAccounts, devPassword } from "@quack/contracts/identity/dev-accounts";
+import type { Api } from "@quack/contracts/api";
+import { devPassword } from "@quack/contracts/identity/dev-accounts";
 import { CountryCode, Profile, Team } from "@quack/contracts/identity/profile";
 import {
   Email,
@@ -9,21 +10,15 @@ import {
   UserId,
   type UserStatus,
 } from "@quack/contracts/identity/user";
-import { DateTime, Effect, Layer, Schema } from "effect";
+import { DateTime, Effect, Redacted, Schema } from "effect";
+import type { HttpApiClient } from "effect/http-api";
 
 import { seedDate } from "#/database/seed-date.ts";
-import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
-
-/** The argon2id hash of `devPassword`, a constant so that seeding hashes nothing. */
-export const devPasswordHash =
-  "$argon2id$v=19$m=19456,t=2,p=1$KRL24AiOiRziOzszWPAFpA$0Zrm21ZkbUE8ObVN5MYqUcIG/xABGETqXdzX4X9v0Xs";
-
-const dayMillis = 24 * 60 * 60 * 1000;
+import { hashPassword } from "#/modules/users/lib/password.ts";
+import { userQueries } from "#/modules/users/lib/user-queries.ts";
+import { Users } from "#/modules/users/lib/users.ts";
 
 const onboardingMillis = 5 * 60 * 1000;
-
-const daysBeforeSeed = (days: number) =>
-  DateTime.fromDateUnsafe(new Date(seedDate.getTime() - days * dayMillis));
 
 const paris = Schema.decodeSync(TimeZone)("Europe/Paris");
 
@@ -38,26 +33,6 @@ const timeZones = [
     "Australia/Sydney",
   ].map((zone) => Schema.decodeSync(TimeZone)(zone)),
 ];
-
-const devAccount = (faker: Faker, email: string, role: Role, firstName: string): User =>
-  new User({
-    id: UserId.make(faker.string.uuid()),
-    email: Schema.decodeSync(Email)(email),
-    role,
-    status: "active",
-    createdAt: daysBeforeSeed(400),
-    lastSignInAt: daysBeforeSeed(1),
-    onboardedAt: daysBeforeSeed(400),
-    profile: new Profile({
-      firstName,
-      lastName: "Quack",
-      avatarUrl: null,
-      jobTitle: role === "admin" ? "Administrator" : "Member",
-      team: "operations",
-      country: CountryCode.make("FR"),
-    }),
-    timeZone: paris,
-  });
 
 const randomUsers = (faker: Faker, count: number): ReadonlyArray<User> => {
   const emails = new Set<string>();
@@ -128,35 +103,57 @@ const seededFaker = () => {
   return faker;
 };
 
-// The first draws of the faker, so that their ids do not depend on the random Users.
-const devAccountUsers = (faker: Faker): ReadonlyArray<User> => [
-  devAccount(faker, devAccounts.admin, "admin", "Admin"),
-  devAccount(faker, devAccounts.user, "user", "User"),
-];
-
-export const devUsers = (): ReadonlyArray<User> => {
+/**
+ * Users of every Status, some with no Profile or never signed in, the same at every run: no endpoint makes a User
+ * `invited`, nor one who signed up before today.
+ */
+export const seedUsers = Effect.gen(function* () {
+  const { create } = yield* userQueries;
   const faker = seededFaker();
+  const seeded = randomUsers(faker, 100);
 
-  return [...devAccountUsers(faker), ...randomUsers(faker, 100)];
+  // One hash for them all: argon2 takes tens of milliseconds by design.
+  const passwordHash = yield* hashPassword(Redacted.make(devPassword));
+
+  yield* Effect.forEach(seeded, (user) => Effect.orDie(create(user, passwordHash)), {
+    discard: true,
+  });
+  yield* Effect.logInfo(`Seeded ${seeded.length} Users`).pipe(
+    Effect.annotateLogs({
+      first: seeded.slice(0, 3).map(({ email }) => email),
+      password: devPassword,
+    }),
+  );
+});
+
+const devProfileOf: Readonly<
+  Record<Role, { readonly firstName: string; readonly jobTitle: string }>
+> = {
+  user: { firstName: "User", jobTitle: "Member" },
+  admin: { firstName: "Admin", jobTitle: "Administrator" },
 };
 
-export const IdentitySeed = Layer.effectDiscard(
-  Effect.gen(function* () {
-    const users = yield* UserRepository;
-    const seeded = devUsers();
-    yield* Effect.forEach(
-      seeded,
-      (user) =>
-        users
-          .create(user, devPasswordHash)
-          .pipe(Effect.catchTag("EmailAlreadyTaken", () => Effect.void)),
-      { discard: true },
-    );
-    yield* Effect.logInfo(`Seeded ${seeded.length} Users`).pipe(
-      Effect.annotateLogs({
-        first: seeded.slice(0, 3).map(({ email }) => email),
-        password: devPassword,
-      }),
-    );
-  }),
-);
+/**
+ * Onboards a dev account, signed up through the Api, and fills in its Profile as its User would. An Admin is no Role
+ * an endpoint gives: `Users` gives it, as nothing else can make the first one.
+ */
+export const seedDevAccount = Effect.fn("seedDevAccount")(function* (
+  users: HttpApiClient.ForApi<typeof Api>["users"],
+  id: UserId,
+  role: Role,
+) {
+  const { firstName, jobTitle } = devProfileOf[role];
+  const name = { firstName, lastName: "Quack" };
+  yield* users.completeOnboarding({ payload: name });
+  yield* users.updateProfile({
+    payload: new Profile({
+      ...name,
+      avatarUrl: null,
+      jobTitle,
+      team: "operations",
+      country: CountryCode.make("FR"),
+    }),
+  });
+
+  if (role === "admin") yield* (yield* Users).grantRole(id, role);
+});
