@@ -333,8 +333,8 @@ importers:
         specifier: 10.6.1
         version: 10.6.1
       xstate:
-        specifier: 6.0.0-beta.4
-        version: 6.0.0-beta.4
+        specifier: 6.0.0-beta.5
+        version: 6.0.0-beta.5
     devDependencies:
       '@effect/vitest':
         specifier: 'catalog:'
@@ -403,8 +403,8 @@ importers:
         specifier: 'catalog:'
         version: 19.3.1(react@19.3.1)
       xstate:
-        specifier: 6.0.0-beta.4
-        version: 6.0.0-beta.4
+        specifier: 6.0.0-beta.5
+        version: 6.0.0-beta.5
     devDependencies:
       '@tailwindcss/vite':
         specifier: 'catalog:'
@@ -4617,8 +4617,8 @@ packages:
     resolution: {integrity: sha512-bx8Q1STctnNaaDymWnkfQLKofs0mGNN7rLLapJlGuV3VlvegD7Ls4ggMjE3aUSWItCCzU0PEv45lI87iSigiCA==}
     engines: {node: '>=20.0'}
 
-  xstate@6.0.0-beta.4:
-    resolution: {integrity: sha512-sGFj6r5YOVqYepCtv1VVksodsFYMhAWKAvRGiK2/6sTJh9ZOZV8K27FESE+tMvpWE2tDRHsKHUbxny3adn/ZcA==}
+  xstate@6.0.0-beta.5:
+    resolution: {integrity: sha512-5dlaEjWa9UPaa5UH6W3nvCVR7UIIkSCJpY9ug/BxLkLBGGA3mWbAr8ebEYCuGvd+yUCwFc3FL9zbSqfgKhiBrg==}
     hasBin: true
 
   xtend@4.0.2:
@@ -8135,7 +8135,7 @@ snapshots:
       '@oozcitak/util': 10.0.0
       js-yaml: 4.3.2
 
-  xstate@6.0.0-beta.4: {}
+  xstate@6.0.0-beta.5: {}
 
   xtend@4.0.2: {}
 
