@@ -5,7 +5,7 @@ import { Todo, TodoId, TodoTitle } from "@quack/contracts/todos/todo";
 import { DateTime, Effect, Layer } from "effect";
 
 import { seedDate } from "#/database/seed-date.ts";
-import { Todos } from "#/modules/todos/todos.ts";
+import { Todos } from "#/modules/todos/lib/todos.ts";
 
 const drafts = [
   { title: "Read the README", completed: true },

@@ -3,7 +3,7 @@ import { CurrentUser } from "@quack/contracts/identity/authentication";
 import { Effect } from "effect";
 import { HttpApiBuilder } from "effect/http-api";
 
-import { Todos } from "#/modules/todos/todos.ts";
+import { Todos } from "#/modules/todos/lib/todos.ts";
 
 export const TodosHandlers = HttpApiBuilder.group(
   Api,
