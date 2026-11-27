@@ -59,9 +59,10 @@ export class Users extends Context.Service<
      * tell that no User has it.
      */
     verifyPassword(email: Email, password: Password): Effect.Effect<Option.Option<User>>;
+    /** As `verifyPassword`, and records the sign-in of the User it finds. */
+    signIn(email: Email, password: Password): Effect.Effect<Option.Option<User>>;
     /** The User, while they may sign in: a User no longer `active` is found no more. */
     find(key: UserKey): Effect.Effect<Option.Option<User>>;
-    recordSignIn(user: User): Effect.Effect<User>;
     /** Whether a User of any Status has the email. */
     isEmailTaken(email: Email): Effect.Effect<boolean>;
     changePassword(id: UserId, password: Password): Effect.Effect<void>;
@@ -88,11 +89,26 @@ export class Users extends Context.Service<
     Effect.gen(function* () {
       const queries = yield* userQueries;
 
-      const findByEmail = (email: Email) =>
-        Effect.map(
-          queries.findByEmail(email),
-          Option.filter(({ user }) => canSignIn(user)),
-        );
+      const verifyPassword = Effect.fn("Users.verifyPassword")(function* (
+        email: Email,
+        password: Password,
+      ) {
+        const found = yield* queries.findByEmail(email);
+
+        if (Option.isNone(found)) {
+          // The slow step of a check, done for nothing.
+          yield* hashPassword(password);
+
+          return Option.none<User>();
+        }
+
+        const { user, passwordHash } = found.value;
+
+        // After the password: whoever does not know it must not learn the Status of the User.
+        const matches = yield* isPasswordOf(password, passwordHash);
+
+        return matches && canSignIn(user) ? Option.some(user) : Option.none<User>();
+      });
 
       // Read again rather than taken from the Current User: the write must not bring back what changed since the
       // request was authenticated.
@@ -132,35 +148,24 @@ export class Users extends Context.Service<
 
           return user;
         }),
-        verifyPassword: Effect.fn("Users.verifyPassword")(function* (email, password) {
-          const found = yield* queries.findByEmail(email);
+        verifyPassword,
+        signIn: Effect.fn("Users.signIn")(function* (email, password) {
+          const found = yield* verifyPassword(email, password);
 
-          if (Option.isNone(found)) {
-            // The slow step of a check, done for nothing.
-            yield* hashPassword(password);
+          if (Option.isNone(found)) return found;
 
-            return Option.none();
-          }
-
-          const { user, passwordHash } = found.value;
-
-          // After the password: whoever does not know it must not learn the Status of the User.
-          const matches = yield* isPasswordOf(password, passwordHash);
-
-          return matches && canSignIn(user) ? Option.some(user) : Option.none();
-        }),
-        find: Effect.fn("Users.find")(function* (key) {
-          if ("email" in key) {
-            return Option.map(yield* findByEmail(key.email), ({ user }) => user);
-          }
-
-          return Option.filter(yield* queries.findById(key.id), canSignIn);
-        }),
-        recordSignIn: Effect.fn("Users.recordSignIn")(function* (user) {
-          const signedIn = new User({ ...user, lastSignInAt: yield* DateTime.now });
+          const signedIn = new User({ ...found.value, lastSignInAt: yield* DateTime.now });
           yield* queries.update(signedIn);
 
-          return signedIn;
+          return Option.some(signedIn);
+        }),
+        find: Effect.fn("Users.find")(function* (key) {
+          const found =
+            "email" in key
+              ? Option.map(yield* queries.findByEmail(key.email), ({ user }) => user)
+              : yield* queries.findById(key.id);
+
+          return Option.filter(found, canSignIn);
         }),
         isEmailTaken: Effect.fn("Users.isEmailTaken")((email) =>
           Effect.map(queries.findByEmail(email), Option.isSome),

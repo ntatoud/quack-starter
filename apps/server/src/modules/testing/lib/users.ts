@@ -15,7 +15,6 @@ import type { HttpApi, HttpApiGroup } from "effect/http-api";
 import { hashPassword } from "#/modules/users/lib/password.ts";
 import { userQueries } from "#/modules/users/lib/user-queries.ts";
 
-/** The password of every User `aUser` stores. */
 export const knownPassword: Password = Redacted.make("correct horse battery staple");
 
 // Argon2 takes tens of milliseconds by design: once for each test worker is enough.

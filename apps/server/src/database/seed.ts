@@ -125,7 +125,7 @@ const seedDevAccount = Effect.fn("seedDevAccount")(function* (role: Role) {
     }),
   });
 
-  yield* (yield* Users).grantRole(user.id, role);
+  if (role === "admin") yield* (yield* Users).grantRole(user.id, role);
 
   return client;
 });

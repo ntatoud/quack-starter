@@ -15,14 +15,11 @@ import {
 } from "kysely";
 import { jsonBuildObject } from "kysely/helpers/postgres";
 
-import { db, type Tables } from "#/database/db.ts";
+import { db, isStorableId, type Tables } from "#/database/db.ts";
 
 const UserWithHash = Schema.Struct({ user: User, passwordHash: Schema.String });
 
-const UserList = Schema.Struct({ items: Schema.Array(User), total: Schema.Int });
-
-// An id that is no uuid finds no User: Postgres would refuse to compare it with the column, and fail the request.
-const isStorableId = Schema.is(Schema.String.check(Schema.isUUID()));
+const UserPage = Schema.Struct({ items: Schema.Array(User), total: Schema.Int });
 
 const byStorableId = <A, E>(id: UserId, query: Effect.Effect<A, E>, none: A): Effect.Effect<A> =>
   isStorableId(id) ? Effect.orDie(query) : Effect.succeed(none);
@@ -152,7 +149,7 @@ export const userQueries = Effect.gen(function* () {
   // The total comes from every matching row, so a page past the last one still has it.
   const list = SqlSchema.findOne({
     Request: Schema.toType(UserListQuery),
-    Result: UserList,
+    Result: UserPage,
     execute: ({ page, pageSize, orderBy, dir, search = "", status, role, team, onboarded }) => {
       const pattern = `%${escapeLike(search)}%`;
 

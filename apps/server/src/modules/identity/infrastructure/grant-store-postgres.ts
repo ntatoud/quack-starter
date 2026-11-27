@@ -4,7 +4,7 @@ import { Effect, Layer, Option, Schema, Struct } from "effect";
 import { executor } from "@quack/effect-kysely/kysely";
 import { SqlClient, SqlSchema } from "effect/sql";
 
-import { db } from "#/database/db.ts";
+import { db, isStorableId } from "#/database/db.ts";
 
 import { GrantStore } from "#/modules/identity/domain/grant-store.ts";
 
@@ -54,9 +54,6 @@ const GrantWithRefreshTokenRow = Schema.Struct({
   refreshTokenPermissions: Schema.Array(Permission),
   refreshTokenReplaced: Schema.Boolean,
 });
-
-// An id that is no uuid finds no User: Postgres would refuse to compare it with the column, and fail the request.
-const isStorableId = Schema.is(Schema.String.check(Schema.isUUID()));
 
 export const GrantStorePostgres = Layer.effect(
   GrantStore,

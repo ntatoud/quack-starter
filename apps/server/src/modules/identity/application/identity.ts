@@ -100,7 +100,7 @@ export class Identity extends Context.Service<
           // Counted as a failure up front: sign-ins arriving at once would all pass before the first one is counted.
           yield* limiter.take([failuresOfEmail, failuresOfIp]);
 
-          const found = yield* users.verifyPassword(email, password);
+          const found = yield* users.signIn(email, password);
 
           if (Option.isNone(found)) {
             return yield* new InvalidCredentials();
@@ -110,7 +110,7 @@ export class Identity extends Context.Service<
           // the failures on the emails of others.
           yield* limiter.reset(failuresOfEmail);
           yield* limiter.giveBack(failuresOfIp);
-          const user = yield* users.recordSignIn(found.value);
+          const user = found.value;
 
           return { user, session: yield* openSession(user) };
         }),

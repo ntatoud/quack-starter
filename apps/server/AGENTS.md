@@ -15,7 +15,7 @@ To add a context, copy `modules/todos`:
 
 `modules/users` is the other shape to copy: its `Users` service is what the other modules ask of the Users (`register`, `verifyPassword`, `find`...), its Layer apart from the endpoints, since `Authentication` asks it too. Hashing, email uniqueness and Status rules stay inside it.
 
-A module's seed goes through the `Api`, as a User would: `seedTodos` takes a signed-in client, and `database/seed.ts` signs in as each dev account.
+A module's seed goes through the `Api`, as a User would: `seedTodos` takes a signed-in client, and `database/seed.ts` signs each dev account up and hands it its client.
 
 - A module reaches another one through its `index.ts`, and identity through the contract (`CurrentUser`, `UserId`).
 - Only a handler reads `CurrentUser`. It passes the Owner to the service as `ownerId`, and every query filters by it: another Owner's data is not found (404), so the API never tells that it exists.
