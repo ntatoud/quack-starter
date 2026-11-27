@@ -17,6 +17,7 @@ import {
   UserInvited,
   UserNotFound,
 } from "@quack/contracts/users/user-errors";
+import { TodoId, TodoTitle } from "@quack/contracts/todos/todo";
 import { OnboardingPayload, type UserOrder } from "@quack/contracts/users/users-api";
 import { ConfigProvider, DateTime, Effect, Layer, Schema } from "effect";
 import { HttpServer } from "effect/http";
@@ -26,10 +27,12 @@ import { TestClock } from "effect/testing";
 import { IdentityModule, IdentityPostgres } from "#/modules/identity/index.ts";
 import { MailerMemory } from "#/modules/mail/index.ts";
 import { aUser, signedIn, TestDatabase } from "#/modules/testing/index.ts";
+import { TodosModule } from "#/modules/todos/index.ts";
 import { TransactionPostgres } from "#/modules/transaction/index.ts";
 import { Users, UsersModule } from "#/modules/users/index.ts";
 
-const UsersApi = UsersModule.pipe(
+// The todos endpoints too: a Role gives Permissions on both.
+const UsersApi = Layer.mergeAll(UsersModule, TodosModule).pipe(
   Layer.provideMerge(IdentityModule),
   Layer.provideMerge([Users.layer, IdentityPostgres, TransactionPostgres]),
   Layer.provide(MailerMemory),
@@ -723,4 +726,42 @@ it.effect("refuses the Current User's endpoints to a visitor with Unauthenticate
     ]);
     assert.strictEqual(response.status, 401);
   }).pipe(Effect.provide(UsersApi)),
+);
+
+/** The Permission an endpoint refused the caller, or `allowed` when it let them past, whatever it answered then. */
+const permissionRefused = <A, E>(call: Effect.Effect<A, E>) =>
+  Effect.match(call, {
+    onFailure: (error) => (error instanceof Forbidden ? error.permission : "allowed"),
+    onSuccess: () => "allowed",
+  });
+
+it.effect.each([
+  [
+    "user",
+    ["allowed", "allowed", "allowed", "users:list", "users:read", "users:write", "users:delete"],
+  ],
+  ["admin", ["allowed", "allowed", "allowed", "allowed", "allowed", "allowed", "allowed"]],
+] as const)(
+  "gives a %s the Permissions of their Role, and refuses the others",
+  ([role, expected]) =>
+    Effect.gen(function* () {
+      const client = yield* signedIn(yield* aUser({ role }), ["todos", "users"]);
+      const params = { id: (yield* aUser()).id };
+
+      const outcomes = [
+        yield* permissionRefused(client.todos.list()),
+        yield* permissionRefused(
+          client.todos.create({ payload: { title: TodoTitle.make("Ship") } }),
+        ),
+        yield* permissionRefused(
+          client.todos.remove({ params: { id: TodoId.make(crypto.randomUUID()) } }),
+        ),
+        yield* permissionRefused(client.users.list({ query: firstPage })),
+        yield* permissionRefused(client.users.get({ params })),
+        yield* permissionRefused(client.users.update({ params, payload: { role: "user" } })),
+        yield* permissionRefused(client.users.remove({ params })),
+      ];
+
+      assert.deepStrictEqual(outcomes, [...expected]);
+    }).pipe(Effect.provide(UsersApi)),
 );

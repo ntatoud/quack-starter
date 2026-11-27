@@ -375,6 +375,22 @@ layer(withConfig({ SIGN_UPS_PER_IP: "1000" }))("IdentityApi", (it) => {
     }),
   );
 
+  it.effect(
+    "refuses the Session of a User deleted since they signed in, and clears its cookie",
+    () =>
+      Effect.gen(function* () {
+        const browser = yield* makeBrowser;
+        const { user } = yield* browser.signUp(asTyped("deleted.later@example.com"));
+        const admin = yield* aUser({ role: "admin" });
+        yield* (yield* Users).remove(user.id, admin.id);
+
+        const { status, setCookie } = yield* browser.meResponse;
+
+        assert.strictEqual(status, 401);
+        assertCookieCleared(setCookie);
+      }),
+  );
+
   it.effect("clears the session cookie when the request has no Session", () =>
     Effect.gen(function* () {
       const browser = yield* makeBrowser;
@@ -944,6 +960,25 @@ layer(withConfig({ SIGN_UPS_PER_IP: "1000" }))("IdentityApi, Email Change", (it)
       assert.lengthOf(yield* mailsTo("change.wrong.new@example.com", 0), 0);
       assert.lengthOf(yield* mailsTo("change.wrong@example.com", 0), 0);
     }),
+  );
+
+  // `Authentication` reads the User before the request does: a suspended User asks for nothing.
+  it.effect(
+    "refuses the Email Change of a User suspended since they signed in, and mails nothing",
+    () =>
+      Effect.gen(function* () {
+        const browser = yield* makeBrowser;
+        const { user } = yield* browser.signUp(asTyped("change.suspended@example.com"));
+        yield* setStatus(user.id, "suspended");
+
+        const error = yield* browser
+          .requestEmailChange(asTyped("change.suspended.new@example.com"))
+          .pipe(Effect.flip);
+
+        assert.strictEqual(error._tag, "Unauthenticated");
+        assert.lengthOf(yield* mailsTo("change.suspended.new@example.com", 0), 0);
+        assert.lengthOf(yield* mailsTo("change.suspended@example.com", 0), 0);
+      }),
   );
 
   it.effect("keeps the email until the link is opened, then changes it", () =>
