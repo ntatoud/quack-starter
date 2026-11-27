@@ -11,7 +11,7 @@ export const Route = createFileRoute("/_guest")({
   beforeLoad: ({ context, location }) => {
     if (context.currentUser === null) return;
 
-    const search = Schema.decodeUnknownSync(SignInSearch)(location.search);
+    const search = Schema.decodeSync(SignInSearch)(location.search);
 
     throw redirect({ href: redirectTarget(search.redirect) });
   },

@@ -197,7 +197,7 @@ layer(withConfig({ SIGN_UPS_PER_IP: "1000" }))("IdentityApi", (it) => {
   it.effect("keeps the time zone the browser sent at sign-up", () =>
     Effect.gen(function* () {
       const browser = yield* makeBrowser;
-      const tokyo = Schema.decodeSync(TimeZone)("Asia/Tokyo");
+      const tokyo = yield* Schema.decodeEffect(TimeZone)("Asia/Tokyo");
 
       const { user } = yield* browser.signUp(asTyped("ada.tokyo@example.com"), tokyo);
 
@@ -210,7 +210,7 @@ layer(withConfig({ SIGN_UPS_PER_IP: "1000" }))("IdentityApi", (it) => {
     Effect.gen(function* () {
       const browser = yield* makeBrowser;
       yield* browser.signUp(asTyped("ada.moves@example.com"));
-      const newYork = Schema.decodeSync(TimeZone)("America/New_York");
+      const newYork = yield* Schema.decodeEffect(TimeZone)("America/New_York");
 
       const updated = yield* browser.updateTimeZone(newYork);
 
@@ -226,7 +226,7 @@ layer(withConfig({ SIGN_UPS_PER_IP: "1000" }))("IdentityApi", (it) => {
       yield* ada.signUp(asTyped("ada.zone@example.com"));
       yield* charles.signUp(asTyped("charles.zone@example.com"));
 
-      yield* ada.updateTimeZone(Schema.decodeSync(TimeZone)("Asia/Tokyo"));
+      yield* ada.updateTimeZone(yield* Schema.decodeEffect(TimeZone)("Asia/Tokyo"));
 
       assert.strictEqual(DateTime.zoneToString((yield* charles.me).timeZone), "Europe/Paris");
     }),
