@@ -7,7 +7,7 @@
   },
   "exports": {
     "./register": "./src/register.ts",
-    "./*": "./src/*.tsx"
+    "./templates/*": "./src/templates/*.tsx"
   },
   "scripts": {
     "dev": "portless run --name emails.quack sh -c 'email dev --dir src/templates --port ${PORT:-3002}'",
