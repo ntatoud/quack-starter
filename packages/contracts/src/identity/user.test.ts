@@ -66,7 +66,7 @@ describe("TimeZone", () => {
   const decode = Schema.decodeUnknownOption(TimeZone);
 
   it("decodes an IANA name into the zone it names", () => {
-    const zone = Schema.decodeUnknownSync(TimeZone)("Europe/Paris");
+    const zone = Schema.decodeSync(TimeZone)("Europe/Paris");
 
     expect(DateTime.zoneToString(zone)).toBe("Europe/Paris");
     expect(decode("UTC")._tag).toBe("Some");
