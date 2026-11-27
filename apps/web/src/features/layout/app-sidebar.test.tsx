@@ -5,12 +5,9 @@ import { AppSidebar } from "#/features/layout/app-sidebar.tsx";
 import { renderSidebar } from "#/testing/render-sidebar.tsx";
 
 describe("AppSidebar", () => {
-  it("links to Today, the todos, and the administration, for an admin", async () => {
+  it("links to the todos and to the administration, for an admin", async () => {
     await renderSidebar(AppSidebar, "admin");
 
-    await expect
-      .element(page.getByRole("link", { name: "Today" }))
-      .toHaveAttribute("href", "/app/today");
     await expect.element(page.getByRole("link", { name: "Todos" })).toBeVisible();
     await expect
       .element(page.getByRole("link", { name: "Administration" }))

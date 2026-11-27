@@ -1,7 +1,6 @@
 import { HttpApi, OpenApi } from "effect/http-api";
 
 import { GrantsApi } from "#/grants/grants-api.ts";
-import { HabitsApi } from "#/habits/habits-api.ts";
 import { IdentityApi } from "#/identity/identity-api.ts";
 import { OAuthApi } from "#/oauth/oauth-api.ts";
 import { SystemApi } from "#/system/system-api.ts";
@@ -17,7 +16,6 @@ export class Api extends HttpApi.make("quack")
   .add(SystemApi)
   .add(IdentityApi)
   .add(TodosApi)
-  .add(HabitsApi)
   .add(UsersApi)
   .add(OAuthApi)
   .add(GrantsApi)

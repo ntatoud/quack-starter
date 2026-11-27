@@ -24,7 +24,6 @@ import { OAuthMetadataRoutes } from "#/modules/identity/http/oauth-metadata.ts";
 import { SessionCookie } from "#/modules/identity/http/session-cookie.ts";
 import { TokenEndpointHeaders } from "#/modules/identity/http/token-endpoint-headers.ts";
 import { UsersHandlers } from "#/modules/identity/http/users-handlers.ts";
-import { today } from "#/modules/identity/domain/user.ts";
 import { AiClientDocumentsHttp } from "#/modules/identity/infrastructure/ai-client-documents-http.ts";
 import { AiClientHttpClient } from "#/modules/identity/infrastructure/ai-client-http-client.ts";
 import { AuthorizationCodeStorePostgres } from "#/modules/identity/infrastructure/authorization-code-store-postgres.ts";
@@ -44,7 +43,6 @@ export {
   IdentitySeed,
   McpCaller,
   OAuthMetadataRoutes,
-  today,
   TokenEndpointHeaders,
 };
 
