@@ -7,12 +7,12 @@ import { HttpServer } from "effect/http";
 import { IdentityModule, IdentityPostgres } from "#/modules/identity/index.ts";
 import { MailerMemory } from "#/modules/mail/testing/mailer-memory.ts";
 import { aUser, signedIn, TestDatabase } from "#/modules/testing/index.ts";
-import { TodosModule, TodosPostgres } from "#/modules/todos/index.ts";
+import { seedTodos, TodosModule } from "#/modules/todos/index.ts";
 import { TransactionPostgres } from "#/modules/transaction/index.ts";
 
 const TodosApi = TodosModule.pipe(
   Layer.provideMerge(IdentityModule),
-  Layer.provideMerge([IdentityPostgres, TodosPostgres, TransactionPostgres]),
+  Layer.provideMerge([IdentityPostgres, TransactionPostgres]),
   Layer.provide(MailerMemory),
   Layer.provideMerge(HttpServer.layerServices),
   Layer.provide(TestDatabase),
@@ -86,7 +86,7 @@ it.effect("lets another User neither see, complete, nor remove a todo: it is not
   }).pipe(Effect.provide(TodosApi)),
 );
 
-it.effect("creates, completes, and removes a todo", () =>
+it.effect("creates, completes (twice without harm), and removes a todo", () =>
   Effect.gen(function* () {
     const { client } = yield* signedInUser;
 
@@ -96,6 +96,7 @@ it.effect("creates, completes, and removes a todo", () =>
 
     const completed = yield* client.todos.complete({ params: { id: created.id } });
     assert.isTrue(completed.completed);
+    assert.deepStrictEqual(yield* client.todos.complete({ params: { id: created.id } }), completed);
 
     yield* client.todos.remove({ params: { id: created.id } });
     assert.deepStrictEqual(yield* client.todos.list(), []);
@@ -111,5 +112,20 @@ it.effect("fails with TodoNotFound for an unknown id", () =>
       .pipe(Effect.flip);
 
     assert.strictEqual(error._tag, "TodoNotFound");
+  }).pipe(Effect.provide(TodosApi)),
+);
+
+it.effect("seeds a few todos of the signed-in User, some completed, some not", () =>
+  Effect.gen(function* () {
+    const { user, client } = yield* signedInUser;
+
+    yield* seedTodos(client.todos);
+
+    const seeded = yield* client.todos.list();
+
+    assert.isAtLeast(seeded.length, 3);
+    assert.isTrue(seeded.every(({ ownerId }) => ownerId === user.id));
+    assert.isTrue(seeded.some(({ completed }) => completed));
+    assert.isTrue(seeded.some(({ completed }) => !completed));
   }).pipe(Effect.provide(TodosApi)),
 );

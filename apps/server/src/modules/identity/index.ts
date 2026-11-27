@@ -7,11 +7,7 @@ import { EmailChanges } from "#/modules/identity/application/email-changes.ts";
 import { Identity } from "#/modules/identity/application/identity.ts";
 import { Onboarding } from "#/modules/identity/application/onboarding.ts";
 import { PasswordResets } from "#/modules/identity/application/password-resets.ts";
-import {
-  devAccountIds,
-  devUsers,
-  IdentitySeed,
-} from "#/modules/identity/application/identity-seed.ts";
+import { devUsers, IdentitySeed } from "#/modules/identity/application/identity-seed.ts";
 import { Users } from "#/modules/identity/application/users.ts";
 import { AuthenticationMiddleware } from "#/modules/identity/http/authentication-middleware.ts";
 import { accessTo } from "#/modules/identity/http/authorize.ts";
@@ -39,7 +35,6 @@ import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
 export {
   accessTo,
   AiClientHttpClient,
-  devAccountIds,
   devUsers,
   Grants,
   IdentitySeed,

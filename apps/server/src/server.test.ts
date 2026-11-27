@@ -5,16 +5,12 @@ import { afterAll, beforeAll, describe, expect, it } from "vite-plus/test";
 import { devUsers, IdentityPostgres, IdentitySeed } from "#/modules/identity/index.ts";
 import { MailerMemory } from "#/modules/mail/testing/mailer-memory.ts";
 import { TestDatabase } from "#/modules/testing/index.ts";
-import { TodosPostgres } from "#/modules/todos/index.ts";
 import { TransactionPostgres } from "#/modules/transaction/index.ts";
 import { Routes } from "#/server.ts";
 
-const Storage = Layer.mergeAll(
-  IdentityPostgres,
-  TodosPostgres,
-  TransactionPostgres,
-  MailerMemory,
-).pipe(Layer.provideMerge(TestDatabase));
+const Storage = Layer.mergeAll(IdentityPostgres, TransactionPostgres, MailerMemory).pipe(
+  Layer.provideMerge(TestDatabase),
+);
 
 // Another origin than the one of the requests below: the documents must not take theirs from `Host`.
 const Config = ConfigProvider.layer(

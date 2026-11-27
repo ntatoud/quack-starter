@@ -15,7 +15,7 @@ import {
 } from "#/modules/identity/index.ts";
 import { SystemModule } from "#/modules/system/index.ts";
 import { aUser, TestDatabase } from "#/modules/testing/index.ts";
-import { TodosModule, TodosPostgres } from "#/modules/todos/index.ts";
+import { TodosModule } from "#/modules/todos/index.ts";
 import { TransactionPostgres } from "#/modules/transaction/index.ts";
 import { MailerMemory } from "#/modules/mail/testing/mailer-memory.ts";
 
@@ -27,7 +27,7 @@ const NoHttpClient = Layer.succeed(
 
 const ApiHandlers = Layer.mergeAll(SystemModule, TodosModule, AiClientsModule).pipe(
   Layer.provideMerge(IdentityModule),
-  Layer.provideMerge([IdentityPostgres, TodosPostgres, TransactionPostgres]),
+  Layer.provideMerge([IdentityPostgres, TransactionPostgres]),
   Layer.provide([MailerMemory, NoHttpClient]),
   Layer.provide(TestDatabase),
   Layer.provide(
