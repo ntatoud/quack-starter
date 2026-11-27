@@ -106,5 +106,7 @@ describe("CheckInEntry", () => {
     expect(decode({ quantity: null })._tag).toBe("Some");
     expect(decode({ quantity: -1 })._tag).toBe("None");
     expect(decode({ quantity: 1.5 })._tag).toBe("None");
+    expect(decode({ quantity: 2_147_483_647 })._tag).toBe("Some");
+    expect(decode({ quantity: 2_147_483_648 })._tag).toBe("None");
   });
 });

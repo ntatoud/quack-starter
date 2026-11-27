@@ -32,9 +32,17 @@ export const Schedule = Schema.TaggedUnion({ EveryDay: {} });
 
 export type Schedule = typeof Schedule.Type;
 
+// The largest value of a Postgres integer, which stores a quantity.
+const largestQuantity = 2_147_483_647;
+
+const isStorable = Schema.isLessThanOrEqualTo(largestQuantity, {
+  message: "Enter a smaller number",
+});
+
 /** A whole number of 0 or more: a Day's total, or a Target to stay at most. */
 export const Quantity = Schema.Int.check(
   Schema.isGreaterThanOrEqualTo(0, { message: "Enter a whole number of 0 or more" }),
+  isStorable,
 );
 
 export const HabitUnit = Schema.Trimmed.check(
@@ -49,6 +57,7 @@ export const Target = Schema.TaggedUnion({
   AtLeast: {
     quantity: Schema.Int.check(
       Schema.isGreaterThanOrEqualTo(1, { message: "Enter a whole number of 1 or more" }),
+      isStorable,
     ),
     unit: HabitUnit,
   },

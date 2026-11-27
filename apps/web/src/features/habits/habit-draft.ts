@@ -1,11 +1,7 @@
-import {
-  HabitColor,
-  HabitName,
-  HabitUnit,
-  Quantity,
-  type Target,
-} from "@quack/contracts/habits/habit";
-import { Schema } from "effect";
+import { HabitColor, HabitName, HabitUnit, type Target } from "@quack/contracts/habits/habit";
+import { Option, Schema } from "effect";
+
+import { typedQuantity } from "#/features/habits/habit-target.ts";
 
 const TargetKind = Schema.Literals(["Done", "AtLeast", "AtMost"]);
 
@@ -15,11 +11,7 @@ export const targetOptions = [
   { value: "AtMost", label: "At most" },
 ] as const;
 
-const isQuantity = Schema.is(Quantity);
 const isUnit = Schema.is(HabitUnit);
-
-// An input gives text: a quantity is its digits only, so "1.5" or "1e3" is no whole number.
-const quantityOf = (typed: string) => (/^\d+$/.test(typed.trim()) ? Number(typed) : Number.NaN);
 
 /**
  * What the form asks for: every Habit is due every Day, for now. A quantity and a unit count only for a quantity
@@ -37,15 +29,15 @@ export const HabitDraft = Schema.Struct({
     if (target === "Done") return undefined;
 
     const issues: Array<Schema.FilterIssue> = [];
-    const value = quantityOf(quantity);
+    const value = typedQuantity(quantity);
     const lowest = target === "AtLeast" ? 1 : 0;
 
-    if (!isQuantity(value)) {
+    if (Option.isNone(value)) {
       issues.push({
         path: ["quantity"],
         issue: quantity.trim() === "" ? "Quantity is required" : "Enter a whole number",
       });
-    } else if (value < lowest) {
+    } else if (value.value < lowest) {
       issues.push({ path: ["quantity"], issue: `Enter a whole number of ${lowest} or more` });
     }
 
@@ -66,4 +58,8 @@ export type HabitDraft = typeof HabitDraft.Type;
 export const targetOf = ({ target, quantity, unit }: HabitDraft): Target =>
   target === "Done"
     ? { _tag: "Done" }
-    : { _tag: target, quantity: quantityOf(quantity), unit: HabitUnit.make(unit) };
+    : {
+        _tag: target,
+        quantity: Option.getOrThrow(typedQuantity(quantity)),
+        unit: HabitUnit.make(unit),
+      };

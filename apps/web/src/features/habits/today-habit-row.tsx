@@ -1,26 +1,24 @@
 import type { TodayHabit } from "@quack/contracts/habits/check-in";
 import type { Day } from "@quack/contracts/habits/day";
-import { Quantity } from "@quack/contracts/habits/habit";
 import { Button } from "@quack/ui/components/button";
 import { Checkbox } from "@quack/ui/components/checkbox";
 import { Input } from "@quack/ui/components/input";
 import { useMutation } from "@tanstack/react-query";
-import { Option, Schema } from "effect";
+import { Option } from "effect";
 import { MinusIcon, PlusIcon } from "lucide-react";
 import { useState } from "react";
 
 import { checkInMachine } from "#/features/habits/check-in-machine.ts";
 import { HabitColorDot } from "#/features/habits/habit-colors.tsx";
-import { describeTarget, type QuantityTarget, targetOn } from "#/features/habits/habit-target.ts";
+import {
+  describeTarget,
+  type QuantityTarget,
+  targetOn,
+  typedQuantity,
+} from "#/features/habits/habit-target.ts";
 import { invalidateHabits } from "#/features/habits/invalidate-habits.ts";
 import { api } from "#/lib/api.ts";
 import { useFsm } from "#/lib/use-fsm.ts";
-
-const decodeQuantity = Schema.decodeUnknownOption(Quantity);
-
-// An input of type number gives "" for anything it cannot read as a number.
-const typedQuantity = (typed: string) =>
-  /^\d+$/.test(typed) ? decodeQuantity(Number(typed)) : Option.none();
 
 /** The Habit's Check-in on the Day through `checkInMachine`: what the row shows, and the requests that change it. */
 const useCheckIn = ({ day, due: { habit, checkIn } }: { day: Day; due: TodayHabit }) => {
@@ -57,6 +55,17 @@ const useCheckIn = ({ day, due: { habit, checkIn } }: { day: Day; due: TodayHabi
   };
 };
 
+const failureMessages = {
+  done: {
+    check: (name: string) => `Could not check in ${name}. Try again.`,
+    uncheck: (name: string) => `Could not uncheck ${name}. Try again.`,
+  },
+  quantity: {
+    check: (name: string) => `Could not save the total of ${name}. Try again.`,
+    uncheck: (name: string) => `Could not clear the total of ${name}. Try again.`,
+  },
+};
+
 export function TodayHabitRow({ day, due }: { day: Day; due: TodayHabit }) {
   const checkIn = useCheckIn({ day, due });
   const { habit } = due;
@@ -82,11 +91,9 @@ export function TodayHabitRow({ day, due }: { day: Day; due: TodayHabit }) {
         )}
         {state.value === "failed" && (
           <span role="alert" className="text-sm text-destructive">
-            {target._tag !== "Done"
-              ? `Could not save the total of ${habit.name}. Try again.`
-              : state.context.failedTo === "check"
-                ? `Could not check in ${habit.name}. Try again.`
-                : `Could not uncheck ${habit.name}. Try again.`}
+            {failureMessages[target._tag === "Done" ? "done" : "quantity"][state.context.failedTo](
+              habit.name,
+            )}
           </span>
         )}
       </div>
