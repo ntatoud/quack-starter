@@ -9,6 +9,18 @@ export type Generated<T> = T extends ColumnType<infer S, infer I, infer U>
   ? ColumnType<S, I | undefined, U>
   : ColumnType<T, T | undefined, T>;
 
+export type Json = JsonValue;
+
+export type JsonArray = JsonValue[];
+
+export type JsonObject = {
+  [x: string]: JsonValue | undefined;
+};
+
+export type JsonPrimitive = boolean | number | string | null;
+
+export type JsonValue = JsonArray | JsonObject | JsonPrimitive;
+
 export type Timestamp = ColumnType<Date, Date | string, Date | string>;
 
 export type UserStatus = "active" | "invited" | "suspended";
@@ -23,6 +35,11 @@ export interface AuthorizationCodes {
   redirectUri: string;
   resource: string;
   userId: string;
+}
+
+export interface CheckIns {
+  day: Timestamp;
+  habitId: string;
 }
 
 export interface GrantAccessTokens {
@@ -51,6 +68,24 @@ export interface Grants {
   redirectUri: string;
   resource: string;
   userId: string;
+}
+
+export interface Habits {
+  archived: boolean;
+  color: string;
+  createdAt: Timestamp;
+  firstDay: Timestamp;
+  id: string;
+  name: string;
+  ownerId: string;
+  position: number;
+}
+
+export interface HabitVersions {
+  effectiveFrom: Timestamp;
+  habitId: string;
+  schedule: Json;
+  target: Json;
 }
 
 export interface LinkTokens {
@@ -99,9 +134,12 @@ export interface Users {
 
 export interface DB {
   authorizationCodes: AuthorizationCodes;
+  checkIns: CheckIns;
   grantAccessTokens: GrantAccessTokens;
   grantRefreshTokens: GrantRefreshTokens;
   grants: Grants;
+  habits: Habits;
+  habitVersions: HabitVersions;
   linkTokens: LinkTokens;
   sessions: Sessions;
   todos: Todos;

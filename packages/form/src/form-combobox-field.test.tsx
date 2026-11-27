@@ -5,6 +5,22 @@ import { render } from "vitest-browser-react";
 import { ColorForm, OptionalColorForm } from "#/testing/color-form.tsx";
 
 describe("field.Combobox", () => {
+  it("opens a list about as wide as its control, not as the page", async () => {
+    await page.viewport(1280, 800);
+    await render(<ColorForm control="Combobox" />);
+    const input = page.getByRole("combobox", { name: "Color" });
+
+    await input.click();
+    const listbox = page.getByRole("listbox");
+    await expect.element(listbox).toBeVisible();
+
+    // Polled: the list grows from 95% of its width as it opens.
+    await expect
+      .poll(() => listbox.element().getBoundingClientRect().width)
+      .toBeGreaterThanOrEqual(input.element().getBoundingClientRect().width);
+    expect(listbox.element().getBoundingClientRect().width).toBeLessThan(window.innerWidth / 2);
+  });
+
   it("picks an option found by its label", async () => {
     const submitted: Array<string> = [];
     await render(<ColorForm control="Combobox" onSubmit={(color) => submitted.push(color)} />);

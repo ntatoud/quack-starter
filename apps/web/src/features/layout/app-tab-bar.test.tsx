@@ -76,6 +76,9 @@ describe("AppTabBar", () => {
   it("leads a phone to the pages of the app from the bottom of the screen, with no sidebar to open", async () => {
     const tabBar = await setup({ width: 375, role: "user", path: "/app" });
 
+    await expect
+      .element(tabBar.getByRole("link", { name: "Today" }))
+      .toHaveAttribute("href", "/app/today");
     await expect.element(tabBar.getByRole("link", { name: "Todos" })).toBeVisible();
     await expect
       .element(tabBar.getByRole("link", { name: "Settings" }))
@@ -95,7 +98,7 @@ describe("AppTabBar", () => {
     expect(administration.element().getBoundingClientRect().right).toBeGreaterThan(
       window.innerWidth - 24,
     );
-    expect(tabBar.getByRole("link").elements()).toHaveLength(2);
+    expect(tabBar.getByRole("link").elements()).toHaveLength(3);
   });
 
   it("keeps the administration in the sidebar on a wider screen", async () => {

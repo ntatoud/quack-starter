@@ -2,13 +2,19 @@ import { NodeRuntime } from "@effect/platform-node";
 import { Layer } from "effect";
 
 import { Database } from "#/database/database.ts";
+import { HabitsPostgres } from "#/modules/habits/index.ts";
 import { AiClientHttpClient, IdentityPostgres } from "#/modules/identity/index.ts";
 import { MailSmtp } from "#/modules/mail/index.ts";
 import { TodosPostgres } from "#/modules/todos/index.ts";
 import { TransactionPostgres } from "#/modules/transaction/index.ts";
 import { ServerLayer } from "#/server.ts";
 
-const Storage = Layer.mergeAll(IdentityPostgres, TodosPostgres, TransactionPostgres);
+const Storage = Layer.mergeAll(
+  IdentityPostgres,
+  TodosPostgres,
+  HabitsPostgres,
+  TransactionPostgres,
+);
 
 Layer.launch(
   ServerLayer.pipe(Layer.provide([Storage, AiClientHttpClient, MailSmtp]), Layer.provide(Database)),

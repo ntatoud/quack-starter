@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { ListTodoIcon, SettingsIcon, ShieldIcon } from "lucide-react";
+import { CalendarCheckIcon, ListTodoIcon, SettingsIcon, ShieldIcon } from "lucide-react";
 
 import { ButtonLink } from "#/components/button-link.tsx";
 import type { ReactNode } from "react";
@@ -18,6 +18,7 @@ export function AppTabBar() {
       className="sticky bottom-0 z-10 mt-auto border-t border-sidebar-border bg-sidebar/70 pb-[env(safe-area-inset-bottom)] text-sidebar-foreground shadow-[0_-4px_16px_-8px_rgb(0_0_0/0.12)] before:pointer-events-none before:absolute before:inset-0 before:-z-1 before:backdrop-blur-2xl before:backdrop-saturate-150 md:hidden"
     >
       <ul className="flex">
+        <Tab to="/app/today" icon={<CalendarCheckIcon />} label="Today" />
         <Tab to="/app" exact icon={<ListTodoIcon />} label="Todos" />
         <Tab to="/app/settings" icon={<SettingsIcon />} label="Settings" />
       </ul>

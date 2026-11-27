@@ -16,6 +16,8 @@ import { TransactionMemory } from "#/modules/transaction/testing/transaction-mem
 import { SessionStoreMemory } from "#/modules/identity/testing/session-store-memory.ts";
 import { UserRepositoryMemory } from "#/modules/identity/testing/user-repository-memory.ts";
 import { SystemModule } from "#/modules/system/index.ts";
+import { HabitsModule } from "#/modules/habits/index.ts";
+import { HabitRepositoryMemory } from "#/modules/habits/testing/habit-repository-memory.ts";
 import { TodosModule } from "#/modules/todos/index.ts";
 import { MailerMemory } from "#/modules/mail/testing/mailer-memory.ts";
 import { TodoRepositoryMemory } from "#/modules/todos/testing/todo-repository-memory.ts";
@@ -26,7 +28,7 @@ const NoHttpClient = Layer.succeed(
   HttpClient.make(() => Effect.die("these tests fetch nothing")),
 );
 
-const ApiHandlers = Layer.mergeAll(SystemModule, TodosModule, AiClientsModule).pipe(
+const ApiHandlers = Layer.mergeAll(SystemModule, TodosModule, HabitsModule, AiClientsModule).pipe(
   Layer.provideMerge(IdentityModule),
   Layer.provide([
     UserRepositoryMemory,
@@ -36,6 +38,7 @@ const ApiHandlers = Layer.mergeAll(SystemModule, TodosModule, AiClientsModule).p
     LinkTokenStoreMemory,
     TransactionMemory,
     TodoRepositoryMemory,
+    HabitRepositoryMemory,
     MailerMemory,
     NoHttpClient,
   ]),
