@@ -1,7 +1,7 @@
 import { setup, types } from "xstate/fsm";
 import { getAdjacencyMap } from "xstate/graph";
 
-import { coveringWalks, takesEvent } from "#/modules/identity/testing/model-walks.ts";
+import { coveringWalks, takesEvent } from "#/modules/testing/index.ts";
 
 /** What the AI Client got for the last event: tokens or a refusal. */
 type Answer = "ok" | "refused" | null;

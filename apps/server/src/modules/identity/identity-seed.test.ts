@@ -7,11 +7,10 @@ import { ConfigProvider, Effect, Layer, Schema } from "effect";
 import { Identity } from "#/modules/identity/application/identity.ts";
 import { devPasswordHash } from "#/modules/identity/application/identity-seed.ts";
 import { PasswordHasher } from "#/modules/identity/domain/password-hasher.ts";
-import { IdentitySeed } from "#/modules/identity/index.ts";
+import { IdentityPostgres, IdentitySeed } from "#/modules/identity/index.ts";
 import { AttemptLimiterMemory } from "#/modules/identity/infrastructure/attempt-limiter-memory.ts";
 import { PasswordHasherArgon2 } from "#/modules/identity/infrastructure/password-hasher-argon2.ts";
-import { SessionStoreMemory } from "#/modules/identity/testing/session-store-memory.ts";
-import { UserRepositoryMemory } from "#/modules/identity/testing/user-repository-memory.ts";
+import { TestDatabase } from "#/modules/testing/index.ts";
 
 const password = Schema.decodeSync(Password)(devPassword);
 const anotherPassword = Schema.decodeSync(Password)("another password");
@@ -39,12 +38,12 @@ layer(PasswordHasherArgon2.pipe(Layer.provide(Crypto)))("devPasswordHash", (it) 
 
 const SeededIdentity = Layer.mergeAll(Identity.layer, IdentitySeed, IdentitySeed).pipe(
   Layer.provide([
-    UserRepositoryMemory,
+    IdentityPostgres,
     PasswordHasherArgon2,
-    SessionStoreMemory,
     AttemptLimiterMemory.pipe(Layer.provide(ConfigProvider.layer(ConfigProvider.fromUnknown({})))),
   ]),
   Layer.provide(Crypto),
+  Layer.provide(TestDatabase),
 );
 
 layer(SeededIdentity)("IdentitySeed", (it) => {

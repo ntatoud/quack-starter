@@ -15,15 +15,13 @@ import { TestClock } from "effect/testing";
 import { AuthorizationCodeStore } from "#/modules/identity/domain/authorization-code-store.ts";
 import { GrantStore } from "#/modules/identity/domain/grant-store.ts";
 import { UserRepository } from "#/modules/identity/domain/user-repository.ts";
-import { Grants, AiClientsModule } from "#/modules/identity/index.ts";
-import { AuthorizationCodeStoreMemory } from "#/modules/identity/testing/authorization-code-store-memory.ts";
-import { GrantStoreMemory } from "#/modules/identity/testing/grant-store-memory.ts";
+import { Grants, AiClientsModule, IdentityPostgres } from "#/modules/identity/index.ts";
 import { grantModelWalks, isLive } from "#/modules/identity/testing/grant-model.ts";
-import { UserRepositoryMemory } from "#/modules/identity/testing/user-repository-memory.ts";
 import { authenticationByUserId } from "#/modules/identity/testing/authentication-by-user-id.ts";
+import { TestDatabase } from "#/modules/testing/index.ts";
 
 const ada = new User({
-  id: UserId.make("ada"),
+  id: UserId.make(crypto.randomUUID()),
   email: Email.make("ada@example.com"),
   role: "user",
   status: "active",
@@ -36,9 +34,19 @@ const ada = new User({
 
 const grace = new User({
   ...ada,
-  id: UserId.make("grace"),
+  id: UserId.make(crypto.randomUUID()),
   email: Email.make("grace@example.com"),
 });
+
+// Each database is built apart, so the same two Users are stored in every one.
+const StoredUsers = Layer.effectDiscard(
+  Effect.gen(function* () {
+    const users = yield* UserRepository;
+
+    yield* users.create(ada, "unused");
+    yield* users.create(grace, "unused");
+  }),
+);
 
 const publicOrigin = "https://quack.test";
 const resource = `${publicOrigin}/api/mcp`;
@@ -132,10 +140,9 @@ const withEnv = (env: Record<string, string>) =>
   Layer.mergeAll(
     AiClientsModule.pipe(
       Layer.provide(StubHttpClient),
-      Layer.provideMerge(AuthorizationCodeStoreMemory),
-      Layer.provideMerge(GrantStoreMemory),
-      Layer.provideMerge(UserRepositoryMemory),
+      Layer.provideMerge(StoredUsers.pipe(Layer.provideMerge(IdentityPostgres))),
       Layer.provideMerge(authenticationByUserId([ada, grace])),
+      Layer.provide(TestDatabase),
       Layer.provide(
         ConfigProvider.layer(ConfigProvider.fromUnknown({ PUBLIC_URL: publicOrigin, ...env })),
       ),
@@ -858,16 +865,9 @@ layer(withConfig({}))("OAuthApi token", (it) => {
   );
 });
 
-// Ada must be stored for her Grant to act; each test may be the first to need her.
-const storeAda = Effect.gen(function* () {
-  yield* (yield* UserRepository).create(ada, "unused").pipe(Effect.ignore);
-});
-
 /** The Permissions an access token opens, as `/api/mcp` will act with them. */
 const permissionsOf = (accessToken: string) =>
   Effect.gen(function* () {
-    yield* storeAda;
-
     const { permissions } = yield* (yield* Grants).authenticate(Redacted.make(accessToken));
 
     return [...permissions].toSorted();
@@ -913,7 +913,6 @@ const opens = (accessToken: string) =>
 /** Ada approves a new AI Client and it exchanges the code: answers the tokens, and its client id. */
 const tokensOfANewAiClient = (scope = "todos:list todos:write") =>
   Effect.gen(function* () {
-    yield* storeAda;
     const clientId = anAiClient();
     const tokens = yield* token(yield* approvedCode(requestOf(clientId, { scope })));
 
@@ -1456,8 +1455,6 @@ const answerOf = (
 layer(withConfig({}))("OAuthApi, the Grant of an AI Client against its model", (it) => {
   it.effect("answers every transition of the model as the model does", () =>
     Effect.gen(function* () {
-      yield* storeAda;
-
       for (const walk of grantModelWalks) {
         const clientId = anAiClient();
         let tokens: { readonly access_token: string; readonly refresh_token: string } | undefined;

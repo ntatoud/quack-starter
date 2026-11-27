@@ -1,14 +1,11 @@
 import { assert, describe, it } from "@effect/vitest";
-import { UserId } from "@quack/contracts/identity/user";
+import type { UserId } from "@quack/contracts/identity/user";
 import { Todo, TodoId, TodoTitle } from "@quack/contracts/todos/todo";
 import { DateTime, Effect, type Layer, Option } from "effect";
 
 import { TodoRepository } from "#/modules/todos/domain/todo-repository.ts";
 
 const at = (iso: string) => DateTime.makeUnsafe(iso);
-
-// An adapter that persists keeps the Todos of the tests before, so each test has its own Owners.
-const anOwner = Effect.sync(() => UserId.make(crypto.randomUUID()));
 
 const aTodo = (fields: Partial<Todo> & Pick<Todo, "id" | "ownerId">) =>
   new Todo({
@@ -27,8 +24,12 @@ const aSavedTodo = (ownerId: UserId) =>
     return todo;
   });
 
-export const todoRepositorySuite = (layer: Layer.Layer<TodoRepository>) => {
-  const test = (name: string, body: () => Effect.Effect<void, never, TodoRepository>) =>
+/** `anOwner` gives the id of a stored User, as the Owner of a Todo must be one. */
+export const todoRepositorySuite = <R>(
+  layer: Layer.Layer<TodoRepository | R>,
+  anOwner: Effect.Effect<UserId, never, R>,
+) => {
+  const test = (name: string, body: () => Effect.Effect<void, never, TodoRepository | R>) =>
     it.effect(name, () => body().pipe(Effect.provide(layer)));
 
   describe("TodoRepository", () => {

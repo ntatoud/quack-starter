@@ -11,7 +11,7 @@ Read the guide of the part you change before you change it:
 
 ## Commands
 
-Work is done when `pnpm check`, `pnpm typecheck`, `pnpm test`, and `pnpm fallow` pass, from the repo root. `pnpm fmt` fixes formatting.
+Work is done when `pnpm check`, `pnpm typecheck`, `pnpm test`, and `pnpm fallow` pass, from the repo root. `pnpm test` needs Docker running, as `pnpm dev` does: the server's tests run on Postgres. `pnpm fmt` fixes formatting.
 
 One package: `vp run --filter @quack/server test`. One file: `vp test run src/path/file.test.ts` from the package.
 

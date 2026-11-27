@@ -14,7 +14,7 @@ To add a context, copy `modules/todos`:
 - A module reaches another one through its `index.ts`, and identity through the contract (`CurrentUser`, `UserId`).
 - Only a handler reads `CurrentUser`. It passes the Owner to the use case as `ownerId`, and the repository filters by it: another Owner's data is not found (404), so the API never tells that it exists.
 - A server variable goes in `ServerConfig` (`config.ts`), or `DatabaseConfig` for the database, and in `.env.example`.
-- Writes of several stores that stand or fall together run in `Transaction.run` (`modules/transaction`): Postgres runs them in one transaction, the memory adapters as they come. Writes of one adapter use `sql.withTransaction` in it.
+- Writes of several stores that stand or fall together run in `Transaction.run` (`modules/transaction`): Postgres runs them in one transaction. Writes of one adapter use `sql.withTransaction` in it.
 - A mail goes out through `Mailer` (`modules/mail`, exported from its `index.ts` once a module sends one), which returns before it is sent and never fails: a failed send is logged and the mail lost. A link in it starts from `ServerConfig.publicOrigin`, never from the request. Tests provide `MailerMemory` and read `SentMails`. Its content comes from a template of `@quack/emails`, which is `.tsx`: Node loads it through `--import @quack/emails/register`, which the `dev` and `start` scripts pass.
 - `/health` touches no database, so an outage of Postgres does not get every server restarted.
 
@@ -46,9 +46,9 @@ Migrations (`docs/adr/0002-typescript-migrations-applied-at-startup.md`) live in
 
 ## Tests
 
-- A storage port states its promises as one suite in `testing/` that takes an adapter's Layer (`todoRepositorySuite(layer)`), run from each adapter's test file. Its memory adapter is a test double, in `testing/` too.
-- A flow across requests has a model in `testing/`, an `xstate/fsm` machine: the Grant of an AI Client (`grant-model.ts`), a User's Session and Password Reset (`session-model.ts`), Email Change (`email-change-model.ts`). Its handler test replays `coveringWalks`, which take every transition, against the `Api`, and compares each answer with the model's. A change to a rule of the flow changes its model too.
-- `grant-store-postgres.test.ts` runs the suite on Postgres when `TEST_DATABASE_URL` names an empty database it may migrate and fill, and is skipped otherwise: CI runs no suite on Postgres, its Database job only checks `db.gen.ts`.
+- Tests run on Postgres, never on memory doubles of storage. A vitest `globalSetup` migrates a template database once per run, on the server `TEST_DATABASE_URL` names (CI's), or else on the container of `compose.yaml`, started as `pnpm dev` starts it: `pnpm test` needs Docker. `TestDatabase` (`modules/testing`) clones it with `CREATE DATABASE ... TEMPLATE` each time its Layer is built, and drops the clone on release: provide it to each test for a fresh database.
+- The `testing` module (`modules/testing/index.ts`) makes the state no endpoint can make: `aUser({ role?, status? })` stores a User with a known password, `signedIn(user, groups)` gives a client of those groups with the User's Session, `makeBrowser` a client of the identity endpoints that keeps cookies. Tests import it, never a module's `lib/`.
+- A storage port states its promises as one suite in `testing/` that takes an adapter's Layer and a way to store a User (`todoRepositorySuite(layer, anOwner)`), run from the Postgres adapter's test file.
+- A flow across requests has a model in `testing/`, an `xstate/fsm` machine: the Grant of an AI Client (`grant-model.ts`), a User's Session and Password Reset (`session-model.ts`), Email Change (`email-change-model.ts`). Its handler test replays `coveringWalks` (`modules/testing`), which take every transition, against the `Api`, and compares each answer with the model's. A change to a rule of the flow changes its model too.
 - Test handlers through `HttpApiTest`, with no server. It builds the routes of the whole `Api`, so the test Layer provides every middleware the `Api` declares: copy `modules/todos/http/todos-handlers.test.ts`.
-- A client that keeps cookies: `makeBrowser` in `modules/identity/http/identity-handlers.test.ts`.
 - Test on the assembled `Routes` (`server.test.ts`) what `HttpApiTest` cannot see: the docs, CORS, an endpoint that reads the cookie without declaring `Authentication` (`signOut`), and anything that reads `X-Forwarded-For`.
