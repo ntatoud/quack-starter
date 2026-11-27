@@ -20,9 +20,7 @@ import {
   UserList,
   type UserListQuery,
 } from "@quack/contracts/users/users-api";
-import { NodeCrypto } from "@effect/platform-node";
 import { Context, DateTime, Effect, Layer, Option } from "effect";
-import type { Kdf, SecureRandom } from "effect/crypto";
 
 import { hashPassword, isPasswordOf } from "#/modules/users/lib/password.ts";
 import { userQueries } from "#/modules/users/lib/user-queries.ts";
@@ -89,9 +87,6 @@ export class Users extends Context.Service<
     Users,
     Effect.gen(function* () {
       const queries = yield* userQueries;
-      // Read once, so the methods require nothing per call.
-      const crypto = yield* Effect.context<Kdf.Kdf | SecureRandom.SecureRandom>();
-      const hash = (password: Password) => hashPassword(password).pipe(Effect.provide(crypto));
 
       const findByEmail = (email: Email) =>
         Effect.map(
@@ -133,7 +128,7 @@ export class Users extends Context.Service<
             timeZone,
           });
 
-          yield* queries.create(user, yield* hash(password));
+          yield* queries.create(user, yield* hashPassword(password));
 
           return user;
         }),
@@ -142,7 +137,7 @@ export class Users extends Context.Service<
 
           if (Option.isNone(found)) {
             // The slow step of a check, done for nothing.
-            yield* hash(password);
+            yield* hashPassword(password);
 
             return Option.none();
           }
@@ -150,7 +145,7 @@ export class Users extends Context.Service<
           const { user, passwordHash } = found.value;
 
           // After the password: whoever does not know it must not learn the Status of the User.
-          const matches = yield* isPasswordOf(password, passwordHash).pipe(Effect.provide(crypto));
+          const matches = yield* isPasswordOf(password, passwordHash);
 
           return matches && canSignIn(user) ? Option.some(user) : Option.none();
         }),
@@ -171,7 +166,7 @@ export class Users extends Context.Service<
           Effect.map(queries.findByEmail(email), Option.isSome),
         ),
         changePassword: Effect.fn("Users.changePassword")(function* (id, password) {
-          yield* queries.setPasswordHash(id, yield* hash(password));
+          yield* queries.setPasswordHash(id, yield* hashPassword(password));
         }),
         changeEmail: Effect.fn("Users.changeEmail")(function* (id, email) {
           // Checked before it is set: a unique violation would abort the transaction the caller runs it in.
@@ -231,5 +226,5 @@ export class Users extends Context.Service<
         }),
       });
     }),
-  ).pipe(Layer.provide([NodeCrypto.layerKdf, NodeCrypto.layerSecureRandom]));
+  );
 }

@@ -2,7 +2,7 @@ import { Api } from "@quack/contracts/api";
 import { Authentication } from "@quack/contracts/identity/authentication";
 import { devAccounts, devPassword } from "@quack/contracts/identity/dev-accounts";
 import { CountryCode, Profile } from "@quack/contracts/identity/profile";
-import { Email, type Role, TimeZone } from "@quack/contracts/identity/user";
+import { Email, Role, TimeZone } from "@quack/contracts/identity/user";
 import { ConfigProvider, Effect, Layer, Option, Redacted, Schema } from "effect";
 import { Cookies, HttpClientRequest, HttpServer } from "effect/http";
 import { HttpApiMiddleware, HttpApiTest } from "effect/http-api";
@@ -91,14 +91,20 @@ const clientWithSession = (response: { readonly cookies: Cookies.Cookies }) => {
   );
 };
 
+const profileOf: Readonly<Record<Role, { readonly firstName: string; readonly jobTitle: string }>> =
+  {
+    user: { firstName: "User", jobTitle: "Member" },
+    admin: { firstName: "Admin", jobTitle: "Administrator" },
+  };
+
 /**
  * Signs the dev account up and fills in its Profile, through the Api as a browser would. An Admin is no Role an
  * endpoint gives: `Users` gives it, as nothing else can make the first one.
  */
-const seedDevAccount = Effect.fn("seedDevAccount")(function* (role: Role, email: string) {
+const seedDevAccount = Effect.fn("seedDevAccount")(function* (role: Role) {
   const [user, response] = yield* (yield* visitor).identity.signUp({
     payload: {
-      email: Email.make(email),
+      email: Email.make(devAccounts[role]),
       password,
       timeZone: paris,
     },
@@ -106,13 +112,14 @@ const seedDevAccount = Effect.fn("seedDevAccount")(function* (role: Role, email:
   });
 
   const client = yield* clientWithSession(response);
-  const name = { firstName: role === "admin" ? "Admin" : "User", lastName: "Quack" };
+  const { firstName, jobTitle } = profileOf[role];
+  const name = { firstName, lastName: "Quack" };
   yield* client.users.completeOnboarding({ payload: name });
   yield* client.users.updateProfile({
     payload: new Profile({
       ...name,
       avatarUrl: null,
-      jobTitle: role === "admin" ? "Administrator" : "Member",
+      jobTitle,
       team: "operations",
       country: CountryCode.make("FR"),
     }),
@@ -125,8 +132,8 @@ const seedDevAccount = Effect.fn("seedDevAccount")(function* (role: Role, email:
 
 // The dev accounts and their Todos go through the Api: the seed makes no state the Api can make.
 const seedDevAccounts = Effect.forEach(
-  Object.entries(devAccounts) as ReadonlyArray<[Role, string]>,
-  ([role, email]) => Effect.flatMap(seedDevAccount(role, email), ({ todos }) => seedTodos(todos)),
+  Role.literals,
+  (role) => Effect.flatMap(seedDevAccount(role), ({ todos }) => seedTodos(todos)),
   { discard: true },
 ).pipe(Effect.provide(SeedApi));
 

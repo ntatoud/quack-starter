@@ -1,4 +1,3 @@
-import { NodeCrypto } from "@effect/platform-node";
 import { Api } from "@quack/contracts/api";
 import { Authentication } from "@quack/contracts/identity/authentication";
 import {
@@ -26,7 +25,7 @@ const hashOfKnownPassword = Effect.gen(function* () {
   knownPasswordHash ??= yield* hashPassword(knownPassword);
 
   return knownPasswordHash;
-}).pipe(Effect.provide([NodeCrypto.layerKdf, NodeCrypto.layerSecureRandom]));
+});
 
 /**
  * A User of the test's own, stored with `knownPassword`, of its own email unless `fields` gives one: no endpoint

@@ -1,5 +1,4 @@
 import { base, en, Faker } from "@faker-js/faker";
-import { NodeCrypto } from "@effect/platform-node";
 import { devPassword } from "@quack/contracts/identity/dev-accounts";
 import { CountryCode, Profile, Team } from "@quack/contracts/identity/profile";
 import { Email, TimeZone, User, UserId, type UserStatus } from "@quack/contracts/identity/user";
@@ -104,9 +103,7 @@ export const seedUsers = Effect.gen(function* () {
   const seeded = randomUsers(faker, 100);
 
   // One hash for them all: argon2 takes tens of milliseconds by design.
-  const passwordHash = yield* hashPassword(Redacted.make(devPassword)).pipe(
-    Effect.provide([NodeCrypto.layerKdf, NodeCrypto.layerSecureRandom]),
-  );
+  const passwordHash = yield* hashPassword(Redacted.make(devPassword));
 
   yield* Effect.forEach(seeded, (user) => Effect.orDie(create(user, passwordHash)), {
     discard: true,

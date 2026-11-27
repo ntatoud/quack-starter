@@ -1,3 +1,4 @@
+import { NodeCrypto } from "@effect/platform-node";
 import type { Password } from "@quack/contracts/identity/user";
 import { Effect, Option, Redacted, Result } from "effect";
 import { Kdf, Mac, SecureRandom } from "effect/crypto";
@@ -68,6 +69,9 @@ const derive = Effect.fnUntraced(function* (
     .pipe(Effect.orDie);
 });
 
+// Node's crypto, provided here: hashing stays inside this module, and no caller provides it again.
+const nodeCrypto = Effect.provide([NodeCrypto.layerKdf, NodeCrypto.layerSecureRandom]);
+
 // The costs travel in the PHC string, so they can be raised without breaking stored hashes.
 export const hashPassword = Effect.fn("hashPassword")(function* (password: Password) {
   const random = yield* SecureRandom.SecureRandom;
@@ -75,7 +79,7 @@ export const hashPassword = Effect.fn("hashPassword")(function* (password: Passw
   const tag = yield* derive(password, currentCosts, salt, tagLength);
 
   return formatPhc({ costs: currentCosts, salt, tag });
-});
+}, nodeCrypto);
 
 /** A hash this module cannot read is `false`, not an error. */
 export const isPasswordOf = Effect.fn("isPasswordOf")(function* (
@@ -89,4 +93,4 @@ export const isPasswordOf = Effect.fn("isPasswordOf")(function* (
   const derived = yield* derive(password, costs, salt, tag.length);
 
   return Mac.timingSafeEqual(derived, tag);
-});
+}, nodeCrypto);
