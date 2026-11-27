@@ -23,7 +23,7 @@ catalog:
   "@types/react-dom": ~19.3.0
   "@vitejs/plugin-react": 6.3.0
   # The version of the Vitest that Vite+ bundles.
-  "@vitest/browser-playwright": 5.1.0
+  "@vitest/browser-playwright": 5.1.1
   effect: 4.1.5
   # 0.29.9 is less than two weeks old.
   kysely: 0.29.8
@@ -37,8 +37,8 @@ catalog:
   tailwindcss: 4.3.5
   tsrs: 7.1.0-beta.tsrs4
   typescript: 7.0.2
-  vite: npm:@voidzero-dev/vite-plus-core@8.3.8000
-  vite-plus: 1.7.0
+  vite: npm:@voidzero-dev/vite-plus-core@8.3.8001
+  vite-plus: 1.8.0
   vitest-browser-react: 2.3.0
 
 overrides:
