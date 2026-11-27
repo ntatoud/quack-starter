@@ -133,7 +133,7 @@ export class Identity extends Context.Service<
             return yield* new Unauthenticated();
           }
 
-          const user = yield* users.find({ id: session.value.userId });
+          const user = yield* users.findActive({ id: session.value.userId });
 
           if (Option.isNone(user)) {
             // A User suspended after signing in loses their Session at their next request.

@@ -61,8 +61,8 @@ export class Users extends Context.Service<
     verifyPassword(email: Email, password: Password): Effect.Effect<Option.Option<User>>;
     /** As `verifyPassword`, and records the sign-in of the User it finds. */
     signIn(email: Email, password: Password): Effect.Effect<Option.Option<User>>;
-    /** The User, while they may sign in: a User no longer `active` is found no more. */
-    find(key: UserKey): Effect.Effect<Option.Option<User>>;
+    /** A User no longer `active` is found no more. */
+    findActive(key: UserKey): Effect.Effect<Option.Option<User>>;
     /** Whether a User of any Status has the email. */
     isEmailTaken(email: Email): Effect.Effect<boolean>;
     changePassword(id: UserId, password: Password): Effect.Effect<void>;
@@ -154,12 +154,12 @@ export class Users extends Context.Service<
 
           if (Option.isNone(found)) return found;
 
-          const signedIn = new User({ ...found.value, lastSignInAt: yield* DateTime.now });
-          yield* queries.update(signedIn);
+          const at = yield* DateTime.now;
+          yield* queries.setLastSignInAt(found.value.id, at);
 
-          return Option.some(signedIn);
+          return Option.some(new User({ ...found.value, lastSignInAt: at }));
         }),
-        find: Effect.fn("Users.find")(function* (key) {
+        findActive: Effect.fn("Users.findActive")(function* (key) {
           const found =
             "email" in key
               ? Option.map(yield* queries.findByEmail(key.email), ({ user }) => user)

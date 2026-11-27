@@ -1,7 +1,7 @@
 import { EmailAlreadyTaken } from "@quack/contracts/identity/identity-errors";
 import { Email, Role, User, UserId } from "@quack/contracts/identity/user";
 import { type UserOrder, UserListQuery } from "@quack/contracts/users/users-api";
-import { Effect, Option, Schema } from "effect";
+import { type DateTime, Effect, Option, Schema } from "effect";
 import { executor } from "@quack/effect-kysely/kysely";
 import { SqlSchema } from "effect/sql";
 import type { SqlError } from "effect/sql/SqlError";
@@ -134,20 +134,20 @@ const failIfEmailTaken = (write: Effect.Effect<void, SqlError | Schema.SchemaErr
 export const userQueries = Effect.gen(function* () {
   const execute = yield* executor;
 
-  const findById = SqlSchema.findOneOption({
+  const selectById = SqlSchema.findOneOption({
     Request: UserId,
     Result: UserWithHash,
     execute: (id) => execute(findUser((eb) => eb("users.id", "=", id))),
   });
 
-  const findByEmail = SqlSchema.findOneOption({
+  const selectByEmail = SqlSchema.findOneOption({
     Request: Email,
     Result: UserWithHash,
     execute: (email) => execute(findUser((eb) => eb("email", "=", email))),
   });
 
   // The total comes from every matching row, so a page past the last one still has it.
-  const list = SqlSchema.findOne({
+  const selectPage = SqlSchema.findOne({
     Request: Schema.toType(UserListQuery),
     Result: UserPage,
     execute: ({ page, pageSize, orderBy, dir, search = "", status, role, team, onboarded }) => {
@@ -214,7 +214,7 @@ export const userQueries = Effect.gen(function* () {
     },
   });
 
-  const insert = SqlSchema.void({
+  const insertUser = SqlSchema.void({
     Request: UserWithHash,
     execute: ({ user, passwordHash }) =>
       execute(
@@ -240,7 +240,7 @@ export const userQueries = Effect.gen(function* () {
       ),
   });
 
-  const update = SqlSchema.void({
+  const updateUser = SqlSchema.void({
     Request: User,
     execute: (user) =>
       execute(
@@ -264,25 +264,31 @@ export const userQueries = Effect.gen(function* () {
       ),
   });
 
-  const setPasswordHash = SqlSchema.void({
+  const updatePasswordHash = SqlSchema.void({
     Request: Schema.Struct({ id: UserId, passwordHash: Schema.String }),
     execute: ({ id, passwordHash }) =>
       execute(db.updateTable("users").set({ passwordHash }).where("id", "=", id)),
   });
 
-  const setRole = SqlSchema.void({
+  const updateLastSignInAt = SqlSchema.void({
+    Request: Schema.Struct({ id: UserId, at: Schema.DateTimeUtcFromDate }),
+    execute: ({ id, at }) =>
+      execute(db.updateTable("users").set({ lastSignInAt: at }).where("id", "=", id)),
+  });
+
+  const updateRole = SqlSchema.void({
     Request: Schema.Struct({ id: UserId, role: Role }),
     execute: ({ id, role }) => execute(db.updateTable("users").set({ role }).where("id", "=", id)),
   });
 
-  const setEmail = SqlSchema.void({
+  const updateEmail = SqlSchema.void({
     Request: Schema.Struct({ id: UserId, email: Email }),
     execute: ({ id, email }) =>
       execute(db.updateTable("users").set({ email }).where("id", "=", id)),
   });
 
   // The Profile, the Todos, and the Sessions of the User go with them (`ON DELETE CASCADE`).
-  const remove = SqlSchema.findAll({
+  const deleteUser = SqlSchema.findAll({
     Request: UserId,
     Result: Schema.Struct({ id: UserId }),
     execute: (id) => execute(db.deleteFrom("users").where("id", "=", id).returning("id")),
@@ -290,34 +296,39 @@ export const userQueries = Effect.gen(function* () {
 
   return {
     create: Effect.fn("userQueries.create")(function* (user: User, passwordHash: string) {
-      yield* failIfEmailTaken(insert({ user, passwordHash }));
+      yield* failIfEmailTaken(insertUser({ user, passwordHash }));
     }),
-    update: Effect.fn("userQueries.update")((user: User) => update(user).pipe(Effect.orDie)),
+    update: Effect.fn("userQueries.update")((user: User) => updateUser(user).pipe(Effect.orDie)),
     setPasswordHash: Effect.fn("userQueries.setPasswordHash")((id: UserId, passwordHash: string) =>
-      byStorableId(id, setPasswordHash({ id, passwordHash }), undefined),
+      byStorableId(id, updatePasswordHash({ id, passwordHash }), undefined),
+    ),
+    // The one column a sign-in changes: a whole row read before the password check would bring back what an
+    // Admin changed meanwhile, such as a suspension.
+    setLastSignInAt: Effect.fn("userQueries.setLastSignInAt")((id: UserId, at: DateTime.Utc) =>
+      updateLastSignInAt({ id, at }).pipe(Effect.orDie),
     ),
     setRole: Effect.fn("userQueries.setRole")((id: UserId, role: Role) =>
-      byStorableId(id, setRole({ id, role }), undefined),
+      byStorableId(id, updateRole({ id, role }), undefined),
     ),
     setEmail: Effect.fn("userQueries.setEmail")((id: UserId, email: Email) =>
-      failIfEmailTaken(setEmail({ id, email })),
+      failIfEmailTaken(updateEmail({ id, email })),
     ),
     /** Says whether there was a User to remove. */
     remove: Effect.fn("userQueries.remove")((id: UserId) =>
-      byStorableId(id, remove(id).pipe(Effect.map((removed) => removed.length > 0)), false),
+      byStorableId(id, deleteUser(id).pipe(Effect.map((removed) => removed.length > 0)), false),
     ),
     findById: Effect.fn("userQueries.findById")((id: UserId) =>
       byStorableId(
         id,
-        findById(id).pipe(Effect.map((found) => found.pipe(Option.map(({ user }) => user)))),
+        selectById(id).pipe(Effect.map((found) => found.pipe(Option.map(({ user }) => user)))),
         Option.none(),
       ),
     ),
     findByEmail: Effect.fn("userQueries.findByEmail")((email: Email) =>
-      findByEmail(email).pipe(Effect.orDie),
+      selectByEmail(email).pipe(Effect.orDie),
     ),
     findAll: Effect.fn("userQueries.findAll")((query: UserListQuery) =>
-      list(query).pipe(Effect.orDie),
+      selectPage(query).pipe(Effect.orDie),
     ),
   };
 });

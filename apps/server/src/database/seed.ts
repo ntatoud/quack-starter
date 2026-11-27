@@ -1,7 +1,6 @@
 import { Api } from "@quack/contracts/api";
 import { Authentication } from "@quack/contracts/identity/authentication";
 import { devAccounts, devPassword } from "@quack/contracts/identity/dev-accounts";
-import { CountryCode, Profile } from "@quack/contracts/identity/profile";
 import { Email, Role, TimeZone } from "@quack/contracts/identity/user";
 import { ConfigProvider, Effect, Layer, Option, Redacted, Schema } from "effect";
 import { Cookies, HttpClientRequest, HttpServer } from "effect/http";
@@ -15,7 +14,7 @@ import { IdentityModule, IdentityPostgres } from "#/modules/identity/index.ts";
 import { Mailer } from "#/modules/mail/index.ts";
 import { seedTodos, TodosModule } from "#/modules/todos/index.ts";
 import { TransactionPostgres } from "#/modules/transaction/index.ts";
-import { seedUsers, Users, UsersModule } from "#/modules/users/index.ts";
+import { seedDevAccount, seedUsers, Users, UsersModule } from "#/modules/users/index.ts";
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
 
@@ -79,7 +78,9 @@ const password = Redacted.make(devPassword);
 
 const paris = Schema.decodeSync(TimeZone)("Europe/Paris");
 
-const visitor = HttpApiTest.groups(Api, ["identity"]).pipe(Effect.provide(withCookie(undefined)));
+const makeVisitor = HttpApiTest.groups(Api, ["identity"]).pipe(
+  Effect.provide(withCookie(undefined)),
+);
 
 const clientWithSession = (response: { readonly cookies: Cookies.Cookies }) => {
   const session = Cookies.getValue(response.cookies, "session");
@@ -91,49 +92,27 @@ const clientWithSession = (response: { readonly cookies: Cookies.Cookies }) => {
   );
 };
 
-const profileOf: Readonly<Record<Role, { readonly firstName: string; readonly jobTitle: string }>> =
-  {
-    user: { firstName: "User", jobTitle: "Member" },
-    admin: { firstName: "Admin", jobTitle: "Administrator" },
-  };
+/** Signs the dev account up through the Api, as a browser would, and answers a client with its Session. */
+const signUpDevAccount = Effect.fn("signUpDevAccount")(function* (role: Role) {
+  const visitor = yield* makeVisitor;
 
-/**
- * Signs the dev account up and fills in its Profile, through the Api as a browser would. An Admin is no Role an
- * endpoint gives: `Users` gives it, as nothing else can make the first one.
- */
-const seedDevAccount = Effect.fn("seedDevAccount")(function* (role: Role) {
-  const [user, response] = yield* (yield* visitor).identity.signUp({
-    payload: {
-      email: Email.make(devAccounts[role]),
-      password,
-      timeZone: paris,
-    },
+  const [user, response] = yield* visitor.identity.signUp({
+    payload: { email: Email.make(devAccounts[role]), password, timeZone: paris },
     responseMode: "decoded-and-response",
   });
 
-  const client = yield* clientWithSession(response);
-  const { firstName, jobTitle } = profileOf[role];
-  const name = { firstName, lastName: "Quack" };
-  yield* client.users.completeOnboarding({ payload: name });
-  yield* client.users.updateProfile({
-    payload: new Profile({
-      ...name,
-      avatarUrl: null,
-      jobTitle,
-      team: "operations",
-      country: CountryCode.make("FR"),
-    }),
-  });
-
-  if (role === "admin") yield* (yield* Users).grantRole(user.id, role);
-
-  return client;
+  return { user, client: yield* clientWithSession(response) };
 });
 
 // The dev accounts and their Todos go through the Api: the seed makes no state the Api can make.
 const seedDevAccounts = Effect.forEach(
   Role.literals,
-  (role) => Effect.flatMap(seedDevAccount(role), ({ todos }) => seedTodos(todos)),
+  (role) =>
+    Effect.gen(function* () {
+      const { user, client } = yield* signUpDevAccount(role);
+      yield* seedDevAccount(client.users, user.id, role);
+      yield* seedTodos(client.todos);
+    }),
   { discard: true },
 ).pipe(Effect.provide(SeedApi));
 

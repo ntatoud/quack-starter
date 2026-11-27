@@ -230,7 +230,7 @@ layer(IdentityLayer)("Identity", (it) => {
       const signedInAt = DateTime.addDuration(signedUpAt, "1 hour");
       assert.deepStrictEqual(signedIn.user.lastSignInAt, signedInAt);
       assert.deepStrictEqual(signedIn.user.createdAt, signedUpAt);
-      const stored = Option.getOrThrow(yield* users.find({ id: user.id }));
+      const stored = Option.getOrThrow(yield* users.findActive({ id: user.id }));
       assert.deepStrictEqual(stored.lastSignInAt, signedInAt);
     }),
   );

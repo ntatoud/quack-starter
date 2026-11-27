@@ -205,7 +205,7 @@ export class Grants extends Context.Service<
        * it is read, as their Session does.
        */
       const revokeUnlessLive = Effect.fnUntraced(function* (grant: Grant) {
-        const user = yield* users.find({ id: grant.userId });
+        const user = yield* users.findActive({ id: grant.userId });
 
         if (
           DateTime.isGreaterThanOrEqualTo(yield* DateTime.now, grant.expiresAt) ||

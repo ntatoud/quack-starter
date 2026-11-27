@@ -1,12 +1,22 @@
 import { base, en, Faker } from "@faker-js/faker";
+import type { Api } from "@quack/contracts/api";
 import { devPassword } from "@quack/contracts/identity/dev-accounts";
 import { CountryCode, Profile, Team } from "@quack/contracts/identity/profile";
-import { Email, TimeZone, User, UserId, type UserStatus } from "@quack/contracts/identity/user";
+import {
+  Email,
+  type Role,
+  TimeZone,
+  User,
+  UserId,
+  type UserStatus,
+} from "@quack/contracts/identity/user";
 import { DateTime, Effect, Redacted, Schema } from "effect";
+import type { HttpApiClient } from "effect/http-api";
 
 import { seedDate } from "#/database/seed-date.ts";
 import { hashPassword } from "#/modules/users/lib/password.ts";
 import { userQueries } from "#/modules/users/lib/user-queries.ts";
+import { Users } from "#/modules/users/lib/users.ts";
 
 const onboardingMillis = 5 * 60 * 1000;
 
@@ -114,4 +124,36 @@ export const seedUsers = Effect.gen(function* () {
       password: devPassword,
     }),
   );
+});
+
+const devProfileOf: Readonly<
+  Record<Role, { readonly firstName: string; readonly jobTitle: string }>
+> = {
+  user: { firstName: "User", jobTitle: "Member" },
+  admin: { firstName: "Admin", jobTitle: "Administrator" },
+};
+
+/**
+ * Onboards a dev account, signed up through the Api, and fills in its Profile as its User would. An Admin is no Role
+ * an endpoint gives: `Users` gives it, as nothing else can make the first one.
+ */
+export const seedDevAccount = Effect.fn("seedDevAccount")(function* (
+  users: HttpApiClient.ForApi<typeof Api>["users"],
+  id: UserId,
+  role: Role,
+) {
+  const { firstName, jobTitle } = devProfileOf[role];
+  const name = { firstName, lastName: "Quack" };
+  yield* users.completeOnboarding({ payload: name });
+  yield* users.updateProfile({
+    payload: new Profile({
+      ...name,
+      avatarUrl: null,
+      jobTitle,
+      team: "operations",
+      country: CountryCode.make("FR"),
+    }),
+  });
+
+  if (role === "admin") yield* (yield* Users).grantRole(id, role);
 });

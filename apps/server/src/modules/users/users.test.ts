@@ -19,14 +19,20 @@ import {
 } from "@quack/contracts/users/user-errors";
 import { TodoId, TodoTitle } from "@quack/contracts/todos/todo";
 import { OnboardingPayload, type UserOrder } from "@quack/contracts/users/users-api";
-import { ConfigProvider, DateTime, Effect, Layer, Schema } from "effect";
+import { ConfigProvider, DateTime, Effect, Layer, Redacted, Schema } from "effect";
 import { HttpServer } from "effect/http";
 import { HttpApiMiddleware, HttpApiTest } from "effect/http-api";
 import { TestClock } from "effect/testing";
 
 import { IdentityModule, IdentityPostgres } from "#/modules/identity/index.ts";
 import { MailerMemory } from "#/modules/mail/index.ts";
-import { aUser, signedIn, TestDatabase } from "#/modules/testing/index.ts";
+import {
+  aUser,
+  knownPassword,
+  passwordHashOf,
+  signedIn,
+  TestDatabase,
+} from "#/modules/testing/index.ts";
 import { TodosModule } from "#/modules/todos/index.ts";
 import { TransactionPostgres } from "#/modules/transaction/index.ts";
 import { Users, UsersModule } from "#/modules/users/index.ts";
@@ -763,5 +769,86 @@ it.effect.each([
       ];
 
       assert.deepStrictEqual(outcomes, [...expected]);
+    }).pipe(Effect.provide(UsersApi)),
+);
+
+const identityVisitor = HttpApiTest.groups(Api, ["identity"]).pipe(
+  Effect.provide(
+    HttpApiMiddleware.layerClient(Authentication, ({ next, request }) => next(request)),
+  ),
+);
+
+/** The User the credentials sign in, or the tag of the error that refused them. */
+const signInWith = (email: Email, password: typeof knownPassword) =>
+  Effect.flatMap(identityVisitor, (client) =>
+    client.identity.signIn({ payload: { email, password } }).pipe(
+      Effect.map(({ id }) => id),
+      Effect.catchTag("InvalidCredentials", (error) => Effect.succeed(error._tag)),
+    ),
+  );
+
+// Computed apart from this module, with `argon2Sync` of node:crypto, the password `knownPassword` and the salt
+// 00 01 02 ... 0f.
+const hashOfAnotherImplementation =
+  "$argon2id$v=19$m=19456,t=2,p=1$AAECAwQFBgcICQoLDA0ODw$gYJZtjEAJqjg26xdLmknq8/bB7MiWPrE9hsYuA+SkIU";
+
+// The same password and salt, hashed with other costs.
+const hashOfOtherCosts =
+  "$argon2id$v=19$m=8192,t=3,p=1$AAECAwQFBgcICQoLDA0ODw$lHMS9i5KyG9jybYi8UewBhhGc59T3QDy0iNs0D20E6w";
+
+it.effect(
+  "stores a password as argon2id at m=19456, t=2, p=1, salted for each User, with a 16 byte salt and a 32 byte tag",
+  () =>
+    Effect.gen(function* () {
+      const client = yield* identityVisitor;
+      const emails = [Email.make("ada.hash@example.com"), Email.make("grace.hash@example.com")];
+
+      for (const email of emails) {
+        yield* client.identity.signUp({
+          payload: { email, password: knownPassword, timeZone: paris },
+        });
+      }
+
+      const hashes = [yield* passwordHashOf(emails[0]!), yield* passwordHashOf(emails[1]!)];
+
+      // Base64 without padding: 16 bytes are 22 characters, 32 bytes are 43.
+      for (const hash of hashes) {
+        assert.match(
+          hash,
+          /^\$argon2id\$v=19\$m=19456,t=2,p=1\$[A-Za-z0-9+/]{22}\$[A-Za-z0-9+/]{43}$/,
+        );
+      }
+
+      assert.notStrictEqual(hashes[0], hashes[1]);
+    }).pipe(Effect.provide(UsersApi)),
+);
+
+it.effect.each([
+  ["made by another argon2id implementation", hashOfAnotherImplementation],
+  ["of costs other than the current ones", hashOfOtherCosts],
+] as const)("signs a User in with a stored hash %s, and refuses another password", ([, hash]) =>
+  Effect.gen(function* () {
+    const user = yield* aUser({}, hash);
+
+    assert.strictEqual(yield* signInWith(user.email, knownPassword), user.id);
+    assert.strictEqual(
+      yield* signInWith(user.email, Redacted.make("another password")),
+      "InvalidCredentials",
+    );
+  }).pipe(Effect.provide(UsersApi)),
+);
+
+it.effect.each([
+  "",
+  "not a hash",
+  "$2b$10$abcdefghijklmnopqrstuv",
+  hashOfAnotherImplementation.slice(0, -1),
+])(
+  "refuses the sign-in of a User whose stored hash %j cannot be read, as a wrong password",
+  (hash) =>
+    Effect.gen(function* () {
+      const user = yield* aUser({}, hash);
+
+      assert.strictEqual(yield* signInWith(user.email, knownPassword), "InvalidCredentials");
     }).pipe(Effect.provide(UsersApi)),
 );
