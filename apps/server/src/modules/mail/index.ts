@@ -1,6 +1,5 @@
-import { Mailer } from "#/modules/mail/domain/mailer.ts";
-import { MailerSmtp } from "#/modules/mail/infrastructure/mailer-smtp.ts";
+export { Mailer } from "#/modules/mail/lib/mailer.ts";
 
-export { Mailer };
+export { MailerMemory, SentMails } from "#/modules/mail/lib/mailer-memory.ts";
 
-export const MailSmtp = MailerSmtp;
+export { MailerSmtp } from "#/modules/mail/lib/mailer-smtp.ts";

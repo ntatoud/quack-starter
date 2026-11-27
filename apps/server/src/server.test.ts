@@ -3,7 +3,7 @@ import { HttpClient, HttpClientResponse, HttpRouter, HttpServer } from "effect/h
 import { afterAll, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { devUsers, IdentityPostgres, IdentitySeed } from "#/modules/identity/index.ts";
-import { MailerMemory } from "#/modules/mail/testing/mailer-memory.ts";
+import { MailerMemory } from "#/modules/mail/index.ts";
 import { TestDatabase } from "#/modules/testing/index.ts";
 import { TransactionPostgres } from "#/modules/transaction/index.ts";
 import { Routes } from "#/server.ts";

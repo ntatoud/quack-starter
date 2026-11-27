@@ -44,6 +44,6 @@ The `AttemptLimiter` of `docs/identity.md` guards two OAuth routes, with the lim
 ## Where the code is
 
 - Contract: `packages/contracts/src/oauth/` (the `oauth` group: `authorize/*` behind `Authentication`, `token` after it).
-- Server: `apps/server/src/modules/identity/` (`AuthorizationRequests`, `Grants`, the `GrantStore` and `AuthorizationCodeStore` ports), `apps/server/src/mcp/` (the transport and its tools).
+- Server: `apps/server/src/modules/identity/` (`AuthorizationRequests`, `Grants`, the `GrantStore` and `AuthorizationCodeStore` ports), `apps/server/src/modules/mcp/` (the transport and its tools).
 - Contract of the Grants a User sees, changes, and revokes: `packages/contracts/src/grants/` (no MCP tool: an AI Client never lists, changes, or revokes Grants).
 - Web: `apps/web/src/features/oauth/` (the consent page), `apps/web/src/features/grants/` (the AI Clients section of the settings: each Grant, when it was last used, to the minute, and the ones that need a look).

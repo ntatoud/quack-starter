@@ -1,6 +1,6 @@
 import { Context, Effect, Layer } from "effect";
 
-import { type Mail, Mailer } from "#/modules/mail/domain/mailer.ts";
+import { type Mail, Mailer } from "#/modules/mail/lib/mailer.ts";
 
 export class SentMails extends Context.Service<
   SentMails,

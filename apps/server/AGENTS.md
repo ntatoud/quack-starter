@@ -19,15 +19,15 @@ A module's seed goes through the `Api`, as a User would: `seedTodos` takes a sig
 - Only a handler reads `CurrentUser`. It passes the Owner to the service as `ownerId`, and every query filters by it: another Owner's data is not found (404), so the API never tells that it exists.
 - A server variable goes in `ServerConfig` (`config.ts`), or `DatabaseConfig` for the database, and in `.env.example`.
 - Writes of several stores that stand or fall together run in `Transaction.run` (`modules/transaction`): Postgres runs them in one transaction. Writes of one adapter use `sql.withTransaction` in it.
-- A mail goes out through `Mailer` (`modules/mail`, exported from its `index.ts` once a module sends one), which returns before it is sent and never fails: a failed send is logged and the mail lost. A link in it starts from `ServerConfig.publicOrigin`, never from the request. Tests provide `MailerMemory` and read `SentMails`. Its content comes from a template of `@quack/emails`, which is `.tsx`: Node loads it through `--import @quack/emails/register`, which the `dev` and `start` scripts pass.
+- A mail goes out through `Mailer` (`modules/mail`), which returns before it is sent and never fails: a failed send is logged and the mail lost. A link in it starts from `ServerConfig.publicOrigin`, never from the request. Tests provide `MailerMemory` and read `SentMails`. Its content comes from a template of `@quack/emails`, which is `.tsx`: Node loads it through `--import @quack/emails/register`, which the `dev` and `start` scripts pass.
 - `/health` touches no database, so an outage of Postgres does not get every server restarted.
 
 ## MCP
 
-`src/mcp/` is a transport, not a module: it serves `/api/mcp` with a tool for each endpoint the contract offers, which calls the `Api` in process as the `McpCaller` of the request, so the Permission check and the Owner rules stay those of the `Api`. A context adds tools through the contract only. The flow, from discovery to a tool call: `docs/ai-clients.md`.
+`modules/mcp` is a transport, with no table nor contract group of its own: it serves `/api/mcp` with a tool for each endpoint the contract offers, which calls the `Api` in process as the `McpCaller` of the request, so the Permission check and the Owner rules stay those of the `Api`. A context adds tools through the contract only. The flow, from discovery to a tool call: `docs/ai-clients.md`.
 
 - Only `/api/mcp` reads a bearer token (ADR 0003): `Grants.authenticate` turns it into the `McpCaller`, the Grant's User with the token's Permissions that the Grant and their Role still give. Never accept one on `/api`.
-- An HTTP middleware answers 401 or 403 before any JSON-RPC; an `McpServer.middleware` provides the `McpCaller`. The tools are built outside the scope of the HTTP middleware (`mcp-endpoint.ts`): inside it, it would also wrap the in-process routes and challenge every call.
+- An HTTP middleware answers 401 or 403 before any JSON-RPC; an `McpServer.middleware` provides the `McpCaller`. The tools are built outside the scope of the HTTP middleware (`lib/mcp-endpoint.ts`): inside it, it would also wrap the in-process routes and challenge every call.
 - A Grant is one per User and AI Client, in identity: `GrantStore` holds it and its access and refresh tokens, stored as SHA-256 only. Approving creates or updates it, and revokes its tokens; the token endpoint (`Grants.exchange`) issues its tokens, for a code or a refresh token. A replaced refresh token presented again revokes the Grant; lifetimes: `docs/ai-clients.md`.
 
 ## Database

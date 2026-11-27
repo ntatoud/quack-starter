@@ -6,9 +6,9 @@ import { type Headers, HttpRouter, HttpServerRequest, HttpServerResponse } from 
 import type { HttpApiEndpoint } from "effect/http-api";
 
 import { ServerConfig } from "#/config.ts";
-import { contractTools } from "#/mcp/contract-tools.ts";
-import { deriveTools, endpointsByTool } from "#/mcp/derive-tools.ts";
 import { accessTo, Grants, McpCaller } from "#/modules/identity/index.ts";
+import { contractTools } from "#/modules/mcp/lib/contract-tools.ts";
+import { deriveTools, endpointsByTool } from "#/modules/mcp/lib/derive-tools.ts";
 
 const instructions = `${brand.name} manages the Todos of the User who connected you. Call todos_list first.`;
 
