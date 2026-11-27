@@ -532,12 +532,6 @@ const heldProps = (pin: Pin | undefined, sticky: ReturnType<typeof layoutOf>["st
   sticky: pin === undefined ? sticky : ("start" as const),
 });
 
-const headStyle = (size: number | undefined, pin: Pin | undefined) =>
-  ({
-    "--column-size": size === undefined ? "auto" : `${size}px`,
-    "--pin-start": `${pin?.start ?? 0}px`,
-  }) as React.CSSProperties;
-
 const ariaSortOf = (sorting: DataTableSorting | undefined, id: string) =>
   sorting?.column === id ? ariaSort[sorting.direction] : undefined;
 
@@ -639,7 +633,12 @@ function HeaderCell({ header }: { header: Header<typeof features, RowData, unkno
       shrink={layout.shrink}
       align={layout.align}
       spans={spansColumns}
-      style={headStyle(layout.size, pin)}
+      style={
+        {
+          "--column-size": layout.size === undefined ? "auto" : `${layout.size}px`,
+          "--pin-start": `${pin?.start ?? 0}px`,
+        } as React.CSSProperties
+      }
       // A width given to a column holds from one page to the next, at least.
       {...widthProps(layout.size, spansColumns)}
     >

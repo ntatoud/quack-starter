@@ -163,9 +163,9 @@ function ConsentQuestion({
       {request.loopbackOnly && (
         <div
           role="note"
-          className="flex gap-3 rounded-lg border border-amber-500/50 bg-amber-500/10 p-3 text-sm"
+          className="flex gap-3 rounded-lg border border-warning/50 bg-warning/10 p-3 text-sm"
         >
-          <TriangleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-amber-600" />
+          <TriangleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-warning" />
           <p>
             <span className="font-medium">Runs on this machine.</span>{" "}
             <span className="text-muted-foreground">

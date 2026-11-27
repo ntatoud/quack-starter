@@ -44,6 +44,7 @@ export function FormSelectField({
           id={id}
           size={size}
           // As tall a text as an input next to it, which is 16px on a touch screen.
+          // oxlint-disable-next-line shadcn/require-static-classes -- the linter reads no import; textSize is a map of static classes
           className={cn("w-full", textSize[size], "pointer-coarse:text-base")}
           aria-invalid={invalid}
           aria-describedby={describedBy}

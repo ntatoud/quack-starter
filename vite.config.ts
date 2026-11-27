@@ -23,7 +23,10 @@ export default defineConfig({
   lint: {
     ignorePatterns: GENERATED,
     plugins: ["eslint", "oxc", "react", "unicorn", "typescript"],
-    jsPlugins: ["@quack/oxlint-plugin", ...(antiSlop.jsPlugins ?? [])],
+    jsPlugins: ["@shadcn/lint", "@quack/oxlint-plugin", ...(antiSlop.jsPlugins ?? [])],
+    settings: {
+      shadcn: { ui: "@quack/ui/components", themeImports: ["^@quack/ui/", "^@quack/brand/"] },
+    },
     categories: {
       correctness: "error",
       suspicious: "warn",
@@ -31,6 +34,10 @@ export default defineConfig({
     },
     rules: {
       ...antiSlop.rules,
+      "shadcn/no-raw-colors": "error",
+      "shadcn/no-inline-styles": "error",
+      "shadcn/no-unknown-classes": "error",
+      "shadcn/require-static-classes": "error",
       // This repo does not justify each type assertion in a `SAFETY:` comment.
       "anti-slop/require-safety-comment-for-type-assertion": "off",
       "eslint/no-unused-vars": [
@@ -70,6 +77,8 @@ export default defineConfig({
           "unicorn/consistent-function-scoping": "off",
           // Key presses, focus moves, and requests happen in order; each step asserts on the one before.
           "eslint/no-await-in-loop": "off",
+          // A test sizes the box it renders into with the numbers it asserts on.
+          "shadcn/no-inline-styles": "off",
         },
       },
       {

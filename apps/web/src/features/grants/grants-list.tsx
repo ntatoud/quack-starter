@@ -72,7 +72,7 @@ function Groups({ grants, now }: { grants: ReadonlyArray<Grant>; now: Date }) {
   const groups = [
     {
       title: "Needs a look",
-      icon: <CircleAlertIcon aria-hidden className="size-4 text-amber-600" />,
+      icon: <CircleAlertIcon aria-hidden className="size-4 text-warning" />,
       entries: entries.filter(({ attention }) => attention.length > 0),
     },
     { title: "Active", entries: entries.filter(({ attention }) => attention.length === 0) },

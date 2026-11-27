@@ -12,6 +12,7 @@ export function FormLabel({
   const layout = useRequiredFieldLayout("field.Label");
 
   return (
+    // oxlint-disable-next-line shadcn/require-static-classes -- the linter reads no import; textSize is a map of static classes
     <FieldLabel {...props} htmlFor={layout.id} className={cn(textSize[layout.size], className)} />
   );
 }
