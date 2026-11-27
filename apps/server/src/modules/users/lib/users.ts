@@ -26,7 +26,14 @@ import { hashPassword, isPasswordOf } from "#/modules/users/lib/password.ts";
 import { userQueries } from "#/modules/users/lib/user-queries.ts";
 import { statusSetByAdmin } from "#/modules/users/lib/user-status.ts";
 
-const canSignIn = (user: User) => user.status === "active";
+// Logged: a User refused for their Status answers as an unknown one, so the log is what tells the two apart.
+const whileActive = (user: User) =>
+  user.status === "active"
+    ? Effect.succeedSome(user)
+    : Effect.logInfo(`Refused a User ${user.status}`).pipe(
+        Effect.annotateLogs({ userId: user.id }),
+        Effect.as(Option.none<User>()),
+      );
 
 /** Sets the name of the Profile, creating it when the User has none. A second onboarding keeps the first date. */
 const onboarded = (user: User, name: OnboardingPayload, at: DateTime.Utc): User =>
@@ -62,7 +69,7 @@ export class Users extends Context.Service<
     /** As `verifyPassword`, and records the sign-in of the User it finds. */
     signIn(email: Email, password: Password): Effect.Effect<Option.Option<User>>;
     /** A User no longer `active` is found no more. */
-    findActive(key: UserKey): Effect.Effect<Option.Option<User>>;
+    find(key: UserKey): Effect.Effect<Option.Option<User>>;
     /** Whether a User of any Status has the email. */
     isEmailTaken(email: Email): Effect.Effect<boolean>;
     changePassword(id: UserId, password: Password): Effect.Effect<void>;
@@ -107,7 +114,7 @@ export class Users extends Context.Service<
         // After the password: whoever does not know it must not learn the Status of the User.
         const matches = yield* isPasswordOf(password, passwordHash);
 
-        return matches && canSignIn(user) ? Option.some(user) : Option.none<User>();
+        return matches ? yield* whileActive(user) : Option.none<User>();
       });
 
       // Read again rather than taken from the Current User: the write must not bring back what changed since the
@@ -159,13 +166,13 @@ export class Users extends Context.Service<
 
           return Option.some(new User({ ...found.value, lastSignInAt: at }));
         }),
-        findActive: Effect.fn("Users.findActive")(function* (key) {
+        find: Effect.fn("Users.find")(function* (key) {
           const found =
             "email" in key
               ? Option.map(yield* queries.findByEmail(key.email), ({ user }) => user)
               : yield* queries.findById(key.id);
 
-          return Option.filter(found, canSignIn);
+          return Option.isSome(found) ? yield* whileActive(found.value) : found;
         }),
         isEmailTaken: Effect.fn("Users.isEmailTaken")((email) =>
           Effect.map(queries.findByEmail(email), Option.isSome),

@@ -41,7 +41,7 @@ export class PasswordResets extends Context.Service<
       const scope = yield* Effect.scope;
 
       const sendLink = Effect.fn("PasswordResets.sendLink")(function* (email: Email) {
-        const found = yield* users.findActive({ email });
+        const found = yield* users.find({ email });
 
         if (Option.isNone(found)) return;
 
@@ -97,7 +97,7 @@ export class PasswordResets extends Context.Service<
               if (Option.isNone(link) || isLinkExpired(link.value, yield* DateTime.now))
                 return false;
 
-              const user = yield* users.findActive({ id: link.value.userId });
+              const user = yield* users.find({ id: link.value.userId });
 
               // A User suspended since they asked is refused as a stranger would be.
               if (Option.isNone(user)) return false;

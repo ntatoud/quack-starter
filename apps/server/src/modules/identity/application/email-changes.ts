@@ -54,7 +54,7 @@ export class EmailChanges extends Context.Service<
 
           // The Current User: found, since their Session was.
           const user = yield* Effect.orDie(
-            Effect.flatMap(users.findActive({ id: userId }), (found) => Effect.fromOption(found)),
+            Effect.flatMap(users.find({ id: userId }), (found) => Effect.fromOption(found)),
           );
 
           if (Option.isNone(yield* users.verifyPassword(user.email, password))) {
@@ -120,7 +120,7 @@ export class EmailChanges extends Context.Service<
               )
                 return "expired";
 
-              const user = yield* users.findActive({ id: link.value.userId });
+              const user = yield* users.find({ id: link.value.userId });
 
               // A User suspended since they asked is refused as a stranger would be.
               if (Option.isNone(user)) return "expired";
